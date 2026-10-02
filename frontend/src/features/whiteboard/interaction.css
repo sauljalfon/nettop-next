@@ -1,0 +1,19 @@
+.rack-drag-target .canvas-container {
+  border: 2px dashed #56ab8b;
+  background: #edf8f2;
+}
+
+.flow-surface .react-flow__controls.react-flow__panel {
+  left: auto;
+  right: 22px;
+  width: 33px;
+  bottom: 17px;
+}
+
+.react-flow__node-equipment.dragging {
+  z-index: 100 !important;
+}
+
+.react-flow__node-equipment.dragging .equipment-card {
+  box-shadow: 0 12px 28px #31486822;
+}

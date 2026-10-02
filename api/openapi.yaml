@@ -1,0 +1,372 @@
+openapi: 3.1.0
+security: []
+info:
+  title: Net-Top Next API
+  version: 0.4.0
+  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing. Approved network membership, BB discovery, and explicit HDF subpanels are pending implementation; see docs/architecture.md and docs/implementation-plan.md. No installed mutation or implementation endpoints yet.
+servers:
+  - url: http://127.0.0.1:8080/api
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Check API and database health
+      responses:
+        '200':
+          description: Process health and storage mode
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, storage]
+                properties:
+                  status: {type: string}
+                  storage: {type: string}
+        '503': {$ref: '#/components/responses/Error'}
+  /topology:
+    get:
+      operationId: getTopology
+      summary: Read an installed or planned topology snapshot
+      parameters:
+        - $ref: '#/components/parameters/Context'
+        - $ref: '#/components/parameters/PlanID'
+      responses:
+        '200':
+          description: Consistent topology snapshot
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Snapshot'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /traces:
+    post:
+      operationId: trace
+      summary: Trace physical continuity or find aggregation
+      parameters:
+        - $ref: '#/components/parameters/Context'
+        - $ref: '#/components/parameters/PlanID'
+        - in: query
+          name: expectedRevision
+          description: Optional topology revision from the loaded snapshot. A mismatch returns 409 rather than tracing unseen changes.
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [mode, start, end]
+                  properties:
+                    mode: {const: point_to_point}
+                    start: {type: string}
+                    end: {type: string}
+                - type: object
+                  additionalProperties: false
+                  required: [mode, device]
+                  properties:
+                    mode: {const: aggregation}
+                    device: {type: string}
+                - type: object
+                  additionalProperties: false
+                  required: [mode, start]
+                  properties:
+                    mode: {const: aggregation}
+                    start: {type: string}
+      responses:
+        '200':
+          description: Reached or unreachable; an unreachable route is not an HTTP error
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TraceResult'}
+        '400': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /plans:
+    get:
+      operationId: listPlans
+      summary: List saved plan drafts
+      responses:
+        '200':
+          description: Saved additive drafts ordered by creation
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Plan'}
+        '500': {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createPlan
+      summary: Create an empty draft against an installed revision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, expectedBaseRevision]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 100}
+                expectedBaseRevision: {type: string, minLength: 1}
+      responses:
+        '201':
+          description: Empty draft pinned to the current installed revision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Plan'}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /plans/{id}:
+    parameters:
+      - $ref: '#/components/parameters/PlanPathID'
+    get:
+      operationId: getPlan
+      summary: Read one saved draft
+      responses:
+        '200':
+          description: Draft metadata and additions, including stale drafts for review
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Plan'}
+        '404': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /plans/{id}/commands:
+    parameters:
+      - $ref: '#/components/parameters/PlanPathID'
+    post:
+      operationId: applyPlanCommand
+      summary: Validate and atomically save a draft command
+      description: Locks the draft, checks both draft and base revisions, validates the complete overlay, and saves additions atomically. Failed commands leave the draft revision unchanged. This does not change installed infrastructure.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlanCommand'}
+      responses:
+        '200':
+          description: Saved draft with incremented revision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Plan'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+components:
+  parameters:
+    Context:
+      in: query
+      name: context
+      schema: {type: string, enum: [installed, planned], default: installed}
+    PlanID:
+      in: query
+      name: planId
+      description: Required for context=planned; forbidden for installed context.
+      schema: {type: string}
+    PlanPathID:
+      in: path
+      name: id
+      required: true
+      schema: {type: string}
+  responses:
+    Error:
+      description: 400 malformed request; 404 missing plan; 409 stale revision; 422 invalid domain operation; 500 persistence failure; 503 unhealthy database.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error: {type: string}
+  schemas:
+    Site:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: string}
+        name: {type: string}
+    LocationNode:
+      type: object
+      description: Physical room or network location, not a canvas node.
+      required: [id, name, siteId]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        siteId: {type: string}
+    Plan:
+      type: object
+      required: [id, name, baseRevision, revision, equipment, endpoints, links]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        baseRevision: {type: string}
+        revision: {type: string, pattern: '^[1-9][0-9]*$'}
+        equipment:
+          type: array
+          items: {$ref: '#/components/schemas/Equipment'}
+        updates:
+          type: array
+          description: Explicit placement updates for installed equipment. Proposed equipment is moved in the equipment additions array.
+          items: {$ref: '#/components/schemas/Equipment'}
+        endpoints:
+          type: array
+          items: {$ref: '#/components/schemas/Endpoint'}
+        links:
+          type: array
+          items: {$ref: '#/components/schemas/Link'}
+    EquipmentInput:
+      type: object
+      additionalProperties: false
+      required: [name, kind, role, rackId, unit, height, portCount]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        kind: {type: string, enum: [switch, panel]}
+        role:
+          type: string
+          enum: [access, aggregation, passive]
+          description: Switches allow access or aggregation; panels require passive.
+        rackId: {type: string}
+        unit: {type: integer, minimum: 1, maximum: 100}
+        height: {type: integer, minimum: 1, maximum: 100}
+        portCount:
+          type: integer
+          minimum: 1
+          maximum: 48
+          description: Switch ports or panel positions. Each panel position creates front/rear endpoints and one internal bridge.
+    PlanCommand:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, equipment]
+          properties:
+            type: {const: add_equipment}
+            expectedRevision: {type: string, minLength: 1}
+            equipment: {$ref: '#/components/schemas/EquipmentInput'}
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, cable]
+          properties:
+            type: {const: add_cable}
+            expectedRevision: {type: string, minLength: 1}
+            cable:
+              type: object
+              additionalProperties: false
+              required: [a, b]
+              properties:
+                a: {type: string}
+                b: {type: string}
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, placement]
+          properties:
+            type: {const: move_equipment}
+            expectedRevision: {type: string, minLength: 1}
+            placement:
+              type: object
+              additionalProperties: false
+              required: [equipmentId, rackId, unit]
+              properties:
+                equipmentId: {type: string}
+                rackId: {type: string}
+                unit: {type: integer, minimum: 1, maximum: 100}
+    Rack:
+      type: object
+      required: [id, name, units, nodeId]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        units: {type: integer, minimum: 1}
+        nodeId: {type: string}
+    Equipment:
+      type: object
+      required: [id, name, kind, role, rackId, unit, height]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        kind: {type: string, enum: [switch, panel]}
+        role: {type: string}
+        rackId: {type: string}
+        unit: {type: integer, minimum: 1}
+        height: {type: integer, minimum: 1}
+    Endpoint:
+      type: object
+      required: [id, equipmentId, label]
+      properties:
+        id: {type: string}
+        equipmentId: {type: string}
+        label: {type: string}
+        subpanel: {type: string}
+        position: {type: integer, minimum: 1}
+        side: {type: string, enum: [front, rear]}
+    Link:
+      type: object
+      required: [id, a, b, kind]
+      properties:
+        id: {type: string}
+        a: {type: string}
+        b: {type: string}
+        kind: {type: string, enum: [cable, internal]}
+    Snapshot:
+      type: object
+      required: [context, revision, site, room, sites, nodes, racks, equipment, endpoints, links]
+      properties:
+        context: {type: string, enum: [installed, planned]}
+        revision: {type: string}
+        site: {type: string}
+        room: {type: string}
+        sites:
+          type: array
+          items: {$ref: '#/components/schemas/Site'}
+        nodes:
+          type: array
+          items: {$ref: '#/components/schemas/LocationNode'}
+        racks:
+          type: array
+          items: {$ref: '#/components/schemas/Rack'}
+        equipment:
+          type: array
+          items: {$ref: '#/components/schemas/Equipment'}
+        endpoints:
+          type: array
+          items: {$ref: '#/components/schemas/Endpoint'}
+        links:
+          type: array
+          items: {$ref: '#/components/schemas/Link'}
+    Hop:
+      type: object
+      required: [linkId, from, to, kind]
+      properties:
+        linkId: {type: string}
+        from: {type: string}
+        to: {type: string}
+        kind: {type: string, enum: [cable, internal]}
+    Route:
+      type: object
+      required: [start, end, hops]
+      properties:
+        start: {type: string}
+        end: {type: string}
+        hops:
+          type: array
+          items: {$ref: '#/components/schemas/Hop'}
+    TraceResult:
+      type: object
+      required: [context, revision, mode, status, reason, routes]
+      properties:
+        context: {type: string, enum: [installed, planned]}
+        revision: {type: string}
+        mode: {type: string, enum: [point_to_point, aggregation]}
+        status: {type: string, enum: [reached, unreachable]}
+        reason: {type: string}
+        routes:
+          type: array
+          items: {$ref: '#/components/schemas/Route'}
