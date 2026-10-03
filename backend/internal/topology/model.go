@@ -37,9 +37,18 @@ type Endpoint struct {
 	ID          string `json:"id"`
 	EquipmentID string `json:"equipmentId"`
 	Label       string `json:"label"`
-	Subpanel    string `json:"subpanel,omitempty"`
+	SubpanelID  string `json:"subpanelId,omitempty"`
 	Position    int    `json:"position,omitempty"`
 	Side        string `json:"side,omitempty"`
+}
+
+// Subpanel is one row/column block of an HDF chassis. Row and Column are
+// structured identity fields; labels are display text and are never parsed.
+type Subpanel struct {
+	ID          string `json:"id"`
+	EquipmentID string `json:"equipmentId"`
+	Row         int    `json:"row"`
+	Column      string `json:"column"`
 }
 
 type Link struct {
@@ -51,6 +60,7 @@ type Link struct {
 
 type Snapshot struct {
 	Networks  []Network      `json:"networks"`
+	Subpanels []Subpanel     `json:"subpanels"`
 	Sites     []Site         `json:"sites"`
 	Nodes     []LocationNode `json:"nodes"`
 	Context   string         `json:"context"`

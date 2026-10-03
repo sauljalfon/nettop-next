@@ -8,6 +8,7 @@ const network: Snapshot = {
   site: 'Campus',
   room: 'Room',
   networks: [{ id: 'n', name: 'N' }],
+  subpanels: [],
   sites: [{ id: 's', name: 'Campus' }],
   nodes: [
     { id: 'n1', siteId: 's', name: 'Room A' },

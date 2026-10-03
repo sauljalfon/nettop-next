@@ -5,6 +5,24 @@ import (
 	"strings"
 )
 
+const (
+	// MaxHDFRows is the supported HDF row range (1..MaxHDFRows); every row has
+	// columns A–D and each subpanel has PositionsPerSubpanel local positions.
+	MaxHDFRows           = 32
+	PositionsPerSubpanel = 6
+)
+
+var hdfColumns = [...]string{"A", "B", "C", "D"}
+
+func validColumn(c string) bool {
+	for _, column := range hdfColumns {
+		if c == column {
+			return true
+		}
+	}
+	return false
+}
+
 func Validate(s Snapshot) error {
 	networks := map[string]bool{}
 	for _, n := range s.Networks {
@@ -50,7 +68,7 @@ func Validate(s Snapshot) error {
 		if !ok || e.Unit < 1 || e.Height < 1 || e.Unit+e.Height-1 > r.Units {
 			return fmt.Errorf("invalid placement for %s", e.ID)
 		}
-		if e.Kind != "switch" && e.Kind != "panel" {
+		if e.Kind != "switch" && e.Kind != "panel" && e.Kind != "hdf" {
 			return fmt.Errorf("unsupported equipment kind %s", e.Kind)
 		}
 		switch e.Kind {
@@ -61,9 +79,9 @@ func Validate(s Snapshot) error {
 			if !networks[e.NetworkID] {
 				return fmt.Errorf("switch %s must belong to exactly one existing network", e.ID)
 			}
-		case "panel":
+		case "panel", "hdf":
 			if e.Role != "passive" {
-				return fmt.Errorf("panel %s must have role passive", e.ID)
+				return fmt.Errorf("%s %s must have role passive", e.Kind, e.ID)
 			}
 			if e.NetworkID != "" {
 				return fmt.Errorf("passive equipment %s cannot have exclusive network membership", e.ID)
@@ -78,8 +96,48 @@ func Validate(s Snapshot) error {
 		}
 		equipment[e.ID] = e
 	}
+	// HDF structure: each subpanel is a stable ID with structured row/column
+	// fields. Labels are display text and are never parsed.
+	subpanels := map[string]Subpanel{}
+	grid := map[string]bool{}
+	rowsOf := map[string]int{}
+	for _, sp := range s.Subpanels {
+		if sp.ID == "" {
+			return fmt.Errorf("subpanel with empty ID")
+		}
+		if _, ok := subpanels[sp.ID]; ok {
+			return fmt.Errorf("duplicate subpanel %s", sp.ID)
+		}
+		if owner, ok := equipment[sp.EquipmentID]; !ok || owner.Kind != "hdf" {
+			return fmt.Errorf("subpanel %s must belong to an hdf chassis", sp.ID)
+		}
+		if sp.Row < 1 || sp.Row > MaxHDFRows || !validColumn(sp.Column) {
+			return fmt.Errorf("subpanel %s must have row 1-%d and column A-D", sp.ID, MaxHDFRows)
+		}
+		cell := fmt.Sprintf("%s/%d/%s", sp.EquipmentID, sp.Row, sp.Column)
+		if grid[cell] {
+			return fmt.Errorf("duplicate subpanel row/column %s", cell)
+		}
+		grid[cell] = true
+		subpanels[sp.ID] = sp
+		if sp.Row > rowsOf[sp.EquipmentID] {
+			rowsOf[sp.EquipmentID] = sp.Row
+		}
+	}
+	subpanelCount := map[string]int{}
+	for _, sp := range subpanels {
+		subpanelCount[sp.EquipmentID]++
+	}
+	for _, e := range s.Equipment {
+		// Unique (row, column) cells within rows 1..N and exactly 4N of them
+		// means every row has all four columns.
+		if e.Kind == "hdf" && (rowsOf[e.ID] == 0 || subpanelCount[e.ID] != len(hdfColumns)*rowsOf[e.ID]) {
+			return fmt.Errorf("hdf %s is incomplete: it needs rows 1..N with columns A-D in every row", e.ID)
+		}
+	}
 	endpoints := map[string]Endpoint{}
 	positions := map[string]bool{}
+	perSubpanel := map[string]int{}
 	for _, p := range s.Endpoints {
 		if _, ok := endpoints[p.ID]; ok || p.ID == "" {
 			return fmt.Errorf("duplicate or empty endpoint ID")
@@ -88,19 +146,39 @@ func Validate(s Snapshot) error {
 		if !ok {
 			return fmt.Errorf("unknown owner for %s", p.ID)
 		}
-		if e.Kind == "panel" {
-			if p.Position < 1 || (p.Side != "front" && p.Side != "rear") {
+		switch e.Kind {
+		case "panel":
+			if p.Position < 1 || (p.Side != "front" && p.Side != "rear") || p.SubpanelID != "" {
 				return fmt.Errorf("invalid panel endpoint %s", p.ID)
 			}
-			key := fmt.Sprintf("%s/%s/%d/%s", e.ID, p.Subpanel, p.Position, p.Side)
+		case "hdf":
+			sp, ok := subpanels[p.SubpanelID]
+			if !ok || sp.EquipmentID != e.ID {
+				return fmt.Errorf("hdf endpoint %s must belong to a subpanel of its own chassis", p.ID)
+			}
+			if p.Position < 1 || p.Position > PositionsPerSubpanel || (p.Side != "front" && p.Side != "rear") {
+				return fmt.Errorf("invalid hdf endpoint %s", p.ID)
+			}
+			perSubpanel[p.SubpanelID]++
+		default:
+			if p.Side != "" || p.Position != 0 || p.SubpanelID != "" {
+				return fmt.Errorf("device endpoint has panel metadata")
+			}
+		}
+		if e.Kind != "switch" {
+			key := fmt.Sprintf("%s/%s/%d/%s", e.ID, p.SubpanelID, p.Position, p.Side)
 			if positions[key] {
 				return fmt.Errorf("duplicate panel position")
 			}
 			positions[key] = true
-		} else if p.Side != "" || p.Position != 0 || p.Subpanel != "" {
-			return fmt.Errorf("device endpoint has panel metadata")
 		}
 		endpoints[p.ID] = p
+	}
+	for id := range subpanels {
+		// Unique (position 1-6, side) pairs make 12 endpoints a full subpanel.
+		if perSubpanel[id] != 2*PositionsPerSubpanel {
+			return fmt.Errorf("subpanel %s needs a front and rear endpoint for each of its %d positions", id, PositionsPerSubpanel)
+		}
 	}
 	ids := map[string]bool{}
 	cables := map[string]bool{}
@@ -126,7 +204,9 @@ func Validate(s Snapshot) error {
 			cables[l.A] = true
 			cables[l.B] = true
 		case "internal":
-			if equipment[a.EquipmentID].Kind != "panel" || a.EquipmentID != b.EquipmentID || a.Position != b.Position || a.Subpanel != b.Subpanel || a.Side == b.Side {
+			// Continuity exists only between opposite sides of one position of
+			// one subpanel (or one standard-panel position).
+			if kind := equipment[a.EquipmentID].Kind; (kind != "panel" && kind != "hdf") || a.EquipmentID != b.EquipmentID || a.Position != b.Position || a.SubpanelID != b.SubpanelID || a.Side == b.Side {
 				return fmt.Errorf("invalid panel bridge %s", l.ID)
 			}
 			if bridges[l.A] || bridges[l.B] {
@@ -136,6 +216,11 @@ func Validate(s Snapshot) error {
 			bridges[l.B] = true
 		default:
 			return fmt.Errorf("unknown link kind %s", l.Kind)
+		}
+	}
+	for _, p := range s.Endpoints {
+		if equipment[p.EquipmentID].Kind == "hdf" && !bridges[p.ID] {
+			return fmt.Errorf("hdf endpoint %s has no internal bridge", p.ID)
 		}
 	}
 	return nil

@@ -47,7 +47,7 @@ func (s *Store) Installed(ctx context.Context) (topology.Snapshot, error) {
 }
 
 func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
-	s := topology.Snapshot{Context: "installed", Networks: []topology.Network{}, Sites: []topology.Site{}, Nodes: []topology.LocationNode{}, Racks: []topology.Rack{}, Equipment: []topology.Equipment{}, Endpoints: []topology.Endpoint{}, Links: []topology.Link{}}
+	s := topology.Snapshot{Context: "installed", Networks: []topology.Network{}, Subpanels: []topology.Subpanel{}, Sites: []topology.Site{}, Nodes: []topology.LocationNode{}, Racks: []topology.Rack{}, Equipment: []topology.Equipment{}, Endpoints: []topology.Endpoint{}, Links: []topology.Link{}}
 	err := tx.QueryRow(ctx, `SELECT revision,site,room FROM installed_topology WHERE singleton=true`).Scan(&s.Revision, &s.Site, &s.Room)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return s, fmt.Errorf("installed topology is not initialized; run the explicit seed command")
@@ -135,13 +135,29 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT id,equipment_id,label,subpanel,position,side FROM endpoints ORDER BY id`)
+	rows, err = tx.Query(ctx, `SELECT id,equipment_id,row_number,column_letter FROM subpanels ORDER BY id`)
+	if err != nil {
+		return s, err
+	}
+	for rows.Next() {
+		var sp topology.Subpanel
+		if err = rows.Scan(&sp.ID, &sp.EquipmentID, &sp.Row, &sp.Column); err != nil {
+			rows.Close()
+			return s, err
+		}
+		s.Subpanels = append(s.Subpanels, sp)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return s, err
+	}
+	rows, err = tx.Query(ctx, `SELECT id,equipment_id,label,COALESCE(subpanel_id,''),position,side FROM endpoints ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var p topology.Endpoint
-		if err = rows.Scan(&p.ID, &p.EquipmentID, &p.Label, &p.Subpanel, &p.Position, &p.Side); err != nil {
+		if err = rows.Scan(&p.ID, &p.EquipmentID, &p.Label, &p.SubpanelID, &p.Position, &p.Side); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -213,8 +229,13 @@ func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plan planning.
 			return err
 		}
 	}
+	for _, sp := range base.Subpanels {
+		if _, err = tx.Exec(ctx, `INSERT INTO subpanels(id,equipment_id,row_number,column_letter) VALUES($1,$2,$3,$4)`, sp.ID, sp.EquipmentID, sp.Row, sp.Column); err != nil {
+			return err
+		}
+	}
 	for _, p := range base.Endpoints {
-		if _, err = tx.Exec(ctx, `INSERT INTO endpoints SELECT $1,$2,kind,$3,$4,$5,$6 FROM equipment WHERE id=$2`, p.ID, p.EquipmentID, p.Label, p.Subpanel, p.Position, p.Side); err != nil {
+		if _, err = tx.Exec(ctx, `INSERT INTO endpoints(id,equipment_id,equipment_kind,label,position,side,subpanel_id) SELECT $1,$2,kind,$3,$4,$5,NULLIF($6,'') FROM equipment WHERE id=$2`, p.ID, p.EquipmentID, p.Label, p.Position, p.Side, p.SubpanelID); err != nil {
 			return err
 		}
 	}

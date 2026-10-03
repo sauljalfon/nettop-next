@@ -4,6 +4,7 @@ import type { Snapshot } from '../../shared/types'
 
 const snapshot: Snapshot = {
   networks: [{ id: 'n', name: 'N' }],
+  subpanels: [],
   sites: [],
   nodes: [],
   context: 'installed',

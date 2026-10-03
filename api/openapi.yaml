@@ -3,7 +3,7 @@ security: []
 info:
   title: Net-Top Next API
   version: 0.4.0
-  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing. Approved network membership, BB discovery, and explicit HDF subpanels are pending implementation; see docs/architecture.md and docs/implementation-plan.md. No installed mutation or implementation endpoints yet.
+  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing. Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. BB discovery and atomic HDF creation are pending implementation; see docs/architecture.md and docs/implementation-plan.md. No installed mutation or implementation endpoints yet.
 servers:
   - url: http://127.0.0.1:8080/api
 paths:
@@ -295,7 +295,7 @@ components:
       properties:
         id: {type: string}
         name: {type: string}
-        kind: {type: string, enum: [switch, panel]}
+        kind: {type: string, enum: [switch, panel, hdf]}
         role: {type: string, enum: [access, aggregation, backbone, passive]}
         networkId:
           type: string
@@ -310,8 +310,13 @@ components:
         id: {type: string}
         equipmentId: {type: string}
         label: {type: string}
-        subpanel: {type: string}
-        position: {type: integer, minimum: 1}
+        subpanelId:
+          type: string
+          description: Stable ID of the owning HDF subpanel. Present exactly for HDF endpoints; omitted for switch ports and standard panels. Labels are display text and are never parsed.
+        position:
+          type: integer
+          minimum: 1
+          description: Local position. Numbering restarts in every HDF subpanel (1-6); standard panels number positions on the chassis.
         side: {type: string, enum: [front, rear]}
     Link:
       type: object
@@ -328,13 +333,25 @@ components:
       properties:
         id: {type: string}
         name: {type: string}
+    Subpanel:
+      type: object
+      description: One row/column block of an HDF chassis. An N-row HDF has 4N subpanels with six positions each (24N positions, 48N side endpoints) and one internal bridge per position.
+      required: [id, equipmentId, row, column]
+      properties:
+        id: {type: string}
+        equipmentId: {type: string, description: Owning equipment of kind hdf.}
+        row: {type: integer, minimum: 1, maximum: 32}
+        column: {type: string, enum: [A, B, C, D]}
     Snapshot:
       type: object
-      required: [context, revision, site, room, networks, sites, nodes, racks, equipment, endpoints, links]
+      required: [context, revision, site, room, networks, subpanels, sites, nodes, racks, equipment, endpoints, links]
       properties:
         networks:
           type: array
           items: {$ref: '#/components/schemas/Network'}
+        subpanels:
+          type: array
+          items: {$ref: '#/components/schemas/Subpanel'}
         context: {type: string, enum: [installed, planned]}
         revision: {type: string}
         site: {type: string}

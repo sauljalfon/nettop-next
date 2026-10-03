@@ -7,7 +7,7 @@ import (
 )
 
 func Installed() topology.Snapshot {
-	return topology.Snapshot{Context: "installed", Revision: "sample-1", Site: "North Campus", Room: "Server Room", Networks: []topology.Network{{ID: "net-prototype", Name: "Prototype network"}}, Sites: []topology.Site{{ID: "site-north", Name: "North Campus"}}, Nodes: []topology.LocationNode{{ID: "node-server", SiteID: "site-north", Name: "Server Room"}, {ID: "node-distribution", SiteID: "site-north", Name: "Distribution Room"}}, Racks: []topology.Rack{{ID: "rack-03", NodeID: "node-server", Name: "Rack 03", Units: 12}, {ID: "rack-04", NodeID: "node-distribution", Name: "Rack 04", Units: 12}}, Equipment: []topology.Equipment{
+	return topology.Snapshot{Context: "installed", Revision: "sample-1", Site: "North Campus", Room: "Server Room", Networks: []topology.Network{{ID: "net-prototype", Name: "Prototype network"}}, Subpanels: []topology.Subpanel{}, Sites: []topology.Site{{ID: "site-north", Name: "North Campus"}}, Nodes: []topology.LocationNode{{ID: "node-server", SiteID: "site-north", Name: "Server Room"}, {ID: "node-distribution", SiteID: "site-north", Name: "Distribution Room"}}, Racks: []topology.Rack{{ID: "rack-03", NodeID: "node-server", Name: "Rack 03", Units: 12}, {ID: "rack-04", NodeID: "node-distribution", Name: "Rack 04", Units: 12}}, Equipment: []topology.Equipment{
 		{ID: "edge-01", Name: "EDGE-01", Kind: "switch", Role: "access", NetworkID: "net-prototype", RackID: "rack-03", Unit: 8, Height: 1},
 		{ID: "panel-a", Name: "PANEL-A", Kind: "panel", Role: "passive", RackID: "rack-03", Unit: 11, Height: 1},
 		{ID: "panel-b", Name: "PANEL-B", Kind: "panel", Role: "passive", RackID: "rack-04", Unit: 11, Height: 1},

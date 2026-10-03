@@ -31,6 +31,7 @@ func Apply(base topology.Snapshot, plan Plan) (topology.Snapshot, error) {
 	}
 	next := base
 	next.Networks = slices.Clone(base.Networks)
+	next.Subpanels = slices.Clone(base.Subpanels)
 	next.Sites = slices.Clone(base.Sites)
 	next.Nodes = slices.Clone(base.Nodes)
 	next.Racks = slices.Clone(base.Racks)

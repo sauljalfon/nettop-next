@@ -42,12 +42,18 @@ export type PlanCommand =
 export interface Equipment {
   id: string
   name: string
-  kind: 'switch' | 'panel'
+  kind: 'switch' | 'panel' | 'hdf'
   role: string
   networkId?: string
   rackId: string
   unit: number
   height: number
+}
+export interface Subpanel {
+  id: string
+  equipmentId: string
+  row: number
+  column: 'A' | 'B' | 'C' | 'D'
 }
 export interface Network {
   id: string
@@ -63,7 +69,7 @@ export interface Endpoint {
   id: string
   equipmentId: string
   label: string
-  subpanel?: string
+  subpanelId?: string
   position?: number
   side?: 'front' | 'rear'
 }
@@ -75,6 +81,7 @@ export interface Link {
 }
 export interface Snapshot {
   networks: Network[]
+  subpanels: Subpanel[]
   sites: { id: string; name: string }[]
   nodes: { id: string; name: string; siteId: string }[]
   context: Context
