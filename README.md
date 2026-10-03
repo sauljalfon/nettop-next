@@ -17,6 +17,8 @@ The existing code is a tested foundation/prototype. It does **not yet implement*
 
 **Next checkpoint: M1 — network membership, explicit BB roles, and HDF identity/layout contracts.**
 
+Before coding M1, finish the short [pre-implementation checklist](docs/implementation-plan.md#decisions-to-confirm-before-coding): the first vertical slice, development versus imported data, and HDF creation limits/physical height. The agreed map, physical explorer, and tracing semantics remain the contract.
+
 ## Approved product
 
 - Active devices belong to exactly one network; passive panels/HDFs can carry multiple networks.

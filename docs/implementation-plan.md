@@ -13,6 +13,16 @@ Status: approved direction; implementation proceeds from the tested foundation d
 
 ## M1 — Network, role, and HDF domain contract (start here)
 
+### Decisions to confirm before coding
+
+The conceptual/physical split, shared passive equipment, and AGG/BB stopping rules are settled. The remaining discussion should resolve implementation inputs rather than reopen the visual direction:
+
+1. **First-release workflow:** confirm that the first complete vertical slice is network selection → find all reachable AGG/BB routes → inspect the same HDF endpoint physically. Use this to prioritize the M1–M4 acceptance flow; editing and governance remain later checkpoints.
+2. **Development data versus imported inventory:** decide whether M1 uses only explicitly labeled Network A/B development fixtures or must migrate existing real inventory. For imported data, provide an explicit active-device → network mapping; never infer membership from names or assign every device to a default network.
+3. **HDF creation limits and physical dimensions:** confirm the supported row range and how users specify rack height. The approved shape remains four columns and six local positions per subpanel. Preserve the distinction between row count and actual equipment height.
+
+Record the answers here before beginning schema/API changes. The build does not imply that these input decisions have already been made.
+
 ### Scope
 
 1. Add explicit Network identities and exactly-one membership for active devices. Passive chassis/subpanels remain shared.
