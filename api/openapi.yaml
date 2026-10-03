@@ -232,8 +232,11 @@ components:
         kind: {type: string, enum: [switch, panel]}
         role:
           type: string
-          enum: [access, aggregation, passive]
-          description: Switches allow access or aggregation; panels require passive.
+          enum: [access, aggregation, backbone, passive]
+          description: Switches allow access, aggregation, or backbone; panels require passive.
+        networkId:
+          type: string
+          description: Required for switches and must reference an existing network. Rejected for panels, which are shared passive equipment.
         rackId: {type: string}
         unit: {type: integer, minimum: 1, maximum: 100}
         height: {type: integer, minimum: 1, maximum: 100}
@@ -293,7 +296,10 @@ components:
         id: {type: string}
         name: {type: string}
         kind: {type: string, enum: [switch, panel]}
-        role: {type: string}
+        role: {type: string, enum: [access, aggregation, backbone, passive]}
+        networkId:
+          type: string
+          description: Present exactly for switches (one network each); omitted for passive panels.
         rackId: {type: string}
         unit: {type: integer, minimum: 1}
         height: {type: integer, minimum: 1}
@@ -315,10 +321,20 @@ components:
         a: {type: string}
         b: {type: string}
         kind: {type: string, enum: [cable, internal]}
+    Network:
+      type: object
+      description: Read-only in this API; networks are created by seed/fixtures.
+      required: [id, name]
+      properties:
+        id: {type: string}
+        name: {type: string}
     Snapshot:
       type: object
-      required: [context, revision, site, room, sites, nodes, racks, equipment, endpoints, links]
+      required: [context, revision, site, room, networks, sites, nodes, racks, equipment, endpoints, links]
       properties:
+        networks:
+          type: array
+          items: {$ref: '#/components/schemas/Network'}
         context: {type: string, enum: [installed, planned]}
         revision: {type: string}
         site: {type: string}

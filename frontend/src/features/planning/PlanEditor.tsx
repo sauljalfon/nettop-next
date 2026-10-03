@@ -148,6 +148,7 @@ function DraftCommands({
     name: '',
     kind: 'switch',
     role: 'access',
+    networkId: snapshot.networks[0]?.id ?? '',
     rackId: snapshot.racks[0]?.id ?? '',
     unit: 1,
     height: 1,
@@ -183,6 +184,8 @@ function DraftCommands({
         createRequest.kind === 'panel'
           ? 'passive'
           : (createRequest.role ?? 'access'),
+      networkId:
+        createRequest.kind === 'panel' ? undefined : snapshot.networks[0]?.id,
       rackId: createRequest.rackId,
       unit: createRequest.unit,
       height: 1,
@@ -282,6 +285,12 @@ function DraftCommands({
                         ...equipment,
                         kind,
                         role: kind === 'panel' ? 'passive' : 'access',
+                        networkId:
+                          kind === 'panel'
+                            ? undefined
+                            : (equipment.networkId ??
+                              snapshot.networks[0]?.id ??
+                              ''),
                       })
                     }}
                   >
@@ -306,10 +315,35 @@ function DraftCommands({
                       <>
                         <option value="access">Access</option>
                         <option value="aggregation">Aggregation</option>
+                        <option value="backbone">Backbone</option>
                       </>
                     )}
                   </select>
                 </label>
+                {equipment.kind === 'switch' && (
+                  <label>
+                    Network
+                    <select
+                      required
+                      value={equipment.networkId ?? ''}
+                      onChange={(e) =>
+                        setEquipment({
+                          ...equipment,
+                          networkId: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="" disabled>
+                        Choose the device's network
+                      </option>
+                      {snapshot.networks.map((n) => (
+                        <option key={n.id} value={n.id}>
+                          {n.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label>
                   Target rack
                   <select

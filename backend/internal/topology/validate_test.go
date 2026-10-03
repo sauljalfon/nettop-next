@@ -3,7 +3,7 @@ package topology
 import "testing"
 
 func validSnapshot() Snapshot {
-	return Snapshot{Sites: []Site{{ID: "site", Name: "Campus"}}, Nodes: []LocationNode{{ID: "node", Name: "Room", SiteID: "site"}}, Racks: []Rack{{ID: "r", NodeID: "node", Units: 12}}, Equipment: []Equipment{{ID: "a", Kind: "switch", RackID: "r", Unit: 1, Height: 1}, {ID: "b", Kind: "switch", RackID: "r", Unit: 2, Height: 1}}, Endpoints: []Endpoint{{ID: "a1", EquipmentID: "a"}, {ID: "b1", EquipmentID: "b"}}, Links: []Link{{ID: "c", A: "a1", B: "b1", Kind: "cable"}}}
+	return Snapshot{Sites: []Site{{ID: "site", Name: "Campus"}}, Nodes: []LocationNode{{ID: "node", Name: "Room", SiteID: "site"}}, Racks: []Rack{{ID: "r", NodeID: "node", Units: 12}}, Networks: []Network{{ID: "net", Name: "Network"}}, Equipment: []Equipment{{ID: "a", Kind: "switch", Role: "access", NetworkID: "net", RackID: "r", Unit: 1, Height: 1}, {ID: "b", Kind: "switch", Role: "aggregation", NetworkID: "net", RackID: "r", Unit: 2, Height: 1}}, Endpoints: []Endpoint{{ID: "a1", EquipmentID: "a"}, {ID: "b1", EquipmentID: "b"}}, Links: []Link{{ID: "c", A: "a1", B: "b1", Kind: "cable"}}}
 }
 
 func TestValidate(t *testing.T) {

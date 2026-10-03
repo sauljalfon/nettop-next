@@ -7,11 +7,11 @@ import (
 )
 
 func Installed() topology.Snapshot {
-	return topology.Snapshot{Context: "installed", Revision: "sample-1", Site: "North Campus", Room: "Server Room", Sites: []topology.Site{{ID: "site-north", Name: "North Campus"}}, Nodes: []topology.LocationNode{{ID: "node-server", SiteID: "site-north", Name: "Server Room"}, {ID: "node-distribution", SiteID: "site-north", Name: "Distribution Room"}}, Racks: []topology.Rack{{ID: "rack-03", NodeID: "node-server", Name: "Rack 03", Units: 12}, {ID: "rack-04", NodeID: "node-distribution", Name: "Rack 04", Units: 12}}, Equipment: []topology.Equipment{
-		{ID: "edge-01", Name: "EDGE-01", Kind: "switch", Role: "access", RackID: "rack-03", Unit: 8, Height: 1},
+	return topology.Snapshot{Context: "installed", Revision: "sample-1", Site: "North Campus", Room: "Server Room", Networks: []topology.Network{{ID: "net-prototype", Name: "Prototype network"}}, Sites: []topology.Site{{ID: "site-north", Name: "North Campus"}}, Nodes: []topology.LocationNode{{ID: "node-server", SiteID: "site-north", Name: "Server Room"}, {ID: "node-distribution", SiteID: "site-north", Name: "Distribution Room"}}, Racks: []topology.Rack{{ID: "rack-03", NodeID: "node-server", Name: "Rack 03", Units: 12}, {ID: "rack-04", NodeID: "node-distribution", Name: "Rack 04", Units: 12}}, Equipment: []topology.Equipment{
+		{ID: "edge-01", Name: "EDGE-01", Kind: "switch", Role: "access", NetworkID: "net-prototype", RackID: "rack-03", Unit: 8, Height: 1},
 		{ID: "panel-a", Name: "PANEL-A", Kind: "panel", Role: "passive", RackID: "rack-03", Unit: 11, Height: 1},
 		{ID: "panel-b", Name: "PANEL-B", Kind: "panel", Role: "passive", RackID: "rack-04", Unit: 11, Height: 1},
-		{ID: "agg-02", Name: "AGG-02", Kind: "switch", Role: "aggregation", RackID: "rack-04", Unit: 8, Height: 1},
+		{ID: "agg-02", Name: "AGG-02", Kind: "switch", Role: "aggregation", NetworkID: "net-prototype", RackID: "rack-04", Unit: 8, Height: 1},
 	}, Endpoints: []topology.Endpoint{
 		{ID: "edge-01:p1", EquipmentID: "edge-01", Label: "SFP+ 1"},
 		{ID: "edge-01:p2", EquipmentID: "edge-01", Label: "SFP+ 2"},
@@ -31,5 +31,5 @@ func Installed() topology.Snapshot {
 }
 
 func Expansion() planning.Plan {
-	return planning.Plan{ID: "expansion", Revision: "1", BaseRevision: "sample-1", Equipment: []topology.Equipment{{ID: "edge-02", Name: "EDGE-02", Kind: "switch", Role: "access", RackID: "rack-03", Unit: 6, Height: 1}}, Endpoints: []topology.Endpoint{{ID: "edge-02:p1", EquipmentID: "edge-02", Label: "SFP+ 1"}}, Links: []topology.Link{{ID: "planned-cable-04", A: "edge-02:p1", B: "agg-02:p2", Kind: "cable"}}}
+	return planning.Plan{ID: "expansion", Revision: "1", BaseRevision: "sample-1", Equipment: []topology.Equipment{{ID: "edge-02", Name: "EDGE-02", Kind: "switch", Role: "access", NetworkID: "net-prototype", RackID: "rack-03", Unit: 6, Height: 1}}, Endpoints: []topology.Endpoint{{ID: "edge-02:p1", EquipmentID: "edge-02", Label: "SFP+ 1"}}, Links: []topology.Link{{ID: "planned-cable-04", A: "edge-02:p1", B: "agg-02:p2", Kind: "cable"}}}
 }

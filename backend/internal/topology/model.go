@@ -10,14 +10,20 @@ type LocationNode struct {
 	SiteID string `json:"siteId"`
 }
 
+type Network struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type Equipment struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Kind   string `json:"kind"`
-	Role   string `json:"role"`
-	RackID string `json:"rackId"`
-	Unit   int    `json:"unit"`
-	Height int    `json:"height"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Kind      string `json:"kind"`
+	Role      string `json:"role"`
+	NetworkID string `json:"networkId,omitempty"`
+	RackID    string `json:"rackId"`
+	Unit      int    `json:"unit"`
+	Height    int    `json:"height"`
 }
 
 type Rack struct {
@@ -44,6 +50,7 @@ type Link struct {
 }
 
 type Snapshot struct {
+	Networks  []Network      `json:"networks"`
 	Sites     []Site         `json:"sites"`
 	Nodes     []LocationNode `json:"nodes"`
 	Context   string         `json:"context"`

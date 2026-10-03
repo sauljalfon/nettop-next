@@ -15,7 +15,8 @@ export interface Plan {
 export interface EquipmentInput {
   name: string
   kind: 'switch' | 'panel'
-  role: 'access' | 'aggregation' | 'passive'
+  role: 'access' | 'aggregation' | 'backbone' | 'passive'
+  networkId?: string
   rackId: string
   unit: number
   height: number
@@ -43,9 +44,14 @@ export interface Equipment {
   name: string
   kind: 'switch' | 'panel'
   role: string
+  networkId?: string
   rackId: string
   unit: number
   height: number
+}
+export interface Network {
+  id: string
+  name: string
 }
 export interface Rack {
   nodeId: string
@@ -68,6 +74,7 @@ export interface Link {
   kind: 'cable' | 'internal'
 }
 export interface Snapshot {
+  networks: Network[]
   sites: { id: string; name: string }[]
   nodes: { id: string; name: string; siteId: string }[]
   context: Context

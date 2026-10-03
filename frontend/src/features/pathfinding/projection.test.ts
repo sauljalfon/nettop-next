@@ -3,6 +3,7 @@ import { routeHighlight, endpointLabel, cableEdges } from './projection'
 import type { Snapshot } from '../../shared/types'
 
 const snapshot: Snapshot = {
+  networks: [{ id: 'n', name: 'N' }],
   sites: [],
   nodes: [],
   context: 'installed',
@@ -16,6 +17,7 @@ const snapshot: Snapshot = {
       name: 'EDGE',
       kind: 'switch',
       role: 'access',
+      networkId: 'n',
       rackId: 'r',
       unit: 1,
       height: 1,

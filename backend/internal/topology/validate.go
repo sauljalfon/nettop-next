@@ -1,8 +1,18 @@
 package topology
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func Validate(s Snapshot) error {
+	networks := map[string]bool{}
+	for _, n := range s.Networks {
+		if n.ID == "" || strings.TrimSpace(n.Name) == "" || networks[n.ID] {
+			return fmt.Errorf("invalid or duplicate network")
+		}
+		networks[n.ID] = true
+	}
 	sites := map[string]bool{}
 	for _, site := range s.Sites {
 		if site.ID == "" || site.Name == "" || sites[site.ID] {
@@ -42,6 +52,22 @@ func Validate(s Snapshot) error {
 		}
 		if e.Kind != "switch" && e.Kind != "panel" {
 			return fmt.Errorf("unsupported equipment kind %s", e.Kind)
+		}
+		switch e.Kind {
+		case "switch":
+			if e.Role != "access" && e.Role != "aggregation" && e.Role != "backbone" {
+				return fmt.Errorf("switch %s must have role access, aggregation, or backbone", e.ID)
+			}
+			if !networks[e.NetworkID] {
+				return fmt.Errorf("switch %s must belong to exactly one existing network", e.ID)
+			}
+		case "panel":
+			if e.Role != "passive" {
+				return fmt.Errorf("panel %s must have role passive", e.ID)
+			}
+			if e.NetworkID != "" {
+				return fmt.Errorf("passive equipment %s cannot have exclusive network membership", e.ID)
+			}
 		}
 		for u := e.Unit; u < e.Unit+e.Height; u++ {
 			key := fmt.Sprintf("%s:%d", e.RackID, u)

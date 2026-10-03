@@ -47,7 +47,7 @@ func (s *Store) Installed(ctx context.Context) (topology.Snapshot, error) {
 }
 
 func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
-	s := topology.Snapshot{Context: "installed", Sites: []topology.Site{}, Nodes: []topology.LocationNode{}, Racks: []topology.Rack{}, Equipment: []topology.Equipment{}, Endpoints: []topology.Endpoint{}, Links: []topology.Link{}}
+	s := topology.Snapshot{Context: "installed", Networks: []topology.Network{}, Sites: []topology.Site{}, Nodes: []topology.LocationNode{}, Racks: []topology.Rack{}, Equipment: []topology.Equipment{}, Endpoints: []topology.Endpoint{}, Links: []topology.Link{}}
 	err := tx.QueryRow(ctx, `SELECT revision,site,room FROM installed_topology WHERE singleton=true`).Scan(&s.Revision, &s.Site, &s.Room)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return s, fmt.Errorf("installed topology is not initialized; run the explicit seed command")
@@ -55,7 +55,23 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err != nil {
 		return s, err
 	}
-	rows, err := tx.Query(ctx, `SELECT id,name FROM sites ORDER BY id`)
+	rows, err := tx.Query(ctx, `SELECT id,name FROM networks ORDER BY id`)
+	if err != nil {
+		return s, err
+	}
+	for rows.Next() {
+		var n topology.Network
+		if err = rows.Scan(&n.ID, &n.Name); err != nil {
+			rows.Close()
+			return s, err
+		}
+		s.Networks = append(s.Networks, n)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return s, err
+	}
+	rows, err = tx.Query(ctx, `SELECT id,name FROM sites ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
@@ -103,13 +119,13 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT id,name,kind,role,rack_id,unit,height FROM equipment ORDER BY id`)
+	rows, err = tx.Query(ctx, `SELECT id,name,kind,role,COALESCE(network_id,''),rack_id,unit,height FROM equipment ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var e topology.Equipment
-		if err = rows.Scan(&e.ID, &e.Name, &e.Kind, &e.Role, &e.RackID, &e.Unit, &e.Height); err != nil {
+		if err = rows.Scan(&e.ID, &e.Name, &e.Kind, &e.Role, &e.NetworkID, &e.RackID, &e.Unit, &e.Height); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -169,6 +185,11 @@ func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plan planning.
 	if _, err = tx.Exec(ctx, `INSERT INTO installed_topology(singleton,revision,site,room) VALUES (true,$1,$2,$3)`, base.Revision, base.Site, base.Room); err != nil {
 		return fmt.Errorf("seed refused (database may already be initialized): %w", err)
 	}
+	for _, n := range base.Networks {
+		if _, err = tx.Exec(ctx, `INSERT INTO networks(id,name) VALUES($1,$2)`, n.ID, n.Name); err != nil {
+			return err
+		}
+	}
 	for _, site := range base.Sites {
 		if _, err = tx.Exec(ctx, `INSERT INTO sites(id,name) VALUES($1,$2)`, site.ID, site.Name); err != nil {
 			return err
@@ -185,7 +206,7 @@ func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plan planning.
 		}
 	}
 	for _, e := range base.Equipment {
-		if _, err = tx.Exec(ctx, `INSERT INTO equipment VALUES ($1,$2,$3,$4,$5,$6,$7)`, e.ID, e.Name, e.Kind, e.Role, e.RackID, e.Unit, e.Height); err != nil {
+		if _, err = tx.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,rack_id,unit,height,network_id) VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''))`, e.ID, e.Name, e.Kind, e.Role, e.RackID, e.Unit, e.Height, e.NetworkID); err != nil {
 			return err
 		}
 		if _, err = tx.Exec(ctx, `INSERT INTO rack_occupancy SELECT $1,$2,generate_series($3::integer,$4::integer)`, e.ID, e.RackID, e.Unit, e.Unit+e.Height-1); err != nil {

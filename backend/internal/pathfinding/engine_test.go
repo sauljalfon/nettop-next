@@ -6,10 +6,10 @@ import (
 )
 
 func network() topology.Snapshot {
-	return topology.Snapshot{Context: "installed", Revision: "1", Sites: []topology.Site{{ID: "site", Name: "Campus"}}, Nodes: []topology.LocationNode{{ID: "node", Name: "Room", SiteID: "site"}}, Racks: []topology.Rack{{ID: "r", NodeID: "node", Units: 12}}, Equipment: []topology.Equipment{
-		{ID: "edge", Kind: "switch", Role: "access", RackID: "r", Unit: 1, Height: 1},
+	return topology.Snapshot{Context: "installed", Revision: "1", Sites: []topology.Site{{ID: "site", Name: "Campus"}}, Nodes: []topology.LocationNode{{ID: "node", Name: "Room", SiteID: "site"}}, Racks: []topology.Rack{{ID: "r", NodeID: "node", Units: 12}}, Networks: []topology.Network{{ID: "n", Name: "N"}}, Equipment: []topology.Equipment{
+		{ID: "edge", Kind: "switch", Role: "access", NetworkID: "n", RackID: "r", Unit: 1, Height: 1},
 		{ID: "panel", Kind: "panel", Role: "passive", RackID: "r", Unit: 2, Height: 1},
-		{ID: "agg", Kind: "switch", Role: "aggregation", RackID: "r", Unit: 3, Height: 1},
+		{ID: "agg", Kind: "switch", Role: "aggregation", NetworkID: "n", RackID: "r", Unit: 3, Height: 1},
 	}, Endpoints: []topology.Endpoint{
 		{ID: "e1", EquipmentID: "edge"}, {ID: "e2", EquipmentID: "edge"},
 		{ID: "pf", EquipmentID: "panel", Position: 1, Side: "front"}, {ID: "pr", EquipmentID: "panel", Position: 1, Side: "rear"},

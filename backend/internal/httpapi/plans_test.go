@@ -66,7 +66,9 @@ func TestSavedPlanAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := "/api/plans/" + p.ID + "/commands"
-	body := `{"type":"add_equipment","expectedRevision":"1","equipment":{"name":"EDGE-03","kind":"switch","role":"access","rackId":"rack-03","unit":4,"height":1,"portCount":2}}`
+	body := `{"type":"add_equipment","expectedRevision":"1","equipment":{"name":"EDGE-03","kind":"switch","role":"access","networkId":"net-prototype","rackId":"rack-03","unit":4,"height":1,"portCount":2}}`
+	call("POST", path, strings.Replace(body, "net-prototype", "missing", 1), 422)
+	call("POST", path, strings.Replace(body, `"networkId":"net-prototype",`, "", 1), 422)
 	w = call("POST", path, body, 200)
 	if err = json.Unmarshal(w.Body.Bytes(), &p); err != nil {
 		t.Fatal(err)
@@ -77,7 +79,10 @@ func TestSavedPlanAPI(t *testing.T) {
 	call("POST", path, cable, 200)
 	call("GET", "/api/plans/"+p.ID, "", 200)
 	call("GET", "/api/plans", "", 200)
-	call("GET", "/api/topology?context=planned&planId="+p.ID, "", 200)
+	w = call("GET", "/api/topology?context=planned&planId="+p.ID, "", 200)
+	if !strings.Contains(w.Body.String(), `"networks":[{"id":"net-prototype","name":"Prototype network"}]`) || !strings.Contains(w.Body.String(), `"networkId":"net-prototype"`) {
+		t.Fatalf("topology JSON lacks networks/membership: %s", w.Body.String())
+	}
 	call(http.MethodPost, "/api/traces?context=planned&planId="+p.ID, fmt.Sprintf(`{"mode":"aggregation","device":%q}`, p.Equipment[0].ID), 200)
 	call(http.MethodPost, "/api/traces?context=installed", fmt.Sprintf(`{"mode":"aggregation","device":%q}`, p.Equipment[0].ID), 422)
 	call("POST", path, `{"type":"add_cable","expectedRevision":"3","extra":true}`, 400)

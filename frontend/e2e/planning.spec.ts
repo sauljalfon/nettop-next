@@ -14,10 +14,19 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
   const planID = await page.getByLabel('Saved plan').inputValue()
   await page.getByRole('button', { name: 'Add equipment', exact: true }).click()
   await page.getByLabel('Equipment name', { exact: true }).fill('EDGE-BROWSER')
+  await page.getByLabel('Equipment role').selectOption('backbone')
+  await expect(page.getByRole('combobox', { name: /^Network/ })).toHaveValue(
+    'net-prototype',
+  )
   await page.getByLabel('Starting unit', { exact: true }).fill('4')
   await page.getByLabel('Port count', { exact: true }).fill('2')
   await page.getByRole('button', { name: 'Save equipment to plan' }).click()
   await expect(page.getByRole('status')).toContainText('revision 2')
+  const saved = await (await request.get(`/api/plans/${planID}`)).json()
+  expect(saved.equipment[0]).toMatchObject({
+    role: 'backbone',
+    networkId: 'net-prototype',
+  })
   await page.reload()
   await page.getByRole('button', { name: 'Changes', exact: false }).click()
   await expect(page.getByLabel('Saved plan')).toHaveValue(planID)
@@ -49,6 +58,7 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
         name: 'OTHER-CLIENT',
         kind: 'switch',
         role: 'access',
+        networkId: 'net-prototype',
         rackId: 'rack-04',
         unit: 4,
         height: 1,

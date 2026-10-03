@@ -7,6 +7,7 @@ const network: Snapshot = {
   revision: '1',
   site: 'Campus',
   room: 'Room',
+  networks: [{ id: 'n', name: 'N' }],
   sites: [{ id: 's', name: 'Campus' }],
   nodes: [
     { id: 'n1', siteId: 's', name: 'Room A' },
@@ -25,6 +26,7 @@ const network: Snapshot = {
       height: 1,
       kind: 'switch',
       role: 'access',
+      networkId: 'n',
     },
     {
       id: 'b',
@@ -34,6 +36,7 @@ const network: Snapshot = {
       height: 1,
       kind: 'switch',
       role: 'aggregation',
+      networkId: 'n',
     },
   ],
   endpoints: [

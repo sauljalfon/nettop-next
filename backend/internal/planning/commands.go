@@ -16,6 +16,7 @@ type EquipmentInput struct {
 	Name      string `json:"name"`
 	Kind      string `json:"kind"`
 	Role      string `json:"role"`
+	NetworkID string `json:"networkId,omitempty"`
 	RackID    string `json:"rackId"`
 	Unit      int    `json:"unit"`
 	Height    int    `json:"height"`
@@ -73,15 +74,21 @@ func Execute(base topology.Snapshot, p Plan, c Command, id string) (Plan, error)
 		if e.Unit < 1 || e.Unit > 100 || e.Height < 1 || e.Height > 100 {
 			return invalid("rack unit and height must be between 1 and 100")
 		}
-		if (e.Kind == "switch" && e.Role != "access" && e.Role != "aggregation") || (e.Kind == "panel" && e.Role != "passive") || (e.Kind != "panel" && e.Kind != "switch") {
-			return invalid("choose access/aggregation for a switch or passive for a panel")
+		if (e.Kind == "switch" && e.Role != "access" && e.Role != "aggregation" && e.Role != "backbone") || (e.Kind == "panel" && e.Role != "passive") || (e.Kind != "panel" && e.Kind != "switch") {
+			return invalid("choose access/aggregation/backbone for a switch or passive for a panel")
+		}
+		if e.Kind == "switch" && e.NetworkID == "" {
+			return invalid("a switch requires networkId")
+		}
+		if e.Kind == "panel" && e.NetworkID != "" {
+			return invalid("passive panels are shared and cannot have a networkId")
 		}
 		for _, existing := range current.Equipment {
 			if strings.EqualFold(existing.Name, e.Name) {
 				return invalid("equipment name already exists in this topology")
 			}
 		}
-		next.Equipment = append(next.Equipment, topology.Equipment{ID: id, Name: e.Name, Kind: e.Kind, Role: e.Role, RackID: e.RackID, Unit: e.Unit, Height: e.Height})
+		next.Equipment = append(next.Equipment, topology.Equipment{ID: id, Name: e.Name, Kind: e.Kind, Role: e.Role, NetworkID: e.NetworkID, RackID: e.RackID, Unit: e.Unit, Height: e.Height})
 		for n := 1; n <= e.PortCount; n++ {
 			portID := fmt.Sprintf("%s:p%d", id, n)
 			if e.Kind == "switch" {

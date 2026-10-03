@@ -30,6 +30,7 @@ func Apply(base topology.Snapshot, plan Plan) (topology.Snapshot, error) {
 		return topology.Snapshot{}, err
 	}
 	next := base
+	next.Networks = slices.Clone(base.Networks)
 	next.Sites = slices.Clone(base.Sites)
 	next.Nodes = slices.Clone(base.Nodes)
 	next.Racks = slices.Clone(base.Racks)
@@ -43,7 +44,7 @@ func Apply(base topology.Snapshot, plan Plan) (topology.Snapshot, error) {
 		found := false
 		for i, equipment := range next.Equipment {
 			if equipment.ID == update.ID {
-				if equipment.Name != update.Name || equipment.Kind != update.Kind || equipment.Role != update.Role || equipment.Height != update.Height {
+				if equipment.Name != update.Name || equipment.Kind != update.Kind || equipment.Role != update.Role || equipment.NetworkID != update.NetworkID || equipment.Height != update.Height {
 					return topology.Snapshot{}, fmt.Errorf("%w: placement updates cannot change equipment properties", ErrInvalid)
 				}
 				next.Equipment[i] = update
