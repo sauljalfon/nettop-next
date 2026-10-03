@@ -22,7 +22,11 @@ test('rack drops, persisted moves, collisions, and tracing share one hierarchy',
   await expect(page.getByLabel('Starting unit', { exact: true })).toHaveValue(
     '4',
   )
+  await expect(page.getByRole('combobox', { name: /^Network/ })).toHaveValue('')
   await page.getByLabel('Equipment name', { exact: true }).fill('DRAG-EDGE')
+  await page
+    .getByRole('combobox', { name: /^Network/ })
+    .selectOption('net-prototype')
   await page.getByLabel('Port count', { exact: true }).fill('2')
   await page.getByRole('button', { name: 'Save equipment to plan' }).click()
   await expect(page.getByTestId('rack-slot-rack-03-4')).toContainText(
@@ -104,6 +108,9 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
       targetPosition: { x: 1300, y: 850 },
     })
   await page.getByLabel('Equipment name', { exact: true }).fill('BOARD-EDGE')
+  await page
+    .getByRole('combobox', { name: /^Network/ })
+    .selectOption('net-prototype')
   await page
     .getByRole('combobox', { name: 'Target rack', exact: true })
     .selectOption('rack-03')

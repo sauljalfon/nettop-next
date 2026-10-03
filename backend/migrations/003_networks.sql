@@ -5,9 +5,10 @@
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM equipment WHERE kind = 'switch')
-       OR EXISTS (SELECT 1 FROM plans p WHERE EXISTS (
-            SELECT 1 FROM jsonb_array_elements(COALESCE(p.additions->'equipment', '[]'::jsonb)) AS e
-            WHERE e->>'kind' = 'switch')) THEN
+       OR EXISTS (SELECT 1 FROM plans p
+            WHERE jsonb_typeof(p.additions->'equipment') = 'array'
+              AND EXISTS (SELECT 1 FROM jsonb_array_elements(p.additions->'equipment') AS e
+                          WHERE e->>'kind' = 'switch')) THEN
         RAISE EXCEPTION 'migration 003 cannot assign networks: switches or saved plan additions with switches exist and their network is unknown. Please reset the development database and reseed; no default network is ever assigned.';
     END IF;
 END $$;

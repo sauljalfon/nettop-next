@@ -431,3 +431,25 @@ func TestNetworkMigrationUpgradesWithoutSwitchesAndAssignsNoDefaultNetwork(t *te
 		t.Fatalf("migration is not repeatable: %v", err)
 	}
 }
+
+// A plan whose additions store "equipment": null (or a non-array) holds no
+// switches, so the preflight must pass instead of erroring in Postgres.
+func TestNetworkMigrationPreflightToleratesNonArrayPlanEquipment(t *testing.T) {
+	for name, additions := range map[string]string{
+		"null equipment":    `{"equipment":null,"updates":[],"endpoints":[],"links":[]}`,
+		"missing equipment": `{"updates":[],"endpoints":[],"links":[]}`,
+		"object equipment":  `{"equipment":{},"updates":[],"endpoints":[],"links":[]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			s, _ := testStore(t)
+			ctx := context.Background()
+			rewindToBeforeNetworks(t, s)
+			if _, err := s.pool.Exec(ctx, `INSERT INTO plans(id,name,base_revision,revision,additions) VALUES('p','Plan','r1',1,$1)`, additions); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Migrate(ctx); err != nil {
+				t.Fatalf("preflight failed on %s: %v", name, err)
+			}
+		})
+	}
+}

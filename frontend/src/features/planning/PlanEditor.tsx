@@ -148,7 +148,7 @@ function DraftCommands({
     name: '',
     kind: 'switch',
     role: 'access',
-    networkId: snapshot.networks[0]?.id ?? '',
+    networkId: '',
     rackId: snapshot.racks[0]?.id ?? '',
     unit: 1,
     height: 1,
@@ -184,8 +184,7 @@ function DraftCommands({
         createRequest.kind === 'panel'
           ? 'passive'
           : (createRequest.role ?? 'access'),
-      networkId:
-        createRequest.kind === 'panel' ? undefined : snapshot.networks[0]?.id,
+      networkId: createRequest.kind === 'panel' ? undefined : '',
       rackId: createRequest.rackId,
       unit: createRequest.unit,
       height: 1,
@@ -288,9 +287,7 @@ function DraftCommands({
                         networkId:
                           kind === 'panel'
                             ? undefined
-                            : (equipment.networkId ??
-                              snapshot.networks[0]?.id ??
-                              ''),
+                            : (equipment.networkId ?? ''),
                       })
                     }}
                   >
@@ -442,7 +439,15 @@ function DraftCommands({
               </div>
             )}
             <div className="form-actions">
-              <button className="button primary" disabled={!ready}>
+              <button
+                className="button primary"
+                disabled={
+                  !ready ||
+                  (form === 'equipment' &&
+                    equipment.kind === 'switch' &&
+                    !equipment.networkId)
+                }
+              >
                 {save.isPending
                   ? 'Saving…'
                   : form === 'equipment'

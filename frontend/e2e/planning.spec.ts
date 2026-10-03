@@ -15,9 +15,12 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
   await page.getByRole('button', { name: 'Add equipment', exact: true }).click()
   await page.getByLabel('Equipment name', { exact: true }).fill('EDGE-BROWSER')
   await page.getByLabel('Equipment role').selectOption('backbone')
-  await expect(page.getByRole('combobox', { name: /^Network/ })).toHaveValue(
-    'net-prototype',
-  )
+  const network = page.getByRole('combobox', { name: /^Network/ })
+  await expect(network).toHaveValue('')
+  await expect(
+    page.getByRole('button', { name: 'Save equipment to plan' }),
+  ).toBeDisabled()
+  await network.selectOption('net-prototype')
   await page.getByLabel('Starting unit', { exact: true }).fill('4')
   await page.getByLabel('Port count', { exact: true }).fill('2')
   await page.getByRole('button', { name: 'Save equipment to plan' }).click()
@@ -70,6 +73,9 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
   await page.getByRole('button', { name: 'Changes', exact: false }).click()
   await page.getByRole('button', { name: 'Add equipment', exact: true }).click()
   await page.getByLabel('Equipment name', { exact: true }).fill('STALE-EDIT')
+  await page
+    .getByRole('combobox', { name: /^Network/ })
+    .selectOption('net-prototype')
   await page.getByLabel('Starting unit', { exact: true }).fill('5')
   await page.getByRole('button', { name: 'Save equipment to plan' }).click()
   await expect(page.getByRole('alert')).toContainText('draft changed')
