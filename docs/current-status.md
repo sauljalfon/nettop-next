@@ -2,6 +2,8 @@
 
 This document describes the runnable baseline at the first repository commit. It does not imply that the approved product is finished. The implementation authority is [architecture.md](architecture.md) and [ui-spec.md](ui-spec.md).
 
+The implementation handoff is now indexed in [README.md](README.md). [agent-handoff.md](agent-handoff.md) summarizes the planning, while [acceptance-example.md](acceptance-example.md) reconstructs the retired demo's exact fictional data for real implementation tests. Adding these documents does not add network/BB/HDF behavior to the executable baseline.
+
 ## Implemented foundation
 
 ### Backend

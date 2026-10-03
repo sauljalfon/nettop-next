@@ -1,6 +1,6 @@
 # Net-Top Next
 
-Build the approved pathfinding-centered infrastructure manager. Before implementation, read `docs/architecture.md`, `docs/ui-spec.md`, `docs/implementation-plan.md`, and `docs/current-status.md`. The current nested-canvas prototype is not the final conceptual-map contract.
+Build the approved pathfinding-centered infrastructure manager. Start at `docs/README.md` and `docs/agent-handoff.md`, then read `docs/architecture.md`, `docs/ui-spec.md`, `docs/implementation-plan.md`, and `docs/current-status.md`. Use `docs/acceptance-example.md` and `docs/acceptance-tests.md` for exact routes and verification. The current nested-canvas prototype is not the final conceptual-map contract.
 
 - Backend: Go, standard HTTP library; frontend: React, TypeScript, React Flow.
 - Keep traversal independent of HTTP, storage, and canvas state.
@@ -15,4 +15,5 @@ Build the approved pathfinding-centered infrastructure manager. Before implement
 - Do not introduce backend persistence or authentication implicitly; use the architecture roadmap and explicit migrations.
 - Keep API contracts, migrations, and status docs synchronized with completed checkpoints. Implement M1 next; later items are not implicit scope.
 - Mockup exploration is complete. Do not add generated demos/screenshots as substitutes for implementing and testing the agreed workflow.
+- Preserve the distinction between locked user decisions, fictional test data, and unresolved implementation inputs. Consult `docs/design-decisions.md` before reviving a superseded approach and `docs/backend-contract-notes.md` before assuming the current API already supports the target model.
 - No automatic commits or remote publishing.

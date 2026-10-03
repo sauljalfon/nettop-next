@@ -144,3 +144,5 @@ The intended network may have hundreds of active devices and panels and thousand
 ## 7. Implementation authority
 
 The approved behavior is recorded here and in [ui-spec.md](ui-spec.md). The prototype's nested hierarchy canvas and aggregation-only API are historical implementation state, not the final product contract. Mockup source, generated pages, screenshots, and generators have been removed. Use [implementation-plan.md](implementation-plan.md) to progress through small test-first checkpoints.
+
+The complete next-agent handoff starts at [README.md](README.md) and [agent-handoff.md](agent-handoff.md). [design-decisions.md](design-decisions.md) records the rationale and superseded proposals. [acceptance-example.md](acceptance-example.md) and [acceptance-tests.md](acceptance-tests.md) preserve the exact workflow without restoring static demos. Unresolved data/limit/API edge cases are explicitly separated from locked semantics in the implementation plan and [backend-contract-notes.md](backend-contract-notes.md).

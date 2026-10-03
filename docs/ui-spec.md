@@ -2,6 +2,8 @@
 
 Status: target experience agreed during design review. Static mockups have been retired; the existing application is a foundation, not a finished implementation of this specification.
 
+For the design evolution and why previous layouts were rejected, see [design-decisions.md](design-decisions.md). Use [acceptance-example.md](acceptance-example.md) for the exact shared-HDF/multiple-destination walkthrough and [acceptance-tests.md](acceptance-tests.md) for cross-view acceptance cases.
+
 ## 1. Two views, one selected network and trace
 
 The primary switch is **Conceptual / Physical**. The independent context controls are **Network selection** and **Installed / Plan**.

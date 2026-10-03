@@ -2,6 +2,8 @@
 
 Status: approved direction; implementation proceeds from the tested foundation described in [current-status.md](current-status.md). Mockup exploration is complete. This plan replaces the earlier prototype-first roadmap.
 
+For the next-agent briefing and reading order, see [agent-handoff.md](agent-handoff.md) and [README.md](README.md). The full fictional inventory/cable definitions are in [acceptance-example.md](acceptance-example.md); behavior cases are in [acceptance-tests.md](acceptance-tests.md). Use [backend-contract-notes.md](backend-contract-notes.md) to distinguish current API/schema facts from target contract design.
+
 ## Execution rules
 
 - One semantic model: [architecture.md](architecture.md). UI acceptance: [ui-spec.md](ui-spec.md).
@@ -22,6 +24,16 @@ The conceptual/physical split, shared passive equipment, and AGG/BB stopping rul
 3. **HDF creation limits and physical dimensions:** confirm the supported row range and how users specify rack height. The approved shape remains four columns and six local positions per subpanel. Preserve the distinction between row count and actual equipment height.
 
 Record the answers here before beginning schema/API changes. The build does not imply that these input decisions have already been made.
+
+#### Recorded answers (2026-10-03)
+
+1. **First-release workflow:** confirmed. The first vertical slice is read/trace/inspect: network selection → all reachable AGG/BB routes → the same HDF endpoint in Physical. Editing and governance remain later checkpoints.
+2. **Data:** M1 uses only explicitly labeled development fixtures (Network A/B from [acceptance-example.md](acceptance-example.md)). No real inventory import in M1. See answer 4 for how existing prototype data is handled.
+3. **HDF dimensions:** both row count and rack height are variable and assigned by the user when creating the HDF. Neither is derived from the other, and there is no fixed list of HDF models. Validation requires 1–32 rows (a safety cap: at most 128 subpanels, 768 positions, and 1,536 side endpoints per atomic command; it can be raised later), at least 1U, and a rack placement that fits without overlap.
+4. **Existing prototype data:** the development database is reset and reseeded with the acceptance fixtures; it is not backfilled. Migrations must not assign a default network. If active equipment or saved plan additions lack membership, the upgrade fails with a clear preflight error instead of guessing.
+5. **Contract edge cases:** cross-network cables in a plan are allowed and reported as mismatch diagnostics, not rejected. M1 creates networks only through seed/fixtures and exposes them read-only through the API. Same-chassis external cables remain rejected. Passive-source discovery scope stays open until M2.
+6. **Future legacy import (not M1 scope):** the user intends to import data from legacy NetTop later. It needs its own checkpoint with an explicit legacy-ID, network, and HDF mapping (see [legacy-reference.md](legacy-reference.md)). M1 should keep stable IDs and structured HDF fields that such a mapping can target, without building the importer.
+7. **Browser tests during M1:** Playwright specs and `cmd/testserver` keep using the prototype `sample` fixture (with network membership added) until M3 replaces the UI they characterize. The development seed (`cmd/db seed`) switches to the acceptance fixture.
 
 ### Scope
 
@@ -44,6 +56,35 @@ Record the answers here before beginning schema/API changes. The build does not 
 ### Verification
 
 Domain red/green tests, real PostgreSQL migration/round-trip/rollback tests, API contract tests, relevant frontend type/build checks if schemas change.
+
+### M1 implementation design (agreed 2026-10-03)
+
+This fixes the representation choices left open in [backend-contract-notes.md](backend-contract-notes.md) §3. Follow it; flag a genuine conflict with the code or docs instead of choosing a different model mid-checkpoint.
+
+**Baseline facts this builds on:** `topology.Equipment` has `kind` (`switch`/`panel`) and free-text `role`; `Validate` does not check roles. `Endpoint.Subpanel` is a string. Plans persist as JSON in `plans.additions` (`Equipment`, `Updates`, `Endpoints`, `Links`). `add_equipment` caps ports at 48 and allows only `access`/`aggregation` switches. The `endpoints` table has a `subpanel text` column with a partial unique index on `(equipment_id, subpanel, position, side)`.
+
+1. **Networks.** Add `topology.Network{ID, Name}` and `Snapshot.Networks`. Add `Equipment.NetworkID` (`networkId`). It is required and must reference an existing network for `switch`. It must be empty for `panel` and `hdf`. No default network exists anywhere.
+2. **Roles.** `Validate` enforces role by kind: `switch` → `access` | `aggregation` | `backbone`; `panel` and `hdf` → `passive`. Roles are never derived from names.
+3. **HDF structure.** Add equipment kind `hdf` and `topology.Subpanel{ID, EquipmentID, Row, Column}` with `Snapshot.Subpanels`. Column is `A`–`D`; row is 1–32. Replace `Endpoint.Subpanel` (string) with `Endpoint.SubpanelID` (stable ID; empty for standard panels and switches). Endpoint position is local to its subpanel (1–6 for HDFs). Labels are display text only and are never parsed.
+4. **HDF completeness.** `Validate` requires every `hdf` to have a complete grid: rows 1..N with all four columns, each subpanel with positions 1–6, a front and rear endpoint per position, and exactly one internal bridge per position. N is derived from the stored subpanels; it is not duplicated as a separate field. Rack height is the equipment's own `height`, independent of N.
+5. **Bridges.** An internal link is valid only between opposite sides of the same position on the same subpanel (or the same standard-panel position). Same-chassis external cables remain rejected.
+6. **Plan commands.** `add_equipment` takes `networkId` (required for switches; rejected for panels) and accepts the `backbone` role. A new `add_hdf` command takes `{name, rackId, unit, height, rows}` and creates the chassis, 4N subpanels, 24N positions, 48N endpoints, and 24N bridges atomically. `planning.Plan` gains `Subpanels`, persisted in the same JSON document. Generated IDs are opaque and allocated at the application boundary, as today.
+7. **Migrations.** Two append-only migrations, each shipped in the step that needs it. **`003` (networks):** create `networks`; add `equipment.network_id` with a check that it is present exactly for `switch`. Before altering anything, it raises a clear error telling the user to reset the development database and reseed if any switch exists or any saved plan's additions contain switch equipment, because no membership is known. It never assigns a default network. **`004` (HDF):** create `subpanels`; add `hdf` to the kind constraints; replace `endpoints.subpanel` with a nullable `subpanel_id` foreign key and an equivalent uniqueness rule. It raises the same kind of error if any endpoint has a non-empty legacy `subpanel` string.
+8. **Fixtures.** Add an acceptance fixture (Networks A/B and all inventory and cables from [acceptance-example.md](acceptance-example.md)) and make it the `cmd/db seed` data. The prototype `sample` fixture gains one explicitly labeled prototype network and stays in use for Go characterization tests, `cmd/testserver`, and Playwright until M3.
+
+### M1 steps
+
+Each step changes the domain, persistence, and contracts together so the whole repository is green at the end of the step (Go tests with `TEST_DATABASE_URL`, frontend tests, typecheck, build, and Playwright when the API changed). Each step starts with failing tests and is reviewed before the next begins. Test IDs refer to [acceptance-tests.md](acceptance-tests.md).
+
+| Step | Work | Tests |
+| --- | --- | --- |
+| 1 | **Networks and roles.** `Network`, `NetworkID`, `backbone`, membership and role-by-kind validation; `add_equipment` takes `networkId`; `sample` gains a labeled prototype network; migration `003`; persistence load/seed; snapshot JSON, OpenAPI, `types.ts`/`api.ts`, and the plan form's network/BB fields (the Playwright planning spec creates a switch). **Review migration `003` before it runs on the development database.** | D01–D03, D14 (networks), D15 preflight, A04 |
+| 2 | **HDF structure.** `Subpanel`, `hdf` kind, `SubpanelID`, grid completeness, subpanel-scoped bridges and occupancy; migration `004`; persistence; snapshot JSON, OpenAPI, frontend types. **Review migration `004` before it runs.** | D04–D11, D13, D14, D16 |
+| 3 | **Atomic HDF creation.** `add_hdf` command; `Plan.Subpanels` in overlay and plan JSON; OpenAPI and client types | D12, A05, A09 |
+| 4 | **Acceptance fixture.** Fixture package: validates; HDF-01 96/192 and HDF-02 72/144; existing aggregation trace from EDGE-17 reaches AGG-03 and AGG-08 (BB discovery is M2); `cmd/db seed` uses it | D04, D05, D08 |
+| 5 | **Status and handoff.** Update [current-status.md](current-status.md), README smoke flow, and verification notes; full check run including `go vet`, `-race`, and format | Full check run |
+
+Resetting the development database (needed once migration `003` exists) deletes local data. Ask the user before running it.
 
 ## M2 — Network-aware physical destination discovery
 

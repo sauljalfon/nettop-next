@@ -8,16 +8,25 @@ Go + React/TypeScript + PostgreSQL. This repository is the new implementation, i
 
 Design review and mockup exploration are complete. The agreed behavior is now the implementation contract:
 
+**For Opus 5.5 / the next implementation agent:** start with the [documentation index](docs/README.md) and the [self-contained handoff](docs/agent-handoff.md). They contain the reading order and a copyable task brief; the original conversation is not required.
+
 - [Architecture and network rules](docs/architecture.md)
 - [Approved UI and workflow](docs/ui-spec.md)
 - [Implementation plan](docs/implementation-plan.md)
 - [Current executable status](docs/current-status.md)
+- [Design decisions and planning history](docs/design-decisions.md)
+- [Visual reconstruction brief](docs/visual-brief.md)
+- [Complete acceptance inventory and cable routes](docs/acceptance-example.md)
+- [Acceptance/regression test matrix](docs/acceptance-tests.md)
+- [Current backend contracts and migration notes](docs/backend-contract-notes.md)
+- [Verification and checkpoint handoff guide](docs/verification-guide.md)
+- [Legacy behavior and source references](docs/legacy-reference.md)
 
 The existing code is a tested foundation/prototype. It does **not yet implement** network membership, BB discovery, explicit HDF subpanels, or the final connected-map/physical-navigation experience. The previous nested ownership canvas is superseded as the conceptual design. Static mockup files have been removed.
 
 **Next checkpoint: M1 — network membership, explicit BB roles, and HDF identity/layout contracts.**
 
-Before coding M1, finish the short [pre-implementation checklist](docs/implementation-plan.md#decisions-to-confirm-before-coding): the first vertical slice, development versus imported data, and HDF creation limits/physical height. The agreed map, physical explorer, and tracing semantics remain the contract.
+The [pre-implementation checklist](docs/implementation-plan.md#decisions-to-confirm-before-coding) is answered: read/trace/inspect first slice, development fixtures only (dev database reset and reseeded), and user-assigned HDF row count (1–32) and rack height. Legacy data import is planned as a later, separate checkpoint. The agreed map, physical explorer, and tracing semantics remain the contract.
 
 ## Approved product
 
