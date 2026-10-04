@@ -174,6 +174,45 @@ Same rules as M1: each step is test-first, ends with the whole repository green 
 
 Projection/unit tests, component interactions, browser tests against the real API, TypeScript/build, representative render/drag measurements.
 
+### Recorded answers (2026-10-04)
+
+1. **First layout:** layered by role. Access switches on the left, passive equipment in the middle ordered by cable distance from access, AGG/BB on the right. Unconnected equipment is parked aside. Every card carries its site/node/rack label. Users can drag freely afterwards.
+2. **Map drag:** dragging only changes map layout. Rack placement proposals go through the inspector's placement form and the rack view. Drag-to-rack on the map returns with M5 editing.
+3. **Scoped backend APIs:** deferred to M6, designed against measured large-network data. M3 keeps loading the full snapshot and does focus, collapse, and summaries on the client.
+4. **Physical tab:** M3 adds the Conceptual / Physical switch. Physical shows the existing rack view until M4 replaces it.
+
+### M3 implementation design (agreed 2026-10-04)
+
+**Baseline facts:** `features/whiteboard/hierarchy.ts` nests every equipment card inside site → node → rack containers and draws cables between cards (bundled when a container is collapsed). `Whiteboard.tsx` keeps drag state local, remembers positions for the session in an App-level ref, memoizes the projection, fits the view once, and implements drag-to-rack through rack containers. `App.tsx` (about 1,050 lines) holds the shell, drawers, trace tool, and inspector, and remounts the workspace when Installed/Plan context changes. Playwright runs on the single-network prototype `sample` fixture, which has no HDF.
+
+1. **New feature folder.** The map lives in `frontend/src/features/map/`: pure projection modules plus a `ConceptualMap` component. `App.tsx` only wires it in. `features/whiteboard/` is deleted once the map replaces it; its tests are replaced, not silently dropped.
+2. **Nodes and edges.** One card per equipment, including one card per HDF, never one per circuit. One edge per cable record, carrying the cable ID and both endpoint IDs. An edge attaches to an endpoint handle when that endpoint is shown as a facet (below); otherwise it attaches to the card's summary anchor. Parallel cables between the same two cards that both attach to summary anchors are drawn as one bundle labeled "N cables" that keeps every cable ID. Bundles and anchors are drawing aids only and never feed traversal.
+3. **First layout (deterministic, no new dependency).** Column 0 holds access switches. Passive equipment goes in column 1 + its minimum cable distance in equipment hops from any access switch. AGG/BB go in the column after the last passive column. Equipment not reachable from any access switch goes in a parked row below. Within a column, cards are ordered by the average row of their cabled neighbors in the previous column, then by name. The layout is computed only for cards that have no position yet. Existing positions are never recomputed when data changes.
+4. **Positions and viewport.** Drags stay local to the canvas and are recorded at drag stop in a session-level store keyed by equipment ID, shared by Installed and Plan. Viewport (pan/zoom) is kept in the same store. Refetches, trace changes, network changes, and context switches never refit or reset it; the map fits once per session. Nothing is persisted to the server (M6).
+5. **Facets (exact endpoint detail on a card).** A facet is one switch port, or one standard-panel/HDF position showing its front and rear endpoints and the bridge between them. A card shows a summary ("N of M cabled") plus two independent facet sets:
+   - **automatic:** the endpoints of the selected route on that equipment, derived from the route and replaced when the route changes or clears;
+   - **manual:** positions or ports the user chose to show, kept in map state per equipment, unaffected by route changes.
+   HDF facets read "3C / 5" with the parent HDF name always visible. Several positions on one HDF show as separate facets under the same card.
+6. **Network filter.** The header gets a network selector: "All networks" or one network. With one network selected, the map shows that network's active devices, plus passive equipment that carries at least one circuit of that network, plus the cables between shown cards. A passive card shows badges for the networks of the circuits through it. A circuit's network is the network of its access device, computed by the same rule as the engine's passive start, in a pure tested function. The filter is presentation only and never changes what a trace finds.
+7. **Trace on the map.** Find AGG / BB starts from the selected card (all ports) or a selected port facet; exact port-to-port stays in the Trace tool. An expandable results overlay lists every route, AGG first, with destination, role, and network, plus mismatches and truncation as today. Selecting a result highlights its cables and bridges on the existing map, reveals its automatic facets, and leaves every card position and the viewport unchanged. "Clear trace" removes only automatic facets and highlights. If a route touches a card that the current network filter or focus hides, that card is shown while the route is selected.
+8. **Focus and summaries.** A location focus (site or node, chosen in the Explore drawer or from a card's location label) limits the map to that location's equipment plus their direct cable neighbors. Cables that leave the focus are summarized as boundary bundles ("N cables to Main Distribution") that keep cable IDs and can be expanded into the real cards. Clearing focus restores the full map with positions intact.
+9. **Shell.** The header holds Conceptual / Physical, the network selector, and Installed / Plan, which are independent controls. Physical shows the existing `RackView` until M4. Tool rail and drawers stay overlays on the full-page map.
+10. **Editing kept as-is.** Dropping a library item on empty map space still creates an unplaced, unsaved preview. Drag-to-rack on the map is removed (answer 2); the inspector's placement form and the rack view still propose placements.
+11. **Browser tests.** `cmd/testserver` switches to the acceptance fixture, so Playwright covers Networks A/B and the HDFs. Specs that characterize the nested canvas (`hierarchy.spec.ts`, the canvas parts of `workspace.spec.ts` and `placement.spec.ts`) are rewritten for the map; placement and planning behavior stays covered through the inspector and rack view. The `sample` fixture remains for Go characterization tests.
+
+### M3 steps
+
+Same rules as M1/M2: test-first, the whole repository green at the end of each step (Go with `TEST_DATABASE_URL`, frontend tests, typecheck, build, format, Playwright), reviewed before the next. Test IDs refer to [acceptance-tests.md](acceptance-tests.md).
+
+| Step | Work | Tests |
+| --- | --- | --- |
+| 1 | **Pure projection** in `features/map/`: deterministic layered layout, one edge per cable with summary bundling, facet model (automatic and manual), circuit network classification and network filter. No UI change yet | C01, C06, C07, C08, C09 (unit) |
+| 2 | **Map replaces the whiteboard.** `ConceptualMap` component; header with Conceptual / Physical and network selector; layout-only drag; session positions and viewport preserved across refetch, filter, and context switch; library preview kept; `cmd/testserver` on the acceptance fixture; nested-canvas specs rewritten; `features/whiteboard/` removed | C01, C10, C11, C12 |
+| 3 | **Trace on the map.** Find AGG / BB from a card or port facet; results overlay with all routes; in-place highlighting with automatic facets; clear trace; hidden route cards revealed while selected | C02, C04, C06, P18 (UI) |
+| 4 | **Manual expansion.** "Show connections" on a card lists its cabled positions/ports with search and toggles manual facets; route changes and clearing never remove them; other networks' circuits are labeled | C03, C05 |
+| 5 | **Focus and summaries.** Location focus with boundary bundles that keep cable IDs and expand to real cards; selected routes reveal objects outside the focus | C09, C13 |
+| 6 | **Status and handoff.** `current-status.md`, README smoke flow on the new map, `ui-spec`-relevant notes, `CLAUDE.md` | Full check run |
+
 ## M4 — Approved physical explorer
 
 ### Scope
