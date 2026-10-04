@@ -25,6 +25,7 @@ import PlanEditor from '../features/planning/PlanEditor'
 import PlacementEditor from '../features/planning/PlacementEditor'
 import TracePanel from '../features/pathfinding/TracePanel'
 import { endpointLabel } from '../features/pathfinding/projection'
+import { isPassiveEquipment } from '../shared/equipment'
 import { locationPath } from '../features/whiteboard/hierarchy'
 import './styles.css'
 
@@ -559,7 +560,7 @@ function Workspace({
     <>
       <div className="inspector-hero">
         <span className="equipment-icon">
-          {equipment.kind === 'panel' ? <PanelTop /> : <Network />}
+          {isPassiveEquipment(equipment) ? <PanelTop /> : <Network />}
         </span>
         <h2>{equipment.name}</h2>
         <span

@@ -186,12 +186,16 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	return s, topology.Validate(s)
 }
 
-func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plan planning.Plan) error {
+// Seed initializes an empty database with installed inventory and any explicit
+// draft plans. Fixtures without drafts (the acceptance fixture) pass none.
+func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plans ...planning.Plan) error {
 	if err := topology.Validate(base); err != nil {
 		return err
 	}
-	if _, err := planning.Apply(base, plan); err != nil {
-		return err
+	for _, plan := range plans {
+		if _, err := planning.Apply(base, plan); err != nil {
+			return err
+		}
 	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -247,11 +251,13 @@ func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plan planning.
 			return err
 		}
 	}
-	if plan.Name == "" {
-		plan.Name = "Expansion"
-	}
-	if err = insertPlan(ctx, tx, plan); err != nil {
-		return err
+	for _, plan := range plans {
+		if plan.Name == "" {
+			plan.Name = "Expansion"
+		}
+		if err = insertPlan(ctx, tx, plan); err != nil {
+			return err
+		}
 	}
 	return tx.Commit(ctx)
 }

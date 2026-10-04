@@ -22,6 +22,7 @@ import {
   Server,
   Plus,
 } from 'lucide-react'
+import { isPassiveEquipment } from '../../shared/equipment'
 import type { Route, Snapshot } from '../../shared/types'
 import { hierarchyGraph, type CanvasNode } from './hierarchy'
 import './interaction.css'
@@ -96,7 +97,7 @@ const EquipmentCard = memo(function EquipmentCard({
   selected,
 }: NodeProps<CanvasNode>) {
   const Icon =
-    data.equipment?.kind === 'panel'
+    data.equipment && isPassiveEquipment(data.equipment)
       ? PanelTop
       : data.equipment?.role === 'aggregation'
         ? GitFork

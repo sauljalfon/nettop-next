@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
+	"nettop.local/backend/internal/acceptance"
 	"nettop.local/backend/internal/persistence"
-	"nettop.local/backend/internal/sample"
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 	if os.Args[1] == "migrate" {
 		err = s.Migrate(ctx)
 	} else {
-		err = s.Seed(ctx, sample.Installed(), sample.Expansion())
+		err = s.Seed(ctx, acceptance.Installed())
 	}
 	if err != nil {
 		log.Fatal(err)
