@@ -3,9 +3,9 @@ import { routeHighlight } from '../pathfinding/projection'
 import { crossNetworkCaption, mapEdges } from './edges'
 import { facetEndpointIds, facetsFor, type Facet } from './facets'
 import { layeredLayout, type Position } from './layout'
-import { cabledSummaries, locationLabel } from './location'
 import type { MapSession } from './mapSession'
-import { passiveNetworks, visibleEquipment } from './networks'
+import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
+import { visibleEquipment } from './networks'
 
 export interface MapInput {
   snapshot: Snapshot
@@ -16,6 +16,8 @@ export interface MapInput {
   route?: Route
   installedIDs: ReadonlySet<string>
   installedLinkIDs: ReadonlySet<string>
+  /** Snapshot-only results; computed here when absent. Memoize on the snapshot. */
+  index?: SnapshotIndex
 }
 
 export interface MapCardData extends Record<string, unknown> {
@@ -25,6 +27,8 @@ export interface MapCardData extends Record<string, unknown> {
   /** Network names of the circuits through a passive card. */
   badges: string[]
   facets: Facet[]
+  /** Facet keys the user chose to show on this card. */
+  manualKeys: string[]
   highlighted: boolean
   proposed: boolean
 }
@@ -73,11 +77,16 @@ export function projectMap(input: MapInput): {
     },
   )
 
+  const index = input.index ?? indexSnapshot(s)
   const highlight = routeHighlight(s, route)
-  const shown = visibleEquipment(s, input.networkId, highlight.equipmentIds)
-  const facets = facetsFor(s, route)
-  const badges = passiveNetworks(s)
-  const summaries = cabledSummaries(s)
+  const shown = visibleEquipment(
+    s,
+    input.networkId,
+    highlight.equipmentIds,
+    index.badges,
+  )
+  const manual = session.manualFacets()
+  const facets = facetsFor(s, route, manual, index.lookup)
   const networkName = (id: string) =>
     s.networks.find((n) => n.id === id)?.name ?? id
 
@@ -89,10 +98,11 @@ export function projectMap(input: MapInput): {
       position: session.position(e.id)!,
       data: {
         equipment: e,
-        location: locationLabel(s, e.id),
-        summary: summaries.get(e.id) ?? { cabled: 0, total: 0 },
-        badges: (badges.get(e.id) ?? []).map(networkName),
+        location: index.locations.get(e.id) ?? '',
+        summary: index.summaries.get(e.id) ?? { cabled: 0, total: 0 },
+        badges: (index.badges.get(e.id) ?? []).map(networkName),
         facets: facets.get(e.id) ?? [],
+        manualKeys: [...(manual.get(e.id) ?? [])].sort(),
         highlighted: highlight.equipmentIds.has(e.id),
         proposed: !input.installedIDs.has(e.id),
       },
@@ -103,6 +113,7 @@ export function projectMap(input: MapInput): {
     s,
     shown,
     facetEndpointIds(facets),
+    index.circuits,
   )
   const caption = (networkId: string) =>
     crossNetworkCaption(networkId, input.networkId, s.networks)

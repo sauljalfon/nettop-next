@@ -2,8 +2,12 @@ import { expect, test, type Page } from '@playwright/test'
 
 const viewport = (page: Page) =>
   page.locator('.react-flow__viewport').getAttribute('style')
+// Only the position: the style attribute also carries React Flow's
+// visibility: hidden until a card has been measured.
 const transform = (page: Page, id: string) =>
-  page.getByTestId(`rf__node-${id}`).getAttribute('style')
+  page
+    .getByTestId(`rf__node-${id}`)
+    .evaluate((n) => (n as HTMLElement).style.transform)
 
 test('C01 default map shows equipment and actual cable references, not an inventory tree', async ({
   page,

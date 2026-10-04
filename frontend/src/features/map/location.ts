@@ -45,3 +45,21 @@ export function cabledSummaries(
   }
   return result
 }
+
+/** "Site / Node / Rack" of every equipment in one pass. */
+export function locationLabels(s: Snapshot): Map<string, string> {
+  const racks = new Map(s.racks.map((r) => [r.id, r]))
+  const nodes = new Map(s.nodes.map((n) => [n.id, n]))
+  const sites = new Map(s.sites.map((x) => [x.id, x]))
+  return new Map(
+    s.equipment.map((e) => {
+      const rack = racks.get(e.rackId)
+      const node = nodes.get(rack?.nodeId ?? '')
+      const site = sites.get(node?.siteId ?? '')
+      return [
+        e.id,
+        [site?.name, node?.name, rack?.name].filter(Boolean).join(' / '),
+      ]
+    }),
+  )
+}

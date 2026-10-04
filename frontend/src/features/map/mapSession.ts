@@ -1,3 +1,4 @@
+import type { ManualFacets } from './facets'
 import type { Position } from './layout'
 
 export interface Viewport {
@@ -27,11 +28,21 @@ export interface MapSession {
   setViewport(viewport: Viewport): void
   /** True until a viewport has been recorded: the map fits once per session. */
   needsFit(): boolean
+  /**
+   * Facets the user chose to show, by equipment ID then facet key. Replaced
+   * (never mutated) on every change so it works as a store snapshot.
+   */
+  manualFacets(): ManualFacets
+  toggleManual(equipmentId: string, key: string): void
+  /** Notified after manual facets change; returns the unsubscribe function. */
+  subscribe(listener: () => void): () => void
 }
 
 export function createMapSession(): MapSession {
   const positions = new Map<string, Position>()
   let viewport: Viewport | undefined
+  let manual: ManualFacets = new Map()
+  const listeners = new Set<() => void>()
   return {
     position: (id) => positions.get(id),
     positions: () => positions,
@@ -52,6 +63,20 @@ export function createMapSession(): MapSession {
     viewport: () => viewport,
     setViewport: (v) => void (viewport = { x: v.x, y: v.y, zoom: v.zoom }),
     needsFit: () => viewport === undefined,
+    manualFacets: () => manual,
+    toggleManual(equipmentId, key) {
+      const next = new Map(manual)
+      const keys = new Set(next.get(equipmentId))
+      if (!keys.delete(key)) keys.add(key)
+      if (keys.size) next.set(equipmentId, keys)
+      else next.delete(equipmentId)
+      manual = next
+      for (const listener of listeners) listener()
+    },
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => void listeners.delete(listener)
+    },
   }
 }
 

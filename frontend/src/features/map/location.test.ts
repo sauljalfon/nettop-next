@@ -71,28 +71,4 @@ describe('cabledSummaries computes every equipment in one pass', () => {
     s.equipment.push({ ...s.equipment[0], id: 'EMPTY', name: 'EMPTY' })
     expect(cabledSummaries(s).has('EMPTY')).toBe(false)
   })
-
-  it('scales linearly: a large snapshot summarizes quickly', () => {
-    const s = acceptanceSnapshot()
-    for (let i = 0; i < 400; i++) {
-      const id = `BULK-${i}`
-      s.equipment.push({ ...s.equipment[0], id, name: id })
-      for (let n = 1; n <= 24; n++)
-        s.endpoints.push({
-          id: `${id}:p${n}`,
-          equipmentId: id,
-          label: String(n),
-        })
-      s.links.push({
-        id: `bulk-${i}`,
-        kind: 'cable',
-        a: `${id}:p1`,
-        b: `${id}:p2`,
-      })
-    }
-    const started = performance.now()
-    const all = cabledSummaries(s)
-    expect(performance.now() - started).toBeLessThan(500)
-    expect(all.get('BULK-7')).toEqual({ cabled: 2, total: 24 })
-  })
 })

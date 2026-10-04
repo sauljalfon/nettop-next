@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot, agg03Route } from './acceptanceFixture'
-import { facetsFor } from './facets'
+import { facetsFor, facetStart } from './facets'
 
 describe('C04 route facets are automatic and exact', () => {
   it('reveals only the route positions and ports, per equipment', () => {
@@ -80,5 +80,33 @@ describe('facet model keeps automatic and manual detail independent', () => {
     expect(
       facets.get('HDF-01')!.find((f) => f.label === '3C / 5')!.automatic,
     ).toBe(true)
+  })
+})
+
+describe('starting a trace from a facet', () => {
+  it('starts a position from its front endpoint', () => {
+    const [facet] = facetsFor(acceptanceSnapshot(), agg03Route()).get('HDF-01')!
+    expect(facetStart(facet)).toBe('HDF-01:3C/5:f')
+  })
+
+  it('falls back to the rear endpoint, then to any endpoint', () => {
+    const base = {
+      key: 'k',
+      equipmentId: 'e',
+      label: 'l',
+      automatic: true,
+      manual: false,
+    }
+    expect(
+      facetStart({ ...base, endpointIds: ['r'], rearEndpointId: 'r' }),
+    ).toBe('r')
+    expect(facetStart({ ...base, endpointIds: ['x'] })).toBe('x')
+  })
+
+  it('starts a switch port from the port itself', () => {
+    const [facet] = facetsFor(acceptanceSnapshot(), agg03Route()).get(
+      'EDGE-17',
+    )!
+    expect(facetStart(facet)).toBe('EDGE-17:p1')
   })
 })

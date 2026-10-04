@@ -1,17 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Plan } from '../src/shared/types'
+import { fitted, viewport } from './helpers'
 
-const viewport = (page: Page) =>
-  page.locator('.react-flow__viewport').getAttribute('style')
-/** Waits for the one-time fit so later comparisons start from the settled view. */
-const fitted = async (page: Page) => {
-  await expect(
-    page.locator('.react-flow__node-equipment').first(),
-  ).toBeVisible()
-  await expect
-    .poll(() => viewport(page))
-    .not.toBe('transform: translate(0px, 0px) scale(1);')
-}
 /** Every card's transform, keyed by equipment ID. */
 const layout = (page: Page) =>
   page.evaluate(() =>
@@ -23,7 +13,7 @@ const layout = (page: Page) =>
     ),
   )
 const facets = (page: Page, name: string) =>
-  page.getByLabel(`${name} shown connections`).locator('li')
+  page.getByLabel(`${name} shown connections`).locator('.map-facet-label')
 const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
 
@@ -133,8 +123,11 @@ test('C06 a route through several positions of one HDF shows each under the same
   await rows(page).filter({ hasText: 'AGG-15' }).click()
   const hdfX = page.locator('.react-flow__node-equipment', { hasText: 'HDF-X' })
   await expect(hdfX.getByRole('heading', { name: 'HDF-X' })).toBeVisible()
-  await expect(hdfX.locator('.map-facets li')).toHaveText(['1A / 1', '1B / 1'])
-  await expect(hdfX.locator('.map-facets li')).toHaveCount(2)
+  await expect(hdfX.locator('.map-facet-label')).toHaveText([
+    '1A / 1',
+    '1B / 1',
+  ])
+  await expect(hdfX.locator('.map-facet-label')).toHaveCount(2)
 })
 
 test('P18 a route through equipment the network filter hides is still found and shown', async ({

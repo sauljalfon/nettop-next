@@ -1,4 +1,4 @@
-import type { Endpoint, Route, Snapshot } from '../../shared/types'
+import type { Endpoint, Route, Snapshot, Subpanel } from '../../shared/types'
 
 /** One switch port, or one panel/HDF position with its front and rear sides. */
 export interface Facet {
@@ -20,10 +20,44 @@ export interface Facet {
 /** Manual facet keys per equipment ID. */
 export type ManualFacets = ReadonlyMap<string, ReadonlySet<string>>
 
-function facetKey(s: Snapshot, p: Endpoint) {
+/** Snapshot-only lookups that facet building needs; build once per snapshot. */
+export interface EndpointLookup {
+  endpoints: ReadonlyMap<string, Endpoint>
+  byEquipment: ReadonlyMap<string, Endpoint[]>
+  subpanels: ReadonlyMap<string, Subpanel>
+}
+
+export function endpointLookup(s: Snapshot): EndpointLookup {
+  const byEquipment = new Map<string, Endpoint[]>()
+  for (const p of s.endpoints) {
+    const list = byEquipment.get(p.equipmentId)
+    if (list) list.push(p)
+    else byEquipment.set(p.equipmentId, [p])
+  }
+  return {
+    endpoints: new Map(s.endpoints.map((p) => [p.id, p])),
+    byEquipment,
+    subpanels: new Map(s.subpanels.map((x) => [x.id, x])),
+  }
+}
+
+/** Stable key of a facet within its equipment: a port's endpoint ID, or "3C/5" / "1". */
+export function facetKey(lookup: EndpointLookup, p: Endpoint) {
   if (p.position === undefined) return p.id
-  const sub = s.subpanels.find((x) => x.id === p.subpanelId)
+  const sub = lookup.subpanels.get(p.subpanelId ?? '')
   return sub ? `${sub.row}${sub.column}/${p.position}` : String(p.position)
+}
+
+/** "3C / 5" for HDF positions, the position for panels, the port label for switches. */
+export function facetLabel(lookup: EndpointLookup, p: Endpoint) {
+  if (p.position === undefined) return p.label
+  const sub = lookup.subpanels.get(p.subpanelId ?? '')
+  return sub ? `${sub.row}${sub.column} / ${p.position}` : String(p.position)
+}
+
+/** A trace from a facet starts at its front endpoint, else its rear one. */
+export function facetStart(f: Facet) {
+  return f.frontEndpointId ?? f.rearEndpointId ?? f.endpointIds[0]
 }
 
 /**
@@ -35,8 +69,9 @@ export function facetsFor(
   s: Snapshot,
   route?: Route,
   manual: ManualFacets = new Map(),
+  lookup: EndpointLookup = endpointLookup(s),
 ): Map<string, Facet[]> {
-  const endpoints = new Map(s.endpoints.map((p) => [p.id, p]))
+  const endpoints = lookup.endpoints
   const routeEndpoints = new Set<string>()
   if (route) {
     routeEndpoints.add(route.start)
@@ -48,20 +83,14 @@ export function facetsFor(
 
   const byKey = new Map<string, Facet>()
   const facetOf = (p: Endpoint) => {
-    const key = facetKey(s, p)
+    const key = facetKey(lookup, p)
     const id = `${p.equipmentId}\u0000${key}`
     let facet = byKey.get(id)
     if (!facet) {
-      const sub = s.subpanels.find((x) => x.id === p.subpanelId)
       facet = {
         key,
         equipmentId: p.equipmentId,
-        label:
-          p.position === undefined
-            ? p.label
-            : sub
-              ? `${sub.row}${sub.column} / ${p.position}`
-              : String(p.position),
+        label: facetLabel(lookup, p),
         endpointIds: [],
         automatic: false,
         manual: false,
@@ -80,16 +109,14 @@ export function facetsFor(
     if (p) add(p, 'automatic')
   }
   for (const [equipmentId, keys] of manual)
-    for (const p of s.endpoints)
-      if (p.equipmentId === equipmentId && keys.has(facetKey(s, p)))
-        add(p, 'manual')
+    for (const p of lookup.byEquipment.get(equipmentId) ?? [])
+      if (keys.has(facetKey(lookup, p))) add(p, 'manual')
 
   // A position facet always carries both sides and its bridge, whichever side triggered it.
   const result = new Map<string, Facet[]>()
   for (const facet of byKey.values()) {
-    for (const p of s.endpoints) {
-      if (p.equipmentId !== facet.equipmentId || facetKey(s, p) !== facet.key)
-        continue
+    for (const p of lookup.byEquipment.get(facet.equipmentId) ?? []) {
+      if (facetKey(lookup, p) !== facet.key) continue
       facet.endpointIds.push(p.id)
       if (p.side === 'front') facet.frontEndpointId = p.id
       if (p.side === 'rear') facet.rearEndpointId = p.id

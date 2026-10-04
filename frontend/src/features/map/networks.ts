@@ -47,8 +47,10 @@ export function circuitNetworks(s: Snapshot): Map<string, string> {
 }
 
 /** Sorted network IDs of the circuits through each passive equipment (card badges). */
-export function passiveNetworks(s: Snapshot): Map<string, string[]> {
-  const byEndpoint = circuitNetworks(s)
+export function passiveNetworks(
+  s: Snapshot,
+  byEndpoint: ReadonlyMap<string, string> = circuitNetworks(s),
+): Map<string, string[]> {
   const owner = new Map(s.endpoints.map((p) => [p.id, p.equipmentId]))
   const sets = new Map<string, Set<string>>()
   for (const [endpoint, network] of byEndpoint) {
@@ -68,9 +70,9 @@ export function visibleEquipment(
   s: Snapshot,
   networkId: string | undefined,
   reveal: Iterable<string> = [],
+  badges: ReadonlyMap<string, string[]> = passiveNetworks(s),
 ): Set<string> {
   if (!networkId) return new Set(s.equipment.map((e) => e.id))
-  const badges = passiveNetworks(s)
   const shown = new Set<string>(reveal)
   for (const e of s.equipment) {
     if (

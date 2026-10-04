@@ -39,3 +39,51 @@ describe('C11/C12 session store keeps layout and viewport across remounts', () =
     expect(session.position('EDGE-22')).toEqual({ x: 100, y: 100 })
   })
 })
+
+describe('C05 manual facets live in the session, per equipment ID', () => {
+  it('toggles a facet on and off', () => {
+    const session = createMapSession()
+    expect(session.manualFacets().size).toBe(0)
+    session.toggleManual('HDF-01', '1A/2')
+    expect(session.manualFacets().get('HDF-01')).toEqual(new Set(['1A/2']))
+    session.toggleManual('HDF-01', '3C/5')
+    expect([...session.manualFacets().get('HDF-01')!].sort()).toEqual([
+      '1A/2',
+      '3C/5',
+    ])
+    session.toggleManual('HDF-01', '1A/2')
+    expect([...session.manualFacets().get('HDF-01')!]).toEqual(['3C/5'])
+    session.toggleManual('HDF-01', '3C/5')
+    expect(session.manualFacets().has('HDF-01')).toBe(false)
+  })
+
+  it('keeps equipment independent', () => {
+    const session = createMapSession()
+    session.toggleManual('HDF-01', '1A/2')
+    session.toggleManual('HDF-02', '1A/2')
+    session.toggleManual('HDF-01', '1A/2')
+    expect(session.manualFacets().has('HDF-01')).toBe(false)
+    expect(session.manualFacets().get('HDF-02')).toEqual(new Set(['1A/2']))
+  })
+
+  it('replaces the snapshot on change, so subscribers can compare references', () => {
+    const session = createMapSession()
+    const before = session.manualFacets()
+    expect(session.manualFacets()).toBe(before)
+    session.toggleManual('HDF-01', '1A/2')
+    expect(session.manualFacets()).not.toBe(before)
+    expect(before.size).toBe(0) // the old snapshot is never mutated
+  })
+
+  it('notifies subscribers on a toggle, until they unsubscribe', () => {
+    const session = createMapSession()
+    let calls = 0
+    const stop = session.subscribe(() => calls++)
+    session.toggleManual('HDF-01', '1A/2')
+    session.toggleManual('HDF-01', '1A/2')
+    expect(calls).toBe(2)
+    stop()
+    session.toggleManual('HDF-01', '1A/2')
+    expect(calls).toBe(2)
+  })
+})

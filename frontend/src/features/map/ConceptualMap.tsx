@@ -6,6 +6,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from 'react'
 import {
   Background,
@@ -25,7 +26,15 @@ import {
 import { GitFork, Network, PanelTop, Plus } from 'lucide-react'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Route, Snapshot } from '../../shared/types'
+import {
+  connectionCaption,
+  connectionEntries,
+  searchConnections,
+  type ConnectionEntry,
+} from './connections'
+import { facetStart } from './facets'
 import { projectMap, type MapCardData, type MapFlowEdge } from './mapGraph'
+import { indexSnapshot } from './snapshotIndex'
 import { mapSession, type MapSession } from './mapSession'
 import './map.css'
 
@@ -36,10 +45,69 @@ type MapNode = CardNode | PreviewNode
 const Actions = createContext<{
   onPort: (id: string) => void
   onTraceDevice: (id: string) => void
+  onToggleManual: (equipmentId: string, key: string) => void
+  /** Cabled ports or positions of an equipment; computed when a list opens. */
+  entriesOf: (equipmentId: string) => ConnectionEntry[]
+  /** Network label for an entry on another network than the active filter. */
+  captionOf: (entry: ConnectionEntry) => string | undefined
 }>({
   onPort: () => undefined,
   onTraceDevice: () => undefined,
+  onToggleManual: () => undefined,
+  entriesOf: () => [],
+  captionOf: () => undefined,
 })
+
+function Connections({
+  equipmentId,
+  name,
+  manualKeys,
+}: {
+  equipmentId: string
+  name: string
+  manualKeys: readonly string[]
+}) {
+  const { entriesOf, captionOf, onToggleManual } = useContext(Actions)
+  const [query, setQuery] = useState('')
+  const entries = useMemo(
+    () => entriesOf(equipmentId),
+    [entriesOf, equipmentId],
+  )
+  const shown = searchConnections(entries, query)
+  return (
+    <div className="map-connections nodrag nowheel">
+      <input
+        aria-label={`Search ${name} connections`}
+        placeholder="Search, e.g. 3C/5"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <ul aria-label={`${name} connections`}>
+        {shown.map((entry) => {
+          const caption = captionOf(entry)
+          return (
+            <li key={entry.key}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={manualKeys.includes(entry.key)}
+                  onChange={() => onToggleManual(equipmentId, entry.key)}
+                />
+                <span>{entry.label}</span>
+                {caption && <small className="badge">{caption}</small>}
+              </label>
+            </li>
+          )
+        })}
+      </ul>
+      {!shown.length && (
+        <p className="muted">
+          {entries.length ? 'No match.' : 'Nothing is cabled yet.'}
+        </p>
+      )}
+    </div>
+  )
+}
 
 const EquipmentCard = memo(function EquipmentCard({
   id,
@@ -47,6 +115,7 @@ const EquipmentCard = memo(function EquipmentCard({
   selected,
 }: NodeProps<CardNode>) {
   const { onPort, onTraceDevice } = useContext(Actions)
+  const [listOpen, setListOpen] = useState(false)
   // A route change can swap facets without changing the card's size, so the
   // size observer never fires; tell React Flow to re-read this card's handles.
   const updateNodeInternals = useUpdateNodeInternals()
@@ -86,8 +155,19 @@ const EquipmentCard = memo(function EquipmentCard({
           ))}
         </p>
       )}
-      {selected && e.kind === 'switch' && (
-        <div className="map-card-actions">
+      <div className="map-card-actions">
+        <button
+          className="nodrag"
+          aria-expanded={listOpen}
+          aria-label={`Show connections of ${e.name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            setListOpen((v) => !v)
+          }}
+        >
+          Show connections
+        </button>
+        {selected && e.kind === 'switch' && (
           <button
             className="nodrag"
             aria-label={`Find AGG / BB from all ports of ${e.name}`}
@@ -98,21 +178,33 @@ const EquipmentCard = memo(function EquipmentCard({
           >
             Find AGG / BB
           </button>
-        </div>
+        )}
+      </div>
+      {listOpen && (
+        <Connections
+          equipmentId={e.id}
+          name={e.name}
+          manualKeys={data.manualKeys}
+        />
       )}
       {data.facets.length > 0 && (
         <ul className="map-facets" aria-label={`${e.name} shown connections`}>
           {data.facets.map((f) => (
             <li className="map-facet-row" key={f.key}>
               <button
+                data-source={[f.automatic && 'auto', f.manual && 'manual']
+                  .filter(Boolean)
+                  .join(' ')}
                 className={`nodrag map-facet ${f.automatic ? 'auto' : ''} ${f.manual ? 'manual' : ''}`}
                 aria-label={`${e.name} ${f.label}, find AGG / BB from here`}
                 onClick={(event) => {
                   event.stopPropagation()
-                  onPort(f.endpointIds[0])
+                  onPort(facetStart(f))
                 }}
               >
-                {f.label}
+                <span className="map-facet-label">{f.label}</span>
+                {f.automatic && <small>route</small>}
+                {f.manual && <small>pinned</small>}
               </button>
               {f.endpointIds.map((id) => (
                 <span key={id}>
@@ -246,6 +338,10 @@ function Canvas({
   session = mapSession,
 }: Props) {
   const flow = useReactFlow<MapNode>()
+  // Snapshot-only work is done once per snapshot; route, filter and manual
+  // facets only redo the dependent part.
+  const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
+  const manual = useSyncExternalStore(session.subscribe, session.manualFacets)
   const graph = useMemo(
     () =>
       projectMap({
@@ -255,8 +351,19 @@ function Canvas({
         route,
         installedIDs,
         installedLinkIDs,
+        index,
       }),
-    [snapshot, session, networkId, route, installedIDs, installedLinkIDs],
+    // `manual` is read through the session; it is a dependency so toggles re-project.
+    [
+      snapshot,
+      session,
+      networkId,
+      route,
+      installedIDs,
+      installedLinkIDs,
+      index,
+      manual,
+    ],
   )
   const edges = useMemo(() => graph.edges.map(flowEdge), [graph.edges])
   const cableCount = useMemo(
@@ -309,9 +416,24 @@ function Canvas({
       })
     return cards
   }, [nodes, selected, preview, onConfigurePreview])
+  const entriesOf = useCallback(
+    (id: string) => connectionEntries(snapshot, index, id),
+    [snapshot, index],
+  )
+  const captionOf = useCallback(
+    (entry: ConnectionEntry) =>
+      connectionCaption(entry, networkId, snapshot.networks),
+    [networkId, snapshot.networks],
+  )
   const actions = useMemo(
-    () => ({ onPort, onTraceDevice }),
-    [onPort, onTraceDevice],
+    () => ({
+      onPort,
+      onTraceDevice,
+      onToggleManual: session.toggleManual,
+      entriesOf,
+      captionOf,
+    }),
+    [onPort, onTraceDevice, session, entriesOf, captionOf],
   )
 
   return (

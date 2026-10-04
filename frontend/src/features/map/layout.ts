@@ -6,7 +6,7 @@ export interface Position {
 }
 
 export const COLUMN_WIDTH = 320
-export const ROW_HEIGHT = 140
+export const ROW_HEIGHT = 200
 
 /**
  * Deterministic first layout. Column 0: access switches. Passive equipment in

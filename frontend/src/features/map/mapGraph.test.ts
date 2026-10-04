@@ -221,3 +221,55 @@ describe('C04/C06 route highlight and automatic facets', () => {
     expect(cleared.nodes.every((n) => n.data.facets.length === 0)).toBe(true)
   })
 })
+
+describe('C05 manual facets survive route selection, change and clear', () => {
+  const withManual = () => {
+    const session = createMapSession()
+    session.toggleManual('HDF-01', '1A/2')
+    return session
+  }
+  const hdf01 = (view: ReturnType<typeof projectMap>) =>
+    view.nodes.find((n) => n.id === 'HDF-01')!.data
+
+  it('shows a manual position with no route', () => {
+    const data = hdf01(projectMap(input({ session: withManual() })))
+    expect(data.facets.map((f) => f.label)).toEqual(['1A / 2'])
+    expect(data.facets[0]).toMatchObject({ manual: true, automatic: false })
+    expect(data.manualKeys).toEqual(['1A/2'])
+  })
+
+  it('keeps the manual facet while the automatic one follows the route', () => {
+    const session = withManual()
+    const labels = (route?: ReturnType<typeof agg03Route>) =>
+      hdf01(projectMap(input({ session, route }))).facets.map((f) => f.label)
+    expect(labels(agg03Route())).toEqual(['1A / 2', '3C / 5'])
+    expect(labels(undefined)).toEqual(['1A / 2']) // Clear trace
+  })
+
+  it('shows a position that is both once, marked both ways', () => {
+    const session = createMapSession()
+    session.toggleManual('HDF-01', '3C/5')
+    const facets = hdf01(
+      projectMap(input({ session, route: agg03Route() })),
+    ).facets
+    expect(facets).toHaveLength(1)
+    expect(facets[0]).toMatchObject({ manual: true, automatic: true })
+  })
+
+  it('attaches the cables of a manual facet to its handles without a route', () => {
+    const { edges } = projectMap(input({ session: withManual() }))
+    const a06 = edges.find((e) => e.id === 'A06')!
+    expect(a06.targetHandle).toBe('HDF-01:1A/2:r')
+  })
+
+  it('does not move any card', () => {
+    const session = createMapSession()
+    const before = projectMap(input({ session }))
+    session.toggleManual('HDF-01', '1A/2')
+    const after = projectMap(input({ session }))
+    for (const n of before.nodes)
+      expect(after.nodes.find((m) => m.id === n.id)!.position).toEqual(
+        n.position,
+      )
+  })
+})
