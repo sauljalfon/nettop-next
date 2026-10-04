@@ -22,9 +22,9 @@ Design review and mockup exploration are complete. The agreed behavior is now th
 - [Verification and checkpoint handoff guide](docs/verification-guide.md)
 - [Legacy behavior and source references](docs/legacy-reference.md)
 
-The existing code is a tested foundation/prototype. It does **not yet implement** network membership, BB discovery, explicit HDF subpanels, or the final connected-map/physical-navigation experience. The previous nested ownership canvas is superseded as the conceptual design. Static mockup files have been removed.
+The code is a tested foundation plus the completed **M1** domain contract: network membership, the explicit backbone (BB) role, stable HDF subpanel structure with atomic `add_hdf` creation, and the acceptance fixture as the development seed. It does **not yet implement** AGG/BB route discovery (M2), the final connected map (M3), or the physical explorer (M4). The previous nested ownership canvas is superseded as the conceptual design. Static mockup files have been removed. [current-status.md](docs/current-status.md) is the exact list of what runs.
 
-**Next checkpoint: M1 — network membership, explicit BB roles, and HDF identity/layout contracts.**
+**Next checkpoint: M2 — network-aware AGG/BB destination discovery.**
 
 The [pre-implementation checklist](docs/implementation-plan.md#decisions-to-confirm-before-coding) is answered: read/trace/inspect first slice, development fixtures only (dev database reset and reseeded), and user-assigned HDF row count (1–32) and rack height. Legacy data import is planned as a later, separate checkpoint. The agreed map, physical explorer, and tracing semantics remain the contract.
 
@@ -52,7 +52,21 @@ go run ./cmd/db seed
 go run ./cmd/api
 ```
 
-`migrate` is repeatable. **Run `seed` only on an empty database:** it refuses to overwrite initialized data. The development database binds to loopback on port 55432 and uses a named volume.
+`migrate` is repeatable. **Run `seed` only on an empty database:** it refuses to overwrite initialized data. The seed loads the fictional [acceptance fixture](docs/acceptance-example.md) (Networks A/B, 11 equipment, HDF-01 and HDF-02, cables A01–B04) and creates no draft plans. The development database binds to loopback on port 55432 and uses a named volume.
+
+### Upgrading a database seeded before M1
+
+Migration 003 (networks) refuses to run on a database that already contains switches or saved plans with switches, because their network membership is unknown and no default network is ever assigned. Migration 004 likewise refuses legacy free-text HDF subpanel values. Both stop before changing anything and tell you to reset the development database and reseed. For a development database that holds only prototype data, reset it yourself, which **deletes all data in the development volume**:
+
+```sh
+docker compose down -v
+docker compose up -d --wait
+cd backend
+go run ./cmd/db migrate
+go run ./cmd/db seed
+```
+
+Do not do this to a database that holds anything you need. Automated tests never need it; they use isolated schemas.
 
 In another terminal:
 
@@ -68,15 +82,17 @@ On later starts, bring up Compose, export `DATABASE_URL`, and run the API/fronte
 
 If port 8080 is occupied, change `HTTP_ADDR` for Go and `API_PROXY_TARGET` for Vite together. Authentication is not implemented yet; the default servers bind to loopback for local development.
 
-## Baseline smoke flow
+## Smoke flow (acceptance seed)
 
-1. In Installed, open Trace and find aggregation from EDGE-01.
-2. Inspect EDGE-01 → PANEL-A front/rear → PANEL-B rear/front → AGG-02 (three cables, two internal bridges).
-3. Use exact port-to-port mode for EDGE-01 SFP+ 1 → AGG-02 SFP+ 1; EDGE-01 SFP+ 2 is disconnected.
-4. Open the Expansion draft or create a named draft, add equipment/cables, and trace the proposed topology.
-5. Reload to verify saved proposals; switch to Installed to confirm isolation.
+With the API and frontend running on a freshly seeded database:
 
-The current seed and browser tests characterize this prototype, not the final AGG/BB/multi-network workflow. See [current-status.md](docs/current-status.md) for limitations and migration compatibility considerations.
+1. In Installed, open Trace, choose **Find aggregation**, start from **EDGE-17 · all ports**, and trace. Two routes are listed: **EDGE-17 Port 1 → AGG-03 Port 1** and **EDGE-17 Port 2 → AGG-08 Port 1**.
+2. Select the AGG-03 route: seven hops, four cables and three bridges: A01 → PANEL-A 1 front/rear → A02 → HDF-01 3C/5 rear/front → A03 → HDF-02 2B/3 front/rear → A04 → AGG-03 Port 1. The AGG-08 route is A05–A08 through PANEL-A 2, HDF-01 1A/2, and HDF-02 1D/2.
+3. AGG-15 (Network A, no cable) is not a result. EDGE-17 Port 3 is cabled to BB-01 (A09–A12), but "Find aggregation" does not return BB destinations yet (M2); use exact port-to-port mode from EDGE-17 Port 3 to BB-01 Port 1 to see that route.
+4. Trace from **EDGE-22 · all ports**: one route to AGG-12 Port 1 (B01–B04) through HDF-01 3C/2 and HDF-02 2B/6, different positions of the same subpanels as the Network A route. The two circuits never connect.
+5. Open Changes & plans, create a named draft, add a switch (the **Network** field starts empty and must be chosen) and cables, and trace the proposed topology. Reload to verify the saved draft; switch to Installed to confirm isolation.
+
+HDFs appear as passive cards. There is no HDF grid, creation form, or BB result UI yet (M3/M4/M5). `add_hdf` is available through the API: see [backend-contract-notes.md](docs/backend-contract-notes.md). The browser tests still use the smaller prototype fixture. See [current-status.md](docs/current-status.md) for limitations.
 
 ## Checks
 
@@ -94,6 +110,7 @@ From `frontend/`:
 
 ```sh
 npm test
+npm run typecheck
 npm run build
 npm run format:check
 npx playwright install chromium
@@ -114,9 +131,10 @@ backend/internal/pathfinding/  Pure physical traversal
 backend/internal/planning/     Revision-checked plan overlays/commands
 backend/internal/persistence/  PostgreSQL repositories and transactions
 backend/internal/httpapi/      HTTP boundary and repository interface
-backend/internal/sample/       Explicit development seed fixtures
+backend/internal/acceptance/   Acceptance fixture used by `cmd/db seed`
+backend/internal/sample/       Prototype fixture for characterization/browser tests
 frontend/src/features/         Current canvas, racks, traces, planning
-api/openapi.yaml               Current prototype API contract
+api/openapi.yaml               Current executable API contract
 docs/                          Approved architecture/UI, roadmap, status
 compose.yaml                   Local PostgreSQL
 ```

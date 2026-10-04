@@ -47,7 +47,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:5174`. The current seed contains EDGE-01, standard panels, AGG-02, and an Expansion draft. It is not the final acceptance fixture.
+Open `http://127.0.0.1:5174`. The seed loads the fictional acceptance fixture (Networks A/B, 11 equipment, HDF-01/HDF-02, cables A01–B04) with no drafts; see the README for the smoke flow and for resetting a database seeded before M1. The browser tests use the smaller prototype fixture.
 
 Do not reset Docker volumes, overwrite recorded inventory, or reseed real data as part of a migration test.
 

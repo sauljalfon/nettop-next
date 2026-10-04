@@ -24,60 +24,79 @@ This distinguishes executable baseline facts from target design work. It supplem
 | Endpoint | Behavior |
 | --- | --- |
 | `GET /api/health` | Database/process health, PostgreSQL storage mode |
-| `GET /api/topology` | Installed snapshot by default; `context=planned&planId=...` for an overlay |
-| `POST /api/traces` | Current `point_to_point` or `aggregation` request; same context parameters; optional `expectedRevision` query pin |
-| `GET /api/plans` | Saved drafts |
+| `GET /api/topology` | Installed snapshot by default; `context=planned&planId=...` for an overlay. Includes `networks`, `subpanels`, and equipment `networkId` |
+| `POST /api/traces` | `point_to_point` or `aggregation` request; same context parameters; optional `expectedRevision` query pin. No BB discovery yet (M2) |
+| `GET /api/plans` | Saved drafts (full drafts, including proposed `subpanels`) |
 | `GET /api/plans/{id}` | One draft |
 | `POST /api/plans` | Name and `expectedBaseRevision`; creates an empty saved draft |
-| `POST /api/plans/{id}/commands` | Revision-checked supported command |
+| `POST /api/plans/{id}/commands` | Revision-checked command: `add_equipment`, `add_hdf`, `add_cable`, or `move_equipment` |
+
+There is no endpoint to create or rename networks; they exist only through seed/fixtures and are read in snapshots.
+
+Snapshot fields relevant to M1: `networks: [{id, name}]`; `subpanels: [{id, equipmentId, row, column}]`; equipment `kind` is `switch`, `panel`, or `hdf`, `role` is `access`, `aggregation`, `backbone`, or `passive`, and `networkId` is present exactly for switches; endpoints carry `subpanelId` (HDF endpoints only), `position`, and `side`.
+
+Commands (every command requires `expectedRevision` and exactly one payload; unknown fields are rejected with 400, an unsupported or mixed payload with 422, a stale revision with 409; a failed command persists nothing and leaves the draft revision unchanged):
+
+```json
+{"type":"add_equipment","expectedRevision":"1","equipment":{"name":"EDGE-03","kind":"switch","role":"backbone","networkId":"net-a","rackId":"rack-a03","unit":4,"height":1,"portCount":24}}
+```
+
+```json
+{"type":"add_hdf","expectedRevision":"2","hdf":{"name":"HDF-03","rackId":"rack-sm01","unit":7,"height":3,"rows":4}}
+```
+
+- `add_equipment` creates a switch (1–48 ports, `networkId` required, roles `access`/`aggregation`/`backbone`) or a standard panel (1–48 positions, role `passive`, `networkId` rejected). It rejects kind `hdf`.
+- `add_hdf` creates the chassis, 4N subpanels, 24N positions as 48N endpoints, and 24N bridges in one revision. `rows` 1–32; `unit` and `height` 1–100 and independent of each other; the placement must fit the rack without overlapping installed or proposed equipment. Child IDs derive from the allocated chassis ID and are opaque.
+- Plans created before `subpanels` existed read as having none. An overlay with an HDF chassis but no complete grid is refused.
 
 Current trace bodies:
 
 ```json
-{"mode":"point_to_point","start":"edge-01:p1","end":"agg-02:p1"}
+{"mode":"point_to_point","start":"edge-17:p1","end":"agg-03:p1"}
 ```
 
 ```json
-{"mode":"aggregation","device":"edge-01"}
+{"mode":"aggregation","device":"edge-17"}
 ```
 
 ```json
-{"mode":"aggregation","start":"edge-01:p1"}
+{"mode":"aggregation","start":"edge-17:p1"}
 ```
 
-These examples use baseline seed IDs, not the final acceptance fixture. The existing aggregation action does not discover BB and has no network scope. The UI already pins the loaded revision on trace requests.
+These examples use the acceptance seed's IDs (`cmd/db seed`). The prototype `sample` fixture (browser tests, characterization tests) uses `edge-01`, `agg-02`, and similar. The aggregation action discovers AGG destinations only and has no network scope. BB-01 is reachable by exact `point_to_point`. The UI pins the loaded revision on trace requests.
 
-Baseline errors: malformed request/context 400; missing plan 404; revision conflict 409; invalid domain operation 422; persistence failure 500; unhealthy database 503. An unreachable valid physical trace is a result, not a fabricated missing-endpoint error.
+Baseline errors: malformed request/context 400; missing plan 404; revision conflict 409; invalid domain operation 422; persistence failure 500; unhealthy database 503. An unreachable valid physical trace is a result, not a fabricated missing-endpoint error. A stored plan whose overlay fails validation is refused, but currently surfaces as 500 (see [current-status.md](current-status.md)).
 
 ## 3. Schema facts and migration risks
 
-- Installed inventory is normalized into sites, physical nodes, racks, equipment, endpoints, links, link endpoint records, and rack occupancy.
-- The installed root stores the topology revision and old single-site/room compatibility labels. Explicit sites/nodes were added in migration 002 without relocating recorded racks.
-- Equipment currently supports `switch` and `panel` kinds, free-text stored role, rack placement, and no network foreign key.
-- Endpoint identity includes equipment owner plus string subpanel, position, and side. The string is not a stable SubPanel entity.
-- Cable records and internal links share the baseline link tables but are distinguished by kind. `UNIQUE(endpoint_id, kind)` gives independent external-cable and internal-bridge occupancy.
+Migrations `001`–`004` are applied in order, embedded, and checksummed. Never edit an applied migration; append a new one.
+
+- Installed inventory is normalized into sites, physical nodes, racks, equipment, subpanels, endpoints, links, link endpoint records, and rack occupancy. The installed root stores the topology revision and old single-site/room compatibility labels. Explicit sites/nodes were added in migration 002 without relocating recorded racks.
+- **Networks (003).** `networks(id, name)`. `equipment.network_id` references it; a check requires it for `switch` and forbids it for every other kind. Equipment `role` is still free text in the database; the domain's `Validate` enforces role by kind.
+- **HDF (004).** Equipment kind accepts `hdf`. `subpanels(id, equipment_id, row_number 1–32, column_letter A–D)` is unique per `(equipment_id, row, column)` and references an `hdf` chassis. `endpoints.subpanel_id` replaces the old `subpanel` text column: a composite foreign key `(subpanel_id, equipment_id)` makes an endpoint's subpanel belong to its own chassis, and a shape check requires `subpanel_id` exactly for `hdf` endpoints (position 1–6) and forbids it for switch and panel endpoints. The unique index on `(equipment_id, COALESCE(subpanel_id,''), position, side)` for panels and HDFs scopes position identity to the subpanel.
+- **What the database does not enforce.** Grid completeness (every row has columns A–D, six positions, front/rear endpoints, one bridge per position) and bridge continuity are enforced by `topology.Validate` on every read and write path, not by SQL constraints.
+- **Preflights.** `003` refuses to run if any switch or any saved plan switch exists; `004` refuses if any installed endpoint or saved plan endpoint has a non-empty legacy subpanel string. Both raise a clear error before altering anything and never guess a network or parse a label.
+- Cable records and internal links share the baseline link tables and are distinguished by kind. `UNIQUE(endpoint_id, kind)` gives independent external-cable and internal-bridge occupancy.
 - Rack-slot records enforce installed placement uniqueness; domain validation also checks bounds/height/ownership and complete overlay validity.
-- Saved plans use metadata and JSONB additions/updates, not installed rows for proposed equipment. That JSON must evolve explicitly alongside the normalized installed schema.
+- Saved plans use metadata and JSONB additions/updates, not installed rows for proposed equipment. The JSON now includes `subpanels`. A missing or `null` key reads as an empty list; the JSON must still evolve explicitly alongside the normalized installed schema.
 
-Changing only a Go struct or SQL table will leave old plan payloads and client mirrors inconsistent. M1 must exercise both installed data and saved plans, including reconnect/rollback cases.
+Changing only a Go struct or SQL table leaves old plan payloads and client mirrors inconsistent. Both installed data and saved plans are exercised by reconnect, rollback, and migration upgrade tests.
 
-### Target representation properties
-
-Exact table/Go type choices are implementation work. Preserve these properties:
+### Representation properties (implemented in M1)
 
 1. Stable Network identity and required single device membership; passive objects have no exclusive device-style network assignment.
 2. Stable HDF chassis/subpanel references with row, column, and parent fields; no parsing of connectivity from `3C` or a formatted label.
 3. Local position uniqueness scoped to a subpanel (or a standard panel when no subpanel applies).
 4. Independent front/rear endpoint IDs and exactly scoped internal bridges.
-5. Existing endpoint/cable identities retained during migration; record any explicit necessary remapping rather than silently recreating assets.
+5. Existing endpoint/cable identities retained during migration; legacy data that cannot be mapped is refused, not remapped.
 6. HDF row count independent of configured rack height.
 7. All proposal additions validated against a coherent installed/plan snapshot.
 
-A possible design is an explicit SubPanel entity plus a logical Position entity with two endpoints. Another can retain position metadata on endpoints with suitable constraints. Choose one, write its API/DB invariants, and implement it fully; do not mix global panel positions and local subpanel positions inconsistently.
+The chosen design is an explicit subpanel entity with position and side kept on the endpoint (no separate Position table); a position is the pair of endpoints that share a subpanel and position number and are joined by one internal bridge.
 
 ## 4. New contracts to define before frontend wiring
 
-The following are **required capabilities**, not preapproved literal URL or command names:
+The following are **required capabilities**, not preapproved literal URL or command names. As of M1, reading networks and membership, creating network-aware equipment in a draft, and atomic HDF creation are implemented as described in §2; the rest are M2 and later:
 
 - Read explicit networks and equipment membership.
 - Create valid active equipment with a network reference in a draft.
