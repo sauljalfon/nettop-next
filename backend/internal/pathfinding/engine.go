@@ -22,6 +22,28 @@ type Route struct {
 	Start string `json:"start"`
 	End   string `json:"end"`
 	Hops  []Hop  `json:"hops"`
+	// Distribution-mode metadata (omitted for point-to-point and aggregation).
+	DestinationEquipmentID string `json:"destinationEquipmentId,omitempty"`
+	DestinationRole        string `json:"destinationRole,omitempty"`
+	DestinationNetworkID   string `json:"destinationNetworkId,omitempty"`
+	SourceNetworkID        string `json:"sourceNetworkId,omitempty"`
+}
+
+// MaxRoutes caps routes plus mismatches in one distribution result.
+const MaxRoutes = 1000
+
+// Start outcomes of a distribution search, one per searched endpoint.
+const (
+	OutcomeReached           = "reached"
+	OutcomeMismatch          = "mismatch"
+	OutcomeNoDestination     = "no_destination"
+	OutcomeDisconnected      = "disconnected"
+	OutcomeUnresolvedNetwork = "unresolved_network"
+)
+
+type StartOutcome struct {
+	Endpoint string `json:"endpoint"`
+	Outcome  string `json:"outcome"`
 }
 type Result struct {
 	Context  string  `json:"context"`
@@ -30,12 +52,16 @@ type Result struct {
 	Status   string  `json:"status"`
 	Reason   string  `json:"reason"`
 	Routes   []Route `json:"routes"`
+	// Mismatches are reached AGG/BB endpoints on another network; never routes.
+	Mismatches []Route        `json:"mismatches"`
+	Starts     []StartOutcome `json:"starts"`
+	Truncated  bool           `json:"truncated"`
 }
 
 // Trace searches physical continuity only; device sibling ports never create edges.
 // Each BFS returns a shortest route per target, with deterministic start/target ordering.
 func Trace(s topology.Snapshot, req Request) (Result, error) {
-	result := Result{Context: s.Context, Revision: s.Revision, Mode: req.Mode, Status: "unreachable", Routes: []Route{}}
+	result := Result{Context: s.Context, Revision: s.Revision, Mode: req.Mode, Status: "unreachable", Routes: []Route{}, Mismatches: []Route{}, Starts: []StartOutcome{}}
 	if err := topology.Validate(s); err != nil {
 		return result, err
 	}
@@ -54,6 +80,9 @@ func Trace(s topology.Snapshot, req Request) (Result, error) {
 	}
 	for id := range adj {
 		sort.Slice(adj[id], func(i, j int) bool { return adj[id][i].To < adj[id][j].To })
+	}
+	if req.Mode == "distribution" {
+		return traceDistribution(result, s, ports, devices, adj, req)
 	}
 	starts := []string{}
 	targets := []string{}
@@ -98,7 +127,7 @@ func Trace(s topology.Snapshot, req Request) (Result, error) {
 			}
 		}
 	default:
-		return result, fmt.Errorf("mode must be point_to_point or aggregation")
+		return result, fmt.Errorf("mode must be point_to_point, aggregation, or distribution")
 	}
 	sort.Strings(starts)
 	sort.Strings(targets)
