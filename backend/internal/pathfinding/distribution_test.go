@@ -443,11 +443,6 @@ func TestDistributionRequestValidation(t *testing.T) {
 			}
 		})
 	}
-	// Passive starting ports arrive in M2 step 2; until then they are refused
-	// explicitly instead of being searched with an invented network.
-	if _, err := pathfinding.Trace(s, pathfinding.Request{Mode: "distribution", Start: "panel-a:1:f"}); err == nil {
-		t.Fatal("a passive start must be refused until it is supported")
-	}
 }
 
 // Aggregation keeps working unchanged until the API switch-over (step 3).
