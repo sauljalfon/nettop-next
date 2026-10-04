@@ -55,7 +55,7 @@ Backend role values should preserve the prototype's `access`, `aggregation`, `pa
 
 ## Immediate next task
 
-**M1 is complete** (see [current-status.md](current-status.md)): network identities/membership, explicit BB role, stable HDF structure, migrations, compatible plan payloads, seed/validation, and API contract updates. Continue with **M2** in [implementation-plan.md](implementation-plan.md). The M1 input questions below were answered and recorded in the implementation plan; they are kept here as history.
+**M1 and M2 are complete** (see [current-status.md](current-status.md)): network membership, the explicit BB role, stable HDF structure and atomic `add_hdf`, the acceptance seed, and **Find AGG / BB** discovery with passive starts, mismatches, and result limits. Continue with **M3** (the approved conceptual map) in [implementation-plan.md](implementation-plan.md); M3 also designs the focused neighborhood and route-object fetch APIs that M2 deferred. The M1 input questions below were answered and recorded in the implementation plan; they are kept here as history.
 
 Before schema changes, resolve only the necessary open inputs:
 

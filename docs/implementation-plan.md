@@ -86,7 +86,7 @@ Each step changes the domain, persistence, and contracts together so the whole r
 
 Resetting the development database (needed once migration `003` exists) deletes local data. Ask the user before running it.
 
-## M2 — Network-aware physical destination discovery
+## M2 — Network-aware physical destination discovery (complete)
 
 ### Scope
 

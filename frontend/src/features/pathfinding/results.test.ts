@@ -120,7 +120,7 @@ describe('distribution result display', () => {
       sourceNetworkNote(snapshot, route({ ...base, sourceNetworkId: 'a' })),
     ).toBeUndefined()
     expect(sourceNetworkNote(snapshot, route(base))).toBe(
-      'Source network unresolved: no access device on this circuit.',
+      'Source network unresolved: no single access device on this circuit.',
     )
   })
 

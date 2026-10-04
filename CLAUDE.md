@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Read first
 
-`AGENTS.md` holds the binding project rules (domain invariants, test-first, no auto-commits). The docs in `docs/` are the implementation contract; start at `docs/README.md` → `docs/agent-handoff.md`, which lists the reading order and the **locked decisions that must not be reopened**. `docs/current-status.md` says what the code actually does today. **M1 is complete** (networks, `backbone` role, HDF subpanel structure, `add_hdf`, migrations 003–004, acceptance seed). BB discovery (M2), the connected map (M3), and the physical explorer (M4) are **not implemented yet**; the next checkpoint is **M2** in `docs/implementation-plan.md`. Work one step at a time and stop for review after each.
+`AGENTS.md` holds the binding project rules (domain invariants, test-first, no auto-commits). The docs in `docs/` are the implementation contract; start at `docs/README.md` → `docs/agent-handoff.md`, which lists the reading order and the **locked decisions that must not be reopened**. `docs/current-status.md` says what the code actually does today. **M1 and M2 are complete**: networks, `backbone` role, HDF subpanel structure, `add_hdf`, migrations 003–004, the acceptance seed, and **Find AGG / BB** (`distribution` trace mode with passive starts, mismatches, outcomes, and a result limit; `aggregation` is removed). The connected map (M3) and the physical explorer (M4) are **not implemented yet**; the next checkpoint is **M3** in `docs/implementation-plan.md`. Work one step at a time and stop for review after each.
 
 ## Commands
 

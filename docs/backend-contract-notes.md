@@ -8,7 +8,7 @@ This distinguishes executable baseline facts from target design work. It supplem
 | --- | --- | --- |
 | `backend/internal/topology/model.go` | Snapshot, Site, LocationNode, Rack, Equipment, Endpoint, Link | Networks, membership, BB role, structured HDF identities/layout |
 | `backend/internal/topology/validate.go` | Ownership, rack placement, endpoint-side/occupancy and bridge invariants | New network/HDF invariants without weakening current constraints |
-| `backend/internal/pathfinding/engine.go` | Pure point-to-point and aggregation BFS over endpoint adjacency | AGG/BB collection, terminal/mismatch/limit explanations, network-aware result selection |
+| `backend/internal/pathfinding/` | Pure BFS over endpoint adjacency: `engine.go` (point-to-point) and `distribution.go` (Find AGG / BB). Implemented in M2 | Focused neighborhood/route-object fetch contracts (M3) |
 | `backend/internal/planning/overlay.go` | Installed snapshot plus additions/placement updates | Network/HDF-aware overlay compatibility and validation |
 | `backend/internal/planning/commands.go` | `add_equipment`, `add_cable`, `move_equipment` | Dedicated HDF creation and explicit membership in valid device payloads |
 | `backend/internal/persistence/store.go` | Repeatable-read inventory snapshots, seed, plan reads | Normalized HDF/network loading and explicit data backfill |
@@ -25,7 +25,7 @@ This distinguishes executable baseline facts from target design work. It supplem
 | --- | --- |
 | `GET /api/health` | Database/process health, PostgreSQL storage mode |
 | `GET /api/topology` | Installed snapshot by default; `context=planned&planId=...` for an overlay. Includes `networks`, `subpanels`, and equipment `networkId` |
-| `POST /api/traces` | `point_to_point` or `aggregation` request; same context parameters; optional `expectedRevision` query pin. No BB discovery yet (M2) |
+| `POST /api/traces` | `point_to_point` or `distribution` (Find AGG / BB); `context=installed` or `context=planned&planId=...`; optional `expectedRevision` query pin (409 when stale). `aggregation` was removed and returns 422 |
 | `GET /api/plans` | Saved drafts (full drafts, including proposed `subpanels`) |
 | `GET /api/plans/{id}` | One draft |
 | `POST /api/plans` | Name and `expectedBaseRevision`; creates an empty saved draft |
@@ -49,21 +49,37 @@ Commands (every command requires `expectedRevision` and exactly one payload; unk
 - `add_hdf` creates the chassis, 4N subpanels, 24N positions as 48N endpoints, and 24N bridges in one revision. `rows` 1–32; `unit` and `height` 1–100 and independent of each other; the placement must fit the rack without overlapping installed or proposed equipment. Child IDs derive from the allocated chassis ID and are opaque.
 - Plans created before `subpanels` existed read as having none. An overlay with an HDF chassis but no complete grid is refused.
 
-Current trace bodies:
+Trace bodies (unknown fields are rejected with 400; request errors below are 422 with a stable message):
 
 ```json
 {"mode":"point_to_point","start":"edge-17:p1","end":"agg-03:p1"}
 ```
 
 ```json
-{"mode":"aggregation","device":"edge-17"}
+{"mode":"distribution","device":"edge-17"}
 ```
 
 ```json
-{"mode":"aggregation","start":"edge-17:p1"}
+{"mode":"distribution","start":"edge-17:p3"}
 ```
 
-These examples use the acceptance seed's IDs (`cmd/db seed`). The prototype `sample` fixture (browser tests, characterization tests) uses `edge-01`, `agg-02`, and similar. The aggregation action discovers AGG destinations only and has no network scope. BB-01 is reachable by exact `point_to_point`. The UI pins the loaded revision on trace requests.
+```json
+{"mode":"distribution","start":"hdf-01:sp-3C:5:r"}
+```
+
+These examples use the acceptance seed's IDs (`cmd/db seed`). The prototype `sample` fixture (browser tests, characterization tests) uses `edge-01`, `agg-02`, and similar.
+
+`distribution` request rules: exactly one of `device` (every port of that switch is searched) or `start` (one exact device port, or one exact panel or HDF port); `end` is rejected; a `device` must be a switch. 422 messages: "distribution requires exactly one starting endpoint or device", "distribution search takes a starting device or endpoint only", "unknown starting device", "distribution search starts from an active device", "unknown start endpoint", and, for any other mode, "mode must be point_to_point or distribution".
+
+Result fields (all modes return `context`, `revision` (the revision that was traced), `mode`, `status`, `reason`, `routes`, `mismatches`, `starts`, `truncated`; the last three are empty or false for point-to-point):
+
+- `routes`: source-network destinations. Each has `start`, `end`, ordered `hops` (`linkId`, `from`, `to`, `kind` = `cable` or `internal`), and, for distribution, `destinationEquipmentId`, `destinationRole` (`aggregation` or `backbone`, never relabeled), `destinationNetworkId`, and `sourceNetworkId` (omitted when the source network is unresolved). Sorted by role (AGG first), start endpoint ID, destination endpoint ID.
+- `mismatches`: reached AGG/BB on another network, same shape, never routes. Sorted by start then destination.
+- `starts`: one `{endpoint, outcome}` per searched endpoint, sorted by endpoint: `reached`, `mismatch`, `no_destination`, `disconnected`, `unresolved_network`.
+- `truncated`: true only when routes or mismatches were dropped at the 1,000-result limit (routes are kept first).
+- `status` is `reached` when any route exists, otherwise `unreachable`; `reason` is derived from the start outcomes.
+
+Source network: a device or device-port start uses the device's network. A panel or HDF start uses the network of the access device on the same circuit, in either direction; with no access device (or access devices on different networks) it is unresolved, every reached destination is a route with its own network, and the outcome is `unresolved_network`. A circuit with no external cable at all is `disconnected`. Rack, node, site, and HDF subpanel/position/side are resolved by the client from the snapshot it loads; the response carries stable IDs only. See `api/openapi.yaml` for the schemas.
 
 Baseline errors: malformed request/context 400; missing plan 404; revision conflict 409; invalid domain operation 422; persistence failure 500; unhealthy database 503. An unreachable valid physical trace is a result, not a fabricated missing-endpoint error. A stored plan whose overlay fails validation is refused, but currently surfaces as 500 (see [current-status.md](current-status.md)).
 
@@ -94,33 +110,33 @@ Changing only a Go struct or SQL table leaves old plan payloads and client mirro
 
 The chosen design is an explicit subpanel entity with position and side kept on the endpoint (no separate Position table); a position is the pair of endpoints that share a subpanel and position number and are joined by one internal bridge.
 
-## 4. New contracts to define before frontend wiring
+## 4. Contract items: resolved and still open
 
-The following are **required capabilities**, not preapproved literal URL or command names. As of M1, reading networks and membership, creating network-aware equipment in a draft, and atomic HDF creation are implemented as described in §2; the rest are M2 and later:
+Resolved in M1 and M2 (see §2, §3, and [current-status.md](current-status.md) for the exact behavior):
 
-- Read explicit networks and equipment membership.
-- Create valid active equipment with a network reference in a draft.
-- Atomically create an HDF with rows, parent rack, starting unit, independently configured height, subpanels, positions, endpoints, and bridges.
-- Discover AGG/BB targets with source/target role and network metadata, exact hops, stopping outcomes, mismatch diagnostics, revision/context, and limits.
-- Fetch location summaries, equipment neighborhoods, expanded HDF endpoints, and missing trace objects by stable IDs.
-- Return authoritative physical references that let the frontend navigate to the same endpoint.
+| Item | Resolution |
+| --- | --- |
+| Read explicit networks and membership | `networks` and equipment `networkId` in snapshots (M1) |
+| Create network-aware equipment in a draft | `add_equipment` with required `networkId` for switches, `backbone` role (M1) |
+| Atomic HDF creation | `add_hdf` with rows 1-32, independent rack height, one atomic revision (M1) |
+| Missing/unknown membership in imported inventory | Migration preflights refuse and tell you to reset and reseed; no default network is ever assigned (M1) |
+| HDF row limits and payload sizing | 1-32 rows; at most 128 subpanels, 768 positions, 1,536 endpoints per command, atomic (M1) |
+| Cross-network wiring | Creation accepts such cables; Find AGG / BB reports reached destinations on another network as `mismatches`, never routes (M1 decision, M2 reporting) |
+| Same-chassis external jumpers | Still rejected; an external jumper would be a cable, never a cross-position bridge |
+| Discover AGG and BB with role/network metadata, exact hops, outcomes, mismatches, revision/context, limits | `distribution` mode (M2) |
+| Replace or extend `aggregation` | `distribution` ("Find AGG / BB") replaced `aggregation`; the old mode returns 422 so BB results cannot be dropped by an AGG-first fallback (M2) |
+| Starting discovery from a passive endpoint | Search starts from the exact port; source network from the access device on the same circuit; never from the panel or a name; otherwise `unresolved_network` with the destination's own network (M2) |
+| Source already a distribution device; identical point-to-point endpoints | The starting device is never its own destination; identical endpoints still give a zero-hop route (M2) |
+| Search/result limits and ordering | 1,000 routes plus mismatches; explicit `truncated`; a limit never means unreachable; deterministic role/start/destination ordering (M2) |
+| Authoritative physical references for navigation | The response carries stable endpoint/equipment IDs; clients resolve rack/node/site and HDF subpanel/position/side from the loaded snapshot (M2; no duplicate location payload) |
 
-Decide how the current `aggregation` mode is extended/versioned or replaced by a distribution-destination mode. The user-facing action is **Find AGG / BB**. Do not remove BB results through an old AGG-first fallback or infer a role by display name.
+Still open:
 
-Before coding a request shape, document mandatory/optional fields, unknown-field behavior, error status, revision semantics, and backward compatibility in OpenAPI and tests.
+- **Focused equipment/neighborhood, expanded HDF endpoint, location-summary, and missing-route-object fetches by stable ID.** Deferred to M3 and designed against the real map's needs; the frontend still loads full snapshots. Scoped summaries and scale measurement are M6.
+- **Network provisioning and renaming.** Networks are seed-only and read-only. No checkpoint is scheduled; broad administration is governance scope (M7).
+- **Pagination.** `GET /api/plans` returns full drafts (M6).
 
-### Specific edge cases still needing an explicit contract
-
-- Starting discovery from a passive endpoint: its chassis is shared, so choose explicit network scope, safe inference from known terminal membership, or a documented unclassified result behavior. Do not guess from the panel.
-- Missing/unknown membership in imported inventory: handle via explicit backfill/preflight, not a silent default Network A.
-- Cross-network wiring: detection/reporting is required; whether a creation command rejects every such proposal or permits documenting it with diagnostics was not settled by the design conversation.
-- Network provisioning and renaming: define the smallest endpoint/seed capability needed by M1; broad administration/governance is later scope.
-- HDF row limits and payload/schema sizing: confirm bounds, account for 48N side endpoints, and make failures atomic.
-- Same-chassis external jumpers between different positions: the baseline rejects same-equipment cables. Preserve that behavior unless real operational requirements explicitly change it; an external jumper would still be a cable, never an implicit cross-position bridge.
-- Search/result limits, pagination, and deterministic result ordering: choose explicit contracts and expose truncation. Limits must not manufacture an “unreachable” claim.
-- Source already being a distribution device, or identical point-to-point endpoints: preserve existing exclusions/zero-hop behavior or document a deliberate compatibility change.
-
-These implementation edge cases do not reopen the locked role, network, bridge, or two-view semantics.
+A new request shape still requires documented mandatory/optional fields, unknown-field behavior, error status, revision semantics, and backward compatibility in OpenAPI and tests. These items do not reopen the locked role, network, bridge, or two-view semantics.
 
 ## 5. Transaction discipline
 

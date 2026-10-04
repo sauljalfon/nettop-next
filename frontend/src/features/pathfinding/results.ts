@@ -41,7 +41,7 @@ export function sourceNetworkNote(
   route: Route,
 ): string | undefined {
   return destinationOf(snapshot, route) && !route.sourceNetworkId
-    ? 'Source network unresolved: no access device on this circuit.'
+    ? 'Source network unresolved: no single access device on this circuit.'
     : undefined
 }
 

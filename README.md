@@ -22,9 +22,9 @@ Design review and mockup exploration are complete. The agreed behavior is now th
 - [Verification and checkpoint handoff guide](docs/verification-guide.md)
 - [Legacy behavior and source references](docs/legacy-reference.md)
 
-The code is a tested foundation plus the completed **M1** domain contract: network membership, the explicit backbone (BB) role, stable HDF subpanel structure with atomic `add_hdf` creation, and the acceptance fixture as the development seed. It does **not yet implement** AGG/BB route discovery (M2), the final connected map (M3), or the physical explorer (M4). The previous nested ownership canvas is superseded as the conceptual design. Static mockup files have been removed. [current-status.md](docs/current-status.md) is the exact list of what runs.
+The code is a tested foundation plus the completed **M1** domain contract (network membership, the explicit backbone role, stable HDF subpanel structure with atomic `add_hdf` creation, the acceptance fixture as the development seed) and **M2** discovery: **Find AGG / BB** returns every reachable AGG and BB route from an active device or any exact port (including panel and HDF ports), reports destinations on another network as mismatches, and replaces the old aggregation-only mode. It does **not yet implement** the final connected map (M3) or the physical explorer (M4); the prototype nested ownership canvas still draws the topology. Static mockup files have been removed. [current-status.md](docs/current-status.md) is the exact list of what runs.
 
-**Next checkpoint: M2 — network-aware AGG/BB destination discovery.**
+**Next checkpoint: M3 — approved conceptual map.**
 
 The [pre-implementation checklist](docs/implementation-plan.md#decisions-to-confirm-before-coding) is answered: read/trace/inspect first slice, development fixtures only (dev database reset and reseeded), and user-assigned HDF row count (1–32) and rack height. Legacy data import is planned as a later, separate checkpoint. The agreed map, physical explorer, and tracing semantics remain the contract.
 
@@ -86,13 +86,13 @@ If port 8080 is occupied, change `HTTP_ADDR` for Go and `API_PROXY_TARGET` for V
 
 With the API and frontend running on a freshly seeded database:
 
-1. In Installed, open Trace, choose **Find aggregation**, start from **EDGE-17 · all ports**, and trace. Two routes are listed: **EDGE-17 Port 1 → AGG-03 Port 1** and **EDGE-17 Port 2 → AGG-08 Port 1**.
-2. Select the AGG-03 route: seven hops, four cables and three bridges: A01 → PANEL-A 1 front/rear → A02 → HDF-01 3C/5 rear/front → A03 → HDF-02 2B/3 front/rear → A04 → AGG-03 Port 1. The AGG-08 route is A05–A08 through PANEL-A 2, HDF-01 1A/2, and HDF-02 1D/2.
-3. AGG-15 (Network A, no cable) is not a result. EDGE-17 Port 3 is cabled to BB-01 (A09–A12), but "Find aggregation" does not return BB destinations yet (M2); use exact port-to-port mode from EDGE-17 Port 3 to BB-01 Port 1 to see that route.
-4. Trace from **EDGE-22 · all ports**: one route to AGG-12 Port 1 (B01–B04) through HDF-01 3C/2 and HDF-02 2B/6, different positions of the same subpanels as the Network A route. The two circuits never connect.
-5. Open Changes & plans, create a named draft, add a switch (the **Network** field starts empty and must be chosen) and cables, and trace the proposed topology. Reload to verify the saved draft; switch to Installed to confirm isolation.
+1. In Installed, open Trace, choose **Find AGG / BB**, start from **EDGE-17 · all ports**, and click **Find AGG / BB**. Three routes are listed, AGG first: **EDGE-17 Port 1 → AGG-03 Port 1 · AGG · Network A**, **Port 2 → AGG-08 Port 1 · AGG · Network A**, and **Port 3 → BB-01 Port 1 · BB · Network A**. The result card names the destination, its role, and its network.
+2. Select the AGG-03 route: seven hops, four cables and three bridges: A01 → PANEL-A 1 front/rear → A02 → HDF-01 3C/5 rear/front → A03 → HDF-02 2B/3 front/rear → A04 → AGG-03 Port 1. The AGG-08 route is A05–A08 through PANEL-A 2, HDF-01 1A/2, and HDF-02 1D/2. The BB-01 route is A09–A12 through PANEL-A 3, HDF-01 2D/4, and HDF-02 3A/1; it stays BB and is not suppressed by the reachable AGGs.
+3. **Passive start.** Choose **HDF-01 · 3C/5 rear** as the Start and find AGG / BB again. One route to **AGG-03 (Network A)**: four hops (its own bridge, A03, HDF-02 2B/3's bridge, A04), "2 cables · 2 internal bridges". The source network (A) comes from EDGE-17 on the same circuit, not from the panel. **HDF-01 · 3C/2** resolves Network B and reaches AGG-12 instead; the two circuits share the subpanel but never connect.
+4. AGG-15 (Network A, no cable) is never a result. Trace from **EDGE-22 · all ports**: one route to AGG-12 Port 1 (B01–B04) through HDF-01 3C/2 and HDF-02 2B/6.
+5. Open Changes & plans, create a named draft, add a switch (the **Network** field starts empty and must be chosen) and cables, and trace the proposed topology. For a mismatch, add a cable from **EDGE-17 Port 4** to **AGG-12 Port 2**: Find AGG / BB from EDGE-17 in the draft still lists three routes and shows AGG-12 under **On another network (not routes)**. Reload to verify the saved draft; switch to Installed to confirm isolation (no mismatch there).
 
-HDFs appear as passive cards. There is no HDF grid, creation form, or BB result UI yet (M3/M4/M5). `add_hdf` is available through the API: see [backend-contract-notes.md](docs/backend-contract-notes.md). The browser tests still use the smaller prototype fixture. See [current-status.md](docs/current-status.md) for limitations.
+HDFs appear as passive cards. There is no HDF grid or creation form yet (M4/M5). `add_hdf` is available through the API: see [backend-contract-notes.md](docs/backend-contract-notes.md). The browser tests still use the smaller prototype fixture. See [current-status.md](docs/current-status.md) for limitations.
 
 ## Checks
 
