@@ -65,7 +65,7 @@ The implementation handoff is indexed in [README.md](README.md). [agent-handoff.
 
 ## Known issues
 
-- **Flaky Playwright check.** `e2e/hierarchy.spec.ts` ("direct canvas drag proposes a rack move without resetting the viewport") failed once in one full Playwright run during M1 step 2. It passed when run alone and in every full run since, including with unrelated changes. The cause was not diagnosed. If it fails, rerun that spec alone and then the full suite before treating it as a regression.
+- **Flaky Playwright check.** `e2e/hierarchy.spec.ts` ("direct canvas drag proposes a rack move without resetting the viewport") fails intermittently in full Playwright runs (observed in roughly 1 of 5 to 1 of 10 runs during M1 review) and passes when run alone. The likely cause is that it reads the React Flow viewport immediately after clicking Zoom Out, while the zoom may still be animating; it was not confirmed. The test characterizes the prototype canvas that M3 replaces. If it fails, rerun that spec alone and then the full suite before treating it as a regression.
 - **Half-valid stored plans return 500.** An overlay that fails validation (for example, a stored plan with an HDF chassis but no grid) is refused, but `repositoryError` maps the plain validation error to a generic 500 "Database operation failed". Plans created through the API cannot reach this state.
 - **Large drafts.** `GET /api/plans` returns full drafts, so a plan with a 32-row HDF carries about 2,400 additional records per plan listed. Pagination and scoped summaries are M6.
 

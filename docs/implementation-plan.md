@@ -13,7 +13,7 @@ For the next-agent briefing and reading order, see [agent-handoff.md](agent-hand
 - Each checkpoint reports changed files, relevant test/build results, and the next step. Update current-status as behavior actually ships.
 - No automatic commits or remote publishing. The baseline commit does not authorize subsequent commits.
 
-## M1 — Network, role, and HDF domain contract (start here)
+## M1 — Network, role, and HDF domain contract (complete)
 
 ### Decisions to confirm before coding
 
@@ -115,6 +115,40 @@ All three Network A routes are returned. BB remains BB. Network B shares passive
 ### Verification
 
 Pure engine tests, API contracts, PostgreSQL snapshot/revision tests, installed/planned parity, mismatch/termination/limit cases.
+
+### Recorded answers (2026-10-04)
+
+1. **API mode:** a new `distribution` mode ("Find AGG / BB") **replaces** `aggregation`. The old mode is removed in the same checkpoint, and the UI and tests move to the new mode, so no path silently drops BB results.
+2. **Passive starting port:** the search starts from the exact panel/HDF port, not from the panel. The source network comes from the active device found on that port's own circuit (one or more hops away, through cables and same-position bridges). The panel itself never supplies a network, and nothing is inferred from names.
+
+### M2 implementation design (agreed 2026-10-04)
+
+**Baseline facts:** `pathfinding.Trace` builds a bidirectional adjacency list from cables and internal bridges, then runs one BFS per starting endpoint and returns the shortest route to each reachable target. `aggregation` mode targets every endpoint whose equipment role is `aggregation`, excluding the starting device, with no network scope. Because an endpoint holds at most one external cable and one internal bridge, a physical circuit is a chain (or a loop) with at most two ends, and BFS already stops at switch ports because they have no internal links.
+
+1. **Request.** `{"mode":"distribution","device":"<equipment>"}` searches every port of an active device. `{"mode":"distribution","start":"<endpoint>"}` searches one exact port, which may be a device port or a panel/HDF port. Exactly one of `device`/`start`; `end` is rejected. A `device` must be a switch. `point_to_point` is unchanged.
+2. **Source network.** For a device or device-port start, it is the device's `networkId`. For a passive start, it is the `networkId` of the non-destination active endpoint (role `access`) on the same circuit. If the circuit has no such endpoint (for example, a dead end on one side), the source network is unresolved: results are still returned, each with the destination's own network and `sourceNetworkId` empty, and the start outcome says so. It is never guessed.
+3. **Destinations.** Endpoints whose equipment role is `aggregation` or `backbone`, excluding the starting device. A destination in the source network is a **route**. A reached `aggregation`/`backbone` endpoint in a different network is a **mismatch**, reported separately and never as a route. With an unresolved source network, every reached destination is a route.
+4. **Result fields** (added to the existing `context`, `revision`, `mode`, `status`, `reason`, `routes`):
+   - each route and mismatch: `start`, `end`, `hops` (unchanged), plus `destinationEquipmentId`, `destinationRole` (actual role: `aggregation` or `backbone`), `destinationNetworkId`, and `sourceNetworkId`;
+   - `mismatches`: the same shape as routes;
+   - `starts`: one entry per searched endpoint, `{endpoint, outcome}`, where outcome is `reached` (at least one route), `mismatch` (only mismatches), `no_destination` (connected, but the circuit ends at a non-destination endpoint or a passive dead end), `disconnected` (no external cable), or `unresolved_network` (passive start with no source device on the circuit);
+   - `truncated`: true when the route limit was hit.
+   Location references (rack, node, site) and HDF identity (subpanel row/column, position, side) are resolved by the client from stable endpoint/equipment IDs in the snapshot it already loads. No duplicate location payload is added in M2.
+5. **Ordering.** Routes are sorted by destination role (`aggregation` before `backbone`), then start endpoint ID, then destination endpoint ID. Mismatches and starts are sorted by endpoint ID. Distinct start/destination endpoint pairs are never merged.
+6. **Limits.** BFS visits each endpoint at most once per start, so loops terminate. A fixed `MaxRoutes` (1,000) caps routes plus mismatches; when it is reached, `truncated` is true and the reason says so. A limit never produces an "unreachable" claim.
+7. **Status.** `reached` if any route exists, otherwise `unreachable`, with a reason derived from the start outcomes.
+8. **Deferred to M3 (scope item 7):** focused equipment/neighborhood and route-object fetch APIs. The frontend still loads full snapshots, so these contracts are designed when M3 starts, against the real map's needs.
+
+### M2 steps
+
+Same rules as M1: each step is test-first, ends with the whole repository green (Go with `TEST_DATABASE_URL`, frontend tests, typecheck, build, Playwright), and is reviewed before the next. Test IDs refer to [acceptance-tests.md](acceptance-tests.md); engine tests use the acceptance fixture plus small purpose-built snapshots.
+
+| Step | Work | Tests |
+| --- | --- | --- |
+| 1 | **Engine: distribution mode for active starts.** New mode in `pathfinding`, AGG and BB destinations, source-network filter, mismatches, result fields, ordering, `starts` outcomes, `MaxRoutes`/`truncated`. `aggregation` stays in the engine until step 3. | P01–P08, P13, P15, P16, P20 |
+| 2 | **Engine: passive starting ports.** Source network from the circuit's active endpoint; `unresolved_network` outcome; extended fixture with four alternating passive positions | P09–P12, P14, P17 |
+| 3 | **API and UI switch-over.** Remove `aggregation` from engine and API; OpenAPI; installed/planned parity through PostgreSQL; `types.ts`/`api.ts`; Trace panel and inspector action renamed **Find AGG / BB**, each result showing destination name, role (AGG/BB), and network, with mismatches and truncation listed separately; update the Playwright specs that used `aggregation` | P18, P19, A01, frontend tests, Playwright |
+| 4 | **Status and handoff.** `current-status.md`, README smoke flow (EDGE-17 → AGG-03, AGG-08, **and BB-01**), `backend-contract-notes.md` | Full check run |
 
 ## M3 — Approved conceptual map
 

@@ -55,7 +55,7 @@ Backend role values should preserve the prototype's `access`, `aggregation`, `pa
 
 ## Immediate next task
 
-Begin **M1** in [implementation-plan.md](implementation-plan.md): network identities/membership, explicit BB role, stable HDF structure, migrations, compatible plan payloads, seed/validation, and API contract updates.
+**M1 is complete** (see [current-status.md](current-status.md)): network identities/membership, explicit BB role, stable HDF structure, migrations, compatible plan payloads, seed/validation, and API contract updates. Continue with **M2** in [implementation-plan.md](implementation-plan.md). The M1 input questions below were answered and recorded in the implementation plan; they are kept here as history.
 
 Before schema changes, resolve only the necessary open inputs:
 
