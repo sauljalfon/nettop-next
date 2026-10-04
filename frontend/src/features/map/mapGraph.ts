@@ -3,7 +3,7 @@ import { routeHighlight } from '../pathfinding/projection'
 import { crossNetworkCaption, mapEdges } from './edges'
 import { facetEndpointIds, facetsFor, type Facet } from './facets'
 import { layeredLayout, type Position } from './layout'
-import { cabledSummary, locationLabel } from './location'
+import { cabledSummaries, locationLabel } from './location'
 import type { MapSession } from './mapSession'
 import { passiveNetworks, visibleEquipment } from './networks'
 
@@ -77,6 +77,7 @@ export function projectMap(input: MapInput): {
   const shown = visibleEquipment(s, input.networkId, highlight.equipmentIds)
   const facets = facetsFor(s, route)
   const badges = passiveNetworks(s)
+  const summaries = cabledSummaries(s)
   const networkName = (id: string) =>
     s.networks.find((n) => n.id === id)?.name ?? id
 
@@ -89,7 +90,7 @@ export function projectMap(input: MapInput): {
       data: {
         equipment: e,
         location: locationLabel(s, e.id),
-        summary: cabledSummary(s, e.id),
+        summary: summaries.get(e.id) ?? { cabled: 0, total: 0 },
         badges: (badges.get(e.id) ?? []).map(networkName),
         facets: facets.get(e.id) ?? [],
         highlighted: highlight.equipmentIds.has(e.id),

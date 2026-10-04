@@ -16,25 +16,32 @@ export function locationPath(s: Snapshot, equipmentId: string) {
 }
 
 /**
- * "N of M cabled". A device port is one unit; a panel or HDF position is one
- * unit, cabled when either side has a cable.
+ * "N of M cabled" for every equipment in one pass over links and endpoints. A
+ * device port is one unit; a panel or HDF position is one unit, cabled when
+ * either side has a cable. Equipment without endpoints has no entry.
  */
-export function cabledSummary(s: Snapshot, equipmentId: string) {
+export function cabledSummaries(
+  s: Snapshot,
+): Map<string, { cabled: number; total: number }> {
   const cabled = new Set<string>()
   for (const l of s.links) {
     if (l.kind !== 'cable') continue
     cabled.add(l.a)
     cabled.add(l.b)
   }
-  const units = new Map<string, boolean>()
+  const units = new Map<string, Map<string, boolean>>()
   for (const p of s.endpoints) {
-    if (p.equipmentId !== equipmentId) continue
     const unit =
       p.position === undefined ? p.id : `${p.subpanelId ?? ''}/${p.position}`
-    units.set(unit, (units.get(unit) ?? false) || cabled.has(p.id))
+    let own = units.get(p.equipmentId)
+    if (!own) units.set(p.equipmentId, (own = new Map()))
+    own.set(unit, (own.get(unit) ?? false) || cabled.has(p.id))
   }
-  return {
-    cabled: [...units.values()].filter(Boolean).length,
-    total: units.size,
+  const result = new Map<string, { cabled: number; total: number }>()
+  for (const [id, own] of units) {
+    let n = 0
+    for (const used of own.values()) if (used) n++
+    result.set(id, { cabled: n, total: own.size })
   }
+  return result
 }

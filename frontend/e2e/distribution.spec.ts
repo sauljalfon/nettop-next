@@ -13,21 +13,30 @@ test('Find AGG / BB lists AGG then BB results with destination, role and network
     .selectOption({ label: 'EDGE-17 · all ports' })
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
 
-  const results = page.getByLabel('Trace results')
+  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  const results = page.getByLabel('Map trace results')
   await expect(results).toContainText('Physical path found')
-  const options = results.locator('select option')
-  await expect(options).toHaveText([
+  await expect(results.getByTestId('route-row')).toContainText([
     'EDGE-17 · Port 1 → AGG-03 · Port 1 · AGG · Network A',
     'EDGE-17 · Port 2 → AGG-08 · Port 1 · AGG · Network A',
     'EDGE-17 · Port 3 → BB-01 · Port 1 · BB · Network A',
   ])
-  await expect(results.getByTestId('route-destination')).toHaveText(
-    'AGG-03 · AGG · Network A',
+  await expect(results.getByTestId('route-row')).toHaveCount(3)
+  await expect(results.getByTestId('route-row').first()).toHaveAttribute(
+    'aria-pressed',
+    'true',
   )
-  await results.locator('select').selectOption({ index: 2 })
-  await expect(results.getByTestId('route-destination')).toHaveText(
-    'BB-01 · BB · Network A',
+  await results.getByTestId('route-row').nth(2).click()
+  await expect(results.getByTestId('route-row').nth(2)).toHaveAttribute(
+    'aria-pressed',
+    'true',
   )
   await expect(results.getByTestId('mismatches')).toHaveCount(0)
   await expect(results.getByTestId('truncation')).toHaveCount(0)
+  // Collapsing keeps a one-line summary; expanding restores the list.
+  await results.getByRole('button', { name: 'Collapse results' }).click()
+  await expect(results).toContainText('3 routes · BB-01 · BB · Network A')
+  await expect(results.getByTestId('route-row')).toHaveCount(0)
+  await results.getByRole('button', { name: 'Expand results' }).click()
+  await expect(results.getByTestId('route-row')).toHaveCount(3)
 })

@@ -1,6 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot } from './acceptanceFixture'
-import { cabledSummary, locationLabel, locationPath } from './location'
+import type { Snapshot } from '../../shared/types'
+import { cabledSummaries, locationLabel, locationPath } from './location'
+
+const cabledSummary = (s: Snapshot, id: string) =>
+  cabledSummaries(s).get(id) ?? { cabled: 0, total: 0 }
+
+// The original per-equipment algorithm, kept as the reference for the one-pass version.
+function referenceSummary(s: Snapshot, equipmentId: string) {
+  const cabled = new Set<string>()
+  for (const l of s.links) {
+    if (l.kind !== 'cable') continue
+    cabled.add(l.a)
+    cabled.add(l.b)
+  }
+  const units = new Map<string, boolean>()
+  for (const p of s.endpoints) {
+    if (p.equipmentId !== equipmentId) continue
+    const unit =
+      p.position === undefined ? p.id : `${p.subpanelId ?? ''}/${p.position}`
+    units.set(unit, (units.get(unit) ?? false) || cabled.has(p.id))
+  }
+  return {
+    cabled: [...units.values()].filter(Boolean).length,
+    total: units.size,
+  }
+}
 
 describe('C01 every card carries its location and cabling summary', () => {
   const s = acceptanceSnapshot()
@@ -30,5 +55,44 @@ describe('C01 every card carries its location and cabling summary', () => {
   it('is empty for unknown or unplaced equipment', () => {
     expect(locationLabel(s, 'nope')).toBe('')
     expect(cabledSummary(s, 'nope')).toEqual({ cabled: 0, total: 0 })
+  })
+})
+
+describe('cabledSummaries computes every equipment in one pass', () => {
+  it('matches the per-equipment reference for every equipment', () => {
+    const s = acceptanceSnapshot()
+    const all = cabledSummaries(s)
+    for (const e of s.equipment)
+      expect(all.get(e.id)).toEqual(referenceSummary(s, e.id))
+  })
+
+  it('has no entry for equipment without endpoints', () => {
+    const s = acceptanceSnapshot()
+    s.equipment.push({ ...s.equipment[0], id: 'EMPTY', name: 'EMPTY' })
+    expect(cabledSummaries(s).has('EMPTY')).toBe(false)
+  })
+
+  it('scales linearly: a large snapshot summarizes quickly', () => {
+    const s = acceptanceSnapshot()
+    for (let i = 0; i < 400; i++) {
+      const id = `BULK-${i}`
+      s.equipment.push({ ...s.equipment[0], id, name: id })
+      for (let n = 1; n <= 24; n++)
+        s.endpoints.push({
+          id: `${id}:p${n}`,
+          equipmentId: id,
+          label: String(n),
+        })
+      s.links.push({
+        id: `bulk-${i}`,
+        kind: 'cable',
+        a: `${id}:p1`,
+        b: `${id}:p2`,
+      })
+    }
+    const started = performance.now()
+    const all = cabledSummaries(s)
+    expect(performance.now() - started).toBeLessThan(500)
+    expect(all.get('BULK-7')).toEqual({ cabled: 2, total: 24 })
   })
 })

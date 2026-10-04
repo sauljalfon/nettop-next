@@ -14,7 +14,7 @@ test('trace physical continuity on the map and in rack elevations', async ({
     .getByRole('button', { name: 'Open trace tools', exact: true })
     .click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  await expect(page.getByText(/4 cables · 3 internal bridges/)).toBeVisible()
+  await expect(page.getByTestId('route-row')).toHaveCount(3)
   // The selected route's four cables are highlighted and reveal exact positions.
   await expect(page.locator('.react-flow__edge.animated')).toHaveCount(4)
   await expect(page.getByLabel('HDF-01 shown connections')).toContainText(

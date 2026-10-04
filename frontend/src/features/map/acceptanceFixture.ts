@@ -6,6 +6,7 @@ import type {
   Route,
   Snapshot,
   Subpanel,
+  TraceResult,
 } from '../../shared/types'
 
 type Role = 'access' | 'aggregation' | 'backbone' | 'passive'
@@ -227,5 +228,87 @@ export function agg03Route(): Route {
     destinationNetworkId: 'A',
     sourceNetworkId: 'A',
     hops: ids.map(([linkId, from, to, kind]) => ({ linkId, from, to, kind })),
+  }
+}
+
+/** Distribution result from EDGE-17 (all ports): AGG-03, AGG-08, then BB-01. */
+export function edge17Result(): TraceResult {
+  const route = (
+    port: number,
+    dest: string,
+    role: 'aggregation' | 'backbone',
+    first: number,
+    hdf1: string,
+    hdf2: string,
+  ): Route => {
+    const n = (i: number) => `A${String(first + i).padStart(2, '0')}`
+    const hops: Route['hops'] = [
+      {
+        linkId: n(0),
+        from: `EDGE-17:p${port}`,
+        to: `PANEL-A:${port}:f`,
+        kind: 'cable',
+      },
+      {
+        linkId: `PANEL-A:${port}:bridge`,
+        from: `PANEL-A:${port}:f`,
+        to: `PANEL-A:${port}:r`,
+        kind: 'internal',
+      },
+      {
+        linkId: n(1),
+        from: `PANEL-A:${port}:r`,
+        to: `HDF-01:${hdf1}:r`,
+        kind: 'cable',
+      },
+      {
+        linkId: `HDF-01:${hdf1}:bridge`,
+        from: `HDF-01:${hdf1}:r`,
+        to: `HDF-01:${hdf1}:f`,
+        kind: 'internal',
+      },
+      {
+        linkId: n(2),
+        from: `HDF-01:${hdf1}:f`,
+        to: `HDF-02:${hdf2}:f`,
+        kind: 'cable',
+      },
+      {
+        linkId: `HDF-02:${hdf2}:bridge`,
+        from: `HDF-02:${hdf2}:f`,
+        to: `HDF-02:${hdf2}:r`,
+        kind: 'internal',
+      },
+      {
+        linkId: n(3),
+        from: `HDF-02:${hdf2}:r`,
+        to: `${dest}:p1`,
+        kind: 'cable',
+      },
+    ]
+    return {
+      start: `EDGE-17:p${port}`,
+      end: `${dest}:p1`,
+      hops,
+      destinationEquipmentId: dest,
+      destinationRole: role,
+      destinationNetworkId: 'A',
+      sourceNetworkId: 'A',
+    }
+  }
+  return {
+    context: 'installed',
+    revision: '1',
+    mode: 'distribution',
+    status: 'reached',
+    reason: 'Found 3 AGG/BB route(s).',
+    routes: [
+      route(1, 'AGG-03', 'aggregation', 1, '3C/5', '2B/3'),
+      route(2, 'AGG-08', 'aggregation', 5, '1A/2', '1D/2'),
+      route(3, 'BB-01', 'backbone', 9, '2D/4', '3A/1'),
+    ],
+    mismatches: [],
+    starts: [],
+    truncated: false,
   }
 }

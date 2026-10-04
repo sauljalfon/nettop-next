@@ -25,6 +25,7 @@ import {
   ViewSwitch,
   type MapView,
 } from '../features/map/MapControls'
+import MapResults from '../features/map/MapResults'
 import RackView from '../features/rack-builder/RackView'
 import PlanEditor from '../features/planning/PlanEditor'
 import PlacementEditor from '../features/planning/PlacementEditor'
@@ -507,6 +508,26 @@ function Workspace({
     },
     [snapshot.endpoints, onSelectEquipment],
   )
+  const traceFromPort = useCallback(
+    (id: string) => {
+      const port = snapshot.endpoints.find((p) => p.id === id)
+      if (!port) return
+      setSelected(port.equipmentId)
+      setMode('distribution')
+      setStart(id)
+      traceMutation.mutate({ mode: 'distribution', start: id })
+    },
+    [snapshot.endpoints, traceMutation.mutate],
+  )
+  const traceFromDevice = useCallback(
+    (id: string) => {
+      setSelected(id)
+      setMode('distribution')
+      setStart(`device:${id}`)
+      traceMutation.mutate({ mode: 'distribution', device: id })
+    },
+    [traceMutation.mutate],
+  )
   const openRack = useCallback(
     (id: string) => {
       setFocusedRack(id)
@@ -663,7 +684,8 @@ function Workspace({
           route={route}
           networkId={networkId}
           onSelect={select}
-          onPort={selectPort}
+          onPort={traceFromPort}
+          onTraceDevice={traceFromDevice}
           canEdit={canEdit}
           onCreateEquipment={onCreateEquipment}
           preview={pending}
@@ -852,39 +874,50 @@ function Workspace({
           </button>
         </div>
       )}
-      {traceMutation.data?.revision === snapshot.revision && (
-        <div
-          className={`results-drawer ${resultsOpen ? 'expanded' : 'collapsed'}`}
-        >
-          <button
-            className="results-toggle"
-            onClick={() => setResultsOpen((v) => !v)}
-            aria-expanded={resultsOpen}
+      {view === 'conceptual' &&
+        traceMutation.data?.revision === snapshot.revision && (
+          <MapResults
+            snapshot={snapshot}
+            result={traceMutation.data}
+            routeIndex={routeIndex}
+            onRoute={setRouteIndex}
+            onClear={() => traceMutation.reset()}
+          />
+        )}
+      {view === 'physical' &&
+        traceMutation.data?.revision === snapshot.revision && (
+          <div
+            className={`results-drawer ${resultsOpen ? 'expanded' : 'collapsed'}`}
           >
-            {resultsOpen ? 'Collapse' : 'Expand'} trace results
-          </button>
-          {resultsOpen ? (
-            <TracePanel
-              snapshot={snapshot}
-              result={traceMutation.data}
-              routeIndex={routeIndex}
-              onRoute={setRouteIndex}
-              onHop={(id) => {
-                const port = snapshot.endpoints.find((p) => p.id === id)
-                if (port) select(port.equipmentId)
-              }}
-              onClear={() => traceMutation.reset()}
-            />
-          ) : (
-            <span>
-              {traceMutation.data.status === 'reached'
-                ? 'Physical path found'
-                : 'No route'}{' '}
-              · {traceMutation.data.routes[routeIndex]?.hops.length ?? 0} hops
-            </span>
-          )}
-        </div>
-      )}
+            <button
+              className="results-toggle"
+              onClick={() => setResultsOpen((v) => !v)}
+              aria-expanded={resultsOpen}
+            >
+              {resultsOpen ? 'Collapse' : 'Expand'} trace results
+            </button>
+            {resultsOpen ? (
+              <TracePanel
+                snapshot={snapshot}
+                result={traceMutation.data}
+                routeIndex={routeIndex}
+                onRoute={setRouteIndex}
+                onHop={(id) => {
+                  const port = snapshot.endpoints.find((p) => p.id === id)
+                  if (port) select(port.equipmentId)
+                }}
+                onClear={() => traceMutation.reset()}
+              />
+            ) : (
+              <span>
+                {traceMutation.data.status === 'reached'
+                  ? 'Physical path found'
+                  : 'No route'}{' '}
+                · {traceMutation.data.routes[routeIndex]?.hops.length ?? 0} hops
+              </span>
+            )}
+          </div>
+        )}
     </main>
   )
 }

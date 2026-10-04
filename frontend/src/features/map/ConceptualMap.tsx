@@ -16,6 +16,7 @@ import {
   ReactFlowProvider,
   applyNodeChanges,
   useReactFlow,
+  useUpdateNodeInternals,
   type Edge,
   type Node,
   type NodeChange,
@@ -32,15 +33,27 @@ type CardNode = Node<MapCardData, 'equipment'>
 type PreviewNode = Node<{ name: string; onConfigure: () => void }, 'preview'>
 type MapNode = CardNode | PreviewNode
 
-const Actions = createContext<{ onPort: (id: string) => void }>({
+const Actions = createContext<{
+  onPort: (id: string) => void
+  onTraceDevice: (id: string) => void
+}>({
   onPort: () => undefined,
+  onTraceDevice: () => undefined,
 })
 
 const EquipmentCard = memo(function EquipmentCard({
+  id,
   data,
   selected,
 }: NodeProps<CardNode>) {
-  const { onPort } = useContext(Actions)
+  const { onPort, onTraceDevice } = useContext(Actions)
+  // A route change can swap facets without changing the card's size, so the
+  // size observer never fires; tell React Flow to re-read this card's handles.
+  const updateNodeInternals = useUpdateNodeInternals()
+  const handles = data.facets.flatMap((f) => f.endpointIds).join('|')
+  useEffect(() => {
+    updateNodeInternals(id)
+  }, [id, handles, updateNodeInternals])
   const { equipment: e, summary } = data
   const Icon = isPassiveEquipment(e)
     ? PanelTop
@@ -73,13 +86,27 @@ const EquipmentCard = memo(function EquipmentCard({
           ))}
         </p>
       )}
+      {selected && e.kind === 'switch' && (
+        <div className="map-card-actions">
+          <button
+            className="nodrag"
+            aria-label={`Find AGG / BB from all ports of ${e.name}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              onTraceDevice(e.id)
+            }}
+          >
+            Find AGG / BB
+          </button>
+        </div>
+      )}
       {data.facets.length > 0 && (
         <ul className="map-facets" aria-label={`${e.name} shown connections`}>
           {data.facets.map((f) => (
             <li className="map-facet-row" key={f.key}>
               <button
                 className={`nodrag map-facet ${f.automatic ? 'auto' : ''} ${f.manual ? 'manual' : ''}`}
-                aria-label={`${e.name} ${f.label}, set trace start`}
+                aria-label={`${e.name} ${f.label}, find AGG / BB from here`}
                 onClick={(event) => {
                   event.stopPropagation()
                   onPort(f.endpointIds[0])
@@ -152,7 +179,10 @@ interface Props {
   /** Presentation filter; undefined is All networks. */
   networkId?: string
   onSelect: (id: string) => void
+  /** Find AGG / BB from one exact port or position endpoint. */
   onPort: (id: string) => void
+  /** Find AGG / BB from every port of an active device. */
+  onTraceDevice: (id: string) => void
   canEdit: boolean
   onCreateEquipment: (
     kind: 'switch' | 'panel',
@@ -208,6 +238,7 @@ function Canvas({
   networkId,
   onSelect,
   onPort,
+  onTraceDevice,
   canEdit,
   onCreateEquipment,
   preview,
@@ -278,7 +309,10 @@ function Canvas({
       })
     return cards
   }, [nodes, selected, preview, onConfigurePreview])
-  const actions = useMemo(() => ({ onPort }), [onPort])
+  const actions = useMemo(
+    () => ({ onPort, onTraceDevice }),
+    [onPort, onTraceDevice],
+  )
 
   return (
     <div className="flow-surface">
