@@ -1,0 +1,106 @@
+import { describe, expect, it } from 'vitest'
+import { acceptanceSnapshot } from './acceptanceFixture'
+import { mapEdges } from './edges'
+
+const all = (s = acceptanceSnapshot()) => new Set(s.equipment.map((e) => e.id))
+const cableIds = (s = acceptanceSnapshot()) =>
+  s.links
+    .filter((l) => l.kind === 'cable')
+    .map((l) => l.id)
+    .sort()
+
+describe('C01 default map is equipment plus actual cable references', () => {
+  it('has one card per equipment and one cable record per cable', () => {
+    const s = acceptanceSnapshot()
+    const { edges, bundles } = mapEdges(s, all(s), new Set())
+    const represented = [
+      ...edges.map((e) => e.id),
+      ...bundles.flatMap((b) => b.linkIds),
+    ]
+    expect(represented.sort()).toEqual(cableIds(s))
+    expect(cableIds(s)).toHaveLength(16)
+  })
+
+  it('never turns internal bridges into edges', () => {
+    const s = acceptanceSnapshot()
+    const { edges, bundles } = mapEdges(s, all(s), new Set())
+    const ids = [
+      ...edges.map((e) => e.id),
+      ...bundles.flatMap((b) => b.linkIds),
+    ]
+    expect(ids.some((id) => id.endsWith(':bridge'))).toBe(false)
+  })
+
+  it('draws only cables between shown cards', () => {
+    const s = acceptanceSnapshot()
+    const shown = new Set(['EDGE-17', 'PANEL-A'])
+    const { edges, bundles } = mapEdges(s, shown, new Set())
+    const ids = [
+      ...edges.map((e) => e.id),
+      ...bundles.flatMap((b) => b.linkIds),
+    ]
+    expect(ids.sort()).toEqual(['A01', 'A05', 'A09'])
+  })
+})
+
+describe('C09 cable bundles keep real cable IDs', () => {
+  it('bundles parallel summary-anchored cables and keeps every ID', () => {
+    const s = acceptanceSnapshot()
+    const { edges, bundles } = mapEdges(s, all(s), new Set())
+    const bundle = bundles.find((b) => b.linkIds.includes('A01'))!
+    expect(bundle.linkIds).toEqual(['A01', 'A05', 'A09'])
+    expect(bundle.label).toBe('3 cables')
+    expect(edges.find((e) => e.id === 'A01')).toBeUndefined()
+  })
+
+  it('does not bundle a single cable', () => {
+    const s = acceptanceSnapshot()
+    const { edges } = mapEdges(s, all(s), new Set())
+    expect(edges.find((e) => e.id === 'B01')).toBeDefined()
+  })
+
+  it('attaches an edge to a facet handle instead of bundling it', () => {
+    const s = acceptanceSnapshot()
+    const { edges, bundles } = mapEdges(
+      s,
+      all(s),
+      new Set(['EDGE-17:p1', 'PANEL-A:1:f']),
+    )
+    const edge = edges.find((e) => e.id === 'A01')!
+    expect(edge.sourceHandle).toBe('EDGE-17:p1')
+    expect(edge.targetHandle).toBe('PANEL-A:1:f')
+    expect(bundles.find((b) => b.linkIds.includes('A05'))!.linkIds).toEqual([
+      'A05',
+      'A09',
+    ])
+  })
+
+  it('uses the summary anchor when only one end is a facet', () => {
+    const s = acceptanceSnapshot()
+    const { edges } = mapEdges(s, all(s), new Set(['EDGE-17:p1']))
+    const edge = edges.find((e) => e.id === 'A01')!
+    expect(edge.sourceHandle).toBe('EDGE-17:p1')
+    expect(edge.targetHandle).toBe('summary')
+  })
+
+  it('keeps summary anchors out of the topology: edges reference real endpoints only', () => {
+    const s = acceptanceSnapshot()
+    const before = JSON.stringify(s)
+    const { edges, bundles } = mapEdges(s, all(s), new Set())
+    const endpointIds = new Set(s.endpoints.map((e) => e.id))
+    for (const e of edges) {
+      expect(endpointIds.has(e.sourceEndpointId)).toBe(true)
+      expect(endpointIds.has(e.targetEndpointId)).toBe(true)
+    }
+    expect(JSON.stringify(s)).toBe(before)
+    expect(bundles.every((b) => !('endpointIds' in b))).toBe(true)
+  })
+
+  it('is deterministic regardless of link order', () => {
+    const s = acceptanceSnapshot()
+    const reversed = { ...s, links: [...s.links].reverse() }
+    expect(mapEdges(reversed, all(s), new Set())).toEqual(
+      mapEdges(s, all(s), new Set()),
+    )
+  })
+})
