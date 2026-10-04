@@ -3,7 +3,7 @@ security: []
 info:
   title: Net-Top Next API
   version: 0.4.0
-  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing. Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. BB discovery and atomic HDF creation are pending implementation; see docs/architecture.md and docs/implementation-plan.md. No installed mutation or implementation endpoints yet.
+  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing. Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. BB discovery is pending implementation; HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/implementation-plan.md. No installed mutation or implementation endpoints yet.
 servers:
   - url: http://127.0.0.1:8080/api
 paths:
@@ -204,7 +204,7 @@ components:
         siteId: {type: string}
     Plan:
       type: object
-      required: [id, name, baseRevision, revision, equipment, endpoints, links]
+      required: [id, name, baseRevision, revision, equipment, subpanels, endpoints, links]
       properties:
         id: {type: string}
         name: {type: string}
@@ -217,12 +217,30 @@ components:
           type: array
           description: Explicit placement updates for installed equipment. Proposed equipment is moved in the equipment additions array.
           items: {$ref: '#/components/schemas/Equipment'}
+        subpanels:
+          type: array
+          description: Proposed HDF subpanels. Plans saved before subpanels existed have no such key and are read as an empty list; an overlay containing an HDF chassis without its complete grid is never served.
+          items: {$ref: '#/components/schemas/Subpanel'}
         endpoints:
           type: array
           items: {$ref: '#/components/schemas/Endpoint'}
         links:
           type: array
           items: {$ref: '#/components/schemas/Link'}
+    HDFInput:
+      type: object
+      additionalProperties: false
+      required: [name, rackId, unit, height, rows]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        rackId: {type: string}
+        unit: {type: integer, minimum: 1, maximum: 100, description: Starting rack unit.}
+        height: {type: integer, minimum: 1, maximum: 100, description: Chassis height in rack units. Independent of rows.}
+        rows:
+          type: integer
+          minimum: 1
+          maximum: 32
+          description: Grid rows (columns A-D in each). Creates the chassis, 4N subpanels, 24N positions as 48N side endpoints, and 24N internal bridges in one atomic revision (at most 128 / 768 / 1,536).
     EquipmentInput:
       type: object
       additionalProperties: false
@@ -254,6 +272,13 @@ components:
             type: {const: add_equipment}
             expectedRevision: {type: string, minLength: 1}
             equipment: {$ref: '#/components/schemas/EquipmentInput'}
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, hdf]
+          properties:
+            type: {const: add_hdf}
+            expectedRevision: {type: string, minLength: 1}
+            hdf: {$ref: '#/components/schemas/HDFInput'}
         - type: object
           additionalProperties: false
           required: [type, expectedRevision, cable]

@@ -18,6 +18,7 @@ type Plan struct {
 	Revision     string               `json:"revision"`
 	Equipment    []topology.Equipment `json:"equipment"`
 	Updates      []topology.Equipment `json:"updates"`
+	Subpanels    []topology.Subpanel  `json:"subpanels"`
 	Endpoints    []topology.Endpoint  `json:"endpoints"`
 	Links        []topology.Link      `json:"links"`
 }
@@ -31,7 +32,6 @@ func Apply(base topology.Snapshot, plan Plan) (topology.Snapshot, error) {
 	}
 	next := base
 	next.Networks = slices.Clone(base.Networks)
-	next.Subpanels = slices.Clone(base.Subpanels)
 	next.Sites = slices.Clone(base.Sites)
 	next.Nodes = slices.Clone(base.Nodes)
 	next.Racks = slices.Clone(base.Racks)
@@ -60,6 +60,7 @@ func Apply(base topology.Snapshot, plan Plan) (topology.Snapshot, error) {
 	next.Equipment = append(next.Equipment, plan.Equipment...)
 	next.Endpoints = append(slices.Clone(base.Endpoints), plan.Endpoints...)
 	next.Links = append(slices.Clone(base.Links), plan.Links...)
+	next.Subpanels = append(append([]topology.Subpanel{}, base.Subpanels...), plan.Subpanels...)
 	next.Context = "planned"
 	next.Revision = base.Revision + "/" + plan.ID + "@" + plan.Revision
 	return next, topology.Validate(next)

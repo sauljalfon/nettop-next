@@ -8,6 +8,7 @@ export interface Plan {
   revision: string
   equipment: Equipment[]
   updates?: Equipment[]
+  subpanels: Subpanel[]
   endpoints: Endpoint[]
   links: Link[]
 }
@@ -23,11 +24,26 @@ export interface EquipmentInput {
   portCount: number
 }
 
+export interface HDFInput {
+  name: string
+  rackId: string
+  unit: number
+  /** Chassis height in rack units; independent of rows. */
+  height: number
+  /** Grid rows, 1–32; creates 4 subpanels, 24 positions per row. */
+  rows: number
+}
+
 export type PlanCommand =
   | {
       type: 'add_equipment'
       expectedRevision: string
       equipment: EquipmentInput
+    }
+  | {
+      type: 'add_hdf'
+      expectedRevision: string
+      hdf: HDFInput
     }
   | {
       type: 'add_cable'

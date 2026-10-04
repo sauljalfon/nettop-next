@@ -22,6 +22,17 @@ type EquipmentInput struct {
 	Height    int    `json:"height"`
 	PortCount int    `json:"portCount"`
 }
+
+// HDFInput creates one HDF chassis with its complete grid atomically. Rows and
+// rack height are independent: rows sets the grid (4 columns × rows), height the
+// chassis size in rack units.
+type HDFInput struct {
+	Name   string `json:"name"`
+	RackID string `json:"rackId"`
+	Unit   int    `json:"unit"`
+	Height int    `json:"height"`
+	Rows   int    `json:"rows"`
+}
 type CableInput struct {
 	A string `json:"a"`
 	B string `json:"b"`
@@ -37,6 +48,7 @@ type Command struct {
 	Equipment        *EquipmentInput `json:"equipment,omitempty"`
 	Cable            *CableInput     `json:"cable,omitempty"`
 	Placement        *PlacementInput `json:"placement,omitempty"`
+	HDF              *HDFInput       `json:"hdf,omitempty"`
 }
 
 // Execute is independent of storage. id is allocated by the application boundary
@@ -58,9 +70,10 @@ func Execute(base topology.Snapshot, p Plan, c Command, id string) (Plan, error)
 	next.Updates = slices.Clone(p.Updates)
 	next.Endpoints = slices.Clone(p.Endpoints)
 	next.Links = slices.Clone(p.Links)
+	next.Subpanels = append([]topology.Subpanel{}, p.Subpanels...)
 	switch c.Type {
 	case "add_equipment":
-		if c.Equipment == nil || c.Cable != nil || c.Placement != nil {
+		if c.Equipment == nil || c.Cable != nil || c.Placement != nil || c.HDF != nil {
 			return invalid("add_equipment requires only an equipment payload")
 		}
 		e := *c.Equipment
@@ -100,8 +113,36 @@ func Execute(base topology.Snapshot, p Plan, c Command, id string) (Plan, error)
 			}
 			next.Links = append(next.Links, topology.Link{ID: portID + ":bridge", A: portID + ":front", B: portID + ":rear", Kind: "internal"})
 		}
+	case "add_hdf":
+		if c.HDF == nil || c.Equipment != nil || c.Cable != nil || c.Placement != nil {
+			return invalid("add_hdf requires only an hdf payload")
+		}
+		h := *c.HDF
+		h.Name = strings.TrimSpace(h.Name)
+		if len(h.Name) < 1 || len(h.Name) > 100 {
+			return invalid("HDF name must contain 1–100 characters")
+		}
+		// Rows are checked before anything is built so a huge value can never
+		// allocate: the per-command safety cap is 128 subpanels, 768 positions,
+		// and 1,536 side endpoints (exactly what MaxHDFRows rows produce).
+		if h.Rows < 1 || h.Rows > topology.MaxHDFRows {
+			return invalid(fmt.Sprintf("rows must be between 1 and %d", topology.MaxHDFRows))
+		}
+		if h.Unit < 1 || h.Unit > 100 || h.Height < 1 || h.Height > 100 {
+			return invalid("rack unit and height must be between 1 and 100")
+		}
+		for _, existing := range current.Equipment {
+			if strings.EqualFold(existing.Name, h.Name) {
+				return invalid("equipment name already exists in this topology")
+			}
+		}
+		built := topology.NewHDF(id, h.Name, h.RackID, h.Unit, h.Height, h.Rows)
+		next.Equipment = append(next.Equipment, built.Equipment)
+		next.Subpanels = append(next.Subpanels, built.Subpanels...)
+		next.Endpoints = append(next.Endpoints, built.Endpoints...)
+		next.Links = append(next.Links, built.Links...)
 	case "add_cable":
-		if c.Cable == nil || c.Equipment != nil || c.Placement != nil {
+		if c.Cable == nil || c.Equipment != nil || c.Placement != nil || c.HDF != nil {
 			return invalid("add_cable requires only a cable payload")
 		}
 		a, b := c.Cable.A, c.Cable.B
@@ -110,7 +151,7 @@ func Execute(base topology.Snapshot, p Plan, c Command, id string) (Plan, error)
 		}
 		next.Links = append(next.Links, topology.Link{ID: id, A: a, B: b, Kind: "cable"})
 	case "move_equipment":
-		if c.Placement == nil || c.Equipment != nil || c.Cable != nil {
+		if c.Placement == nil || c.Equipment != nil || c.Cable != nil || c.HDF != nil {
 			return invalid("move_equipment requires only a placement payload")
 		}
 		input := c.Placement
@@ -138,7 +179,7 @@ func Execute(base topology.Snapshot, p Plan, c Command, id string) (Plan, error)
 			next.Updates = append(next.Updates, updated)
 		}
 	default:
-		return invalid("supported commands are add_equipment, add_cable, and move_equipment")
+		return invalid("supported commands are add_equipment, add_hdf, add_cable, and move_equipment")
 	}
 	if _, err := Apply(base, next); err != nil {
 		return invalid(err.Error())

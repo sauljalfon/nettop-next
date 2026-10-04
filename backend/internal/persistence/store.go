@@ -257,6 +257,9 @@ func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plan planning.
 }
 
 func insertPlan(ctx context.Context, tx pgx.Tx, p planning.Plan) error {
+	if p.Subpanels == nil {
+		p.Subpanels = []topology.Subpanel{} // stored plans always carry the list
+	}
 	body, err := json.Marshal(p)
 	if err != nil {
 		return err
@@ -287,6 +290,12 @@ func loadPlan(ctx context.Context, tx pgx.Tx, id string, lock bool) (planning.Pl
 	p.Updates = additions.Updates
 	if p.Updates == nil {
 		p.Updates = []topology.Equipment{}
+	}
+	p.Subpanels = additions.Subpanels
+	if p.Subpanels == nil {
+		// Plans saved before subpanels existed have no "subpanels" key: that
+		// means "no subpanels", never a half-built HDF (Apply rejects those).
+		p.Subpanels = []topology.Subpanel{}
 	}
 	p.Endpoints = additions.Endpoints
 	p.Links = additions.Links

@@ -12,7 +12,7 @@ const (
 	PositionsPerSubpanel = 6
 )
 
-var hdfColumns = [...]string{"A", "B", "C", "D"}
+var hdfColumns = [...]string{"A", "B", "C", "D"} // fixed order: also the build order of NewHDF
 
 func validColumn(c string) bool {
 	for _, column := range hdfColumns {

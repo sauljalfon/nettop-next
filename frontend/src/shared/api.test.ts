@@ -43,3 +43,18 @@ it('exposes conflicts without retrying or changing the expected revision', async
   expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(command)
   expect(new APIError(409, 'conflict')).toBeInstanceOf(Error)
 })
+
+it('sends add_hdf with rows and rack height as independent fields', async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue({ ok: true, json: async () => ({ subpanels: [] }) })
+  vi.stubGlobal('fetch', fetchMock)
+  const command = {
+    type: 'add_hdf' as const,
+    expectedRevision: '1',
+    hdf: { name: 'HDF-NEW', rackId: 'rack-03', unit: 3, height: 3, rows: 4 },
+  }
+  const plan = await sendPlanCommand('p', command)
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(command)
+  expect(plan.subpanels).toEqual([])
+})

@@ -63,7 +63,7 @@ func (s *Store) CreatePlan(ctx context.Context, name, expectedBase string) (plan
 	if base != expectedBase {
 		return planning.Plan{}, fmt.Errorf("%w: installed topology changed", planning.ErrConflict)
 	}
-	p := planning.Plan{ID: "plan-" + rand.Text(), Name: name, BaseRevision: base, Revision: "1", Equipment: []topology.Equipment{}, Updates: []topology.Equipment{}, Endpoints: []topology.Endpoint{}, Links: []topology.Link{}}
+	p := planning.Plan{ID: "plan-" + rand.Text(), Name: name, BaseRevision: base, Revision: "1", Equipment: []topology.Equipment{}, Updates: []topology.Equipment{}, Subpanels: []topology.Subpanel{}, Endpoints: []topology.Endpoint{}, Links: []topology.Link{}}
 	if err = insertPlan(ctx, tx, p); err != nil {
 		return p, err
 	}
