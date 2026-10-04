@@ -1,4 +1,4 @@
-import type { Network, Snapshot } from '../../shared/types'
+import type { Network } from '../../shared/types'
 import { facetKey, facetLabel } from './facets'
 import { crossNetworkCaption } from './edges'
 import type { SnapshotIndex } from './snapshotIndex'
@@ -15,7 +15,6 @@ export interface ConnectionEntry {
 
 /** Cabled ports or positions of one equipment, sorted by label. Unused ones are not listed. */
 export function connectionEntries(
-  _s: Snapshot,
   index: SnapshotIndex,
   equipmentId: string,
 ): ConnectionEntry[] {

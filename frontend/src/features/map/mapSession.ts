@@ -1,4 +1,5 @@
 import type { ManualFacets } from './facets'
+import type { Focus } from './focus'
 import type { Position } from './layout'
 
 export interface Viewport {
@@ -34,6 +35,12 @@ export interface MapSession {
    */
   manualFacets(): ManualFacets
   toggleManual(equipmentId: string, key: string): void
+  /** The location focus, or undefined. Replaced on every change. */
+  focus(): Focus | undefined
+  setFocus(focus: Focus | undefined): void
+  /** IDs of expanded boundary bundles. Replaced on every change. */
+  expandedBundles(): ReadonlySet<string>
+  toggleBundle(id: string): void
   /** Notified after manual facets change; returns the unsubscribe function. */
   subscribe(listener: () => void): () => void
 }
@@ -42,7 +49,12 @@ export function createMapSession(): MapSession {
   const positions = new Map<string, Position>()
   let viewport: Viewport | undefined
   let manual: ManualFacets = new Map()
+  let focus: Focus | undefined
+  let expanded: ReadonlySet<string> = new Set()
   const listeners = new Set<() => void>()
+  const notify = () => {
+    for (const listener of listeners) listener()
+  }
   return {
     position: (id) => positions.get(id),
     positions: () => positions,
@@ -71,7 +83,19 @@ export function createMapSession(): MapSession {
       if (keys.size) next.set(equipmentId, keys)
       else next.delete(equipmentId)
       manual = next
-      for (const listener of listeners) listener()
+      notify()
+    },
+    focus: () => focus,
+    setFocus(next) {
+      focus = next && { kind: next.kind, id: next.id }
+      notify()
+    },
+    expandedBundles: () => expanded,
+    toggleBundle(id) {
+      const next = new Set(expanded)
+      if (!next.delete(id)) next.add(id)
+      expanded = next
+      notify()
     },
     subscribe(listener) {
       listeners.add(listener)

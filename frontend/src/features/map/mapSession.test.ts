@@ -87,3 +87,44 @@ describe('C05 manual facets live in the session, per equipment ID', () => {
     expect(calls).toBe(2)
   })
 })
+
+describe('C13 focus and expanded bundles live in the session', () => {
+  const building = { kind: 'node', id: 'node-a' } as const
+
+  it('sets and clears the focus', () => {
+    const session = createMapSession()
+    expect(session.focus()).toBeUndefined()
+    session.setFocus(building)
+    expect(session.focus()).toEqual(building)
+    session.setFocus(undefined)
+    expect(session.focus()).toBeUndefined()
+  })
+
+  it('replaces the focus object so subscribers can compare references', () => {
+    const session = createMapSession()
+    session.setFocus(building)
+    const before = session.focus()
+    session.setFocus({ ...building })
+    expect(session.focus()).not.toBe(before)
+  })
+
+  it('toggles bundle expansion and replaces the set on change', () => {
+    const session = createMapSession()
+    const before = session.expandedBundles()
+    session.toggleBundle('b1')
+    expect(session.expandedBundles().has('b1')).toBe(true)
+    expect(before.has('b1')).toBe(false)
+    session.toggleBundle('b1')
+    expect(session.expandedBundles().size).toBe(0)
+  })
+
+  it('notifies subscribers on focus and expansion changes', () => {
+    const session = createMapSession()
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.setFocus(building)
+    session.toggleBundle('b1')
+    session.setFocus(undefined)
+    expect(calls).toBe(3)
+  })
+})

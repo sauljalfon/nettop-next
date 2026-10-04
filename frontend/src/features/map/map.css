@@ -218,3 +218,75 @@
 .react-flow__node-equipment:has(.map-connections) {
   z-index: 60 !important;
 }
+
+.map-card button.map-location {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+
+.boundary-card {
+  width: 220px;
+  padding: 10px 12px;
+  border: 1.5px dashed #9bacc0;
+  border-radius: 10px;
+  background: #f7f9fc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.boundary-card.expanded {
+  border-style: solid;
+}
+
+.boundary-card .cable-ids {
+  color: #8390a4;
+  font-size: 10px;
+  word-break: break-word;
+}
+
+.boundary-card button {
+  align-self: flex-start;
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid #c9bfe6;
+  border-radius: 5px;
+  background: #f4f1fb;
+  color: #5645b6;
+}
+
+.focus-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid #c9bfe6;
+  border-radius: 999px;
+  background: #f4f1fb;
+  font-size: 12px;
+}
+
+.focus-chip small {
+  color: #7a6cc0;
+}
+
+.focus-chip button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #5645b6;
+  padding: 2px;
+}
+
+.focus-action {
+  margin-left: 8px;
+  font-size: 11px;
+}

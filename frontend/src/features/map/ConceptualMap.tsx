@@ -33,19 +33,28 @@ import {
   type ConnectionEntry,
 } from './connections'
 import { facetStart } from './facets'
-import { projectMap, type MapCardData, type MapFlowEdge } from './mapGraph'
+import type { BoundaryBundle, Focus } from './focus'
+import {
+  projectMap,
+  type MapBoundaryNode,
+  type MapCardData,
+  type MapFlowEdge,
+} from './mapGraph'
 import { indexSnapshot } from './snapshotIndex'
 import { mapSession, type MapSession } from './mapSession'
 import './map.css'
 
 type CardNode = Node<MapCardData, 'equipment'>
 type PreviewNode = Node<{ name: string; onConfigure: () => void }, 'preview'>
-type MapNode = CardNode | PreviewNode
+type BoundaryNode = Node<MapBoundaryNode['data'], 'boundary'>
+type MapNode = CardNode | PreviewNode | BoundaryNode
 
 const Actions = createContext<{
   onPort: (id: string) => void
   onTraceDevice: (id: string) => void
   onToggleManual: (equipmentId: string, key: string) => void
+  onFocus: (focus: Focus) => void
+  onToggleBundle: (id: string) => void
   /** Cabled ports or positions of an equipment; computed when a list opens. */
   entriesOf: (equipmentId: string) => ConnectionEntry[]
   /** Network label for an entry on another network than the active filter. */
@@ -54,6 +63,8 @@ const Actions = createContext<{
   onPort: () => undefined,
   onTraceDevice: () => undefined,
   onToggleManual: () => undefined,
+  onFocus: () => undefined,
+  onToggleBundle: () => undefined,
   entriesOf: () => [],
   captionOf: () => undefined,
 })
@@ -114,7 +125,7 @@ const EquipmentCard = memo(function EquipmentCard({
   data,
   selected,
 }: NodeProps<CardNode>) {
-  const { onPort, onTraceDevice } = useContext(Actions)
+  const { onPort, onTraceDevice, onFocus } = useContext(Actions)
   const [listOpen, setListOpen] = useState(false)
   // A route change can swap facets without changing the card's size, so the
   // size observer never fires; tell React Flow to re-read this card's handles.
@@ -142,7 +153,20 @@ const EquipmentCard = memo(function EquipmentCard({
         </span>
       </div>
       <h3>{e.name}</h3>
-      <p className="map-location">{data.location}</p>
+      {data.focusNode ? (
+        <button
+          className="nodrag map-location"
+          aria-label={`Focus ${data.location}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            onFocus(data.focusNode!)
+          }}
+        >
+          {data.location}
+        </button>
+      ) : (
+        <p className="map-location">{data.location}</p>
+      )}
       <p className="map-summary">
         {summary.cabled} of {summary.total} cabled
       </p>
@@ -242,6 +266,49 @@ const EquipmentCard = memo(function EquipmentCard({
   )
 })
 
+const BoundaryCard = memo(function BoundaryCard({
+  data,
+}: NodeProps<BoundaryNode>) {
+  const { onToggleBundle } = useContext(Actions)
+  const { bundle } = data
+  const shownIds = bundle.linkIds.slice(0, 6).join(' · ')
+  return (
+    <aside
+      className={`boundary-card ${bundle.expanded ? 'expanded' : ''}`}
+      data-cable-ids={bundle.linkIds.join(' ')}
+    >
+      <strong>{bundle.label}</strong>
+      <small className="cable-ids">
+        {shownIds}
+        {bundle.linkIds.length > 6 && ` · +${bundle.linkIds.length - 6}`}
+      </small>
+      <button
+        className="nodrag"
+        aria-expanded={bundle.expanded}
+        aria-label={`${bundle.expanded ? 'Collapse' : 'Expand'} ${bundle.label}`}
+        onClick={(event) => {
+          event.stopPropagation()
+          onToggleBundle(bundle.id)
+        }}
+      >
+        {bundle.expanded ? 'Collapse' : 'Expand'}
+      </button>
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="summary"
+        isConnectable={false}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="summary"
+        isConnectable={false}
+      />
+    </aside>
+  )
+})
+
 const Preview = memo(function Preview({ data }: NodeProps<PreviewNode>) {
   return (
     <button className="unplaced-card nodrag" onClick={data.onConfigure}>
@@ -252,7 +319,11 @@ const Preview = memo(function Preview({ data }: NodeProps<PreviewNode>) {
     </button>
   )
 })
-const nodeTypes = { equipment: EquipmentCard, preview: Preview }
+const nodeTypes = {
+  equipment: EquipmentCard,
+  preview: Preview,
+  boundary: BoundaryCard,
+}
 
 export interface PendingEquipment {
   token: number
@@ -342,6 +413,11 @@ function Canvas({
   // facets only redo the dependent part.
   const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
   const manual = useSyncExternalStore(session.subscribe, session.manualFacets)
+  const focus = useSyncExternalStore(session.subscribe, session.focus)
+  const expanded = useSyncExternalStore(
+    session.subscribe,
+    session.expandedBundles,
+  )
   const graph = useMemo(
     () =>
       projectMap({
@@ -353,7 +429,7 @@ function Canvas({
         installedLinkIDs,
         index,
       }),
-    // `manual` is read through the session; it is a dependency so toggles re-project.
+    // Manual facets, focus and expansion are read through the session; they are dependencies so changes re-project.
     [
       snapshot,
       session,
@@ -363,6 +439,8 @@ function Canvas({
       installedLinkIDs,
       index,
       manual,
+      focus,
+      expanded,
     ],
   )
   const edges = useMemo(() => graph.edges.map(flowEdge), [graph.edges])
@@ -373,13 +451,14 @@ function Canvas({
 
   // Local node state carries RF's measurements and in-progress drags; a
   // refetch, filter, route or context change only reconciles it by ID.
-  const [nodes, setNodes] = useState<MapNode[]>(() =>
-    graph.nodes.map((n) => ({ ...n })),
-  )
+  const [nodes, setNodes] = useState<MapNode[]>(() => [
+    ...graph.nodes,
+    ...graph.boundaries,
+  ])
   useEffect(() => {
     setNodes((previous) => {
       const existing = new Map(previous.map((n) => [n.id, n]))
-      return graph.nodes.map((n) => {
+      return [...graph.nodes, ...graph.boundaries].map((n) => {
         const prior = existing.get(n.id)
         return {
           ...n,
@@ -388,7 +467,7 @@ function Canvas({
         }
       })
     })
-  }, [graph.nodes])
+  }, [graph.nodes, graph.boundaries])
   const onNodesChange = useCallback(
     (changes: NodeChange<MapNode>[]) =>
       setNodes((previous) => applyNodeChanges(changes, previous)),
@@ -417,8 +496,8 @@ function Canvas({
     return cards
   }, [nodes, selected, preview, onConfigurePreview])
   const entriesOf = useCallback(
-    (id: string) => connectionEntries(snapshot, index, id),
-    [snapshot, index],
+    (id: string) => connectionEntries(index, id),
+    [index],
   )
   const captionOf = useCallback(
     (entry: ConnectionEntry) =>
@@ -430,6 +509,8 @@ function Canvas({
       onPort,
       onTraceDevice,
       onToggleManual: session.toggleManual,
+      onFocus: session.setFocus,
+      onToggleBundle: session.toggleBundle,
       entriesOf,
       captionOf,
     }),
@@ -448,7 +529,7 @@ function Canvas({
             if (node.type === 'equipment') onSelect(node.id)
           }}
           onNodeDragStop={(_, node) => {
-            if (node.type === 'equipment')
+            if (node.type === 'equipment' || node.type === 'boundary')
               session.setPosition(node.id, node.position)
           }}
           onInit={() => {

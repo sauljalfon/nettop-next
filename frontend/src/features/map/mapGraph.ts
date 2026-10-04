@@ -2,7 +2,13 @@ import type { Equipment, Route, Snapshot } from '../../shared/types'
 import { routeHighlight } from '../pathfinding/projection'
 import { crossNetworkCaption, mapEdges } from './edges'
 import { facetEndpointIds, facetsFor, type Facet } from './facets'
-import { layeredLayout, type Position } from './layout'
+import { focusView, type BoundaryBundle, type Focus } from './focus'
+import {
+  COLUMN_WIDTH,
+  layeredLayout,
+  ROW_HEIGHT,
+  type Position,
+} from './layout'
 import type { MapSession } from './mapSession'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { visibleEquipment } from './networks'
@@ -23,6 +29,8 @@ export interface MapInput {
 export interface MapCardData extends Record<string, unknown> {
   equipment: Equipment
   location: string
+  /** Focusing on this card's node; undefined when its location is unknown. */
+  focusNode?: Focus
   summary: { cabled: number; total: number }
   /** Network names of the circuits through a passive card. */
   badges: string[]
@@ -37,6 +45,13 @@ export interface MapNode {
   type: 'equipment'
   position: Position
   data: MapCardData
+}
+/** A compact card summarizing the cables that leave the focus toward one location. */
+export interface MapBoundaryNode {
+  id: string
+  type: 'boundary'
+  position: Position
+  data: { bundle: BoundaryBundle }
 }
 export interface MapFlowEdge {
   id: string
@@ -63,6 +78,7 @@ export interface MapFlowEdge {
  */
 export function projectMap(input: MapInput): {
   nodes: MapNode[]
+  boundaries: MapBoundaryNode[]
   edges: MapFlowEdge[]
 } {
   const { snapshot: s, session, route } = input
@@ -79,13 +95,24 @@ export function projectMap(input: MapInput): {
 
   const index = input.index ?? indexSnapshot(s)
   const highlight = routeHighlight(s, route)
-  const shown = visibleEquipment(
-    s,
-    input.networkId,
-    highlight.equipmentIds,
-    index.badges,
-  )
+  const passes = visibleEquipment(s, input.networkId, [], index.badges)
+  const { shown, bundles: boundaryBundles } = focusView(index, {
+    focus: session.focus(),
+    passes,
+    reveal: highlight.equipmentIds,
+    expanded: session.expandedBundles(),
+  })
   const manual = session.manualFacets()
+  session.placeMissing(
+    boundaryBundles.map((b) => b.id),
+    (missing) => boundaryPositions(boundaryBundles, missing, session),
+  )
+  const boundaries: MapBoundaryNode[] = boundaryBundles.map((bundle) => ({
+    id: bundle.id,
+    type: 'boundary',
+    position: session.position(bundle.id)!,
+    data: { bundle },
+  }))
   const facets = facetsFor(s, route, manual, index.lookup)
   const networkName = (id: string) =>
     s.networks.find((n) => n.id === id)?.name ?? id
@@ -99,6 +126,7 @@ export function projectMap(input: MapInput): {
       data: {
         equipment: e,
         location: index.locations.get(e.id) ?? '',
+        focusNode: nodeFocus(index.places.get(e.id)?.nodeId),
         summary: index.summaries.get(e.id) ?? { cabled: 0, total: 0 },
         badges: (index.badges.get(e.id) ?? []).map(networkName),
         facets: facets.get(e.id) ?? [],
@@ -108,6 +136,7 @@ export function projectMap(input: MapInput): {
       },
     }))
   const x = new Map(nodes.map((n) => [n.id, n.position.x]))
+  for (const b of boundaries) x.set(b.id, b.position.x)
 
   const { edges: cables, bundles } = mapEdges(
     s,
@@ -166,6 +195,57 @@ export function projectMap(input: MapInput): {
       b.networkId,
     )
   }
+
+  for (const bundle of boundaryBundles) {
+    if (bundle.expanded) continue // the real edges replace the summary lines
+    const byInside = new Map<string, string[]>()
+    for (const c of bundle.cables)
+      byInside.set(c.insideEquipmentId, [
+        ...(byInside.get(c.insideEquipmentId) ?? []),
+        c.linkId,
+      ])
+    for (const [inside, linkIds] of byInside)
+      push(
+        `${bundle.id}>${inside}`,
+        { card: inside, handle: 'summary' },
+        { card: bundle.id, handle: 'summary' },
+        undefined,
+        linkIds,
+        '',
+      )
+  }
   edges.sort((a, b) => a.id.localeCompare(b.id))
-  return { nodes, edges }
+  return { nodes, boundaries, edges }
+}
+
+const nodeFocus = (id: string | undefined): Focus | undefined =>
+  id ? { kind: 'node', id } : undefined
+
+/**
+ * First position of each new boundary card: one column right of its focused
+ * cards, at their average height, nudged down until it is free.
+ */
+function boundaryPositions(
+  bundles: readonly BoundaryBundle[],
+  missing: readonly string[],
+  session: MapSession,
+) {
+  const taken = new Set(
+    [...session.positions().values()].map((p) => `${p.x},${p.y}`),
+  )
+  const result = new Map<string, Position>()
+  for (const id of missing) {
+    const bundle = bundles.find((b) => b.id === id)!
+    const inside = bundle.insideEquipment
+      .map((e) => session.position(e))
+      .filter((p): p is Position => !!p)
+    const x = Math.max(0, ...inside.map((p) => p.x)) + COLUMN_WIDTH
+    let y = inside.length
+      ? Math.round(inside.reduce((n, p) => n + p.y, 0) / inside.length)
+      : 0
+    while (taken.has(`${x},${y}`)) y += ROW_HEIGHT / 2
+    taken.add(`${x},${y}`)
+    result.set(id, { x, y })
+  }
+  return result
 }

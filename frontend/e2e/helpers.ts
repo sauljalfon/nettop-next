@@ -12,3 +12,7 @@ export async function fitted(page: Page) {
     .poll(() => viewport(page))
     .not.toBe('transform: translate(0px, 0px) scale(1);')
 }
+
+/** Selects a card by clicking its title; the card's center can be a button. */
+export const selectCard = (page: Page, id: string) =>
+  page.getByTestId(`rf__node-${id}`).getByRole('heading').click()

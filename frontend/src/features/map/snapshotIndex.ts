@@ -1,4 +1,4 @@
-import type { Equipment, Snapshot } from '../../shared/types'
+import type { Equipment, Link, Snapshot } from '../../shared/types'
 import { endpointLookup, type EndpointLookup } from './facets'
 import { cabledSummaries, locationLabels } from './location'
 import { circuitNetworks, passiveNetworks } from './networks'
@@ -20,6 +20,14 @@ export interface SnapshotIndex {
   /** Endpoints that carry a cable. */
   cabled: ReadonlySet<string>
   lookup: EndpointLookup
+  /** Equipment owning each endpoint. */
+  owner: ReadonlyMap<string, string>
+  /** Cable links only, in snapshot order. */
+  cables: readonly Link[]
+  /** Node and site of each equipment, from its rack; absent parts are unknown. */
+  places: ReadonlyMap<string, { nodeId?: string; siteId?: string }>
+  nodes: ReadonlyMap<string, { id: string; name: string; siteId: string }>
+  sites: ReadonlyMap<string, { id: string; name: string }>
 }
 
 export function indexSnapshot(s: Snapshot): SnapshotIndex {
@@ -30,7 +38,23 @@ export function indexSnapshot(s: Snapshot): SnapshotIndex {
     cabled.add(l.a)
     cabled.add(l.b)
   }
+  const racks = new Map(s.racks.map((r) => [r.id, r]))
+  const nodes = new Map(s.nodes.map((n) => [n.id, n]))
+  const sites = new Map(s.sites.map((x) => [x.id, x]))
+  const places = new Map<string, { nodeId?: string; siteId?: string }>()
+  for (const e of s.equipment) {
+    const node = nodes.get(racks.get(e.rackId)?.nodeId ?? '')
+    places.set(e.id, {
+      nodeId: node?.id,
+      siteId: sites.get(node?.siteId ?? '')?.id,
+    })
+  }
   return {
+    owner: new Map(s.endpoints.map((p) => [p.id, p.equipmentId])),
+    cables: s.links.filter((l) => l.kind === 'cable'),
+    places,
+    nodes,
+    sites,
     circuits,
     badges: passiveNetworks(s, circuits),
     summaries: cabledSummaries(s),

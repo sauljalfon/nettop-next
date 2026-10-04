@@ -41,8 +41,10 @@ export function mapEdges(
   shown: ReadonlySet<string>,
   facetEndpoints: ReadonlySet<string>,
   networks: ReadonlyMap<string, string> = circuitNetworks(s),
+  owner: ReadonlyMap<string, string> = new Map(
+    s.endpoints.map((p) => [p.id, p.equipmentId]),
+  ),
 ): { edges: MapEdge[]; bundles: MapBundle[] } {
-  const owner = new Map(s.endpoints.map((p) => [p.id, p.equipmentId]))
   const cables = s.links
     .filter((l) => l.kind === 'cable')
     .sort((a, b) => a.id.localeCompare(b.id))

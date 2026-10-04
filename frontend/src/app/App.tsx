@@ -20,7 +20,10 @@ import type { Context, Plan, Snapshot, TraceRequest } from '../shared/types'
 import ConceptualMap, {
   type PendingEquipment,
 } from '../features/map/ConceptualMap'
+import { mapSession } from '../features/map/mapSession'
+import type { Focus } from '../features/map/focus'
 import {
+  FocusChip,
   NetworkSelect,
   ViewSwitch,
   type MapView,
@@ -182,6 +185,7 @@ export default function App() {
           value={networkId}
           onChange={setNetworkChoice}
         />
+        {topology.data && <FocusChip snapshot={topology.data} />}
         <div className="context-switch">
           <button
             className={context === 'installed' ? 'active' : ''}
@@ -528,6 +532,13 @@ function Workspace({
     },
     [traceMutation.mutate],
   )
+  const focusLocation = useCallback(
+    (focus: Focus) => {
+      mapSession.setFocus(focus)
+      onViewChange('conceptual')
+    },
+    [onViewChange],
+  )
   const openRack = useCallback(
     (id: string) => {
       setFocusedRack(id)
@@ -741,6 +752,7 @@ function Workspace({
             selected={selected}
             onSelect={select}
             onOpenRack={openRack}
+            onFocus={focusLocation}
             canEdit={canEdit}
           />
         </DrawerPanel>
@@ -1005,12 +1017,14 @@ function Explorer({
   selected,
   onSelect,
   onOpenRack,
+  onFocus,
   canEdit,
 }: {
   snapshot: Snapshot
   selected: string
   onSelect: (id: string) => void
   onOpenRack: (id: string) => void
+  onFocus: (focus: Focus) => void
   canEdit: boolean
 }) {
   const [search, setSearch] = useState('')
@@ -1030,6 +1044,13 @@ function Explorer({
           <h3>
             <MapPin size={16} />
             {site.name}
+            <button
+              className="text-button focus-action"
+              aria-label={`Focus ${site.name}`}
+              onClick={() => onFocus({ kind: 'site', id: site.id })}
+            >
+              Focus
+            </button>
           </h3>
           {snapshot.nodes
             .filter((n) => n.siteId === site.id)
@@ -1038,6 +1059,13 @@ function Explorer({
                 <h4>
                   <Building2 size={15} />
                   {node.name}
+                  <button
+                    className="text-button focus-action"
+                    aria-label={`Focus ${node.name}`}
+                    onClick={() => onFocus({ kind: 'node', id: node.id })}
+                  >
+                    Focus
+                  </button>
                 </h4>
                 {snapshot.racks
                   .filter((r) => r.nodeId === node.id)

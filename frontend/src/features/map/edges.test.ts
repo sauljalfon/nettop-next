@@ -165,3 +165,13 @@ describe('cross-network captions', () => {
     expect(crossNetworkCaption('', 'A', networks)).toBeUndefined()
   })
 })
+
+describe('mapEdges takes the endpoint owner lookup from the caller', () => {
+  it('uses the given lookup instead of rebuilding it', () => {
+    const s = acceptanceSnapshot()
+    const owner = new Map(s.endpoints.map((p) => [p.id, p.equipmentId]))
+    owner.set('EDGE-22:p1', 'EDGE-17') // doctored: B01 now starts at EDGE-17
+    const { edges } = mapEdges(s, all(s), new Set(), undefined, owner)
+    expect(edges.find((e) => e.id === 'B01')!.source).toBe('EDGE-17')
+  })
+})

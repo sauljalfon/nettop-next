@@ -9,7 +9,7 @@ import { indexSnapshot } from './snapshotIndex'
 
 const s = acceptanceSnapshot()
 const index = indexSnapshot(s)
-const entries = (id: string) => connectionEntries(s, index, id)
+const entries = (id: string) => connectionEntries(index, id)
 const labels = (id: string) => entries(id).map((e) => e.label)
 
 describe('C03 the connections list shows only cabled positions and ports', () => {
