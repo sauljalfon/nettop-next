@@ -10,6 +10,20 @@ import type {
 
 type Role = 'access' | 'aggregation' | 'backbone' | 'passive'
 
+const RACKS: Record<string, string> = {
+  'EDGE-17': 'rack-a03',
+  'PANEL-A': 'rack-a03',
+  'HDF-01': 'rack-sm01',
+  'HDF-02': 'rack-core-01',
+  'AGG-03': 'rack-core-01',
+  'AGG-08': 'rack-core-02',
+  'AGG-15': 'rack-core-02',
+  'BB-01': 'rack-core-03',
+  'EDGE-22': 'rack-dr01',
+  'PANEL-DR': 'rack-dr01',
+  'AGG-12': 'rack-dr02',
+}
+
 function equipment(
   id: string,
   kind: Equipment['kind'],
@@ -22,7 +36,7 @@ function equipment(
     kind,
     role,
     networkId,
-    rackId: 'r',
+    rackId: RACKS[id],
     unit: 1,
     height: 1,
   }
@@ -129,6 +143,19 @@ export function acceptanceSnapshot(): Snapshot {
   cable('B03', side('HDF-01', '3C/2', 'front'), side('HDF-02', '2B/6', 'front'))
   cable('B04', side('HDF-02', '2B/6', 'rear'), port('AGG-12', 1))
   port('AGG-15', 1) // unconnected
+  // Unused capacity: every switch has 24 ports, standard panels 24 positions,
+  // and HDF-01 has two configured positions with no cable.
+  for (const e of eq)
+    if (e.kind === 'switch') for (let n = 1; n <= 24; n++) port(e.id, n)
+  for (const panel of ['PANEL-A', 'PANEL-DR'])
+    for (let n = 1; n <= 24; n++) {
+      side(panel, String(n), 'front')
+      side(panel, String(n), 'rear')
+    }
+  for (const side_ of ['front', 'rear'] as const) {
+    side('HDF-01', '4A/1', side_)
+    side('HDF-01', '4A/2', side_)
+  }
 
   return {
     context: 'installed',
@@ -140,9 +167,41 @@ export function acceptanceSnapshot(): Snapshot {
       { id: 'B', name: 'Network B' },
     ],
     subpanels,
-    sites: [],
-    nodes: [],
-    racks: [],
+    sites: [
+      { id: 'site-main', name: 'Main Campus' },
+      { id: 'site-dr', name: 'DR Site' },
+    ],
+    nodes: [
+      { id: 'node-a', siteId: 'site-main', name: 'Building A' },
+      { id: 'node-sm', siteId: 'site-main', name: 'North Sub-main' },
+      { id: 'node-core', siteId: 'site-main', name: 'Main Distribution' },
+      { id: 'node-dr1', siteId: 'site-dr', name: 'DR Access' },
+      { id: 'node-dr2', siteId: 'site-dr', name: 'DR Distribution' },
+    ],
+    racks: [
+      { id: 'rack-a03', nodeId: 'node-a', name: 'Rack A03', units: 12 },
+      { id: 'rack-sm01', nodeId: 'node-sm', name: 'Rack SM01', units: 12 },
+      {
+        id: 'rack-core-01',
+        nodeId: 'node-core',
+        name: 'Rack Core 01',
+        units: 12,
+      },
+      {
+        id: 'rack-core-02',
+        nodeId: 'node-core',
+        name: 'Rack Core 02',
+        units: 12,
+      },
+      {
+        id: 'rack-core-03',
+        nodeId: 'node-core',
+        name: 'Rack Core 03',
+        units: 12,
+      },
+      { id: 'rack-dr01', nodeId: 'node-dr1', name: 'Rack DR01', units: 12 },
+      { id: 'rack-dr02', nodeId: 'node-dr2', name: 'Rack DR02', units: 12 },
+    ],
     equipment: eq,
     endpoints,
     links,

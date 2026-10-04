@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot } from './acceptanceFixture'
-import { mapEdges } from './edges'
+import { crossNetworkCaption, mapEdges } from './edges'
 
 const all = (s = acceptanceSnapshot()) => new Set(s.equipment.map((e) => e.id))
 const cableIds = (s = acceptanceSnapshot()) =>
@@ -102,5 +102,66 @@ describe('C09 cable bundles keep real cable IDs', () => {
     expect(mapEdges(reversed, all(s), new Set())).toEqual(
       mapEdges(s, all(s), new Set()),
     )
+  })
+})
+
+describe('C07/C08 edges carry the circuit network and bundles never mix networks', () => {
+  it('gives each cable the network of its circuit', () => {
+    const s = acceptanceSnapshot()
+    const { edges } = mapEdges(s, all(s), new Set())
+    expect(edges.find((e) => e.id === 'B01')!.networkId).toBe('B')
+    expect(edges.find((e) => e.id === 'B04')!.networkId).toBe('B')
+  })
+
+  it('leaves the network empty when the circuit is unresolved', () => {
+    const s = acceptanceSnapshot()
+    // A direct cable between two active devices has no passive circuit to classify.
+    s.links.push({
+      id: 'X1',
+      kind: 'cable',
+      a: 'AGG-15:p1',
+      b: 'AGG-12:p1',
+    })
+    const { edges } = mapEdges(s, all(s), new Set())
+    expect(edges.find((e) => e.id === 'X1')!.networkId).toBe('')
+  })
+
+  it('splits parallel cables of different networks into separate bundles', () => {
+    const s = acceptanceSnapshot()
+    const { edges, bundles } = mapEdges(s, all(s), new Set())
+    const hdf = bundles.filter(
+      (b) => b.source.startsWith('HDF') && b.target.startsWith('HDF'),
+    )
+    expect(hdf).toHaveLength(1)
+    expect(hdf[0].networkId).toBe('A')
+    expect(hdf[0].linkIds).toEqual(['A03', 'A07', 'A11'])
+    expect(edges.find((e) => e.id === 'B03')!.networkId).toBe('B')
+    for (const b of bundles)
+      expect(new Set(b.linkIds.map((id) => id[0])).size).toBe(1) // A01… or B01… only
+  })
+
+  it('never merges an unresolved cable into a resolved bundle', () => {
+    const s = acceptanceSnapshot()
+    s.links.push({ id: 'X2', kind: 'cable', a: 'AGG-15:p1', b: 'AGG-03:p1' })
+    s.links.push({ id: 'X3', kind: 'cable', a: 'AGG-15:p1', b: 'AGG-03:p1' })
+    const { bundles } = mapEdges(s, all(s), new Set())
+    const x = bundles.find((b) => b.linkIds.includes('X2'))!
+    expect(x.networkId).toBe('')
+    expect(x.linkIds).toEqual(['X2', 'X3'])
+  })
+})
+
+describe('cross-network captions', () => {
+  const networks = [
+    { id: 'A', name: 'Network A' },
+    { id: 'B', name: 'Network B' },
+  ]
+  it('names the network of an edge that is not the filtered network', () => {
+    expect(crossNetworkCaption('B', 'A', networks)).toBe('Network B')
+  })
+  it('shows nothing without a filter, for the filtered network, or when unresolved', () => {
+    expect(crossNetworkCaption('B', undefined, networks)).toBeUndefined()
+    expect(crossNetworkCaption('A', 'A', networks)).toBeUndefined()
+    expect(crossNetworkCaption('', 'A', networks)).toBeUndefined()
   })
 })

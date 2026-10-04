@@ -7,7 +7,7 @@ test('add_hdf creates a complete proposed grid, rejects bad rows, and traces', a
   request,
 }) => {
   const created = await request.post('/api/plans', {
-    data: { name: 'HDF via API', expectedBaseRevision: 'sample-1' },
+    data: { name: 'HDF via API', expectedBaseRevision: 'acceptance-1' },
   })
   expect(created.status()).toBe(201)
   let plan = (await created.json()) as Plan
@@ -15,7 +15,7 @@ test('add_hdf creates a complete proposed grid, rejects bad rows, and traces', a
   const hdf = (rows: number, unit = 3) => ({
     type: 'add_hdf',
     expectedRevision: plan.revision,
-    hdf: { name: 'HDF-E2E', rackId: 'rack-03', unit, height: 3, rows },
+    hdf: { name: 'HDF-E2E', rackId: 'rack-a03', unit, height: 3, rows },
   })
 
   for (const rows of [0, 33]) {
@@ -23,7 +23,7 @@ test('add_hdf creates a complete proposed grid, rejects bad rows, and traces', a
       422,
     )
   }
-  expect((await request.post(commands, { data: hdf(2, 7) })).status()).toBe(422) // collides with EDGE-01
+  expect((await request.post(commands, { data: hdf(2, 7) })).status()).toBe(422) // collides with EDGE-17
   plan = await (await request.get(`/api/plans/${plan.id}`)).json()
   expect(plan.revision).toBe('1')
   expect(plan.subpanels ?? []).toHaveLength(0)
@@ -43,9 +43,10 @@ test('add_hdf creates a complete proposed grid, rejects bad rows, and traces', a
   const installed = (await (
     await request.get('/api/topology')
   ).json()) as Snapshot
-  expect(planned.subpanels).toHaveLength(16)
-  expect(installed.subpanels).toHaveLength(0)
-  expect(planned.equipment.find((e) => e.kind === 'hdf')).toMatchObject({
+  // HDF-01 (16) and HDF-02 (12) are installed; the plan adds 16 more.
+  expect(planned.subpanels).toHaveLength(44)
+  expect(installed.subpanels).toHaveLength(28)
+  expect(planned.equipment.find((e) => e.name === 'HDF-E2E')).toMatchObject({
     role: 'passive',
     height: 3,
   })
@@ -60,8 +61,8 @@ test('add_hdf creates a complete proposed grid, rejects bad rows, and traces', a
     )!.id
   }
   for (const cable of [
-    { a: 'edge-01:p2', b: endpoint('front') },
-    { a: endpoint('rear'), b: 'agg-02:p2' },
+    { a: 'edge-17:p5', b: endpoint('front') },
+    { a: endpoint('rear'), b: 'agg-03:p2' },
   ]) {
     const response = await request.post(commands, {
       data: { type: 'add_cable', expectedRevision: plan.revision, cable },
@@ -71,7 +72,7 @@ test('add_hdf creates a complete proposed grid, rejects bad rows, and traces', a
   }
   const trace = (await (
     await request.post(`/api/traces?context=planned&planId=${plan.id}`, {
-      data: { mode: 'distribution', start: 'edge-01:p2' },
+      data: { mode: 'distribution', start: 'edge-17:p5' },
     })
   ).json()) as TraceResult
   expect(trace.routes).toHaveLength(1)

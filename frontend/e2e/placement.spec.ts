@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('rack drops, persisted moves, collisions, and tracing share one hierarchy', async ({
+test('rack drops, persisted moves, collisions, and tracing through the rack view', async ({
   page,
   request,
 }) => {
@@ -13,39 +13,39 @@ test('rack drops, persisted moves, collisions, and tracing share one hierarchy',
   )
   const id = await page.getByLabel('Saved plan').inputValue()
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
-  await page.getByRole('button', { name: 'Racks', exact: true }).click()
+  await page.getByRole('button', { name: 'Physical', exact: true }).click()
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   await page
     .locator('.library-item')
     .filter({ hasText: 'Access switch' })
-    .dragTo(page.getByTestId('rack-slot-rack-03-4'))
+    .dragTo(page.getByTestId('rack-slot-rack-a03-4'))
   await expect(page.getByLabel('Starting unit', { exact: true })).toHaveValue(
     '4',
   )
   await expect(page.getByRole('combobox', { name: /^Network/ })).toHaveValue('')
   await page.getByLabel('Equipment name', { exact: true }).fill('DRAG-EDGE')
-  await page
-    .getByRole('combobox', { name: /^Network/ })
-    .selectOption('net-prototype')
+  await page.getByRole('combobox', { name: /^Network/ }).selectOption('net-a')
   await page.getByLabel('Port count', { exact: true }).fill('2')
   await page.getByRole('button', { name: 'Save equipment to plan' }).click()
-  await expect(page.getByTestId('rack-slot-rack-03-4')).toContainText(
+  await expect(page.getByTestId('rack-slot-rack-a03-4')).toContainText(
     'DRAG-EDGE',
   )
   await page
-    .getByTestId('rack-slot-rack-03-4')
+    .getByTestId('rack-slot-rack-a03-4')
     .locator('.rack-device-name')
-    .dragTo(page.getByTestId('rack-slot-rack-04-3'))
-  await expect(page.getByTestId('rack-slot-rack-04-3')).toContainText(
+    .dragTo(page.getByTestId('rack-slot-rack-dr02-3'))
+  await expect(page.getByTestId('rack-slot-rack-dr02-3')).toContainText(
     'DRAG-EDGE',
   )
   await page
-    .getByTestId('rack-slot-rack-03-8')
+    .getByTestId('rack-slot-rack-a03-8')
     .locator('.rack-device-name')
-    .dragTo(page.getByTestId('rack-slot-rack-04-4'))
-  await expect(page.getByTestId('rack-slot-rack-04-4')).toContainText('EDGE-01')
+    .dragTo(page.getByTestId('rack-slot-rack-core-02-4'))
+  await expect(page.getByTestId('rack-slot-rack-core-02-4')).toContainText(
+    'EDGE-17',
+  )
   await page
-    .getByTestId('rack-slot-rack-04-4')
+    .getByTestId('rack-slot-rack-core-02-4')
     .locator('.rack-device-name')
     .click()
   await page.getByLabel('Placement unit', { exact: true }).fill('8')
@@ -58,13 +58,16 @@ test('rack drops, persisted moves, collisions, and tracing share one hierarchy',
   expect(draft.revision).toBe('4')
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  await expect(page.getByText(/3 cables · 2 internal bridges/)).toBeVisible()
+  await expect(page.getByText(/4 cables · 3 internal bridges/)).toBeVisible()
   await page.reload()
-  await page.getByRole('button', { name: 'Racks', exact: true }).click()
-  await expect(page.getByTestId('rack-slot-rack-04-4')).toContainText('EDGE-01')
+  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  await expect(page.getByTestId('rack-slot-rack-core-02-4')).toContainText(
+    'EDGE-17',
+  )
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
-  await page.getByRole('button', { name: 'Racks', exact: true }).click()
-  await expect(page.getByTestId('rack-slot-rack-03-8')).toContainText('EDGE-01')
+  await expect(page.getByTestId('rack-slot-rack-a03-8')).toContainText(
+    'EDGE-17',
+  )
 })
 
 test('empty canvas creates an unplaced preview and saves only after rack assignment', async ({
@@ -93,10 +96,10 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
   expect(after.revision).toBe(before.revision)
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(page.locator('.unplaced-card')).toHaveCount(0)
-  await page.getByLabel('New plan name').fill('Whiteboard creation check')
+  await page.getByLabel('New plan name').fill('Map creation check')
   await page.getByRole('button', { name: 'Create plan', exact: true }).click()
   await expect(page.getByLabel('Saved plan')).toContainText(
-    'Whiteboard creation check',
+    'Map creation check',
   )
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   await page
@@ -106,12 +109,10 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
       targetPosition: { x: 1300, y: 850 },
     })
   await page.getByLabel('Equipment name', { exact: true }).fill('BOARD-EDGE')
-  await page
-    .getByRole('combobox', { name: /^Network/ })
-    .selectOption('net-prototype')
+  await page.getByRole('combobox', { name: /^Network/ }).selectOption('net-a')
   await page
     .getByRole('combobox', { name: 'Target rack', exact: true })
-    .selectOption('rack-03')
+    .selectOption('rack-a03')
   await page.getByLabel('Port count', { exact: true }).fill('2')
   await page
     .getByRole('button', { name: 'Save equipment to plan', exact: true })
@@ -120,8 +121,8 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
   await expect(
     page.locator('.equipment-card').filter({ hasText: 'BOARD-EDGE' }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Racks', exact: true }).click()
-  await expect(page.getByTestId('rack-slot-rack-03-1')).toContainText(
+  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  await expect(page.getByTestId('rack-slot-rack-a03-1')).toContainText(
     'BOARD-EDGE',
   )
 })

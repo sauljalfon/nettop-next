@@ -273,108 +273,6 @@ button:hover:not(:disabled) {
 .react-flow__attribution {
   font-size: 8px;
 }
-.canvas-container {
-  width: 100%;
-  height: 100%;
-  border: 1.5px solid #c8d4e2;
-  border-radius: 18px;
-  position: relative;
-  pointer-events: all;
-  background: #edf2f766;
-}
-.canvas-container.site {
-  background: #edf2f559;
-  border-color: #c9d4df;
-}
-.canvas-container.node {
-  background: #f5f2fc8c;
-  border-color: #d5cce8;
-  border-radius: 14px;
-}
-.canvas-container.rack {
-  background: #ffffffb5;
-  border-color: #c9d7e4;
-  border-radius: 12px;
-  box-shadow: 0 3px 10px #29456c05;
-}
-.container-heading {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 18px 20px 0;
-  cursor: grab;
-  user-select: none;
-}
-.container-heading:active {
-  cursor: grabbing;
-}
-.container-icon {
-  width: 35px;
-  height: 35px;
-  border-radius: 9px;
-  background: #dce6ef;
-  color: #627e96;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-.node .container-icon {
-  background: #e9e0f6;
-  color: #8d75b0;
-}
-.rack .container-icon {
-  background: #edf2f6;
-  color: #7790a6;
-}
-.container-heading small {
-  font-size: 8px;
-  letter-spacing: 1.2px;
-  color: #8796a8;
-  font-weight: 700;
-}
-.container-heading h3 {
-  font-size: 15px;
-  color: #4d6077;
-  margin-top: 3px;
-}
-.container-heading .icon-button {
-  margin-left: auto;
-}
-.container-summary {
-  font-size: 10px;
-  color: #8b9bad;
-  position: absolute;
-  top: 22px;
-  right: 55px;
-}
-.rack .container-summary,
-.node .container-summary {
-  position: static;
-  margin: 8px 20px 0;
-  font-size: 11px;
-}
-.rack-elevation-link {
-  position: absolute;
-  bottom: 10px;
-  right: 14px;
-  background: transparent;
-  border: 0;
-  font-size: 10px;
-  color: #8395ad;
-}
-.canvas-container.traced {
-  border-color: #79bda6;
-  box-shadow: 0 0 0 3px #71cbaa0e;
-}
-.canvas-container.drop-over {
-  background: #edf8f2;
-  border: 2px dashed #56ab8b;
-}
-.canvas-container .react-flow__handle {
-  width: 7px;
-  height: 7px;
-  opacity: 0;
-}
 .equipment-card {
   height: 124px;
   width: 228px;
@@ -431,30 +329,6 @@ button:hover:not(:disabled) {
 }
 .equipment-card.proposed {
   border-style: dashed;
-}
-.compact-ports {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  position: absolute;
-  right: 15px;
-  bottom: 15px;
-}
-.compact-ports button {
-  width: 11px;
-  height: 9px;
-  border: 1px solid #c9d4df;
-  background: #edf1f6;
-  padding: 0;
-  border-radius: 2px;
-}
-.compact-ports .lit {
-  background: #71c7aa;
-  border-color: #5bb596;
-}
-.compact-ports small {
-  font-size: 8px;
-  color: #8d9bab;
 }
 .equipment-card .react-flow__handle {
   width: 5px;

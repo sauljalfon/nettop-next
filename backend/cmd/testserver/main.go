@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"nettop.local/backend/internal/acceptance"
 	"nettop.local/backend/internal/httpapi"
 	"nettop.local/backend/internal/persistence"
-	"nettop.local/backend/internal/sample"
+	"nettop.local/backend/internal/planning"
+	"nettop.local/backend/internal/topology"
 )
 
 func main() {
@@ -64,7 +66,7 @@ func run() error {
 	if err = store.Migrate(setup); err != nil {
 		return err
 	}
-	if err = store.Seed(setup, sample.Installed(), sample.Expansion()); err != nil {
+	if err = store.Seed(setup, acceptance.Installed(), expansion()); err != nil {
 		return err
 	}
 	server := &http.Server{Addr: "127.0.0.1:18080", Handler: httpapi.New(store), ReadHeaderTimeout: 5 * time.Second}
@@ -77,5 +79,16 @@ func run() error {
 		shutdown, done := context.WithTimeout(context.Background(), 5*time.Second)
 		defer done()
 		return server.Shutdown(shutdown)
+	}
+}
+
+// expansion is the browser-test draft on the acceptance fixture: a new access
+// switch in Rack A03 cabled to the otherwise uncabled AGG-15.
+func expansion() planning.Plan {
+	return planning.Plan{
+		ID: "expansion", Name: "Expansion", Revision: "1", BaseRevision: "acceptance-1",
+		Equipment: []topology.Equipment{{ID: "edge-18", Name: "EDGE-18", Kind: "switch", Role: "access", NetworkID: "net-a", RackID: "rack-a03", Unit: 6, Height: 1}},
+		Endpoints: []topology.Endpoint{{ID: "edge-18:p1", EquipmentID: "edge-18", Label: "Port 1"}},
+		Links:     []topology.Link{{ID: "planned-cable-18", A: "edge-18:p1", B: "agg-15:p1", Kind: "cable"}},
 	}
 }

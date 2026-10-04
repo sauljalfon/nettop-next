@@ -17,16 +17,21 @@ import {
 } from 'lucide-react'
 import { getPlans, getSnapshot, sendPlanCommand, trace } from '../shared/api'
 import type { Context, Plan, Snapshot, TraceRequest } from '../shared/types'
-import Whiteboard, {
+import ConceptualMap, {
   type PendingEquipment,
-} from '../features/whiteboard/Whiteboard'
+} from '../features/map/ConceptualMap'
+import {
+  NetworkSelect,
+  ViewSwitch,
+  type MapView,
+} from '../features/map/MapControls'
 import RackView from '../features/rack-builder/RackView'
 import PlanEditor from '../features/planning/PlanEditor'
 import PlacementEditor from '../features/planning/PlacementEditor'
 import TracePanel from '../features/pathfinding/TracePanel'
 import { endpointLabel } from '../features/pathfinding/projection'
 import { isPassiveEquipment } from '../shared/equipment'
-import { locationPath } from '../features/whiteboard/hierarchy'
+import { locationPath } from '../features/map/location'
 import './styles.css'
 
 type Drawer = 'library' | 'explorer' | 'plans' | 'inspector' | 'trace' | null
@@ -45,13 +50,8 @@ export default function App() {
   const statusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   )
-  const layouts = useRef<Record<string, { x: number; y: number }>>({})
-  const recordLayout = useCallback(
-    (id: string, position: { x: number; y: number }) => {
-      layouts.current[id] = position
-    },
-    [],
-  )
+  const [view, setView] = useState<MapView>('conceptual')
+  const [networkChoice, setNetworkChoice] = useState<string>()
   const plans = useQuery({
     queryKey: ['plans'],
     queryFn: ({ signal }) => getPlans(signal),
@@ -156,6 +156,11 @@ export default function App() {
     setStatus('')
   }
   const error = topology.error ?? installed.error ?? plans.error
+  const networks = topology.data?.networks ?? installed.data?.networks ?? []
+  // A network that does not exist in this context falls back to All networks.
+  const networkId = networks.some((n) => n.id === networkChoice)
+    ? networkChoice
+    : undefined
   return (
     <div className="studio">
       <header className="studio-header">
@@ -170,6 +175,12 @@ export default function App() {
           <strong>{topology.data?.sites[0]?.name ?? 'Network Studio'}</strong>
           <small>Infrastructure workspace</small>
         </div>
+        <ViewSwitch view={view} onChange={setView} />
+        <NetworkSelect
+          networks={networks}
+          value={networkId}
+          onChange={setNetworkChoice}
+        />
         <div className="context-switch">
           <button
             className={context === 'installed' ? 'active' : ''}
@@ -274,8 +285,9 @@ export default function App() {
             onSelectEquipment={openInspector}
             onPlanSaved={saved}
             onRefresh={refresh}
-            positions={layouts.current}
-            recordLayout={recordLayout}
+            view={view}
+            onViewChange={setView}
+            networkId={networkId}
           />
         )
       )}
@@ -394,8 +406,9 @@ interface WorkspaceProps {
   onSelectEquipment: () => void
   onPlanSaved: (plan: Plan) => Promise<void>
   onRefresh: () => Promise<void>
-  positions: Record<string, { x: number; y: number }>
-  recordLayout: (id: string, position: { x: number; y: number }) => void
+  view: MapView
+  onViewChange: (view: MapView) => void
+  networkId?: string
 }
 
 function Workspace({
@@ -410,11 +423,11 @@ function Workspace({
   onSelectEquipment,
   onPlanSaved,
   onRefresh,
-  positions,
-  recordLayout,
+  view,
+  onViewChange,
+  networkId,
 }: WorkspaceProps) {
   const [selected, setSelected] = useState(snapshot.equipment[0]?.id ?? '')
-  const [view, setView] = useState<'board' | 'racks'>('board')
   const [focusedRack, setFocusedRack] = useState<string>()
   const [mode, setMode] = useState<'distribution' | 'point_to_point'>(
     'distribution',
@@ -494,10 +507,16 @@ function Workspace({
     },
     [snapshot.endpoints, onSelectEquipment],
   )
-  const openRack = useCallback((id: string) => {
-    setFocusedRack(id)
-    setView('racks')
-  }, [])
+  const openRack = useCallback(
+    (id: string) => {
+      setFocusedRack(id)
+      onViewChange('physical')
+    },
+    [onViewChange],
+  )
+  useEffect(() => {
+    if (view === 'conceptual') setFocusedRack(undefined)
+  }, [view])
   const canEdit =
     !!plan &&
     snapshot.revision === `${plan.baseRevision}/${plan.id}@${plan.revision}` &&
@@ -625,50 +644,28 @@ function Workspace({
       <div className="canvas-topline">
         <div>
           <span className="eyebrow">
-            {view === 'board' ? 'HIERARCHY WHITEBOARD' : 'PHYSICAL ELEVATION'}
+            {view === 'conceptual' ? 'CONCEPTUAL MAP' : 'PHYSICAL ELEVATION'}
           </span>
           <h1>
-            {view === 'board'
-              ? 'Your network, in context.'
+            {view === 'conceptual'
+              ? 'Connected infrastructure.'
               : (snapshot.racks.find((r) => r.id === focusedRack)?.name ??
                 'Rack workshop')}
           </h1>
         </div>
-        <div className="view-switch">
-          <button
-            aria-pressed={view === 'board'}
-            className={view === 'board' ? 'active' : ''}
-            onClick={() => setView('board')}
-          >
-            Whiteboard
-          </button>
-          <button
-            aria-pressed={view === 'racks'}
-            className={view === 'racks' ? 'active' : ''}
-            onClick={() => {
-              setFocusedRack(undefined)
-              setView('racks')
-            }}
-          >
-            Racks
-          </button>
-        </div>
       </div>
-      {view === 'board' ? (
-        <Whiteboard
+      {view === 'conceptual' ? (
+        <ConceptualMap
           snapshot={snapshot}
           installedIDs={installedIDs}
           installedLinkIDs={installedLinkIDs}
           selected={selected}
           route={route}
+          networkId={networkId}
           onSelect={select}
           onPort={selectPort}
           canEdit={canEdit}
-          positions={positions}
-          onLayoutPosition={recordLayout}
           onCreateEquipment={onCreateEquipment}
-          onMoveEquipment={move}
-          onOpenRack={openRack}
           preview={pending}
           onConfigurePreview={onConfigurePreview}
         />
@@ -676,10 +673,10 @@ function Workspace({
         <div className="elevation-surface">
           <button
             className="elevation-back button"
-            onClick={() => setView('board')}
+            onClick={() => onViewChange('conceptual')}
           >
             <ArrowLeft size={15} />
-            Back to whiteboard
+            Back to map
           </button>
           <RackView
             snapshot={rackSnapshot}
@@ -732,7 +729,7 @@ function Workspace({
           subtitle={
             drawer === 'trace'
               ? 'Exact physical continuity, calculated by Go'
-              : 'Select equipment on the board to inspect it'
+              : 'Select equipment on the map to inspect it'
           }
           onClose={closeDrawer}
           side="right"

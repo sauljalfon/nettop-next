@@ -2,13 +2,13 @@ import { expect, test } from '@playwright/test'
 import type { Plan } from '../src/shared/types'
 
 // Minimal handling only: an HDF must never present as an active device. Real HDF
-// UI arrives with M3/M4.
+// UI arrives with M4.
 test('a proposed HDF renders as passive equipment, not an active switch', async ({
   page,
   request,
 }) => {
   const created = await request.post('/api/plans', {
-    data: { name: 'HDF display', expectedBaseRevision: 'sample-1' },
+    data: { name: 'HDF display', expectedBaseRevision: 'acceptance-1' },
   })
   const plan = (await created.json()) as Plan
   const saved = await request.post(`/api/plans/${plan.id}/commands`, {
@@ -17,7 +17,7 @@ test('a proposed HDF renders as passive equipment, not an active switch', async 
       expectedRevision: plan.revision,
       hdf: {
         name: 'HDF-DISPLAY',
-        rackId: 'rack-03',
+        rackId: 'rack-a03',
         unit: 3,
         height: 3,
         rows: 1,

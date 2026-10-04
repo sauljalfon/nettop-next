@@ -20,7 +20,7 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
   await expect(
     page.getByRole('button', { name: 'Save equipment to plan' }),
   ).toBeDisabled()
-  await network.selectOption('net-prototype')
+  await network.selectOption('net-a')
   await page.getByLabel('Starting unit', { exact: true }).fill('4')
   await page.getByLabel('Port count', { exact: true }).fill('2')
   await page.getByRole('button', { name: 'Save equipment to plan' }).click()
@@ -28,7 +28,7 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
   const saved = await (await request.get(`/api/plans/${planID}`)).json()
   expect(saved.equipment[0]).toMatchObject({
     role: 'backbone',
-    networkId: 'net-prototype',
+    networkId: 'net-a',
   })
   await page.reload()
   await page.getByRole('button', { name: 'Changes', exact: false }).click()
@@ -39,7 +39,7 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
     .selectOption({ label: 'EDGE-BROWSER · Port 1' })
   await page
     .getByRole('combobox', { name: 'Cable endpoint B' })
-    .selectOption({ label: 'AGG-02 · SFP+ 2' })
+    .selectOption({ label: 'AGG-15 · Port 1' })
   await page.getByRole('button', { name: 'Save cable to plan' }).click()
   await expect(page.getByRole('status')).toContainText('revision 3')
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
@@ -59,8 +59,8 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
         name: 'OTHER-CLIENT',
         kind: 'switch',
         role: 'access',
-        networkId: 'net-prototype',
-        rackId: 'rack-04',
+        networkId: 'net-a',
+        rackId: 'rack-dr02',
         unit: 4,
         height: 1,
         portCount: 2,
@@ -71,9 +71,7 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
   await page.getByRole('button', { name: 'Changes', exact: false }).click()
   await page.getByRole('button', { name: 'Add equipment', exact: true }).click()
   await page.getByLabel('Equipment name', { exact: true }).fill('STALE-EDIT')
-  await page
-    .getByRole('combobox', { name: /^Network/ })
-    .selectOption('net-prototype')
+  await page.getByRole('combobox', { name: /^Network/ }).selectOption('net-a')
   await page.getByLabel('Starting unit', { exact: true }).fill('5')
   await page.getByRole('button', { name: 'Save equipment to plan' }).click()
   await expect(page.getByRole('alert')).toContainText('draft changed')
