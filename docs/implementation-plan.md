@@ -150,7 +150,7 @@ Same rules as M1: each step is test-first, ends with the whole repository green 
 | 3 | **API and UI switch-over.** Remove `aggregation` from engine and API; OpenAPI; installed/planned parity through PostgreSQL; `types.ts`/`api.ts`; Trace panel and inspector action renamed **Find AGG / BB**, each result showing destination name, role (AGG/BB), and network, with mismatches and truncation listed separately; update the Playwright specs that used `aggregation` | P18, P19, A01, frontend tests, Playwright |
 | 4 | **Status and handoff.** `current-status.md`, README smoke flow (EDGE-17 → AGG-03, AGG-08, **and BB-01**), `backend-contract-notes.md` | Full check run |
 
-## M3 — Approved conceptual map
+## M3 — Approved conceptual map (complete)
 
 ### Scope
 

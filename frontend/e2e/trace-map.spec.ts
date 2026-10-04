@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Plan } from '../src/shared/types'
-import { fitted, viewport, selectCard } from './helpers'
+import { fitted, viewport } from './helpers'
 
 /** Every card's transform, keyed by equipment ID. */
 const layout = (page: Page) =>
@@ -18,7 +18,7 @@ const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
 
 async function traceFromEdge17(page: Page) {
-  await selectCard(page, 'edge-17')
+  await page.getByTestId('rf__node-edge-17').click()
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
     .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
@@ -115,7 +115,7 @@ test('C06 a route through several positions of one HDF shows each under the same
 
   await page.goto(`/?plan=${plan.id}`)
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(12)
-  await selectCard(page, 'edge-17')
+  await page.getByTestId('rf__node-edge-17').click()
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
     .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })

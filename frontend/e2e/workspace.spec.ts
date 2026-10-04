@@ -91,7 +91,7 @@ test('panels overlay the full-page map and dragging does not render the shell', 
   expect(await page.locator('.flow-surface').boundingBox()).toEqual(bounds)
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   const item = page.getByTestId('rf__node-edge-17')
-  await item.getByRole('heading').click() // the card's center is its location button
+  await item.click()
   await expect(page.locator('.inspector-hero h2')).toHaveText('EDGE-17')
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page.evaluate(() => {

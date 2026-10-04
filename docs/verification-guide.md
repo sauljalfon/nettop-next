@@ -87,7 +87,7 @@ npm run test:e2e
 
 `playwright.config.ts` starts an isolated test-only Go server and Vite. The test-only server creates an isolated schema, migrates/seeds it, and cleans it on shutdown. It can run alongside development. Its default test DSN can be overridden with `TEST_DATABASE_URL`.
 
-Baseline frontend tests currently characterize the nested-canvas prototype and simple standard-panel tracing. M3/M4 must deliberately update them for the approved connected-map and physical explorer while retaining valid regression coverage.
+Frontend unit tests cover the map projection (layout, edges, facets, networks, connections, focus, session store) and the results helpers; the browser specs run on the acceptance fixture plus a test-only Expansion draft. M4 must deliberately update the physical-view coverage while retaining valid regression coverage.
 
 ## 5. Contract and migration verification
 

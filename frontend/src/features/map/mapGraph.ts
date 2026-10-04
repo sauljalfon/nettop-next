@@ -31,6 +31,8 @@ export interface MapCardData extends Record<string, unknown> {
   location: string
   /** Focusing on this card's node; undefined when its location is unknown. */
   focusNode?: Focus
+  /** Name of that node, for the focus button's label. */
+  focusNodeName?: string
   summary: { cabled: number; total: number }
   /** Network names of the circuits through a passive card. */
   badges: string[]
@@ -127,6 +129,8 @@ export function projectMap(input: MapInput): {
         equipment: e,
         location: index.locations.get(e.id) ?? '',
         focusNode: nodeFocus(index.places.get(e.id)?.nodeId),
+        focusNodeName: index.nodes.get(index.places.get(e.id)?.nodeId ?? '')
+          ?.name,
         summary: index.summaries.get(e.id) ?? { cabled: 0, total: 0 },
         badges: (index.badges.get(e.id) ?? []).map(networkName),
         facets: facets.get(e.id) ?? [],
@@ -243,7 +247,7 @@ function boundaryPositions(
     let y = inside.length
       ? Math.round(inside.reduce((n, p) => n + p.y, 0) / inside.length)
       : 0
-    while (taken.has(`${x},${y}`)) y += ROW_HEIGHT / 2
+    while (taken.has(`${x},${y}`)) y += ROW_HEIGHT
     taken.add(`${x},${y}`)
     result.set(id, { x, y })
   }

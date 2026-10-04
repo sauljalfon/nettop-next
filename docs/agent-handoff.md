@@ -49,13 +49,13 @@ Backend role values should preserve the prototype's `access`, `aggregation`, `pa
 
 **Missing:** Network entities/device membership; BB discovery; explicit HDF subpanel identities and large-capacity creation; final connected-map rendering; all AGG/BB result interaction; full physical site/node/HDF flow; persistent board layout and undo; measured large-network APIs/rendering; governance.
 
-**Superseded frontend behavior:** the current nested site/node/rack canvas is a prototype. Its existence is not a requirement to retain nesting in Conceptual. Keep useful behavior tests while replacing the presentation in M3.
+**Replaced frontend behavior:** the nested site/node/rack whiteboard was a prototype and was replaced in M3 by the connected conceptual map in `frontend/src/features/map/`. The Physical tab still shows the old rack view until M4 replaces it.
 
 **Incomplete backend representation:** `Endpoint.Subpanel` is currently a string; it is not a full stable-ID HDF model. Generic panel creation is limited to 48 logical positions and is not sufficient for HDFs.
 
 ## Immediate next task
 
-**M1 and M2 are complete** (see [current-status.md](current-status.md)): network membership, the explicit BB role, stable HDF structure and atomic `add_hdf`, the acceptance seed, and **Find AGG / BB** discovery with passive starts, mismatches, and result limits. Continue with **M3** (the approved conceptual map) in [implementation-plan.md](implementation-plan.md); M3 also designs the focused neighborhood and route-object fetch APIs that M2 deferred. The M1 input questions below were answered and recorded in the implementation plan; they are kept here as history.
+**M1, M2, and M3 are complete** (see [current-status.md](current-status.md)): network membership, the explicit BB role, stable HDF structure and atomic `add_hdf`, the acceptance seed, **Find AGG / BB** discovery, and the connected conceptual map (layered layout, network filter, results overlay, automatic and pinned facets, location focus with boundary bundles). Continue with **M4** (the approved physical explorer) in [implementation-plan.md](implementation-plan.md). M3 added no API; scoped fetch APIs were deferred to M6. The M1 input questions below were answered and recorded in the implementation plan; they are kept here as history.
 
 Before schema changes, resolve only the necessary open inputs:
 
@@ -65,7 +65,7 @@ Before schema changes, resolve only the necessary open inputs:
 
 These are not answered by the mockups. Do not infer real network membership from equipment names or use a destructive reseed as migration. Independent code inspection and test planning can proceed while questions are being answered.
 
-After M1, implement M2 destination discovery, then M3 conceptual and M4 physical. This order avoids building UI against an incompatible temporary HDF/network model.
+M1, M2, and M3 are done; M4 (physical) is next. This order avoids building UI against an incompatible temporary HDF/network model.
 
 ## End-to-end acceptance to work toward
 

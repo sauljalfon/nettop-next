@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, viewport, selectCard } from './helpers'
+import { fitted, viewport } from './helpers'
 
 const facets = (page: Page, name: string) =>
   page.getByLabel(`${name} shown connections`).locator('li')
@@ -64,7 +64,7 @@ test('C05 a manual position stays while automatic facets follow the route', asyn
   await pin(page, 'HDF-01', '1A/2')
   await expect(facets(page, 'HDF-01')).toHaveText([/1A \/ 2.*pinned/])
 
-  await selectCard(page, 'edge-17')
+  await page.getByTestId('rf__node-edge-17').click()
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   const port = await viewport(page)
   await page

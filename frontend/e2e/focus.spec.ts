@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, viewport, selectCard } from './helpers'
+import { fitted, viewport } from './helpers'
 
 /** Every card's transform, keyed by node ID (equipment and boundary cards). */
 const layout = (page: Page) =>
@@ -17,7 +17,7 @@ const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
 
 async function traceFromEdge17(page: Page) {
-  await selectCard(page, 'edge-17')
+  await page.getByTestId('rf__node-edge-17').click()
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
     .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
@@ -36,8 +36,8 @@ test('C09 a boundary bundle keeps real cable IDs, expands to real cards, and a t
 
   // Focus Building A from the card's location label.
   await page
-    .getByRole('button', { name: 'Focus Main Campus / Building A / Rack A03' })
-    .first()
+    .getByTestId('rf__node-edge-17')
+    .getByRole('button', { name: 'Focus Building A' })
     .click()
   await expect(
     page.getByRole('status').filter({ hasText: 'Building A' }),
@@ -94,7 +94,10 @@ test('C13 focus Building A, trace from EDGE-17: distant cards appear, then hide 
 
   // Focus from the Explore drawer.
   await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
-  await page.getByRole('button', { name: 'Focus Building A' }).click()
+  await page
+    .getByLabel('Explore infrastructure')
+    .getByRole('button', { name: 'Focus Building A' })
+    .click()
   await page
     .getByRole('button', { name: 'Close Explore infrastructure' })
     .click()
@@ -135,4 +138,27 @@ test('C13 focus Building A, trace from EDGE-17: distant cards appear, then hide 
   await expect(boundaries(page)).toHaveCount(0)
   expect(await layout(page)).toEqual(full)
   expect(await viewport(page)).toBe(port)
+})
+
+test('clicking a card selects it and leaves the focus alone; its focus button focuses', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await expect(cards(page)).toHaveCount(11)
+  // A click on the card body (its center) selects the card.
+  await page.getByTestId('rf__node-edge-17').click()
+  await expect(page.locator('.inspector-hero h2')).toHaveText('EDGE-17')
+  await expect(page.locator('.focus-chip')).toHaveCount(0)
+  await expect(cards(page)).toHaveCount(11)
+  // The location is plain text; the small button beside it focuses the node.
+  await expect(
+    page.getByTestId('rf__node-edge-17').locator('p.map-location'),
+  ).toContainText('Main Campus / Building A / Rack A03')
+  await page
+    .getByTestId('rf__node-edge-17')
+    .getByRole('button', { name: 'Focus Building A' })
+    .click()
+  await expect(page.locator('.focus-chip')).toContainText('Building A')
+  await expect(cards(page)).toHaveCount(2)
 })

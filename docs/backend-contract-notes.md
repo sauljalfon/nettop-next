@@ -8,7 +8,7 @@ This distinguishes executable baseline facts from target design work. It supplem
 | --- | --- | --- |
 | `backend/internal/topology/model.go` | Snapshot, Site, LocationNode, Rack, Equipment, Endpoint, Link | Networks, membership, BB role, structured HDF identities/layout |
 | `backend/internal/topology/validate.go` | Ownership, rack placement, endpoint-side/occupancy and bridge invariants | New network/HDF invariants without weakening current constraints |
-| `backend/internal/pathfinding/` | Pure BFS over endpoint adjacency: `engine.go` (point-to-point) and `distribution.go` (Find AGG / BB). Implemented in M2 | Focused neighborhood/route-object fetch contracts (M3) |
+| `backend/internal/pathfinding/` | Pure BFS over endpoint adjacency: `engine.go` (point-to-point) and `distribution.go` (Find AGG / BB). Implemented in M2 | Focused neighborhood/route-object fetch contracts (M6) |
 | `backend/internal/planning/overlay.go` | Installed snapshot plus additions/placement updates | Network/HDF-aware overlay compatibility and validation |
 | `backend/internal/planning/commands.go` | `add_equipment`, `add_cable`, `move_equipment` | Dedicated HDF creation and explicit membership in valid device payloads |
 | `backend/internal/persistence/store.go` | Repeatable-read inventory snapshots, seed, plan reads | Normalized HDF/network loading and explicit data backfill |
@@ -132,7 +132,7 @@ Resolved in M1 and M2 (see §2, §3, and [current-status.md](current-status.md) 
 
 Still open:
 
-- **Focused equipment/neighborhood, expanded HDF endpoint, location-summary, and missing-route-object fetches by stable ID.** Deferred to M3 and designed against the real map's needs; the frontend still loads full snapshots. Scoped summaries and scale measurement are M6.
+- **Focused equipment/neighborhood, expanded HDF endpoint, location-summary, and missing-route-object fetches by stable ID.** Deferred to M6 (the M3 map does focus, collapse, and summaries on the client over full snapshots), to be designed against measured large-network data.
 - **Network provisioning and renaming.** Networks are seed-only and read-only. No checkpoint is scheduled; broad administration is governance scope (M7).
 - **Pagination.** `GET /api/plans` returns full drafts (M6).
 

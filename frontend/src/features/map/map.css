@@ -219,13 +219,16 @@
   z-index: 60 !important;
 }
 
-.map-card button.map-location {
-  display: block;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  text-decoration: underline dotted;
+.map-card .map-focus {
+  display: inline-grid;
+  place-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+  padding: 2px;
+  border: 1px solid #dce4ef;
+  border-radius: 4px;
+  background: white;
+  color: #6d7b90;
   cursor: pointer;
 }
 

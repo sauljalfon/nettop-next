@@ -37,7 +37,7 @@ Sites → selected site → physical node → rack elevation → equipment → e
 
 ## 2. Workspace shell
 
-- Compact header and tool rail; the conceptual whiteboard takes the remaining page.
+- Compact header and tool rail; the conceptual map takes the remaining page.
 - Add/library, Explorer/search, Inspector, Trace results, and Changes open on demand.
 - Tools overlay the conceptual canvas instead of repeatedly shrinking or pushing it down.
 - Open the inspector on equipment/endpoint selection; allow it to close independently.
@@ -86,6 +86,8 @@ One compact HDF object identifies its parent chassis, physical location, row/col
 
 Reveal additional connected subpanels/positions, with search/filtering when needed. Preserve cable identity and endpoint occupancy. Other networks' circuits must be recognizable as such; they are not connected internally to the selected circuit.
 
+*Built (M3):* a facet is tagged "route" when it comes from the selected route and "pinned" when the user chose it; a position that is both shows once with both tags. **Show connections** on a card lists only that equipment's cabled ports or positions (never every configured one), with label search that ignores case and the spacing around the slash. Entries on another network than the active filter carry that network's badge.
+
 ### Physical grid
 
 - Four fixed columns A–D, configurable rows, one labeled subpanel per block.
@@ -116,6 +118,8 @@ Reveal additional connected subpanels/positions, with search/filtering when need
 - Search is a primary entry point for equipment, HDF subpanel, and endpoint identities.
 - “Show how this node reaches distribution” reveals the actual passive corridor rather than expanding every campus device.
 - Summary links must identify what they count (physical boundary cables, not inferred reachability). Expand to real detail.
+
+*Built (M3):* a location focus (a site or node, chosen in the Explore drawer or with the focus button beside a card's location) is shown as a chip in the header with **Clear focus**. Cables leaving the focus are summarized by one **boundary card** per outside location, "N cables to <location>", listing the real cable IDs, with **Expand** / **Collapse** for the real neighbor cards. Boundary cards are drawing aids only. Cards on a selected route are shown even outside the focus or the network filter and hide again when the trace is cleared.
 - Hidden/collapsed/filtered equipment remains part of backend physical tracing. Load the exact objects needed to explain results.
 - Large-network visuals are not proof of performance; measure real datasets and rendering costs.
 

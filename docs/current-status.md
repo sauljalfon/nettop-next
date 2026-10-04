@@ -1,6 +1,6 @@
 # Current implementation status
 
-This describes what the code in this repository runs today, at the end of **M2 (network-aware AGG / BB discovery)**, which follows **M1 (network, role, and HDF domain contract)**. It does not imply that the approved product is finished: the connected conceptual map (M3) and the physical explorer (M4) are not implemented. The implementation authority is [architecture.md](architecture.md) and [ui-spec.md](ui-spec.md).
+This describes what the code in this repository runs today, at the end of **M3 (the connected conceptual map)**, which follows **M2 (network-aware AGG / BB discovery)** and **M1 (network, role, and HDF domain contract)**. It does not imply that the approved product is finished: the physical explorer (M4), complete editing (M5), saved layout and scale work (M6), and governance (M7) are not implemented. The implementation authority is [architecture.md](architecture.md) and [ui-spec.md](ui-spec.md).
 
 The implementation handoff is indexed in [README.md](README.md). [agent-handoff.md](agent-handoff.md) summarizes the planning, and [acceptance-example.md](acceptance-example.md) is the source of the seed fixture described below.
 
@@ -33,12 +33,13 @@ The implementation handoff is indexed in [README.md](README.md). [agent-handoff.
 - **Result.** Each route and mismatch carries `destinationEquipmentId`, `destinationRole`, `destinationNetworkId`, `sourceNetworkId`, and ordered `hops`. Routes sort by role (AGG first), start endpoint, then destination endpoint; mismatches by start then destination; `starts` by endpoint; input order never matters. `status` is `reached` when any route exists, otherwise `unreachable`, with a `reason` derived from the start outcomes ("from N of M searched port(s)" counts ports that produced a route).
 - **Limit.** At most 1,000 routes plus mismatches (routes kept first). `truncated` is true only when results were dropped, and the reason says so; a limit is never reported as unreachable.
 - **Location and HDF identity.** The response carries stable endpoint and equipment IDs only. Clients resolve rack, node, site, and HDF subpanel row/column, position, and side from the snapshot they already load; no duplicate location payload exists.
-- **Deferred to M3, as recorded in the plan:** focused equipment/neighborhood fetch and route-object fetch APIs. The frontend still loads full snapshots; those contracts are designed against the real map's needs when M3 starts.
+- **Deferred to M6, as recorded in the M3 plan:** focused equipment/neighborhood fetch and route-object fetch APIs. M3 loads full snapshots and does focus, collapse, and summaries on the client; scoped contracts are designed against measured large-network data.
 
 ### Seeds and fixtures
 
 - **`cmd/db seed` loads the acceptance fixture** (`internal/acceptance`, built from [acceptance-example.md](acceptance-example.md)): Networks A and B, 2 sites, 5 physical nodes, 7 racks (12U), 11 equipment (7 active, 4 passive), HDF-01 (4 rows: 16 subpanels, 96 positions, 192 endpoints) and HDF-02 (3 rows: 72 positions, 144 endpoints), and cables A01–B04. AGG-15 is intentionally uncabled. The seed creates **no draft plans**; create one in the UI or through the API. The revision is `acceptance-1`. The fixture is fictional development data, not imported inventory.
-- **The prototype `internal/sample` fixture** (with one labeled "Prototype network") still backs the Go characterization tests, `cmd/testserver`, and the Playwright specs until M3 replaces the UI they characterize.
+- **The prototype `internal/sample` fixture** (one labeled "Prototype network") now backs only the Go characterization tests.
+- **`cmd/testserver` (browser tests only) seeds the acceptance fixture** plus one draft named **Expansion** (EDGE-18 in Rack A03, cabled to the otherwise uncabled AGG-15). It is not part of `cmd/db seed`, which still creates no drafts.
 - Legacy NetTop import is not implemented; it is a separate, later checkpoint.
 
 ### API
@@ -47,42 +48,63 @@ The implementation handoff is indexed in [README.md](README.md). [agent-handoff.
 
 ### Frontend
 
-- React/TypeScript, TanStack Query, React Flow.
-- Installed/planned switching, equipment/port selection, exact port-to-port tracing and **Find AGG / BB**.
-- Prototype nested site/node/rack canvas, physical rack elevation, overlay tools, inspector, plan forms, and trace highlighting. With the acceptance seed it renders all 11 equipment.
-- **Find AGG / BB** is the Trace panel mode and action and the inspector button (**Find AGG / BB from EDGE-17**). From EDGE-17 it lists AGG-03, AGG-08, and BB-01 with the exact hop sequence of the selected route. Each result shows destination name, role (AGG or BB), and network; an unresolved source network is noted; mismatches are listed separately as "On another network (not routes)"; truncation has its own notice. A passive start works from any panel or HDF endpoint in the Start list. The prototype canvas still highlights only the selected route (the real map is M3). Display logic is in unit-tested helpers (`features/pathfinding/results.ts`).
-- The plan form has a **Network** select for switches (empty by default; saving is disabled until one is chosen) and a **Backbone** role. There is no HDF creation UI.
-- Equipment of kind `hdf` is treated as passive equipment (panel icon), never as an active device. There is no HDF grid, subpanel, or position UI.
-- Drag-to-create previews, rack assignment/placement proposals, a non-drag placement editor, canvas-local dragging, session-only coordinates, memoized projections, and viewport-preserving saves.
+React/TypeScript, TanStack Query, React Flow. Installed/Plan switching, the inspector, plan forms, the Trace tool, and the physical rack view are unchanged from before M3. The map lives in `frontend/src/features/map/`; `App.tsx` only wires it in.
+
+**Shell.** The header holds the **Conceptual / Physical** switch, a **Show network** selector ("All networks" or one network), a focus chip when a focus is active, and the **Installed / Plan** control. They are independent. Tools and drawers overlay the full-page map. The view, network choice, and focus are not part of the URL.
+
+**Conceptual map.** One card per equipment (each HDF is one card), one line per cable.
+- **First layout.** Deterministic and layered, with no new dependency: access switches in column 0, passive equipment in the column equal to its cable distance from an access switch, AGG/BB in the column after the last passive one, and equipment not reachable from an access switch parked in a row below. Columns are ordered by the average row of cabled neighbors, then name. Only cards without a recorded position are laid out; existing positions are never recomputed.
+- **Positions and viewport are session-only.** Dragging a card changes this map only. Positions are recorded at drag stop in `mapSession`, keyed by equipment ID and shared by Installed and Plan, and the viewport is kept in the same store. The map fits once per session. Refetches, saves, trace and filter changes, and context switches never refit or reset them, and saving does not remount the map. Nothing is persisted to the server, so a reload starts again from the first layout.
+- **Cards** show the equipment name, role (or PROPOSED), a plain site / node / rack label with a small button beside it that focuses the node, an "N of M cabled" summary (device ports, or panel/HDF positions counted once), and badges naming the networks of the circuits through a passive card. Clicking the card selects it and opens the inspector.
+- **Cables.** Parallel cables between the same two cards that both attach to summary anchors and share a circuit network are drawn as one line labeled "N cables" that keeps every cable ID; a bundle never mixes networks. Proposed cables are dashed. Lines, bundles, and anchors are drawing aids and never feed traversal.
+- **Network filter.** One network shows that network's active devices plus passive equipment carrying at least one of its circuits, and the cables between shown cards. A circuit's network is the network of its access device, computed by the same rule as the engine's passive start; an unresolved circuit has none. A cable on another network than the filter is captioned with that network. The filter is presentation only: it never changes what a trace finds.
+- **Find AGG / BB.** Start from the selected switch card (**Find AGG / BB**, all ports) or by clicking a port or position facet (a position starts from its front endpoint, falling back to its rear one). Exact port-to-port tracing stays in the Trace tool. An expandable results overlay on the map lists every route, AGG first, with destination, role, network, and "N cables · M internal bridges", plus mismatches ("On another network (not routes)") and the truncation notice, with **Clear trace**. Selecting a result highlights its cables in place (animated lines), reveals its automatic facets, and never moves a card or the viewport. The ordered hop list with endpoint labels is in the results drawer of the Physical view; the map overlay lists routes only.
+- **Facets** are exact endpoint detail on a card: one switch port, or one panel/HDF position with its front and rear endpoints and bridge ("3C / 5", with the parent HDF name always visible). *Automatic* facets come from the selected route and are tagged "route"; they are replaced when the route changes and removed by Clear trace. *Manual* facets are tagged "pinned": **Show connections** on a card lists only its cabled ports or positions, with search by label ("3C/5" and "3C / 5" both match); toggling an entry pins or unpins it. Entries whose circuit is on another network than the active filter carry that network's badge. Manual facets survive route selection, route changes, and Clear trace; a position that is both shows once with both tags. Pinned state is session-only, shared by Installed and Plan.
+- **Hidden route cards.** Cards on the selected route that the network filter or focus would hide are shown while the route is selected and hidden again when it is cleared. The backend result is always complete; display scope is not graph scope.
+- **Location focus.** Choose a site or node with a **Focus** action in the Explore drawer, or with the focus button on a card. The map then shows only equipment located there (and passing the network filter). Every cable from focused equipment to equipment outside is summarized by a **boundary card** per outside location (node, or site when the node is unknown), labeled "N cables to <location>", listing its real cable IDs. **Expand** shows the real neighbor cards at their session positions with real lines; **Collapse** folds them back. Boundary cards are drawing aids: never a traversal vertex, never sent to the backend. Focusing, expanding, and clearing never move a card or refit the view. The focus chip in the header has **Clear focus**. Focus and expanded bundles are session-only.
+- **Library drops.** Dropping a library item on empty map space still creates an unplaced, unsaved preview; its rack is chosen in the plan form.
+- **Drag-to-rack is removed from the map.** Placement proposals go through the inspector's placement form and the rack view.
+
+**Physical.** The Physical tab shows the existing rack view (rack elevations, rack drops, placement) until M4 replaces it. Selecting a rack from the Explore drawer opens it; **Back to map** returns. There is no site/node explorer and no HDF grid yet.
+
+**Find AGG / BB elsewhere.** The Trace tool and the inspector button (**Find AGG / BB from EDGE-17**) work as in M2, including passive starts from any panel or HDF endpoint in the Start list. Display logic is in unit-tested helpers (`features/pathfinding/results.ts`, `features/map/routeList.ts`).
+
+**Plan form.** The **Network** select for switches (empty by default; saving is disabled until one is chosen) and the **Backbone** role are unchanged. There is no HDF creation UI. Equipment of kind `hdf` is passive (panel icon), never an active device.
+
+**Pure projection modules** (`features/map/`, unit-tested): `layout`, `edges`, `facets`, `networks`, `connections`, `focus`, `location`, `routeList`, `snapshotIndex` (route-independent results computed once per snapshot), `mapGraph` (`projectMap`), and `mapSession`.
 
 ### Verification and tooling
 
 - Go domain/engine/API/database tests with `-race`; PostgreSQL tests use unique schemas and skip without `TEST_DATABASE_URL`.
-- Frontend unit tests, strict TypeScript/build, formatting, and OpenAPI lint (`npx --yes @redocly/cli lint ../api/openapi.yaml --extends minimal`).
-- Playwright against a test-only API (`cmd/testserver`, sample fixture) and an isolated schema on ports 18080/5175. One spec drives `add_hdf` through the real API, and one checks AGG and BB results in the Trace panel. The browser fixture has a single network, so mismatch and truncation rendering are covered by unit tests, not Playwright.
+- Frontend unit tests (map projection, focus, facets, connections, session store, results helpers), strict TypeScript/build, formatting, and OpenAPI lint (`npx --yes @redocly/cli lint ../api/openapi.yaml --extends minimal`).
+- Playwright against a test-only API (`cmd/testserver`, acceptance fixture plus the Expansion draft) and an isolated schema on ports 18080/5175. Specs: `map` (C01, C07/C08, C10, C11, C12), `trace-map` (C02, C04, C06, P18), `manual-expansion` (C03, C05), `focus` (C09, C13), `distribution`, `workspace`, `placement`, `planning`, `hdf`, `hdf-display`. The acceptance fixture has two networks, but mismatch rendering is covered by unit tests rather than a browser spec.
 
 ## Pending approved behavior
 
 | Requirement | Today | Planned checkpoint |
 | --- | --- | --- |
-| Connected conceptual network map | The canvas is the superseded nested ownership prototype | M3 |
-| Network-scoped map exploration and AGG/BB result selection on the map | Results are listed and selectable in the Trace panel; the canvas highlights the selected route only | M3 |
-| Compact/auto/manual HDF expansion | HDF is a passive card; no expansion UI | M3 |
-| Physical site/node/rack/port workflow with HDF grids | Rack elevation exists; no site/node explorer and no HDF grid | M4 |
-| Focused equipment/neighborhood and route-object fetch APIs; scoped summaries and scaling | Not implemented; full snapshots are still used. A 32-row HDF adds 1,536 endpoints to a snapshot | M3 (fetch contracts), M6 (summaries, scale) |
-| Saved layout and undo | Coordinates last only for the browser session | M6 |
-| HDF-aware creation UI, container creation, delete/disconnect commands | `add_hdf` exists in the API only; sites/nodes/racks cannot be created; no delete or disconnect | M5 |
+| Physical site/node/rack/port workflow with HDF grids | The existing rack elevation view; no site/node explorer and no HDF grid | M4 |
+| Selecting a conceptual endpoint opens its exact physical position, with the same trace carried across views | Switching view keeps the selection and trace state, but Physical does not navigate to the exact position | M4 |
+| Scoped neighborhood and route-object fetch APIs; summaries and scaling for large networks | Not implemented; the client loads full snapshots and does focus, collapse, and summaries itself. A 32-row HDF adds 1,536 endpoints to a snapshot | M6 |
+| Saved layout and undo | Positions, viewport, pinned facets, and focus last only for the browser session | M6 |
+| HDF-aware creation UI, container creation, delete/disconnect commands, drag-to-rack on the map | `add_hdf` exists in the API only; sites/nodes/racks cannot be created; no delete or disconnect; map drag is layout-only | M5 |
 | Network provisioning and renaming | Networks are seed-only and read-only | Not scheduled |
 | Legacy NetTop import with explicit ID/network/HDF mapping | Not implemented | Separate later checkpoint |
 | Authentication, approval, explicit installation recording | Not implemented | M7 |
 
-## Known issues
+## Known limits
 
-- **Flaky Playwright check.** `e2e/hierarchy.spec.ts` ("direct canvas drag proposes a rack move without resetting the viewport") fails intermittently in full Playwright runs (observed in roughly 1 of 5 to 1 of 10 runs during M1 review) and passes when run alone. The likely cause is that it reads the React Flow viewport immediately after clicking Zoom Out, while the zoom may still be animating; it was not confirmed. The test characterizes the prototype canvas that M3 replaces. If it fails, rerun that spec alone and then the full suite before treating it as a regression.
-- **Long Start list.** The Trace tool's Start select lists every endpoint (about 600 with the acceptance seed). Scoped search and focus arrive with the M3 map.
+- **Nothing from the map is persisted to the server.** Card positions, the viewport, pinned facets, the network choice, and the focus are browser-session state and are lost on reload.
+- **The full snapshot is loaded on the client.** Focus, collapse, and summaries are client-side; large-network scoping and measured performance are deferred to M6. No render or drag benchmark has been taken on a large network.
+- **Cards can overlap.** The first layout spaces cards 200 px apart vertically, so a card that grows (pinned facets, an open connections list, a long route) can cover the one below it. An open list is brought to the front; there is no automatic re-layout.
+- **Boundary lines carry no per-line count.** The count and the cable IDs are on the boundary card.
+- **The results overlay sits under the right-hand drawers.** With the Trace tool or inspector open, its right-hand buttons are covered; close the drawer first.
+- **Exact hops on the map.** The conceptual overlay lists routes and highlights their cables; the ordered hop list is in the Physical view's results drawer.
+- **Unreproduced flake.** One full Playwright run during M3 step 5 failed `hdf-display.spec.ts` (the new HDF card not visible); it passed in 12 isolated repeats and in every later run, and the cause was not found.
+- **Long Start list.** The Trace tool's Start select lists every endpoint (about 600 with the acceptance seed). No scoped search is implemented.
 - **Half-valid stored plans return 500.** An overlay that fails validation (for example, a stored plan with an HDF chassis but no grid) is refused, but `repositoryError` maps the plain validation error to a generic 500 "Database operation failed". Plans created through the API cannot reach this state.
 - **Large drafts.** `GET /api/plans` returns full drafts, so a plan with a 32-row HDF carries about 2,400 additional records per plan listed. Pagination and scoped summaries are M6.
 
 ## Retired artifacts
 
-The static `conceptual-preview`, `network-workspace-mockups`, and `workflow-demo` directories, including generators, HTML, screenshots, and mock-only tests, have been removed. The agreed behavior is preserved in the architecture/UI documents. Existing application tests remain valuable characterization tests until replaced or extended by approved-behavior tests at the appropriate checkpoint.
+The static `conceptual-preview`, `network-workspace-mockups`, and `workflow-demo` directories, including generators, HTML, screenshots, and mock-only tests, have been removed. The agreed behavior is preserved in the architecture/UI documents. The nested whiteboard (`features/whiteboard/`) and its specs were replaced by the map in M3.

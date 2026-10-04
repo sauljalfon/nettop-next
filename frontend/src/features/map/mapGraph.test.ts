@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot, agg03Route } from './acceptanceFixture'
 import { createMapSession } from './mapSession'
 import { boundaryId } from './focus'
+import { ROW_HEIGHT } from './layout'
 import { projectMap, type MapInput } from './mapGraph'
 
 function input(over: Partial<MapInput> = {}): MapInput {
@@ -374,6 +375,15 @@ describe('C09/C13 focus view', () => {
     expect(new Set(positions).size).toBe(2)
   })
 
+  it('moves a new boundary card down by a full row until it is free', () => {
+    const free = projectMap(input({ session: focused() })).boundaries[0]
+      .position
+    const session = focused()
+    session.setPosition('AGG-03', free) // something already sits where it would go
+    const placed = projectMap(input({ session })).boundaries[0].position
+    expect(placed).toEqual({ x: free.x, y: free.y + ROW_HEIGHT })
+  })
+
   it('combines with the network filter', () => {
     const session = createMapSession()
     session.setFocus({ kind: 'node', id: 'node-core' })
@@ -422,11 +432,10 @@ describe('C09/C13 focus view', () => {
     expect(panel.data.facets.map((f) => f.label)).toEqual(['2'])
   })
 
-  it('lets a card focus its own node from its location label', () => {
-    const { nodes } = projectMap(input())
-    expect(nodes.find((n) => n.id === 'EDGE-17')!.data.focusNode).toEqual(
-      building,
-    )
+  it('lets a card focus its own node, naming it', () => {
+    const data = projectMap(input()).nodes.find((n) => n.id === 'EDGE-17')!.data
+    expect(data.focusNode).toEqual(building)
+    expect(data.focusNodeName).toBe('Building A')
   })
 
   it('ignores a focus that is not in this snapshot', () => {

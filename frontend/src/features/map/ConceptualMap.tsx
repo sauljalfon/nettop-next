@@ -23,7 +23,7 @@ import {
   type NodeChange,
   type NodeProps,
 } from '@xyflow/react'
-import { GitFork, Network, PanelTop, Plus } from 'lucide-react'
+import { Crosshair, GitFork, Network, PanelTop, Plus } from 'lucide-react'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Route, Snapshot } from '../../shared/types'
 import {
@@ -153,20 +153,22 @@ const EquipmentCard = memo(function EquipmentCard({
         </span>
       </div>
       <h3>{e.name}</h3>
-      {data.focusNode ? (
-        <button
-          className="nodrag map-location"
-          aria-label={`Focus ${data.location}`}
-          onClick={(event) => {
-            event.stopPropagation()
-            onFocus(data.focusNode!)
-          }}
-        >
-          {data.location}
-        </button>
-      ) : (
-        <p className="map-location">{data.location}</p>
-      )}
+      <p className="map-location">
+        {data.location}
+        {data.focusNode && (
+          <button
+            className="nodrag map-focus"
+            aria-label={`Focus ${data.focusNodeName}`}
+            title={`Focus ${data.focusNodeName}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              onFocus(data.focusNode!)
+            }}
+          >
+            <Crosshair size={12} />
+          </button>
+        )}
+      </p>
       <p className="map-summary">
         {summary.cabled} of {summary.total} cabled
       </p>
