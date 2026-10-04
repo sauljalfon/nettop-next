@@ -111,8 +111,10 @@ export interface Snapshot {
 }
 export type TraceRequest =
   | { mode: 'point_to_point'; start: string; end: string }
-  | { mode: 'aggregation'; device: string }
-  | { mode: 'aggregation'; start: string }
+  /** Find AGG / BB from every port of an active device. */
+  | { mode: 'distribution'; device: string }
+  /** Find AGG / BB from one exact device, panel, or HDF port. */
+  | { mode: 'distribution'; start: string }
 export interface Hop {
   linkId: string
   from: string
@@ -123,6 +125,22 @@ export interface Route {
   start: string
   end: string
   hops: Hop[]
+  /** Distribution routes and mismatches only; absent for point-to-point. */
+  destinationEquipmentId?: string
+  destinationRole?: 'aggregation' | 'backbone'
+  destinationNetworkId?: string
+  /** Empty when the source network is unresolved (passive start with no access device). */
+  sourceNetworkId?: string
+}
+export type StartOutcomeName =
+  | 'reached'
+  | 'mismatch'
+  | 'no_destination'
+  | 'disconnected'
+  | 'unresolved_network'
+export interface StartOutcome {
+  endpoint: string
+  outcome: StartOutcomeName
 }
 export interface TraceResult {
   context: Context
@@ -131,4 +149,10 @@ export interface TraceResult {
   status: 'reached' | 'unreachable'
   reason: string
   routes: Route[]
+  /** Reached AGG/BB on another network; never routes. */
+  mismatches: Route[]
+  /** One entry per searched endpoint (distribution mode only). */
+  starts: StartOutcome[]
+  /** True when results were dropped at the route limit. */
+  truncated: boolean
 }

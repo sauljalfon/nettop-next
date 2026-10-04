@@ -1,6 +1,13 @@
 import { ArrowRight, GitFork, Route as RouteIcon, X } from 'lucide-react'
 import type { Snapshot, TraceResult } from '../../shared/types'
 import { endpointLabel } from './projection'
+import {
+  destinationOf,
+  mismatchLine,
+  routeOptionLabel,
+  sourceNetworkNote,
+  truncationNotice,
+} from './results'
 
 interface Props {
   snapshot: Snapshot
@@ -58,7 +65,7 @@ export default function TracePanel({
             <strong>Understand every connection.</strong>
             <p>
               Select an exact port or a device, then trace to another port or
-              discover aggregation. Panel bridges are included.
+              find AGG / BB destinations. Panel bridges are included.
             </p>
           </div>
         </div>
@@ -73,12 +80,23 @@ export default function TracePanel({
               >
                 {result.routes.map((r, i) => (
                   <option key={`${r.start}:${r.end}`} value={i}>
-                    {endpointLabel(snapshot, r.start)} →{' '}
-                    {endpointLabel(snapshot, r.end)}
+                    {routeOptionLabel(snapshot, r)}
                   </option>
                 ))}
               </select>
             </label>
+          )}
+          {route && destinationOf(snapshot, route) && (
+            <p className="trace-destination" data-testid="route-destination">
+              {destinationOf(snapshot, route)!.name} ·{' '}
+              {destinationOf(snapshot, route)!.role} ·{' '}
+              {destinationOf(snapshot, route)!.network}
+            </p>
+          )}
+          {route && sourceNetworkNote(snapshot, route) && (
+            <p className="trace-explanation">
+              {sourceNetworkNote(snapshot, route)}
+            </p>
           )}
           {route && (
             <div className="hop-list">
@@ -109,6 +127,23 @@ export default function TracePanel({
             {route &&
               ` ${route.hops.filter((h) => h.kind === 'cable').length} cables · ${route.hops.filter((h) => h.kind === 'internal').length} internal bridges.`}
           </p>
+          {result.mismatches.length > 0 && (
+            <div className="trace-explanation" data-testid="mismatches">
+              <strong>On another network (not routes)</strong>
+              <ul>
+                {result.mismatches.map((m) => (
+                  <li key={`${m.start}:${m.end}`}>
+                    {mismatchLine(snapshot, m)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {truncationNotice(result) && (
+            <p className="trace-explanation" data-testid="truncation">
+              {truncationNotice(result)}
+            </p>
+          )}
         </>
       )}
     </section>

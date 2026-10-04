@@ -69,6 +69,7 @@ func traceDistribution(result Result, s topology.Snapshot, ports map[string]topo
 
 	var routes, mismatches []Route
 	counts := map[string]int{}
+	withRoutes := 0 // ports that produced at least one route, whatever their outcome
 	for _, start := range starts {
 		circuit := reachable(start, adj)
 		sourceNetwork, resolved := source.NetworkID, true
@@ -107,6 +108,9 @@ func traceDistribution(result Result, s topology.Snapshot, ports map[string]topo
 			outcome = OutcomeMismatch
 		}
 		counts[outcome]++
+		if found > 0 {
+			withRoutes++
+		}
 		result.Starts = append(result.Starts, StartOutcome{Endpoint: start, Outcome: outcome})
 	}
 
@@ -146,7 +150,7 @@ func traceDistribution(result Result, s topology.Snapshot, ports map[string]topo
 	if len(result.Routes) > 0 {
 		result.Status = "reached"
 	}
-	result.Reason = distributionReason(result, counts, len(starts))
+	result.Reason = distributionReason(result, counts, withRoutes, len(starts))
 	return result, nil
 }
 
@@ -203,7 +207,7 @@ func circuitNetwork(circuit []reached, ports map[string]topology.Endpoint, devic
 	return network, network != ""
 }
 
-func distributionReason(r Result, counts map[string]int, searched int) string {
+func distributionReason(r Result, counts map[string]int, withRoutes, searched int) string {
 	var parts []string
 	add := func(n int, text string) {
 		if n > 0 {
@@ -211,7 +215,7 @@ func distributionReason(r Result, counts map[string]int, searched int) string {
 		}
 	}
 	if len(r.Routes) > 0 {
-		reason := fmt.Sprintf("Found %d AGG/BB route(s) from %d of %d searched port(s); active equipment terminates each search.", len(r.Routes), counts[OutcomeReached], searched)
+		reason := fmt.Sprintf("Found %d AGG/BB route(s) from %d of %d searched port(s); active equipment terminates each search.", len(r.Routes), withRoutes, searched)
 		if len(r.Mismatches) > 0 {
 			reason += fmt.Sprintf(" %d destination(s) on another network are reported separately.", len(r.Mismatches))
 		}

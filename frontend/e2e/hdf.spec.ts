@@ -71,7 +71,7 @@ test('add_hdf creates a complete proposed grid, rejects bad rows, and traces', a
   }
   const trace = (await (
     await request.post(`/api/traces?context=planned&planId=${plan.id}`, {
-      data: { mode: 'aggregation', start: 'edge-01:p2' },
+      data: { mode: 'distribution', start: 'edge-01:p2' },
     })
   ).json()) as TraceResult
   expect(trace.routes).toHaveLength(1)

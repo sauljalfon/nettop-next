@@ -46,7 +46,7 @@ func TestNoImplicitSwitchTransit(t *testing.T) {
 }
 
 func TestFindAggregationFromDeviceAndPort(t *testing.T) {
-	for _, req := range []Request{{Mode: "aggregation", Device: "edge"}, {Mode: "aggregation", Start: "e1"}} {
+	for _, req := range []Request{{Mode: "distribution", Device: "edge"}, {Mode: "distribution", Start: "e1"}} {
 		result, err := Trace(network(), req)
 		if err != nil {
 			t.Fatal(err)
@@ -60,7 +60,7 @@ func TestFindAggregationFromDeviceAndPort(t *testing.T) {
 func TestDisconnectedAndUnknown(t *testing.T) {
 	s := network()
 	s.Links = s.Links[:2]
-	r, err := Trace(s, Request{Mode: "aggregation", Device: "edge"})
+	r, err := Trace(s, Request{Mode: "distribution", Device: "edge"})
 	if err != nil || r.Status != "unreachable" {
 		t.Fatalf("%+v %v", r, err)
 	}
@@ -75,7 +75,7 @@ func TestDisconnectedAndUnknown(t *testing.T) {
 func TestMultipleAggregationRoutes(t *testing.T) {
 	s := network()
 	s.Links = append(s.Links, topology.Link{ID: "c3", A: "e2", B: "a2", Kind: "cable"})
-	r, err := Trace(s, Request{Mode: "aggregation", Device: "edge"})
+	r, err := Trace(s, Request{Mode: "distribution", Device: "edge"})
 	if err != nil {
 		t.Fatal(err)
 	}

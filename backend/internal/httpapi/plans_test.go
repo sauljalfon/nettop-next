@@ -83,8 +83,8 @@ func TestSavedPlanAPI(t *testing.T) {
 	if !strings.Contains(w.Body.String(), `"networks":[{"id":"net-prototype","name":"Prototype network"}]`) || !strings.Contains(w.Body.String(), `"networkId":"net-prototype"`) {
 		t.Fatalf("topology JSON lacks networks/membership: %s", w.Body.String())
 	}
-	call(http.MethodPost, "/api/traces?context=planned&planId="+p.ID, fmt.Sprintf(`{"mode":"aggregation","device":%q}`, p.Equipment[0].ID), 200)
-	call(http.MethodPost, "/api/traces?context=installed", fmt.Sprintf(`{"mode":"aggregation","device":%q}`, p.Equipment[0].ID), 422)
+	call(http.MethodPost, "/api/traces?context=planned&planId="+p.ID, fmt.Sprintf(`{"mode":"distribution","device":%q}`, p.Equipment[0].ID), 200)
+	call(http.MethodPost, "/api/traces?context=installed", fmt.Sprintf(`{"mode":"distribution","device":%q}`, p.Equipment[0].ID), 422)
 	call("POST", path, `{"type":"add_cable","expectedRevision":"3","extra":true}`, 400)
 	call("POST", "/api/plans/missing/commands", `{"type":"add_cable","expectedRevision":"1"}`, 404)
 }

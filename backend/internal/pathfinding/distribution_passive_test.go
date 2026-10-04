@@ -288,6 +288,10 @@ func TestCircuitsWithoutAnAccessDeviceHaveAnUnresolvedSourceNetwork(t *testing.T
 	if outcomes(r)[start] != pathfinding.OutcomeUnresolvedNetwork || !strings.Contains(r.Reason, "unresolved") {
 		t.Fatalf("outcome = %v reason = %q", r.Starts, r.Reason)
 	}
+	// The count is of ports that produced routes, whatever their outcome.
+	if !strings.Contains(r.Reason, "from 1 of 1 searched port(s)") || strings.Contains(r.Reason, "from 0 of") {
+		t.Fatalf("an unresolved start that finds a route must be counted: %q", r.Reason)
+	}
 
 	// A dead end on both sides: no destination and no source: unreachable, explained.
 	s = without(without(acceptance.Installed(), "cable-a01"), "cable-a04")
@@ -393,5 +397,23 @@ func TestInvalidEndpointsAreStableValidationErrors(t *testing.T) {
 				t.Fatalf("an invalid request must not fabricate results: %+v", r)
 			}
 		})
+	}
+}
+
+// The reason counts ports that produced at least one route, independent of the
+// start outcome (reached, unresolved_network, or a mismatch elsewhere).
+func TestReasonCountsPortsThatProducedRoutes(t *testing.T) {
+	b := newBuilder().sw("edge", "access", "a", 4).sw("agg", "aggregation", "a", 1).sw("far", "aggregation", "b", 1).
+		cable("edge:p1", "agg:p1").cable("edge:p2", "far:p1") // p1 routes, p2 mismatches, p3 and p4 are disconnected
+	r := distribution(t, b.s, pathfinding.Request{Device: "edge"})
+	if !strings.Contains(r.Reason, "from 1 of 4 searched port(s)") {
+		t.Fatalf("reason = %q", r.Reason)
+	}
+	// AGG and BB reached by one unresolved passive start are one port, two routes.
+	b = newBuilder().sw("aggx", "aggregation", "a", 1).sw("bbx", "backbone", "b", 1).panel("pnl", 1).
+		cable("aggx:p1", "pnl:1:f").cable("pnl:1:r", "bbx:p1")
+	r = distribution(t, b.s, pathfinding.Request{Start: "pnl:1:f"})
+	if len(r.Routes) != 2 || !strings.Contains(r.Reason, "Found 2 AGG/BB route(s) from 1 of 1 searched port(s)") {
+		t.Fatalf("reason = %q", r.Reason)
 	}
 }

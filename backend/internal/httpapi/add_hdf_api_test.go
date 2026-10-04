@@ -21,6 +21,12 @@ import (
 
 func seededHandler(t *testing.T) http.Handler {
 	t.Helper()
+	return handlerFor(t, sample.Installed(), sample.Expansion())
+}
+
+// handlerFor serves a fresh isolated PostgreSQL schema seeded with base and any plans.
+func handlerFor(t *testing.T, base topology.Snapshot, plans ...planning.Plan) http.Handler {
+	t.Helper()
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("requires TEST_DATABASE_URL")
@@ -31,7 +37,7 @@ func seededHandler(t *testing.T) http.Handler {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
-	schema := fmt.Sprintf("api_addhdf_%d", time.Now().UnixNano())
+	schema := fmt.Sprintf("api_seeded_%d", time.Now().UnixNano())
 	if _, err = pool.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +54,7 @@ func seededHandler(t *testing.T) http.Handler {
 	if err = store.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err = store.Seed(ctx, sample.Installed(), sample.Expansion()); err != nil {
+	if err = store.Seed(ctx, base, plans...); err != nil {
 		t.Fatal(err)
 	}
 	return New(store)
@@ -146,7 +152,7 @@ func TestAddHDFCommandContractOverHTTP(t *testing.T) {
 	cable("edge-01:p2", find(3, "C", 5, "front"), "2")
 	cable(find(3, "C", 5, "rear"), "agg-02:p2", "3")
 	var result pathfinding.Result
-	json.Unmarshal(call("POST", "/api/traces?context=planned&planId="+p.ID, `{"mode":"aggregation","start":"edge-01:p2"}`, 200).Body.Bytes(), &result)
+	json.Unmarshal(call("POST", "/api/traces?context=planned&planId="+p.ID, `{"mode":"distribution","start":"edge-01:p2"}`, 200).Body.Bytes(), &result)
 	if len(result.Routes) != 1 || len(result.Routes[0].Hops) != 3 || result.Routes[0].Hops[1].Kind != "internal" {
 		t.Fatalf("proposed HDF route wrong: %+v", result)
 	}

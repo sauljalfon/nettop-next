@@ -445,19 +445,37 @@ func TestDistributionRequestValidation(t *testing.T) {
 	}
 }
 
-// Aggregation keeps working unchanged until the API switch-over (step 3).
-func TestAggregationModeStillWorksAndIsUnchanged(t *testing.T) {
-	r, err := pathfinding.Trace(fixture(), pathfinding.Request{Mode: "aggregation", Device: "edge-17"})
-	if err != nil || len(r.Routes) != 2 || r.Routes[0].End != "agg-03:p1" || r.Routes[1].End != "agg-08:p1" {
-		t.Fatalf("aggregation changed: %+v %v", r, err)
-	}
-	for _, route := range r.Routes {
-		if route.DestinationRole != "" || route.DestinationEquipmentID != "" || route.SourceNetworkID != "" {
-			t.Fatalf("aggregation routes must not carry distribution metadata: %+v", route)
+// "distribution" replaced "aggregation" (M2 step 3): the old mode is gone, so no
+// request can silently drop BB results, and the error is stable.
+func TestAggregationModeIsRemoved(t *testing.T) {
+	for _, req := range []pathfinding.Request{
+		{Mode: "aggregation", Device: "edge-17"},
+		{Mode: "aggregation", Start: "edge-17:p1"},
+		{Mode: "", Device: "edge-17"},
+		{Mode: "invalid"},
+	} {
+		r, err := pathfinding.Trace(fixture(), req)
+		if err == nil || err.Error() != "mode must be point_to_point or distribution" {
+			t.Fatalf("%+v: error = %v", req, err)
+		}
+		if len(r.Routes) != 0 || len(r.Starts) != 0 {
+			t.Fatalf("a rejected mode must not produce results: %+v", r)
 		}
 	}
+}
+
+// Point-to-point results carry no distribution metadata.
+func TestPointToPointResultsCarryNoDistributionMetadata(t *testing.T) {
+	r, err := pathfinding.Trace(fixture(), pathfinding.Request{Mode: "point_to_point", Start: "edge-17:p1", End: "agg-03:p1"})
+	if err != nil || len(r.Routes) != 1 || len(r.Routes[0].Hops) != 7 {
+		t.Fatalf("p2p changed: %+v %v", r, err)
+	}
+	route := r.Routes[0]
+	if route.DestinationRole != "" || route.DestinationEquipmentID != "" || route.DestinationNetworkID != "" || route.SourceNetworkID != "" {
+		t.Fatalf("point-to-point routes must not carry distribution metadata: %+v", route)
+	}
 	if len(r.Mismatches) != 0 || len(r.Starts) != 0 || r.Truncated {
-		t.Fatalf("aggregation must not report distribution fields: %+v", r)
+		t.Fatalf("point-to-point must not report distribution fields: %+v", r)
 	}
 }
 

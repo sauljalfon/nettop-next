@@ -238,11 +238,11 @@ func TestProposedHDFIsTraceableThroughExactPositions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := pathfinding.Trace(planned, pathfinding.Request{Mode: "aggregation", Start: "edge-01:p2"})
+	r, err := pathfinding.Trace(planned, pathfinding.Request{Mode: "distribution", Start: "edge-01:p2"})
 	if err != nil || len(r.Routes) != 1 || r.Routes[0].End != "agg-02:p2" || len(r.Routes[0].Hops) != 3 || r.Routes[0].Hops[1].Kind != "internal" {
 		t.Fatalf("expected one route through the HDF position: %+v %v", r, err)
 	}
-	if installed, _ := pathfinding.Trace(base, pathfinding.Request{Mode: "aggregation", Start: "edge-01:p2"}); len(installed.Routes) != 0 {
+	if installed, _ := pathfinding.Trace(base, pathfinding.Request{Mode: "distribution", Start: "edge-01:p2"}); len(installed.Routes) != 0 {
 		t.Fatal("the proposal leaked into the installed topology")
 	}
 }

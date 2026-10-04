@@ -13,9 +13,7 @@ test('trace physical continuity in nested containers and rack elevations', async
   await page
     .getByRole('button', { name: 'Open trace tools', exact: true })
     .click()
-  await page
-    .getByRole('button', { name: 'Trace physical path', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByText(/3 cables · 2 internal bridges/)).toBeVisible()
   await expect(page.locator('.react-flow__edge.animated')).toHaveCount(3)
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
@@ -38,9 +36,7 @@ test('trace physical continuity in nested containers and rack elevations', async
   await page
     .getByRole('button', { name: 'EDGE-01 SFP+ 2, set trace start' })
     .click()
-  await page
-    .getByRole('button', { name: 'Trace physical path', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByText('No route', { exact: true })).toBeVisible()
   await page
     .getByRole('combobox', { name: 'Trace mode', exact: true })
@@ -64,9 +60,7 @@ test('trace physical continuity in nested containers and rack elevations', async
   await page
     .getByRole('combobox', { name: 'Start', exact: true })
     .selectOption('device:edge-02')
-  await page
-    .getByRole('button', { name: 'Trace physical path', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByText(/1 cables · 0 internal bridges/)).toBeVisible()
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await expect(page.locator('.results-drawer')).toHaveCount(0)

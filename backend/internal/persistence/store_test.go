@@ -125,7 +125,7 @@ func TestSavedPanelPlanTracesAfterReconnect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, req := range []pathfinding.Request{{Mode: "aggregation", Device: edgeID}, {Mode: "point_to_point", Start: start, End: "agg-02:p2"}} {
+	for _, req := range []pathfinding.Request{{Mode: "distribution", Device: edgeID}, {Mode: "point_to_point", Start: start, End: "agg-02:p2"}} {
 		r, err := pathfinding.Trace(graph, req)
 		if err != nil {
 			t.Fatal(err)

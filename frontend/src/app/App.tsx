@@ -416,8 +416,8 @@ function Workspace({
   const [selected, setSelected] = useState(snapshot.equipment[0]?.id ?? '')
   const [view, setView] = useState<'board' | 'racks'>('board')
   const [focusedRack, setFocusedRack] = useState<string>()
-  const [mode, setMode] = useState<'aggregation' | 'point_to_point'>(
-    'aggregation',
+  const [mode, setMode] = useState<'distribution' | 'point_to_point'>(
+    'distribution',
   )
   const [start, setStart] = useState(
     snapshot.equipment.find((e) => e.role === 'access')
@@ -551,9 +551,9 @@ function Workspace({
   }
   function useSelected() {
     if (equipment) {
-      setMode('aggregation')
+      setMode('distribution')
       setStart(`device:${equipment.id}`)
-      traceMutation.mutate({ mode: 'aggregation', device: equipment.id })
+      traceMutation.mutate({ mode: 'distribution', device: equipment.id })
     }
   }
   const drawerEquipment = equipment && (
@@ -587,7 +587,7 @@ function Workspace({
       </div>
       <button className="button primary" onClick={useSelected}>
         <GitFork size={16} />
-        Find aggregation from {equipment.name}
+        Find AGG / BB from {equipment.name}
       </button>
       {plan && (
         <PlacementEditor
@@ -757,7 +757,7 @@ function Workspace({
                   traceMutation.reset()
                 }}
               >
-                <option value="aggregation">Find aggregation</option>
+                <option value="distribution">Find AGG / BB</option>
                 <option value="point_to_point">Exact port → port</option>
               </select>
             </label>
@@ -771,7 +771,7 @@ function Workspace({
                   traceMutation.reset()
                 }}
               >
-                {mode === 'aggregation' && (
+                {mode === 'distribution' && (
                   <optgroup label="Equipment">
                     {snapshot.equipment
                       .filter((e) => e.kind === 'switch')
@@ -814,7 +814,11 @@ function Workspace({
               disabled={traceMutation.isPending || !start}
               onClick={runTrace}
             >
-              {traceMutation.isPending ? 'Tracing…' : 'Trace physical path'}
+              {traceMutation.isPending
+                ? 'Tracing…'
+                : mode === 'distribution'
+                  ? 'Find AGG / BB'
+                  : 'Trace physical path'}
             </button>
             <p className="muted">
               Cables and panel bridges only. No inferred transit through switch
@@ -921,7 +925,7 @@ function EquipmentLibrary({
             kind: 'switch',
             role: 'aggregation',
             Icon: GitFork,
-            description: 'A destination for aggregation traces',
+            description: 'An AGG destination for Find AGG / BB',
           },
           {
             name: 'Patch panel',

@@ -14,7 +14,7 @@ it('pins planned reads and traces to an explicit plan and topology revision', as
   )
   await trace(
     'planned',
-    { mode: 'aggregation', device: 'edge-01' },
+    { mode: 'distribution', device: 'edge-01' },
     'plan-123',
     'base/plan-123@2',
   )

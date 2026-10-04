@@ -49,8 +49,13 @@ func TestAcceptanceFixtureSeedsWithoutPlansAndRoundTrips(t *testing.T) {
 			edge17 = e.ID
 		}
 	}
-	r, err := pathfinding.Trace(got, pathfinding.Request{Mode: "aggregation", Device: edge17})
-	if err != nil || len(r.Routes) != 2 || len(r.Routes[0].Hops) != 7 || len(r.Routes[1].Hops) != 7 {
-		t.Fatalf("loaded fixture must trace to AGG-03 and AGG-08: %+v %v", r, err)
+	r, err := pathfinding.Trace(got, pathfinding.Request{Mode: "distribution", Device: edge17})
+	if err != nil || len(r.Routes) != 3 || r.Routes[2].DestinationRole != "backbone" {
+		t.Fatalf("loaded fixture must find AGG-03, AGG-08, and BB-01: %+v %v", r, err)
+	}
+	for _, route := range r.Routes {
+		if len(route.Hops) != 7 {
+			t.Fatalf("every acceptance route has 7 hops: %+v", route)
+		}
 	}
 }

@@ -47,9 +47,7 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
   await page
     .getByRole('combobox', { name: 'Start', exact: true })
     .selectOption({ label: 'EDGE-BROWSER · all ports' })
-  await page
-    .getByRole('button', { name: 'Trace physical path', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(
     page.getByText('Physical path found', { exact: true }),
   ).toBeVisible()

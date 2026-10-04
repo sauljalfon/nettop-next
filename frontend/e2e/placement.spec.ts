@@ -57,9 +57,7 @@ test('rack drops, persisted moves, collisions, and tracing share one hierarchy',
   const draft = await (await request.get(`/api/plans/${id}`)).json()
   expect(draft.revision).toBe('4')
   await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page
-    .getByRole('button', { name: 'Trace physical path', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByText(/3 cables · 2 internal bridges/)).toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'Racks', exact: true }).click()

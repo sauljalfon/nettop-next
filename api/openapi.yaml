@@ -43,13 +43,23 @@ paths:
   /traces:
     post:
       operationId: trace
-      summary: Trace physical continuity or find aggregation
+      summary: Trace exact physical continuity, or find AGG / BB destinations
+      description: |
+        Two modes. `point_to_point` returns the shortest physical route between two exact endpoints (identical endpoints give a zero-hop route; cable order carries no direction).
+
+        `distribution` ("Find AGG / BB") searches from every port of one active device (`device`), or from one exact device, panel, or HDF port (`start`). Exactly one of the two is allowed; `end` is rejected; a `device` must be a switch. Each starting endpoint is searched independently over cables and same-position front/rear bridges and stops at the first active endpoint, so it never transits through a device's sibling ports (including AGG to BB).
+
+        A destination is an endpoint of an `aggregation` or `backbone` device other than the starting device. A destination on the source network is a **route**; one on another network is a **mismatch**, listed separately and never as a route. The source network of a device or device-port start is the device's network. For a panel/HDF start it is the network of the access device on the same circuit (either direction); it is never taken from the panel or a name. With no access device on the circuit (or access devices on different networks) it is unresolved: every reached destination is a route carrying its own network, `sourceNetworkId` is omitted, and the start outcome is `unresolved_network`.
+
+        Routes are ordered by destination role (`aggregation` before `backbone`), then start endpoint ID, then destination endpoint ID; mismatches by start then destination; `starts` by endpoint ID. Distinct start/destination pairs are never merged. At most 1,000 routes plus mismatches are returned (routes are kept first); `truncated` is true only when results were dropped, and a limit is never reported as unreachable. `status` is `reached` when any route exists, otherwise `unreachable`, with a `reason` derived from the start outcomes.
+
+        Malformed JSON, unknown fields, and extra JSON values return 400. Invalid requests for a mode return 422 with a stable message: unknown or non-switch device, unknown endpoint, both or neither of `device`/`start`, `end` given to `distribution`, or an unsupported mode. The `aggregation` mode no longer exists and returns 422.
       parameters:
         - $ref: '#/components/parameters/Context'
         - $ref: '#/components/parameters/PlanID'
         - in: query
           name: expectedRevision
-          description: Optional topology revision from the loaded snapshot. A mismatch returns 409 rather than tracing unseen changes.
+          description: Optional topology revision from the loaded snapshot. A mismatch returns 409 rather than tracing unseen changes. The result's `revision` is always the revision that was traced.
           schema: {type: string}
       requestBody:
         required: true
@@ -62,23 +72,23 @@ paths:
                   required: [mode, start, end]
                   properties:
                     mode: {const: point_to_point}
-                    start: {type: string}
-                    end: {type: string}
+                    start: {type: string, description: Exact start endpoint ID.}
+                    end: {type: string, description: Exact destination endpoint ID.}
                 - type: object
                   additionalProperties: false
                   required: [mode, device]
                   properties:
-                    mode: {const: aggregation}
-                    device: {type: string}
+                    mode: {const: distribution}
+                    device: {type: string, description: Equipment ID of a switch; every one of its ports is searched.}
                 - type: object
                   additionalProperties: false
                   required: [mode, start]
                   properties:
-                    mode: {const: aggregation}
-                    start: {type: string}
+                    mode: {const: distribution}
+                    start: {type: string, description: Exact endpoint ID of a device port or a panel/HDF port.}
       responses:
         '200':
-          description: Reached or unreachable; an unreachable route is not an HTTP error
+          description: Reached or unreachable; an unreachable result is not an HTTP error
           content:
             application/json:
               schema: {$ref: '#/components/schemas/TraceResult'}
@@ -409,22 +419,55 @@ components:
         kind: {type: string, enum: [cable, internal]}
     Route:
       type: object
+      description: One physical route, or (in `mismatches`) one reached destination on another network.
       required: [start, end, hops]
       properties:
-        start: {type: string}
-        end: {type: string}
+        start: {type: string, description: Exact starting endpoint ID.}
+        end: {type: string, description: Exact destination endpoint ID.}
         hops:
           type: array
+          description: Ordered cable and internal-bridge hops from `start`; a panel start counts its own bridge.
           items: {$ref: '#/components/schemas/Hop'}
+        destinationEquipmentId: {type: string, description: Distribution mode only.}
+        destinationRole:
+          type: string
+          enum: [aggregation, backbone]
+          description: Distribution mode only. The destination's actual role; BB is never relabeled AGG.
+        destinationNetworkId: {type: string, description: Distribution mode only. The destination device's own network.}
+        sourceNetworkId:
+          type: string
+          description: Distribution mode only. Omitted when the source network is unresolved.
+    StartOutcome:
+      type: object
+      required: [endpoint, outcome]
+      properties:
+        endpoint: {type: string}
+        outcome:
+          type: string
+          description: |
+            `reached`: at least one route. `mismatch`: only destinations on another network. `no_destination`: connected, but the circuit ends at a non-destination endpoint or a passive dead end. `disconnected`: the circuit has no external cable. `unresolved_network`: a passive start whose source network cannot be resolved (results are still returned).
+          enum: [reached, mismatch, no_destination, disconnected, unresolved_network]
     TraceResult:
       type: object
-      required: [context, revision, mode, status, reason, routes]
+      required: [context, revision, mode, status, reason, routes, mismatches, starts, truncated]
       properties:
         context: {type: string, enum: [installed, planned]}
         revision: {type: string}
-        mode: {type: string, enum: [point_to_point, aggregation]}
+        mode: {type: string, enum: [point_to_point, distribution]}
         status: {type: string, enum: [reached, unreachable]}
         reason: {type: string}
         routes:
           type: array
+          description: Routes in the source network, AGG before BB.
           items: {$ref: '#/components/schemas/Route'}
+        mismatches:
+          type: array
+          description: Reached AGG/BB endpoints on another network. Always present; empty for point-to-point.
+          items: {$ref: '#/components/schemas/Route'}
+        starts:
+          type: array
+          description: One entry per searched endpoint (distribution mode); empty for point-to-point.
+          items: {$ref: '#/components/schemas/StartOutcome'}
+        truncated:
+          type: boolean
+          description: True only when routes or mismatches were dropped at the 1,000-result limit.

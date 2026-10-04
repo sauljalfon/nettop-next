@@ -27,14 +27,14 @@ func TestSharedSubpanelDoesNotBridgeDifferentPositions(t *testing.T) {
 		topology.Link{ID: "a2", A: "hdf:sp-3C:5:r", B: "aa", Kind: "cable"},
 		topology.Link{ID: "b1", A: "eb", B: "hdf:sp-3C:2:f", Kind: "cable"},
 		topology.Link{ID: "b2", A: "hdf:sp-3C:2:r", B: "ab", Kind: "cable"})
-	r, err := pathfinding.Trace(s, pathfinding.Request{Mode: "aggregation", Device: "edge-a"})
+	r, err := pathfinding.Trace(s, pathfinding.Request{Mode: "distribution", Device: "edge-a"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(r.Routes) != 1 || r.Routes[0].End != "aa" || len(r.Routes[0].Hops) != 3 || r.Routes[0].Hops[1].Kind != "internal" {
 		t.Fatalf("network A must reach only AGG-A through its own position: %+v", r)
 	}
-	r, err = pathfinding.Trace(s, pathfinding.Request{Mode: "aggregation", Device: "edge-b"})
+	r, err = pathfinding.Trace(s, pathfinding.Request{Mode: "distribution", Device: "edge-b"})
 	if err != nil || len(r.Routes) != 1 || r.Routes[0].End != "ab" {
 		t.Fatalf("network B must reach only AGG-B: %+v %v", r, err)
 	}

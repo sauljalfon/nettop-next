@@ -401,20 +401,27 @@ func trace(t *testing.T, x index, req pathfinding.Request) pathfinding.Result {
 	return r
 }
 
-// The existing aggregation trace reaches AGG-03 and AGG-08 (BB discovery is M2).
-func TestAggregationFromEDGE17ReachesAGG03AndAGG08(t *testing.T) {
+// Find AGG / BB from EDGE-17 returns AGG-03, AGG-08, and BB-01 with the exact
+// hop sequences from the doc (4 cables and 3 bridges each).
+func TestDistributionFromEDGE17ReachesAGG03AGG08AndBB01(t *testing.T) {
 	x := newIndex(t)
-	r := trace(t, x, pathfinding.Request{Mode: "aggregation", Device: x.equipment("EDGE-17").ID})
-	if r.Status != "reached" || len(r.Routes) != 2 {
-		t.Fatalf("want 2 AGG routes, got %d (%s)", len(r.Routes), r.Status)
+	r := trace(t, x, pathfinding.Request{Mode: "distribution", Device: x.equipment("EDGE-17").ID})
+	if r.Status != "reached" || len(r.Routes) != 3 {
+		t.Fatalf("want 3 routes, got %d (%s)", len(r.Routes), r.Status)
 	}
 	assertRoute(t, x, r.Routes[0], dev("EDGE-17", 1), routeAGG03)
 	assertRoute(t, x, r.Routes[1], dev("EDGE-17", 2), routeAGG08)
+	assertRoute(t, x, r.Routes[2], dev("EDGE-17", 3), routeBB01)
+	for i, role := range []string{"aggregation", "aggregation", "backbone"} {
+		if r.Routes[i].DestinationRole != role {
+			t.Fatalf("route %d role = %s, want %s", i, r.Routes[i].DestinationRole, role)
+		}
+	}
 }
 
 func TestExactStartingPortSearchesOnlyItsOwnRoute(t *testing.T) {
 	x := newIndex(t)
-	r := trace(t, x, pathfinding.Request{Mode: "aggregation", Start: x.endpoint(dev("EDGE-17", 1))})
+	r := trace(t, x, pathfinding.Request{Mode: "distribution", Start: x.endpoint(dev("EDGE-17", 1))})
 	if len(r.Routes) != 1 {
 		t.Fatalf("port 1 alone must return its own route only, got %d", len(r.Routes))
 	}
@@ -436,8 +443,8 @@ func TestReverseTraceFromAGG03ToEDGE17(t *testing.T) {
 	}
 }
 
-// The BB route is physically continuous with the exact doc sequence. Discovery
-// of BB as a destination is M2; this uses the existing exact trace.
+// The BB route is physically continuous with the exact doc sequence, by exact
+// port-to-port trace (distribution discovery of it is tested above).
 func TestEDGE17Port3IsPhysicallyContinuousToBB01(t *testing.T) {
 	x := newIndex(t)
 	r := trace(t, x, pathfinding.Request{Mode: "point_to_point", Start: x.endpoint(dev("EDGE-17", 3)), End: x.endpoint(dev("BB-01", 1))})
@@ -449,7 +456,7 @@ func TestEDGE17Port3IsPhysicallyContinuousToBB01(t *testing.T) {
 
 func TestEDGE22ReachesAGG12OverDifferentPositionsOfTheSameSubpanels(t *testing.T) {
 	x := newIndex(t)
-	r := trace(t, x, pathfinding.Request{Mode: "aggregation", Device: x.equipment("EDGE-22").ID})
+	r := trace(t, x, pathfinding.Request{Mode: "distribution", Device: x.equipment("EDGE-22").ID})
 	if len(r.Routes) != 1 {
 		t.Fatalf("want exactly the AGG-12 route, got %d", len(r.Routes))
 	}
@@ -459,7 +466,7 @@ func TestEDGE22ReachesAGG12OverDifferentPositionsOfTheSameSubpanels(t *testing.T
 	for _, hop := range r.Routes[0].Hops {
 		seen[hop.From], seen[hop.To] = true, true
 	}
-	a := trace(t, x, pathfinding.Request{Mode: "aggregation", Device: x.equipment("EDGE-17").ID})
+	a := trace(t, x, pathfinding.Request{Mode: "distribution", Device: x.equipment("EDGE-17").ID})
 	for _, route := range a.Routes {
 		for _, hop := range route.Hops {
 			if seen[hop.From] || seen[hop.To] {
@@ -487,7 +494,7 @@ func TestAGG15IsNeverReached(t *testing.T) {
 		if e.Kind != "switch" {
 			continue
 		}
-		r := trace(t, x, pathfinding.Request{Mode: "aggregation", Device: e.ID})
+		r := trace(t, x, pathfinding.Request{Mode: "distribution", Device: e.ID})
 		for _, route := range r.Routes {
 			if ports[route.End] {
 				t.Fatalf("%s reached AGG-15 via %+v", e.Name, route)

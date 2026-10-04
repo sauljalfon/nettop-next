@@ -39,7 +39,7 @@ test('direct canvas drag proposes a rack move without resetting the viewport', a
     'Distribution Room / Rack 04 / EDGE-01',
   )
   await page
-    .getByRole('button', { name: 'Find aggregation from EDGE-01', exact: true })
+    .getByRole('button', { name: 'Find AGG / BB from EDGE-01', exact: true })
     .click()
   await expect(page.getByText(/3 cables · 2 internal bridges/)).toBeVisible()
   await page.getByRole('button', { name: 'Installed', exact: true }).click()

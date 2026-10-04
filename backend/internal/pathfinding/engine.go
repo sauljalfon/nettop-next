@@ -22,7 +22,7 @@ type Route struct {
 	Start string `json:"start"`
 	End   string `json:"end"`
 	Hops  []Hop  `json:"hops"`
-	// Distribution-mode metadata (omitted for point-to-point and aggregation).
+	// Distribution-mode metadata (omitted for point-to-point).
 	DestinationEquipmentID string `json:"destinationEquipmentId,omitempty"`
 	DestinationRole        string `json:"destinationRole,omitempty"`
 	DestinationNetworkID   string `json:"destinationNetworkId,omitempty"`
@@ -58,8 +58,9 @@ type Result struct {
 	Truncated  bool           `json:"truncated"`
 }
 
-// Trace searches physical continuity only; device sibling ports never create edges.
-// Each BFS returns a shortest route per target, with deterministic start/target ordering.
+// Trace searches physical continuity only; device sibling ports never create
+// edges. Modes: "point_to_point" (two exact endpoints) and "distribution" (Find
+// AGG / BB from an active device or one exact port). Results are deterministic.
 func Trace(s topology.Snapshot, req Request) (Result, error) {
 	result := Result{Context: s.Context, Revision: s.Revision, Mode: req.Mode, Status: "unreachable", Routes: []Route{}, Mismatches: []Route{}, Starts: []StartOutcome{}}
 	if err := topology.Validate(s); err != nil {
@@ -81,83 +82,35 @@ func Trace(s topology.Snapshot, req Request) (Result, error) {
 	for id := range adj {
 		sort.Slice(adj[id], func(i, j int) bool { return adj[id][i].To < adj[id][j].To })
 	}
-	if req.Mode == "distribution" {
-		return traceDistribution(result, s, ports, devices, adj, req)
-	}
-	starts := []string{}
-	targets := []string{}
 	switch req.Mode {
+	case "distribution":
+		return traceDistribution(result, s, ports, devices, adj, req)
 	case "point_to_point":
-		if req.Device != "" {
-			return result, fmt.Errorf("point-to-point requires endpoints only")
-		}
-		if _, ok := ports[req.Start]; !ok {
-			return result, fmt.Errorf("unknown start endpoint")
-		}
-		if _, ok := ports[req.End]; !ok {
-			return result, fmt.Errorf("unknown destination endpoint")
-		}
-		starts = append(starts, req.Start)
-		targets = append(targets, req.End)
-	case "aggregation":
-		if req.End != "" || (req.Start == "") == (req.Device == "") {
-			return result, fmt.Errorf("aggregation requires exactly one starting endpoint or device")
-		}
-		startDevice := req.Device
-		if req.Start != "" {
-			p, ok := ports[req.Start]
-			if !ok {
-				return result, fmt.Errorf("unknown start endpoint")
-			}
-			startDevice = p.EquipmentID
-			starts = append(starts, req.Start)
-		} else {
-			if _, ok := devices[req.Device]; !ok {
-				return result, fmt.Errorf("unknown starting device")
-			}
-			for _, p := range s.Endpoints {
-				if p.EquipmentID == req.Device {
-					starts = append(starts, p.ID)
-				}
-			}
-		}
-		for _, p := range s.Endpoints {
-			if devices[p.EquipmentID].Role == "aggregation" && p.EquipmentID != startDevice {
-				targets = append(targets, p.ID)
-			}
-		}
+		return tracePointToPoint(result, ports, adj, req)
 	default:
-		return result, fmt.Errorf("mode must be point_to_point, aggregation, or distribution")
+		return result, fmt.Errorf("mode must be point_to_point or distribution")
 	}
-	sort.Strings(starts)
-	sort.Strings(targets)
-	for _, start := range starts {
-		visited := map[string]bool{start: true}
-		parents := map[string]Hop{}
-		queue := []string{start}
-		for i := 0; i < len(queue); i++ {
-			for _, hop := range adj[queue[i]] {
-				if !visited[hop.To] {
-					visited[hop.To] = true
-					parents[hop.To] = hop
-					queue = append(queue, hop.To)
-				}
-			}
-		}
-		for _, end := range targets {
-			if !visited[end] {
-				continue
-			}
-			hops := []Hop{}
-			for current := end; current != start; {
-				hop := parents[current]
-				hops = append(hops, hop)
-				current = hop.From
-			}
-			for i, j := 0, len(hops)-1; i < j; i, j = i+1, j-1 {
-				hops[i], hops[j] = hops[j], hops[i]
-			}
-			result.Routes = append(result.Routes, Route{Start: start, End: end, Hops: hops})
+}
+
+// tracePointToPoint returns the shortest physical route between two exact
+// endpoints. Identical endpoints give a zero-hop route. Cable order carries no
+// direction, so a reversed request yields the mirrored route.
+func tracePointToPoint(result Result, ports map[string]topology.Endpoint, adj map[string][]Hop, req Request) (Result, error) {
+	if req.Device != "" {
+		return result, fmt.Errorf("point-to-point requires endpoints only")
+	}
+	if _, ok := ports[req.Start]; !ok {
+		return result, fmt.Errorf("unknown start endpoint")
+	}
+	if _, ok := ports[req.End]; !ok {
+		return result, fmt.Errorf("unknown destination endpoint")
+	}
+	if req.Start == req.End {
+		result.Routes = append(result.Routes, Route{Start: req.Start, End: req.End, Hops: []Hop{}})
+	}
+	for _, end := range reachable(req.Start, adj) {
+		if end.id == req.End {
+			result.Routes = append(result.Routes, Route{Start: req.Start, End: end.id, Hops: end.hops})
 		}
 	}
 	if len(result.Routes) > 0 {
