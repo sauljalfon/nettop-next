@@ -241,6 +241,43 @@ A short checkpoint between M3 and M4, requested by the user on 2026-10-05. It re
 8. **Searchable trace picker.** The Trace tool's Start and Destination selects become comboboxes keeping the accessible names "Start" and "Destination". They match equipment ("EDGE-17 · all ports" in distribution mode) and endpoints by "equipment label" tokens, so "edge-17 3", "hdf-01 3c/5", and "panel-a 1 rear" all work. They show at most 50 matches with a "refine the search" note. Matching is a pure, unit-tested function over a per-snapshot list.
 9. **Flake and mismatch coverage.** Find the cause of the `hdf-display.spec.ts` failure from M3 step 5 before changing the test. The working hypothesis is that a newly proposed, unconnected card is placed in the parked row outside the fitted view, and `onlyRenderVisibleElements` does not render it, so "visible" depends on timing. Fix the cause (or use find on map in the test if it is expected behavior) and document it. Add a browser spec for a cross-network cable (EDGE-17 Port 4 → AGG-12 Port 2 in a draft): three routes plus AGG-12 under "On another network (not routes)" in both the map overlay and the Trace tool.
 
+### Recorded answers, second round (2026-10-05, after step 4)
+
+The user tried the result and found the pieces individually reasonable but poorly executed and overlapping. (Trace "not working" was a stale dev API process started before M2; restarting `go run ./cmd/api` fixes it. It was not a code defect.)
+
+1. **Highlight comes from a location node, not equipment.** Clicking a node (or site) in Explore highlights its equipment and every cable leaving them, dims everything else, and fits the view to the highlighted part. This **replaces Focus and the boundary cards**.
+2. **Cables:** one line per card pair (per network) whose thickness grows with the count, with a clear count pill in the network's color. Hovering lists the cable IDs; clicking splits the line into separate labeled lines.
+3. **One port list, in the inspector.** The card's "Show connections" popover is removed; cards stay compact.
+4. **Inspector:** too long and cramped, unpolished, and hard to navigate. Redesign it.
+
+### M3.1 redesign (agreed 2026-10-05)
+
+1. **Node highlight (replaces focus).**
+   - In Explore, clicking a **node** or **site** name sets the highlight to every equipment located there. That equipment, every cable from it to any card, and the far-end cards of those cables are drawn amber. The far-end cards get a lighter amber, as "neighbor" does today. All other cards and lines stay in place but fade to about 30% opacity.
+   - The view fits the highlighted cards once, as the explicit result of the click, with padding and keeping clear of drawers and the overlay.
+   - The highlighted part is shown even where the network filter would hide it.
+   - A "Clear highlight" control and Esc (outside text fields) clear it. Clicking another node replaces it.
+   - It is independent of the trace: route lines and cards stay teal and are never dimmed.
+   - **Remove** the focus model and UI: `focus.ts`, boundary bundles and cards, the focus chip, the card's focus button, Explore's "Focus" links, `setFocus`/`expandedBundles` in `mapSession`, and their tests and specs (C09/C13 specs are rewritten for the highlight). The inspector's site and node links set the node highlight instead of a focus.
+   - **Equipment** clicked in Explore (or Enter in its search) selects the card, opens the inspector, and centers on the card, with no highlight.
+   - The found state becomes a highlight of a set of equipment (`highlight.ts`: location → equipment IDs, cable IDs, neighbor IDs) built from the snapshot index.
+2. **Cables.**
+   - Parallel summary-anchored cables between two cards, per network, are one line. Its stroke width grows with the count (for example 1.5 px plus 1 px per extra cable, capped at 7 px), colored with the network's color: one stable color per network from a small palette by network order, and grey for unresolved.
+   - A single cable is a thin line in the network color.
+   - A line with two or more cables has a count **pill** at its midpoint, in the network color. Hovering the line or pill shows a tooltip with the cable IDs. Clicking the pill or line **splits** it into one line per cable, offset so they don't overlap, each labeled with its cable ID. Clicking any split line or a "join" control joins them. The split state is per card pair and kept in `mapSession`.
+   - Route (teal) and highlight (amber) styles override the network color. A split line on the route is teal.
+   - Lines attached to facets stay one per cable, as today.
+   - Use plain bezier or straight edges instead of `smoothstep`, so lines between columns don't overlap in long vertical runs.
+3. **One port list.** Remove the card's "Show connections" button and popover, and the `connections` popover state. A card shows: icon, name, role badge, location, "N of M cabled", network badges, and its facets (route and pinned). Clicking the card selects it and opens the inspector. Pins are made only in the inspector. The `connections.ts` helpers that the inspector reuses stay.
+4. **Inspector redesign** (`features/inspector/`).
+   - A **sticky header**: icon, name, role and network badges, installed/proposed, the "N of M cabled" meter, the location breadcrumb, and the primary action (Find AGG / BB for switches).
+   - **Tabs:** **Overview** (placement, the placement form in a plan, counts per network) and **Ports** (or **Positions**).
+   - **Ports** is a compact table, one row per port or position, with columns: label, far end, cable ID, network badge. A position shows front and rear as two lines in one row.
+   - Row actions are icon buttons with tooltips: trace from here, and pin/unpin. They are always visible, small and muted, at the row end. Clicking a row selects it.
+   - The filter (Cabled / Free / All) and the search sit above the table. HDF subpanels are collapsible group header rows in the same table.
+   - "Show on map" moves to the header; it selects and centers the card.
+   - Do a visual pass: consistent type scale, spacing, and muted secondary text. Check light rendering in screenshots.
+
 ### M3.1 steps
 
 Same rules as M3: test-first, the whole repository green at the end of each step (Go with `TEST_DATABASE_URL`, frontend tests, typecheck, build, format, and Playwright three times in a row), reviewed before the next. Test names use the IDs below.
@@ -251,7 +288,10 @@ Same rules as M3: test-first, the whole repository green at the end of each step
 | 2 | **Hops and find.** Hop list in the map overlay with center-on-click (3, 4); find on map with the amber found state (5) | POL-04 hop list order and labels match `TracePanel`; POL-05 clicking a hop selects and centers without changing zoom; POL-06 find centers on EDGE-17 and highlights EDGE-17, PANEL-A, and cable-a01/a05/a09 in amber; POL-07 found and trace highlights coexist and clear independently; POL-08 a found card hidden by the filter or focus is shown while found |
 | 3 | **Inspector.** `features/inspector/` with header, location actions, grouped and filtered list, connection details, and per-endpoint actions (7) | POL-09 HDF-01 lists its 4 cabled positions by default, grouped by subpanel, with far ends, cable IDs, and networks; POL-10 Find AGG / BB, Pin, and Show on map from an inspector entry; POL-11 location actions focus the node and open the rack |
 | 4 | **Trace picker and test hygiene.** Searchable Start/Destination (8); `hdf-display` flake cause and fix; mismatch browser spec (9) | POL-12 picker matching (unit) and keyboard use; POL-13 the mismatch spec; the flake explained in the commit message |
-| 5 | **Status and handoff.** `current-status.md`, README smoke flow, `ui-spec` notes, `CLAUDE.md` | Full check run |
+| 5 | **Node highlight replaces focus** (redesign 1) | POL-14 clicking Building A in Explore highlights EDGE-17 and PANEL-A plus every cable leaving them, dims the rest, and fits them in view; POL-15 equipment click selects, centers, and opens the inspector without highlighting; POL-16 highlight, route, and network filter combine and clear independently; focus, boundary cards, and the focus chip are gone |
+| 6 | **Cables** (redesign 2) | POL-17 EDGE-17–PANEL-A shows one line with a "3" pill in Network A's color, and its tooltip lists cable-a01/a05/a09; POL-18 clicking it splits into three labeled lines and clicking again joins them; line width grows with the count |
+| 7 | **One port list; inspector redesign** (redesign 3, 4) | POL-19 cards have no "Show connections" popover, and pins and route facets still show on cards; POL-20 inspector tabs, compact port table, row actions, sticky header; POL-09/10/11 rewritten for the new inspector; screenshots reviewed |
+| 8 | **Status and handoff.** `current-status.md`, README smoke flow, `ui-spec` notes, `CLAUDE.md` | Full check run |
 
 ## M4 — Approved physical explorer
 
