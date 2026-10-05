@@ -9,7 +9,7 @@ const natural = (a: string, b: string) =>
 /**
  * Equipment whose name contains the query, ignoring case: names that start with
  * it first, then the rest, each group by name (numbers compared as numbers).
- * An empty query matches nothing.
+ * An empty query matches nothing. Explore uses it to choose the first match on Enter.
  */
 export function searchEquipment<T extends Named>(
   equipment: readonly T[],
@@ -28,9 +28,4 @@ export function searchEquipment<T extends Named>(
   const byName = (a: T, b: T) =>
     natural(a.name, b.name) || a.id.localeCompare(b.id)
   return [...prefix.sort(byName), ...inside.sort(byName)].slice(0, limit)
-}
-
-/** The next active row for an arrow key, wrapping at both ends. */
-export function moveActive(active: number, delta: 1 | -1, count: number) {
-  return count === 0 ? 0 : (active + delta + count) % count
 }

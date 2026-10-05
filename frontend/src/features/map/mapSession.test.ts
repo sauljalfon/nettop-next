@@ -228,3 +228,30 @@ describe('POL-06/07 found state and center requests live in the session', () => 
     expect(session.viewport()).toEqual({ x: 3, y: 4, zoom: 0.5 })
   })
 })
+
+describe('POL-05/06 a center request is handled once, even across a remount', () => {
+  it('marks a request as handled by its serial', () => {
+    const session = createMapSession()
+    session.requestCenter('EDGE-17')
+    const { serial } = session.centerRequest()!
+    expect(session.centerHandled()).toBeLessThan(serial)
+    session.markCenterHandled(serial)
+    expect(session.centerHandled()).toBe(serial)
+  })
+
+  it('a request made before the map mounts is still pending until it is handled', () => {
+    const session = createMapSession()
+    session.requestCenter('EDGE-17') // e.g. from Explore while Physical was showing
+    const request = session.centerRequest()!
+    expect(request.serial > session.centerHandled()).toBe(true)
+  })
+
+  it('never goes backwards', () => {
+    const session = createMapSession()
+    session.requestCenter('a')
+    session.requestCenter('b')
+    session.markCenterHandled(2)
+    session.markCenterHandled(1)
+    expect(session.centerHandled()).toBe(2)
+  })
+})

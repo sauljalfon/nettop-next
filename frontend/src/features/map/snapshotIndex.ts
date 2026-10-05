@@ -24,6 +24,12 @@ export interface SnapshotIndex {
   owner: ReadonlyMap<string, string>
   /** Each equipment's cables and the equipment at their other end. */
   cablesByEquipment: ReadonlyMap<string, { linkId: string; otherId: string }[]>
+  /** Each cabled endpoint's cable and the endpoint at its other end. */
+  cableByEndpoint: ReadonlyMap<
+    string,
+    { linkId: string; farEndpointId: string }
+  >
+  racks: ReadonlyMap<string, { id: string; name: string; nodeId: string }>
   /** Cable links only, in snapshot order. */
   cables: readonly Link[]
   /** Node and site of each equipment, from its rack; absent parts are unknown. */
@@ -62,7 +68,13 @@ export function indexSnapshot(s: Snapshot): SnapshotIndex {
     if (list) list.push({ linkId, otherId })
     else cablesByEquipment.set(id, [{ linkId, otherId }])
   }
+  const cableByEndpoint = new Map<
+    string,
+    { linkId: string; farEndpointId: string }
+  >()
   for (const l of cables) {
+    cableByEndpoint.set(l.a, { linkId: l.id, farEndpointId: l.b })
+    cableByEndpoint.set(l.b, { linkId: l.id, farEndpointId: l.a })
     const a = owner.get(l.a)
     const b = owner.get(l.b)
     if (!a || !b || a === b) continue
@@ -73,6 +85,8 @@ export function indexSnapshot(s: Snapshot): SnapshotIndex {
     owner,
     cables,
     cablesByEquipment,
+    cableByEndpoint,
+    racks,
     places,
     nodes,
     sites,

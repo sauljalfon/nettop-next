@@ -63,3 +63,34 @@ describe('snapshot-only results are computed once per snapshot', () => {
     expect(routed.nodes.some((n) => n.data.facets.length > 0)).toBe(true)
   })
 })
+
+describe('endpoint → cable and far end, from the index', () => {
+  const s = acceptanceSnapshot()
+  const index = indexSnapshot(s)
+
+  it('gives each cabled endpoint its cable and the endpoint at the other end', () => {
+    expect(index.cableByEndpoint.get('EDGE-17:p1')).toEqual({
+      linkId: 'A01',
+      farEndpointId: 'PANEL-A:1:f',
+    })
+    expect(index.cableByEndpoint.get('PANEL-A:1:f')).toEqual({
+      linkId: 'A01',
+      farEndpointId: 'EDGE-17:p1',
+    })
+  })
+
+  it('has no entry for an uncabled endpoint, or for an internal bridge', () => {
+    expect(index.cableByEndpoint.has('EDGE-17:p4')).toBe(false)
+    expect(index.cableByEndpoint.has('PANEL-A:7:f')).toBe(false)
+    expect(index.cableByEndpoint.get('HDF-01:3C/5:f')!.linkId).toBe('A03')
+  })
+
+  it('has an entry for exactly both ends of every cable', () => {
+    const cables = s.links.filter((l) => l.kind === 'cable')
+    expect(index.cableByEndpoint.size).toBe(cables.length * 2)
+  })
+
+  it('knows each rack by ID', () => {
+    expect(index.racks.get('rack-a03')!.name).toBe('Rack A03')
+  })
+})

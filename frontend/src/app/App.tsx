@@ -35,8 +35,9 @@ import PlanEditor from '../features/planning/PlanEditor'
 import PlacementEditor from '../features/planning/PlacementEditor'
 import TracePanel from '../features/pathfinding/TracePanel'
 import { endpointLabel } from '../features/pathfinding/projection'
-import { isPassiveEquipment } from '../shared/equipment'
-import { locationPath } from '../features/map/location'
+import Inspector from '../features/inspector/Inspector'
+import { indexSnapshot } from '../features/map/snapshotIndex'
+import { searchEquipment } from '../features/map/search'
 import './styles.css'
 
 type Drawer = 'library' | 'explorer' | 'plans' | 'inspector' | 'trace' | null
@@ -477,10 +478,8 @@ function Workspace({
   })
   const equipment =
     snapshot.equipment.find((e) => e.id === selected) ?? snapshot.equipment[0]
-  const ports = useMemo(
-    () => snapshot.endpoints.filter((p) => p.equipmentId === equipment?.id),
-    [snapshot.endpoints, equipment?.id],
-  )
+  // Snapshot-only work, shared by the map and the inspector.
+  const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
   const installedIDs = useMemo(
     () => new Set(installed.equipment.map((e) => e.id)),
     [installed.equipment],
@@ -610,39 +609,30 @@ function Workspace({
       traceMutation.mutate({ mode: 'distribution', device: equipment.id })
     }
   }
+  // Explore, the inspector and Show on map all do this: select the card, show the
+  // map, highlight the card and its neighbors, and center on it.
+  const showOnMap = useCallback(
+    (id: string) => {
+      setSelected(id)
+      onViewChange('conceptual')
+      mapSession.setFound(id)
+      mapSession.requestCenter(id)
+    },
+    [onViewChange],
+  )
   const drawerEquipment = equipment && (
-    <>
-      <div className="inspector-hero">
-        <span className="equipment-icon">
-          {isPassiveEquipment(equipment) ? <PanelTop /> : <Network />}
-        </span>
-        <h2>{equipment.name}</h2>
-        <span
-          className={`badge ${installedIDs.has(equipment.id) ? '' : 'green'}`}
-        >
-          {installedIDs.has(equipment.id)
-            ? 'Installed equipment'
-            : 'Proposed equipment'}
-        </span>
-      </div>
-      <p className="location-breadcrumb">
-        {locationPath(snapshot, equipment.id)}
-      </p>
-      <div className="detail-row">
-        <span>Role</span>
-        <strong>{equipment.role}</strong>
-      </div>
-      <div className="detail-row">
-        <span>Placement</span>
-        <strong>
-          {snapshot.racks.find((r) => r.id === equipment.rackId)?.name} · U
-          {equipment.unit}
-        </strong>
-      </div>
-      <button className="button primary" onClick={useSelected}>
-        <GitFork size={16} />
-        Find AGG / BB from {equipment.name}
-      </button>
+    <Inspector
+      snapshot={snapshot}
+      index={index}
+      equipment={equipment}
+      installedIDs={installedIDs}
+      session={mapSession}
+      onFindFromDevice={useSelected}
+      onFindFromHere={traceFromPort}
+      onShowOnMap={showOnMap}
+      onFocus={focusLocation}
+      onOpenRack={openRack}
+    >
       {plan && (
         <PlacementEditor
           key={`${equipment.id}:${equipment.rackId}:${equipment.unit}`}
@@ -652,27 +642,7 @@ function Workspace({
           onMove={(input) => placement.mutate(input)}
         />
       )}
-      <p className="section-label">Exact endpoints</p>
-      <div className="endpoint-list">
-        {ports.map((p) => (
-          <button
-            className={start === p.id ? 'active' : ''}
-            key={p.id}
-            onClick={() => selectPort(p.id)}
-          >
-            <span>{p.label}</span>
-            <small>
-              {snapshot.links.some(
-                (l) => l.kind === 'cable' && (l.a === p.id || l.b === p.id),
-              )
-                ? 'Cabled'
-                : 'Free'}{' '}
-              ↗
-            </small>
-          </button>
-        ))}
-      </div>
-    </>
+    </Inspector>
   )
   return (
     <main className="workspace-canvas">
@@ -692,6 +662,7 @@ function Workspace({
       {view === 'conceptual' ? (
         <ConceptualMap
           snapshot={snapshot}
+          index={index}
           installedIDs={installedIDs}
           installedLinkIDs={installedLinkIDs}
           selected={selected}
@@ -753,7 +724,7 @@ function Workspace({
           <Explorer
             snapshot={snapshot}
             selected={selected}
-            onSelect={select}
+            onChoose={showOnMap}
             onOpenRack={openRack}
             onFocus={focusLocation}
             canEdit={canEdit}
@@ -1024,14 +995,15 @@ function EquipmentLibrary({
 function Explorer({
   snapshot,
   selected,
-  onSelect,
+  onChoose,
   onOpenRack,
   onFocus,
   canEdit,
 }: {
   snapshot: Snapshot
   selected: string
-  onSelect: (id: string) => void
+  /** Show the equipment on the map: select, center and highlight it. */
+  onChoose: (id: string) => void
   onOpenRack: (id: string) => void
   onFocus: (focus: Focus) => void
   canEdit: boolean
@@ -1046,6 +1018,12 @@ function Explorer({
           placeholder="Find equipment…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(event) => {
+            // Enter chooses the first match: names by prefix first, then the rest.
+            if (event.key !== 'Enter') return
+            const first = searchEquipment(snapshot.equipment, search)[0]
+            if (first) onChoose(first.id)
+          }}
         />
       </label>
       {snapshot.sites.map((site) => (
@@ -1108,7 +1086,7 @@ function Explorer({
                               event.dataTransfer.effectAllowed = 'copyMove'
                             }}
                             key={e.id}
-                            onClick={() => onSelect(e.id)}
+                            onClick={() => onChoose(e.id)}
                           >
                             <span className="dot" />
                             {e.name}

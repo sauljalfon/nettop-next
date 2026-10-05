@@ -46,10 +46,9 @@ import {
   type MapCardData,
   type MapFlowEdge,
 } from './mapGraph'
-import { indexSnapshot } from './snapshotIndex'
+import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession } from './mapSession'
-import FindOnMap from './FindOnMap'
-import { ResetLayout } from './MapControls'
+import { ClearHighlight, ResetLayout } from './MapControls'
 import { reconciledPosition } from './reconcile'
 import { stackIndex } from './stacking'
 import { useCenterRequests } from './useCenterRequests'
@@ -102,7 +101,11 @@ function Connections({
   )
   const shown = searchConnections(entries, query)
   return (
-    <div className="map-connections nodrag nowheel">
+    <div
+      className="map-connections nodrag nowheel"
+      // The popover is a React child of its card: keep its clicks from selecting it.
+      onClick={(event) => event.stopPropagation()}
+    >
       <input
         aria-label={`Search ${name} connections`}
         placeholder="Search, e.g. 3C/5"
@@ -406,6 +409,8 @@ interface Props {
   ) => void
   preview?: PendingEquipment
   onConfigurePreview: () => void
+  /** Snapshot-only results; computed here when absent. */
+  index?: SnapshotIndex
   /** Defaults to the app-wide session store. */
   session?: MapSession
 }
@@ -457,12 +462,17 @@ function Canvas({
   onCreateEquipment,
   preview,
   onConfigurePreview,
+  index: givenIndex,
   session = mapSession,
 }: Props) {
   const flow = useReactFlow<MapNode>()
   // Snapshot-only work is done once per snapshot; route, filter and manual
   // facets only redo the dependent part.
-  const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
+  const ownIndex = useMemo(
+    () => (givenIndex ? undefined : indexSnapshot(snapshot)),
+    [givenIndex, snapshot],
+  )
+  const index = (givenIndex ?? ownIndex)!
   const manual = useSyncExternalStore(session.subscribe, session.manualFacets)
   const focus = useSyncExternalStore(session.subscribe, session.focus)
   const foundId = useSyncExternalStore(session.subscribe, session.foundId)
@@ -537,7 +547,17 @@ function Canvas({
     if (fitToken === 0) return
     void flow.fitView(FIT).then(() => session.setViewport(flow.getViewport()))
   }, [fitToken])
-  useCenterRequests(session, nodes)
+  const surface = useRef<HTMLDivElement>(null)
+  useCenterRequests(session, surface, nodes)
+  // Esc clears the highlight (found state) without touching the trace.
+  useEffect(() => {
+    if (!foundId) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') session.setFound(undefined)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [foundId, session])
   const [openLists, setOpenLists] = useState<ReadonlySet<string>>(new Set())
   const toggleList = useCallback(
     (id: string) =>
@@ -616,7 +636,7 @@ function Canvas({
   )
 
   return (
-    <div className="flow-surface">
+    <div className="flow-surface" ref={surface}>
       <Actions.Provider value={actions}>
         <ReactFlow<MapNode>
           nodes={rendered}
@@ -676,11 +696,9 @@ function Canvas({
           <Background color="#ccd5df" gap={24} size={1} />
           <Controls showInteractive={false} />
           <Panel position="top-right" className="map-tools">
-            <FindOnMap
-              equipment={snapshot.equipment}
-              session={session}
-              onChoose={onSelect}
-            />
+            {foundId && (
+              <ClearHighlight onClear={() => session.setFound(undefined)} />
+            )}
             <ResetLayout onReset={session.resetLayout} />
           </Panel>
         </ReactFlow>

@@ -56,6 +56,9 @@ export interface MapSession {
    */
   centerRequest(): { id: string; serial: number } | undefined
   requestCenter(id: string): void
+  /** Serial of the last request the map has acted on; a remount never replays it. */
+  centerHandled(): number
+  markCenterHandled(serial: number): void
   /** Incremented by every resetLayout; lets the map tell a reset from a drag. */
   layoutVersion(): number
   /** Notified after manual facets change; returns the unsubscribe function. */
@@ -70,6 +73,7 @@ export function createMapSession(): MapSession {
   let layoutVersion = 0
   let foundId: string | undefined
   let center: { id: string; serial: number } | undefined
+  let centerHandled = 0
   let expanded: ReadonlySet<string> = new Set()
   const listeners = new Set<() => void>()
   const notify = () => {
@@ -118,6 +122,10 @@ export function createMapSession(): MapSession {
       notify()
     },
     centerRequest: () => center,
+    centerHandled: () => centerHandled,
+    markCenterHandled(serial) {
+      centerHandled = Math.max(centerHandled, serial)
+    },
     requestCenter(id) {
       center = { id, serial: (center?.serial ?? 0) + 1 }
       notify()

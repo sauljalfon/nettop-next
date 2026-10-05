@@ -603,27 +603,6 @@ button:hover:not(:disabled) {
   font-weight: 650;
   margin: 22px 0 13px;
 }
-.endpoint-list button {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  border: 1px solid #e0e5ee;
-  border-radius: 6px;
-  padding: 10px 12px;
-  width: 100%;
-  margin-bottom: 6px;
-  font-size: 12px;
-}
-.endpoint-list small {
-  font-size: 10px;
-  color: #8a9b99;
-}
-.endpoint-list .active {
-  border-color: #c8b7e2;
-  background: #f7f3fb;
-  color: #8368a5;
-}
 .button {
   display: inline-flex;
   align-items: center;

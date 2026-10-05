@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot } from './acceptanceFixture'
-import { moveActive, searchEquipment } from './search'
+import { searchEquipment } from './search'
 
 const s = acceptanceSnapshot()
 const names = (q: string, limit?: number) =>
@@ -47,19 +47,5 @@ describe('POL-06 find on map matches equipment by name', () => {
   it('trims the query and honours a limit', () => {
     expect(names('  edge-17  ')).toEqual(['EDGE-17'])
     expect(names('-', 3)).toHaveLength(3)
-  })
-})
-
-describe('keyboard navigation through the matches', () => {
-  it('moves down and up, wrapping at both ends', () => {
-    expect(moveActive(0, 1, 3)).toBe(1)
-    expect(moveActive(2, 1, 3)).toBe(0)
-    expect(moveActive(0, -1, 3)).toBe(2)
-    expect(moveActive(1, -1, 3)).toBe(0)
-  })
-
-  it('stays at zero with no matches', () => {
-    expect(moveActive(0, 1, 0)).toBe(0)
-    expect(moveActive(0, -1, 0)).toBe(0)
   })
 })

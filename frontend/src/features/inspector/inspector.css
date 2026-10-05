@@ -1,0 +1,134 @@
+.location-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #6a5aa8;
+  font: inherit;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+
+.inspector-endpoints .endpoint-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.inspector-endpoints .segmented {
+  display: flex;
+  border: 1px solid #dfe4ee;
+  border-radius: 7px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.inspector-endpoints .segmented button {
+  border: 0;
+  background: white;
+  padding: 6px 9px;
+  font-size: 11px;
+  color: #728097;
+}
+
+.inspector-endpoints .segmented .active {
+  background: #f0edfa;
+  color: #5645b6;
+}
+
+.inspector-endpoints input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid #dce4ef;
+  border-radius: 6px;
+}
+
+.endpoint-count {
+  font-size: 11px;
+  margin: 4px 0 8px;
+}
+
+.endpoint-group summary {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.endpoint-group summary small {
+  color: #8390a4;
+  margin-left: 6px;
+}
+
+.endpoint-unit {
+  border: 1px solid #e0e5ee;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: white;
+  font-size: 12px;
+}
+
+.endpoint-unit.free {
+  background: #fafbfd;
+  color: #8a97aa;
+}
+
+.unit-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.unit-state {
+  font-size: 10px;
+  color: #8a9b99;
+}
+
+.unit-side {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin: 3px 0 0;
+  font-size: 11px;
+}
+
+.unit-side .side-name {
+  min-width: 34px;
+  color: #8390a4;
+  text-transform: capitalize;
+}
+
+.unit-side .cable-id {
+  font-style: normal;
+  color: #6d7b90;
+}
+
+.unit-side .free-side {
+  color: #a3adbd;
+}
+
+.unit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.unit-actions button {
+  font-size: 10px;
+  padding: 3px 7px;
+  border: 1px solid #d9d2ee;
+  border-radius: 5px;
+  background: #f7f5fc;
+  color: #5645b6;
+  cursor: pointer;
+}
+
+.unit-actions button.active {
+  background: #5645b6;
+  color: white;
+}

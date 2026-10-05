@@ -343,8 +343,10 @@
 
 /* Found: amber, separate from the teal route color. */
 .equipment-card.map-card.found {
-  border: 2px solid #e09a00;
-  box-shadow: 0 0 0 3px #f5b30133;
+  border: 3px solid #e09a00;
+  box-shadow:
+    0 0 0 6px #f5b30166,
+    0 0 22px #f5b3018c;
 }
 
 .equipment-card.map-card.found-neighbor {
@@ -356,7 +358,8 @@
 .equipment-card.map-card.found.traced {
   box-shadow:
     0 0 0 3px #108b7966,
-    0 0 0 6px #f5b30133;
+    0 0 0 8px #f5b30166,
+    0 0 22px #f5b3018c;
 }
 
 .react-flow__edge .found-outline {
@@ -368,67 +371,6 @@
 .react-flow__edge.animated path.found-outline {
   stroke-dasharray: none;
   animation: none;
-}
-
-.map-find {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  margin-right: 8px;
-}
-
-.map-find input {
-  width: 190px;
-  font-size: 12px;
-  padding: 7px 28px 7px 10px;
-  border: 1px solid #dfe4ee;
-  border-radius: 8px;
-  background: #f9fbfd;
-}
-
-.map-find-clear {
-  position: absolute;
-  right: 6px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: #728097;
-  padding: 2px;
-  cursor: pointer;
-}
-
-.map-find ul {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  margin: 0;
-  padding: 4px;
-  list-style: none;
-  background: white;
-  border: 1px solid #dce4ef;
-  border-radius: 8px;
-  box-shadow: 0 8px 22px #31486822;
-  z-index: 70;
-}
-
-.map-find li {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 5px 8px;
-  font-size: 12px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.map-find li.active {
-  background: #f0edfa;
-}
-
-.map-find li small {
-  color: #8390a4;
 }
 
 .map-hops {

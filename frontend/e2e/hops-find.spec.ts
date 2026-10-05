@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, viewport } from './helpers'
+import { expectCenteredInVisibleArea, fitted, viewport } from './helpers'
 
 const layout = (page: Page) =>
   page.evaluate(() =>
@@ -13,7 +13,6 @@ const layout = (page: Page) =>
 const cards = (page: Page) => page.locator('.react-flow__node-equipment')
 const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
-const find = (page: Page) => page.getByRole('combobox', { name: 'Find on map' })
 const scaleOf = (style: string | null) =>
   Number(/scale\(([\d.]+)\)/.exec(style ?? '')?.[1])
 
@@ -38,20 +37,6 @@ async function settledViewport(page: Page) {
     })
     .toBe(true)
   return previous
-}
-
-/** The card's center is where the canvas center is (the pan has settled). */
-async function expectCentered(page: Page, id: string) {
-  await expect
-    .poll(async () => {
-      const card = await page.getByTestId(`rf__node-${id}`).boundingBox()
-      const surface = await page.locator('.flow-surface').boundingBox()
-      return Math.hypot(
-        card!.x + card!.width / 2 - (surface!.x + surface!.width / 2),
-        card!.y + card!.height / 2 - (surface!.y + surface!.height / 2),
-      )
-    })
-    .toBeLessThan(4)
 }
 
 test('POL-04 the map overlay lists the same hop rows as TracePanel, in order', async ({
@@ -138,7 +123,7 @@ test('POL-05 clicking a hop selects its equipment and centers without changing z
     .filter({ hasText: 'HDF-02 · 2B/3 front' })
     .click()
   await expect(page.locator('.inspector-hero h2')).toHaveText('HDF-02')
-  await expectCentered(page, 'hdf-02')
+  await expectCenteredInVisibleArea(page, 'hdf-02')
   const after = await settledViewport(page)
   expect(scaleOf(after)).toBeCloseTo(scaleOf(before), 3)
   expect(after).not.toBe(before) // panned, not refit
@@ -150,36 +135,43 @@ test('POL-05 clicking a hop selects its equipment and centers without changing z
   // The new viewport is recorded in the session: it survives a context switch.
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
-  await expect(page.getByTestId('rf__node-edge-18')).toBeVisible()
+  await expect(page.locator('.board-caption')).toContainText('12 of 12') // the plan's EDGE-18 too; it may be offscreen after the pan
   expect(await settledViewport(page)).toBe(after)
 })
 
-test('POL-06 find "edge-17" centers on EDGE-17 and shows it, PANEL-A and its cables in amber', async ({
+/** Choose equipment in the Explore drawer (opening it first if needed). */
+async function chooseInExplore(page: Page, name: string) {
+  if ((await page.locator('.studio-drawer.left').count()) === 0)
+    await page
+      .getByRole('button', { name: 'Open explorer', exact: true })
+      .click()
+  await page.locator('.tree-equipment').filter({ hasText: name }).click()
+}
+const found = (page: Page) => page.locator('.equipment-card.found-card')
+
+test('POL-06 choosing EDGE-17 in Explore selects it, centers it in the visible area and shows it, PANEL-A and its cables in amber', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   const positions = await layout(page)
 
-  await find(page).fill('edge-17')
-  await expect(
-    page
-      .getByRole('listbox', { name: 'Matching equipment' })
-      .getByRole('option'),
-  ).toHaveText(['EDGE-17access'])
-  await find(page).press('Enter')
+  await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
+  await page.getByLabel('Find equipment').fill('edge')
+  await chooseInExplore(page, 'EDGE-17')
 
-  await expect(
-    page.getByTestId('rf__node-edge-17').locator('.equipment-card'),
-  ).toHaveClass(/found-card/)
+  await expect(found(page)).toContainText('EDGE-17')
   await expect(
     page.getByTestId('rf__node-panel-a').locator('.equipment-card'),
   ).toHaveClass(/found-neighbor/)
   await expect(page.locator('.equipment-card.found')).toHaveCount(2)
-  await expectCentered(page, 'edge-17')
-  await expect(page.locator('.inspector-hero h2')).toHaveText('EDGE-17')
+  await expect(
+    page.getByTestId('rf__node-edge-17').locator('.equipment-card'),
+  ).toHaveClass(/selected/)
+  // Explore stays open, so the card is centered in what remains visible.
+  await expect(page.locator('.studio-drawer')).toHaveCount(1)
+  await expectCenteredInVisibleArea(page, 'edge-17')
 
-  // Exactly the three EDGE-17 cables are found, drawn in amber.
   const lit = page.locator('.react-flow__edge.found')
   await expect(lit).toHaveCount(1)
   await expect(lit.locator('[data-cable-ids]')).toHaveAttribute(
@@ -190,58 +182,87 @@ test('POL-06 find "edge-17" centers on EDGE-17 and shows it, PANEL-A and its cab
     .locator('path.react-flow__edge-path')
     .evaluate((p) => getComputedStyle(p).stroke)
   expect(stroke).toBe('rgb(224, 154, 0)')
-  // Centering pans, so cards that scroll offscreen are not drawn; the rest have not moved.
+  // The found card itself has a stronger ring than its neighbor.
+  const ring = (id: string) =>
+    page
+      .getByTestId(`rf__node-${id}`)
+      .locator('.equipment-card')
+      .evaluate((el) => parseFloat(getComputedStyle(el).borderTopWidth))
+  expect(await ring('edge-17')).toBeGreaterThan(await ring('panel-a'))
+  // Centering pans, so offscreen cards are not drawn; the rest have not moved.
   for (const [id, transform] of Object.entries(await layout(page)))
     expect(transform).toBe(positions[id])
 })
 
-test('POL-06 keyboard: arrows move through matches, Enter chooses, Esc clears', async ({
+test('POL-06 Enter chooses the first match, another choice replaces it, Esc and Clear highlight clear it', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
-  await find(page).fill('ag')
-  const options = page
-    .getByRole('listbox', { name: 'Matching equipment' })
-    .getByRole('option')
-  await expect(options).toHaveText([
-    'AGG-03aggregation',
-    'AGG-08aggregation',
-    'AGG-12aggregation',
-    'AGG-15aggregation',
-  ])
-  await expect(options.nth(0)).toHaveAttribute('aria-selected', 'true')
-  await find(page).press('ArrowDown')
-  await expect(options.nth(1)).toHaveAttribute('aria-selected', 'true')
-  await find(page).press('ArrowUp')
-  await find(page).press('ArrowUp') // wraps to the last
-  await expect(options.nth(3)).toHaveAttribute('aria-selected', 'true')
-  await find(page).press('ArrowDown') // and back to the first
-  await find(page).press('ArrowDown')
-  await find(page).press('Enter')
-  await expect(page.locator('.equipment-card.found-card')).toContainText(
-    'AGG-08',
-  )
-  await expect(find(page)).toHaveValue('AGG-08')
+  await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
+  const search = page.getByLabel('Find equipment')
+  await expect(
+    page.getByRole('button', { name: 'Clear highlight' }),
+  ).toHaveCount(0)
 
-  // Esc clears the find and the field.
-  await find(page).press('Escape')
-  await expect(page.locator('.equipment-card.found')).toHaveCount(0)
-  await expect(find(page)).toHaveValue('')
+  await search.fill('agg')
+  await search.press('Enter') // AGG-03: prefix matches first, then by name
+  await expect(found(page)).toContainText('AGG-03')
+  await expect(
+    page.getByRole('button', { name: 'Clear highlight' }),
+  ).toBeVisible()
 
-  // A new search clears the previous find; × clears too.
-  await find(page).fill('agg-03')
-  await find(page).press('Enter')
-  await expect(page.locator('.equipment-card.found-card')).toContainText(
-    'AGG-03',
-  )
-  await find(page).fill('b')
+  // Choosing other equipment replaces the highlight.
+  await chooseInExplore(page, 'AGG-08')
+  await expect(found(page)).toHaveCount(1)
+  await expect(found(page)).toContainText('AGG-08')
+
+  // Esc clears it.
+  await page.keyboard.press('Escape')
   await expect(page.locator('.equipment-card.found')).toHaveCount(0)
-  await find(page).fill('agg-03')
-  await find(page).press('Enter')
-  await expect(page.locator('.equipment-card.found-card')).toHaveCount(1)
-  await page.getByRole('button', { name: 'Clear find' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Clear highlight' }),
+  ).toHaveCount(0)
+
+  // So does the Clear highlight control.
+  await chooseInExplore(page, 'AGG-12')
+  await expect(found(page)).toContainText('AGG-12')
+  await page.getByRole('button', { name: 'Clear highlight' }).click()
   await expect(page.locator('.equipment-card.found')).toHaveCount(0)
+
+  // From the Physical view, choosing switches to the map and highlights there.
+  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  await expect(page.locator('.flow-surface')).toHaveCount(0)
+  await search.fill('')
+  await chooseInExplore(page, 'EDGE-22')
+  await expect(page.locator('.flow-surface')).toBeVisible()
+  await expect(found(page)).toContainText('EDGE-22')
+  await expectCenteredInVisibleArea(page, 'edge-22')
+})
+
+test('there is exactly one search field labelled "Find equipment" in the whole app', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  for (const opener of [
+    'Add equipment library',
+    'Open explorer',
+    'Open trace tools',
+    'Open inspector',
+  ]) {
+    const toggle = page.getByRole('button', { name: opener, exact: true })
+    await toggle.click()
+    const total =
+      (await page.getByLabel('Find equipment').count()) +
+      (await page.getByPlaceholder('Find equipment…').count())
+    expect(total).toBe(opener === 'Open explorer' ? 2 : 0) // one field: its label and its placeholder
+    expect(await page.getByLabel('Find equipment').count()).toBe(
+      opener === 'Open explorer' ? 1 : 0,
+    )
+    await toggle.click()
+  }
+  await expect(page.getByLabel('Find on map')).toHaveCount(0)
 })
 
 test('POL-07 found and trace highlights coexist and clear independently', async ({
@@ -250,8 +271,7 @@ test('POL-07 found and trace highlights coexist and clear independently', async 
   await page.goto('/')
   await fitted(page)
   await traceFromEdge17(page) // AGG-03 route selected
-  await find(page).fill('edge-17')
-  await find(page).press('Enter')
+  await chooseInExplore(page, 'EDGE-17')
 
   // Cable A01 is both: teal route line with an amber outline.
   const outline = page.locator('path.found-outline')
@@ -270,28 +290,22 @@ test('POL-07 found and trace highlights coexist and clear independently', async 
     main: 'rgb(16, 139, 121)',
     outline: 'rgb(242, 177, 52)',
   })
-  // The route still lists its three results and expands its hops.
   await expect(rows(page)).toHaveCount(3)
-  await expect(page.locator('.equipment-card.found-card')).toContainText(
-    'EDGE-17',
-  )
+  await expect(found(page)).toContainText('EDGE-17')
 
-  // Clearing the find leaves the trace alone…
-  await page.getByRole('button', { name: 'Clear find' }).click()
+  // Clearing the highlight leaves the trace alone…
+  await page.getByRole('button', { name: 'Clear highlight' }).click()
   await expect(page.locator('.equipment-card.found')).toHaveCount(0)
   await expect(outline).toHaveCount(0)
   await expect(page.locator('.react-flow__edge.animated')).toHaveCount(4)
   await expect(rows(page)).toHaveCount(3)
 
-  // …and clearing the trace leaves the find alone.
-  await find(page).fill('edge-17')
-  await find(page).press('Enter')
+  // …and clearing the trace leaves the highlight alone.
+  await chooseInExplore(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Clear trace' }).click()
   await expect(page.locator('.react-flow__edge.animated')).toHaveCount(0)
   await expect(page.getByLabel('Map trace results')).toHaveCount(0)
-  await expect(page.locator('.equipment-card.found-card')).toContainText(
-    'EDGE-17',
-  )
+  await expect(found(page)).toContainText('EDGE-17')
   await expect(page.locator('.react-flow__edge.found')).toHaveCount(1)
 })
 
@@ -303,39 +317,34 @@ test('POL-08 a found card hidden by the filter or focus is shown while found', a
   const positions = await layout(page)
   const caption = page.locator('.board-caption')
 
-  // Network filter: EDGE-17 and PANEL-A are Network A, hidden under Network B.
-  await page
-    .getByRole('combobox', { name: 'Show network' })
-    .selectOption({ label: 'Network B' })
-  await expect(caption).toContainText('5 of 11')
-  await find(page).fill('edge-17')
-  await find(page).press('Enter')
-  await expect(caption).toContainText('7 of 11')
-  await expect(page.getByTestId('rf__node-edge-17')).toBeVisible()
-  await expect(page.getByTestId('rf__node-panel-a')).toBeVisible()
-  const shown = await layout(page)
-  for (const [id, transform] of Object.entries(shown))
-    expect(transform).toBe(positions[id])
-  await page.getByRole('button', { name: 'Clear find' }).click()
-  await expect(caption).toContainText('5 of 11')
-  await expect(page.getByTestId('rf__node-edge-17')).toHaveCount(0)
-
-  // Focus: Building A shows two cards; finding HDF-01 reveals it and its neighbors.
-  await page
-    .getByRole('combobox', { name: 'Show network' })
-    .selectOption({ label: 'All networks' })
-  await expect(caption).toContainText('11 of 11')
+  // Focus first (the Explore drawer would cover the card's button): Building A shows two cards.
   await page
     .getByTestId('rf__node-edge-17')
     .getByRole('button', { name: 'Focus Building A' })
     .click()
   await expect(caption).toContainText('2 of 11')
-  await find(page).fill('hdf-01')
-  await find(page).press('Enter')
+  await chooseInExplore(page, 'HDF-01')
   await expect(caption).toContainText('5 of 11') // + HDF-01, HDF-02, PANEL-DR
   await expect(page.getByTestId('rf__node-hdf-01')).toBeVisible()
   await expect(page.getByTestId('rf__node-panel-dr')).toBeVisible()
-  await find(page).press('Escape')
+  await page.keyboard.press('Escape')
   await expect(caption).toContainText('2 of 11')
   await expect(page.locator('.focus-chip')).toContainText('Building A')
+  await page.getByRole('button', { name: 'Clear focus' }).click()
+  await expect(caption).toContainText('11 of 11')
+
+  // Network filter: EDGE-17 and PANEL-A are Network A, hidden under Network B.
+  await page
+    .getByRole('combobox', { name: 'Show network' })
+    .selectOption({ label: 'Network B' })
+  await expect(caption).toContainText('5 of 11')
+  await chooseInExplore(page, 'EDGE-17')
+  await expect(caption).toContainText('7 of 11')
+  await expect(page.getByTestId('rf__node-edge-17')).toBeVisible()
+  await expect(page.getByTestId('rf__node-panel-a')).toBeVisible()
+  for (const [id, transform] of Object.entries(await layout(page)))
+    expect(transform).toBe(positions[id])
+  await page.getByRole('button', { name: 'Clear highlight' }).click()
+  await expect(caption).toContainText('5 of 11')
+  await expect(page.getByTestId('rf__node-edge-17')).toHaveCount(0)
 })

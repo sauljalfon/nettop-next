@@ -117,3 +117,12 @@ export function ResetLayout({ onReset }: { onReset: () => void }) {
     </span>
   )
 }
+
+/** Shown only while something is found; clears the amber highlight, never the trace. */
+export function ClearHighlight({ onClear }: { onClear: () => void }) {
+  return (
+    <button className="map-tool" aria-label="Clear highlight" onClick={onClear}>
+      Clear highlight
+    </button>
+  )
+}
