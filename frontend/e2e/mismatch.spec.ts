@@ -25,10 +25,10 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
   await page.goto(`/?plan=${plan.id}`)
   await fitted(page)
   await page.getByTestId('rf__node-edge-17').click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
-    .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
+    .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
 
   // The map overlay: the same three routes, and the mismatch listed apart.
   const overlay = page.getByLabel('Map trace results')
@@ -60,10 +60,10 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await page.getByTestId('rf__node-edge-17').click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
-    .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
+    .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(
     page.getByLabel('Map trace results').getByTestId('route-row'),
   ).toHaveCount(3)

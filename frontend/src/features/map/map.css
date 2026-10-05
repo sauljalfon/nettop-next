@@ -160,63 +160,10 @@
   color: #8390a4;
 }
 
-.map-card-actions {
-  margin-top: 8px;
-}
-
-.map-card-actions button {
-  font-size: 11px;
-  padding: 4px 8px;
-  border: 1px solid #c9bfe6;
-  border-radius: 5px;
-  background: #f4f1fb;
-  color: #5645b6;
-}
-
-.map-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 .map-facet small {
   margin-left: 6px;
   font-size: 9px;
   color: #6d7b90;
-}
-
-.map-connections {
-  width: 240px;
-  padding: 10px;
-  border: 1px solid #dce4ef;
-  border-radius: 10px;
-  background: white;
-  box-shadow: 0 10px 26px #31486826;
-}
-
-.map-connections input[type='text'],
-.map-connections input:not([type]) {
-  width: 100%;
-  font-size: 11px;
-  padding: 4px 6px;
-  border: 1px solid #dce4ef;
-  border-radius: 5px;
-}
-
-.map-connections ul {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-.map-connections label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  padding: 2px 0;
 }
 
 .map-tools {

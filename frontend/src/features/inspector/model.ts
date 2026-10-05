@@ -200,3 +200,26 @@ export function inspectorLocation(index: SnapshotIndex, equipmentId: string) {
  */
 export const canFindFromDevice = (equipment: Pick<Equipment, 'kind'>) =>
   equipment.kind === 'switch'
+
+/** Cabled ports or positions per circuit network, sorted by network ID; free units are not counted. */
+export function networkCounts(
+  groups: readonly InspectorGroup[],
+): { networkId: string; cabled: number }[] {
+  const counts = new Map<string, number>()
+  for (const g of groups)
+    for (const u of g.units)
+      if (u.cabled) counts.set(u.networkId, (counts.get(u.networkId) ?? 0) + 1)
+  return [...counts]
+    .map(([networkId, cabled]) => ({ networkId, cabled }))
+    .sort((a, b) => a.networkId.localeCompare(b.networkId))
+}
+
+/** A new set with the group collapsed, or expanded if it was collapsed. */
+export function toggleCollapsed(
+  collapsed: ReadonlySet<string>,
+  groupId: string,
+): Set<string> {
+  const next = new Set(collapsed)
+  if (!next.delete(groupId)) next.add(groupId)
+  return next
+}

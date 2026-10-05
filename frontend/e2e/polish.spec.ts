@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectMarks, fitted, highlightLocation, viewport } from './helpers'
+import {
+  expectMarks,
+  fitted,
+  highlightLocation,
+  pinFromInspector,
+  viewport,
+} from './helpers'
 
 /** Every card's transform, keyed by node ID. */
 const layout = (page: Page) =>
@@ -21,57 +27,57 @@ const zIndex = (page: Page, id: string) =>
 
 async function traceFromEdge17(page: Page) {
   await page.getByTestId('rf__node-edge-17').click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
-    .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
+    .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(rows(page)).toHaveCount(3)
 }
 
-test('POL-01 opening the connections popover neither resizes the card nor moves any card', async ({
+test('POL-19 cards have no connections popover, and pins and route facets still show on them', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await expect(cards(page)).toHaveCount(11)
-  const hdf = page.getByTestId('rf__node-hdf-01')
-  const box = await hdf.boundingBox()
+  await expect(
+    page.getByRole('button', { name: /Show connections/ }),
+  ).toHaveCount(0)
+  // A pin made in the inspector shows on the card, without resizing any other card.
   const positions = await layout(page)
-  const quiet = await zIndex(page, 'hdf-01')
-
-  await page.getByRole('button', { name: 'Show connections of HDF-01' }).click()
-  const popover = page.getByLabel('HDF-01 connections', { exact: true })
-  await expect(popover).toBeVisible()
-  await expect(popover.locator('li')).toHaveCount(4)
-
-  // Same card size and position; no other card moved.
-  expect(await hdf.boundingBox()).toEqual(box)
-  expect(await layout(page)).toEqual(positions)
-  // The popover floats beside the card, outside it, and below it.
-  await expect(hdf.getByLabel('HDF-01 connections')).toHaveCount(0)
-  const pop = await popover.boundingBox()
-  expect(pop!.y).toBeGreaterThanOrEqual(box!.y + box!.height - 1)
-  // The card is raised above every neighbor while it is open.
-  const raised = await zIndex(page, 'hdf-01')
-  expect(raised).toBeGreaterThan(quiet)
-  for (const id of ['edge-17', 'panel-a', 'hdf-02', 'agg-03'])
-    expect(await zIndex(page, id)).toBeLessThan(raised)
-
-  // Searching and pinning inside it still changes nothing about size or place.
-  await page.getByLabel('Search HDF-01 connections').fill('1A/2')
-  await popover.getByRole('checkbox').first().check()
+  await pinFromInspector(page, 'hdf-01', '2D/4')
   await expect(
     page.getByLabel('HDF-01 shown connections').locator('.map-facet-label'),
-  ).toHaveText(['1A / 2'])
-  const after = await layout(page)
-  for (const [id, transform] of Object.entries(positions))
-    expect(after[id]).toBe(transform)
-  // A card that carries a facet stays above ordinary cards after the popover closes.
-  await page.getByRole('button', { name: 'Show connections of HDF-01' }).click()
-  await expect(popover).toHaveCount(0)
+  ).toHaveText(['2D / 4'])
+  await expect(
+    page.getByLabel('HDF-01 shown connections').getByRole('button'),
+  ).toHaveAttribute('data-source', 'manual')
+  expect(await layout(page)).toEqual(positions)
+  // A route facet shows beside it.
+  await traceFromEdge17(page)
+  await expect(
+    page.getByLabel('HDF-01 shown connections').locator('.map-facet-label'),
+  ).toHaveText(['2D / 4', '3C / 5'])
+  // A card carrying facets stays above ordinary cards.
   expect(await zIndex(page, 'hdf-01')).toBeGreaterThan(
     await zIndex(page, 'edge-22'),
   )
+})
+
+test('a selected card keeps its size and does not cover the card below it', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  const upper = page.getByTestId('rf__node-edge-17')
+  const lower = page.getByTestId('rf__node-edge-22')
+  const before = await upper.boundingBox()
+  await upper.click()
+  await expect(upper.locator('.equipment-card')).toHaveClass(/selected/)
+  const after = await upper.boundingBox()
+  const below = await lower.boundingBox()
+  expect(after!.height).toBe(before!.height)
+  expect(after!.y + after!.height).toBeLessThanOrEqual(below!.y)
 })
 
 test('POL-02 every overlay button stays clickable with each drawer open', async ({
@@ -131,14 +137,7 @@ test('POL-03 reset recomputes the first layout and keeps pins, highlight, filter
     .getByRole('combobox', { name: 'Show network' })
     .selectOption({ label: 'Network A' })
   await expect(cards(page)).toHaveCount(8)
-  await page.getByRole('button', { name: 'Show connections of HDF-01' }).click()
-  await page.getByLabel('Search HDF-01 connections').fill('1A/2')
-  await page
-    .getByLabel('HDF-01 connections')
-    .getByRole('checkbox')
-    .first()
-    .check()
-  await page.getByRole('button', { name: 'Show connections of HDF-01' }).click()
+  await pinFromInspector(page, 'hdf-01', '1A/2')
   await highlightLocation(page, 'Building A')
   await expectMarks(page, { highlightCards: ['edge-17', 'panel-a'] })
   await page.getByRole('button', { name: 'Open explorer', exact: true }).click() // close Explore

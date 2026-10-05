@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { stackIndex } from './stacking'
 
-const base = { selected: false, popoverOpen: false, facets: 0 }
+const base = { selected: false, facets: 0 }
 
-describe('POL-01 cards that grow or are in use are raised above their neighbors', () => {
+describe('POL-19 cards that are selected or carry facets are raised above their neighbors', () => {
   it('leaves an ordinary card at the bottom of the stack', () => {
     expect(stackIndex(base)).toBe(0)
   })
@@ -18,15 +18,9 @@ describe('POL-01 cards that grow or are in use are raised above their neighbors'
     )
   })
 
-  it('raises a card with its popover open above a selected one', () => {
-    expect(stackIndex({ ...base, popoverOpen: true })).toBeGreaterThan(
-      stackIndex({ ...base, selected: true }),
-    )
-  })
-
   it('uses the highest applicable level, never the sum', () => {
-    expect(stackIndex({ selected: true, popoverOpen: true, facets: 3 })).toBe(
-      stackIndex({ ...base, popoverOpen: true }),
+    expect(stackIndex({ selected: true, facets: 3 })).toBe(
+      stackIndex({ ...base, selected: true }),
     )
   })
 })

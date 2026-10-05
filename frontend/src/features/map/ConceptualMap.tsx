@@ -16,7 +16,6 @@ import {
   getBezierPath,
   EdgeLabelRenderer,
   Handle,
-  NodeToolbar,
   Panel,
   Position,
   ReactFlow,
@@ -33,12 +32,6 @@ import {
 import { GitFork, Network, PanelTop, Plus } from 'lucide-react'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Route, Snapshot } from '../../shared/types'
-import {
-  connectionCaption,
-  connectionEntries,
-  searchConnections,
-  type ConnectionEntry,
-} from './connections'
 import { facetStart } from './facets'
 import { projectMap, type MapCardData, type MapFlowEdge } from './mapGraph'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
@@ -57,90 +50,19 @@ type MapNode = CardNode | PreviewNode
 
 const Actions = createContext<{
   onPort: (id: string) => void
-  onTraceDevice: (id: string) => void
-  onToggleManual: (equipmentId: string, key: string) => void
   /** Splits a pair's parallel cables into separate lines, or joins them again. */
   onToggleSplit: (pairKey: string) => void
-  /** Cards whose connections popover is open. */
-  openLists: ReadonlySet<string>
-  onToggleList: (equipmentId: string) => void
-  /** Cabled ports or positions of an equipment; computed when a list opens. */
-  entriesOf: (equipmentId: string) => ConnectionEntry[]
-  /** Network label for an entry on another network than the active filter. */
-  captionOf: (entry: ConnectionEntry) => string | undefined
 }>({
   onPort: () => undefined,
-  onTraceDevice: () => undefined,
-  onToggleManual: () => undefined,
   onToggleSplit: () => undefined,
-  openLists: new Set(),
-  onToggleList: () => undefined,
-  entriesOf: () => [],
-  captionOf: () => undefined,
 })
-
-function Connections({
-  equipmentId,
-  name,
-  manualKeys,
-}: {
-  equipmentId: string
-  name: string
-  manualKeys: readonly string[]
-}) {
-  const { entriesOf, captionOf, onToggleManual } = useContext(Actions)
-  const [query, setQuery] = useState('')
-  const entries = useMemo(
-    () => entriesOf(equipmentId),
-    [entriesOf, equipmentId],
-  )
-  const shown = searchConnections(entries, query)
-  return (
-    <div
-      className="map-connections nodrag nowheel"
-      // The popover is a React child of its card: keep its clicks from selecting it.
-      onClick={(event) => event.stopPropagation()}
-    >
-      <input
-        aria-label={`Search ${name} connections`}
-        placeholder="Search, e.g. 3C/5"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      <ul aria-label={`${name} connections`}>
-        {shown.map((entry) => {
-          const caption = captionOf(entry)
-          return (
-            <li key={entry.key}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={manualKeys.includes(entry.key)}
-                  onChange={() => onToggleManual(equipmentId, entry.key)}
-                />
-                <span>{entry.label}</span>
-                {caption && <small className="badge">{caption}</small>}
-              </label>
-            </li>
-          )
-        })}
-      </ul>
-      {!shown.length && (
-        <p className="muted">
-          {entries.length ? 'No match.' : 'Nothing is cabled yet.'}
-        </p>
-      )}
-    </div>
-  )
-}
 
 const EquipmentCard = memo(function EquipmentCard({
   id,
   data,
   selected,
 }: NodeProps<CardNode>) {
-  const { onPort, onTraceDevice, openLists, onToggleList } = useContext(Actions)
-  const listOpen = openLists.has(id)
+  const { onPort } = useContext(Actions)
   // A route change can swap facets without changing the card's size, so the
   // size observer never fires; tell React Flow to re-read this card's handles.
   const updateNodeInternals = useUpdateNodeInternals()
@@ -187,44 +109,6 @@ const EquipmentCard = memo(function EquipmentCard({
           ))}
         </p>
       )}
-      <div className="map-card-actions">
-        <button
-          className="nodrag"
-          aria-expanded={listOpen}
-          aria-label={`Show connections of ${e.name}`}
-          onClick={(event) => {
-            event.stopPropagation()
-            onToggleList(id)
-          }}
-        >
-          Show connections
-        </button>
-        {selected && e.kind === 'switch' && (
-          <button
-            className="nodrag"
-            aria-label={`Find AGG / BB from all ports of ${e.name}`}
-            onClick={(event) => {
-              event.stopPropagation()
-              onTraceDevice(e.id)
-            }}
-          >
-            Find AGG / BB
-          </button>
-        )}
-      </div>
-      {/* A floating popover: it never changes the card's size. */}
-      <NodeToolbar
-        isVisible={listOpen}
-        position={Position.Bottom}
-        align="start"
-        offset={6}
-      >
-        <Connections
-          equipmentId={e.id}
-          name={e.name}
-          manualKeys={data.manualKeys}
-        />
-      </NodeToolbar>
       {data.facets.length > 0 && (
         <ul className="map-facets" aria-label={`${e.name} shown connections`}>
           {data.facets.map((f) => (
@@ -456,8 +340,6 @@ interface Props {
   onSelect: (id: string) => void
   /** Find AGG / BB from one exact port or position endpoint. */
   onPort: (id: string) => void
-  /** Find AGG / BB from every port of an active device. */
-  onTraceDevice: (id: string) => void
   canEdit: boolean
   onCreateEquipment: (
     kind: 'switch' | 'panel',
@@ -520,7 +402,6 @@ function Canvas({
   networkId,
   onSelect,
   onPort,
-  onTraceDevice,
   canEdit,
   onCreateEquipment,
   preview,
@@ -617,16 +498,6 @@ function Canvas({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [highlight, session])
-  const [openLists, setOpenLists] = useState<ReadonlySet<string>>(new Set())
-  const toggleList = useCallback(
-    (id: string) =>
-      setOpenLists((previous) => {
-        const next = new Set(previous)
-        if (!next.delete(id)) next.add(id)
-        return next
-      }),
-    [],
-  )
   const onNodesChange = useCallback(
     (changes: NodeChange<MapNode>[]) =>
       setNodes((previous) => applyNodeChanges(changes, previous)),
@@ -640,7 +511,6 @@ function Canvas({
         n.type === 'equipment'
           ? stackIndex({
               selected: n.id === selected,
-              popoverOpen: openLists.has(n.id),
               facets: n.data.facets.length,
             })
           : undefined,
@@ -661,36 +531,10 @@ function Canvas({
         },
       })
     return cards
-  }, [nodes, selected, openLists, preview, onConfigurePreview])
-  const entriesOf = useCallback(
-    (id: string) => connectionEntries(index, id),
-    [index],
-  )
-  const captionOf = useCallback(
-    (entry: ConnectionEntry) =>
-      connectionCaption(entry, networkId, snapshot.networks),
-    [networkId, snapshot.networks],
-  )
+  }, [nodes, selected, preview, onConfigurePreview])
   const actions = useMemo(
-    () => ({
-      onPort,
-      onTraceDevice,
-      onToggleManual: session.toggleManual,
-      onToggleSplit: session.toggleSplit,
-      openLists,
-      onToggleList: toggleList,
-      entriesOf,
-      captionOf,
-    }),
-    [
-      onPort,
-      onTraceDevice,
-      session,
-      openLists,
-      toggleList,
-      entriesOf,
-      captionOf,
-    ],
+    () => ({ onPort, onToggleSplit: session.toggleSplit }),
+    [onPort, session],
   )
 
   return (

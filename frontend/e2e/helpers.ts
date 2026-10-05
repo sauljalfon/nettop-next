@@ -186,3 +186,24 @@ export async function highlightLocation(page: Page, name: string) {
     .getByRole('button', { name: `Highlight ${name} on the map` })
     .click()
 }
+
+/** Select a card (which opens the inspector) and show its Ports or Positions tab. */
+export async function openPorts(page: Page, card: string) {
+  await page.getByTestId(`rf__node-${card.toLowerCase()}`).click()
+  await page.getByRole('tab', { name: /^(Ports|Positions)$/ }).click()
+}
+
+/** Pin the first position matching the query from the inspector, then close it. */
+export async function pinFromInspector(
+  page: Page,
+  card: string,
+  query: string,
+) {
+  await openPorts(page, card)
+  await page.getByLabel('Search endpoints').fill(query)
+  await page
+    .getByRole('button', { name: /^Pin on map: / })
+    .first()
+    .click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
+}

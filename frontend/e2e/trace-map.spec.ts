@@ -19,10 +19,10 @@ const rows = (page: Page) =>
 
 async function traceFromEdge17(page: Page) {
   await page.getByTestId('rf__node-edge-17').click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
-    .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
+    .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(rows(page)).toHaveCount(3)
 }
 
@@ -120,10 +120,10 @@ test('C06 a route through several positions of one HDF shows each under the same
   await page.goto(`/?plan=${plan.id}`)
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(12)
   await page.getByTestId('rf__node-edge-17').click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
-    .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
+    .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await rows(page).filter({ hasText: 'AGG-15' }).click()
   const hdfX = page.locator('.react-flow__node-equipment', { hasText: 'HDF-X' })
   await expect(hdfX.getByRole('heading', { name: 'HDF-X' })).toBeVisible()

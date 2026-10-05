@@ -80,7 +80,7 @@ test('panels overlay the full-page map and dragging does not render the shell', 
   await expect(page.locator('.tree-equipment')).toHaveCount(1)
   await page.locator('.tree-equipment').click()
   // Choosing equipment in Explore opens the inspector on it, with no highlight.
-  await expect(page.locator('.inspector-hero h2')).toHaveText('AGG-12')
+  await expect(page.locator('.inspector-header h2')).toHaveText('AGG-12')
   await expect(page.locator('.location-breadcrumb')).toContainText(
     'DR Site / DR Distribution / Rack DR02 / AGG-12',
   )
@@ -89,7 +89,7 @@ test('panels overlay the full-page map and dragging does not render the shell', 
   // Explore centered AGG-12, so it is the card in view.
   const item = page.getByTestId('rf__node-agg-12')
   await item.click()
-  await expect(page.locator('.inspector-hero h2')).toHaveText('AGG-12')
+  await expect(page.locator('.inspector-header h2')).toHaveText('AGG-12')
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page.evaluate(() => {
     ;(window as unknown as { shellMutations: number }).shellMutations = 0

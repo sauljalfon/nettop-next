@@ -1,0 +1,262 @@
+import { ChevronDown, ChevronRight, GitFork, Pin, PinOff } from 'lucide-react'
+import { useState } from 'react'
+import {
+  defaultFilter,
+  filterGroups,
+  toggleCollapsed,
+  unitCount,
+  type EndpointFilter,
+  type InspectorGroup,
+  type InspectorUnit,
+} from './model'
+
+interface Props {
+  equipmentName: string
+  groups: InspectorGroup[]
+  /** Display name of a network ID. */
+  networkName: (id: string) => string
+  /** Facet keys pinned on the map. */
+  pinned: ReadonlySet<string>
+  onFindFromHere: (endpointId: string) => void
+  onPin: (key: string) => void
+}
+
+const FILTERS: { mode: EndpointFilter; label: string }[] = [
+  { mode: 'cabled', label: 'Cabled' },
+  { mode: 'free', label: 'Free' },
+  { mode: 'all', label: 'All' },
+]
+
+const COLUMNS = 5
+
+/**
+ * The ports or positions of one equipment as a compact table: label, far end,
+ * cable and network per row (a position shows front and rear as two lines in
+ * its row), with the Cabled / Free / All filter and the search above it.
+ */
+export default function PortTable({
+  equipmentName,
+  groups,
+  networkName,
+  pinned,
+  onFindFromHere,
+  onPin,
+}: Props) {
+  const total = unitCount(groups)
+  const [mode, setMode] = useState<EndpointFilter>(() => defaultFilter(total))
+  const [query, setQuery] = useState('')
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
+  const [selected, setSelected] = useState<string>()
+  const shown = filterGroups(groups, { mode, query })
+  const ports = groups[0]?.id === 'ports'
+  const grouped = groups.some((g) => /^\d/.test(g.id)) // HDF subpanels
+  return (
+    <div className="port-list">
+      <div className="port-controls">
+        <div className="segmented" role="group" aria-label="Show endpoints">
+          {FILTERS.map((f) => (
+            <button
+              key={f.mode}
+              aria-pressed={mode === f.mode}
+              className={mode === f.mode ? 'active' : ''}
+              onClick={() => setMode(f.mode)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <input
+          aria-label="Search endpoints"
+          placeholder="Search, e.g. 3C/5"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+      <p className="port-count">
+        {shown.reduce((n, g) => n + g.units.length, 0)} of {total}{' '}
+        {ports ? 'ports' : 'positions'}
+      </p>
+      {shown.length > 0 ? (
+        <table className="port-table">
+          <thead>
+            <tr>
+              <th scope="col">{ports ? 'Port' : 'Position'}</th>
+              <th scope="col">Far end</th>
+              <th scope="col">Cable</th>
+              <th scope="col">Network</th>
+              <th scope="col" aria-label="" />
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((group) => {
+              const open = !grouped || !collapsed.has(group.id)
+              return (
+                <GroupRows
+                  key={group.id}
+                  group={group}
+                  grouped={grouped}
+                  open={open}
+                  onToggle={() =>
+                    setCollapsed((c) => toggleCollapsed(c, group.id))
+                  }
+                >
+                  {group.units.map((unit) => (
+                    <Row
+                      key={unit.key}
+                      unit={unit}
+                      equipmentName={equipmentName}
+                      networkName={networkName}
+                      pinned={pinned.has(unit.key)}
+                      selected={selected === unit.key}
+                      onSelect={() => setSelected(unit.key)}
+                      onFindFromHere={onFindFromHere}
+                      onPin={onPin}
+                    />
+                  ))}
+                </GroupRows>
+              )
+            })}
+          </tbody>
+        </table>
+      ) : (
+        <p className="muted">Nothing matches.</p>
+      )}
+    </div>
+  )
+}
+
+function GroupRows({
+  group,
+  grouped,
+  open,
+  onToggle,
+  children,
+}: {
+  group: InspectorGroup
+  grouped: boolean
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <>
+      {grouped && (
+        <tr className="port-group" data-group={group.id}>
+          <td colSpan={COLUMNS}>
+            <button aria-expanded={open} onClick={onToggle}>
+              {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              {group.title} <small>{group.units.length}</small>
+            </button>
+          </td>
+        </tr>
+      )}
+      {open && children}
+    </>
+  )
+}
+
+function Row({
+  unit,
+  equipmentName,
+  networkName,
+  pinned,
+  selected,
+  onSelect,
+  onFindFromHere,
+  onPin,
+}: {
+  unit: InspectorUnit
+  equipmentName: string
+  networkName: (id: string) => string
+  pinned: boolean
+  selected: boolean
+  onSelect: () => void
+  onFindFromHere: (endpointId: string) => void
+  onPin: (key: string) => void
+}) {
+  const name = `${equipmentName} ${unit.label}`
+  const pinLabel = pinned ? 'Unpin on map' : 'Pin on map'
+  return (
+    <tr
+      className={`port-row ${unit.cabled ? 'cabled' : 'free'} ${selected ? 'selected' : ''}`}
+      data-testid="inspector-unit"
+      data-unit={unit.key}
+      data-selected={selected}
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && event.key === 'Enter')
+          onSelect()
+      }}
+    >
+      <th scope="row" className="col-label">
+        {unit.label}
+      </th>
+      <td className="col-far">
+        {unit.sides.map((side) => (
+          <div
+            key={side.endpointId}
+            data-side={side.side}
+            title={
+              side.cable ? `${side.side} → ${side.cable.farLabel}` : undefined
+            }
+          >
+            {side.side !== 'port' && (
+              <abbr className="side-name" title={side.side}>
+                {side.side === 'front' ? 'F' : 'R'}
+              </abbr>
+            )}
+            {side.cable ? (
+              `→ ${side.cable.farLabel}`
+            ) : (
+              <span className="free-side">free</span>
+            )}
+          </div>
+        ))}
+      </td>
+      <td className="col-cable">
+        {unit.sides.map((side) => (
+          <div key={side.endpointId} data-side={side.side}>
+            {side.cable?.linkId}
+          </div>
+        ))}
+      </td>
+      <td className="col-network">
+        {unit.sides.map((side) => (
+          <div key={side.endpointId} data-side={side.side}>
+            {side.cable?.networkId && (
+              <span className="badge" data-network={side.cable.networkId}>
+                {networkName(side.cable.networkId)}
+              </span>
+            )}
+          </div>
+        ))}
+      </td>
+      <td className="col-actions">
+        <button
+          className="row-action"
+          title="Find AGG / BB from here"
+          aria-label={`Find AGG / BB from here: ${name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            onFindFromHere(unit.startEndpointId)
+          }}
+        >
+          <GitFork size={14} />
+        </button>
+        <button
+          className={`row-action ${pinned ? 'active' : ''}`}
+          title={pinLabel}
+          aria-label={`${pinLabel}: ${name}`}
+          aria-pressed={pinned}
+          onClick={(event) => {
+            event.stopPropagation()
+            onPin(unit.key)
+          }}
+        >
+          {pinned ? <PinOff size={14} /> : <Pin size={14} />}
+        </button>
+      </td>
+    </tr>
+  )
+}

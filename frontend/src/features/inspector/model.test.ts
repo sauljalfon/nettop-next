@@ -8,6 +8,8 @@ import {
   inspectorGroups,
   inspectorHeader,
   inspectorLocation,
+  networkCounts,
+  toggleCollapsed,
   unitCount,
 } from './model'
 
@@ -232,5 +234,31 @@ describe('whole-device Find AGG / BB is for switches only', () => {
   it('is not offered for a panel or an HDF: the backend rejects it', () => {
     expect(canFindFromDevice(byId('PANEL-A'))).toBe(false)
     expect(canFindFromDevice(byId('HDF-01'))).toBe(false)
+  })
+})
+
+describe('POL-20 overview counts and collapsed groups', () => {
+  it("counts a switch's cabled ports on its own network", () => {
+    expect(networkCounts(groups('EDGE-17'))).toEqual([
+      { networkId: 'A', cabled: 3 },
+    ])
+  })
+
+  it('counts the cabled positions of a shared HDF per circuit network, in network order', () => {
+    const counts = networkCounts(groups('HDF-01'))
+    expect(counts.map((c) => c.networkId)).toEqual(['A', 'B'])
+    expect(counts.reduce((n, c) => n + c.cabled, 0)).toBe(4)
+  })
+
+  it('leaves out free units and reports nothing for unused equipment', () => {
+    expect(networkCounts(groups('AGG-15'))).toEqual([])
+  })
+
+  it('collapses and expands a group without mutating the set', () => {
+    const none: ReadonlySet<string> = new Set()
+    const one = toggleCollapsed(none, '1A')
+    expect(one.has('1A')).toBe(true)
+    expect(none.size).toBe(0)
+    expect(toggleCollapsed(one, '1A').has('1A')).toBe(false)
   })
 })

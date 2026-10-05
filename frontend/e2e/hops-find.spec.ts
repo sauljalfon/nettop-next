@@ -15,10 +15,10 @@ const scaleOf = (style: string | null) =>
 
 async function traceFromEdge17(page: Page) {
   await page.getByTestId('rf__node-edge-17').click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
-    .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
+    .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(rows(page)).toHaveCount(3)
 }
 
@@ -105,7 +105,7 @@ test('POL-05 clicking a hop selects its equipment and centers without changing z
     .getByTestId('map-hop-row')
     .filter({ hasText: 'HDF-02 · 2B/3 front' })
     .click()
-  await expect(page.locator('.inspector-hero h2')).toHaveText('HDF-02')
+  await expect(page.locator('.inspector-header h2')).toHaveText('HDF-02')
   await expectCenteredInVisibleArea(page, 'hdf-02')
   const after = await settledViewport(page)
   expect(scaleOf(after)).toBeCloseTo(scaleOf(before), 3)

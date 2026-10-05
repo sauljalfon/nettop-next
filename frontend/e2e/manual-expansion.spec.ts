@@ -1,22 +1,17 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, viewport, expectMarks } from './helpers'
+import {
+  fitted,
+  openPorts,
+  pinFromInspector,
+  viewport,
+  expectMarks,
+} from './helpers'
 
 const facets = (page: Page, name: string) =>
   page.getByLabel(`${name} shown connections`).locator('li')
 const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
-const showConnections = (page: Page, name: string) =>
-  page.getByRole('button', { name: `Show connections of ${name}` })
-
-async function pin(page: Page, equipment: string, query: string) {
-  await showConnections(page, equipment).click()
-  await page.getByLabel(`Search ${equipment} connections`).fill(query)
-  await page
-    .getByLabel(`${equipment} connections`)
-    .getByRole('checkbox')
-    .first()
-    .check()
-}
+const pin = pinFromInspector
 
 test('C03 HDF overview shows one card with parent, location, capacity and network badges', async ({
   page,
@@ -33,26 +28,11 @@ test('C03 HDF overview shows one card with parent, location, capacity and networ
   await expect(page.locator('.react-flow__node')).toHaveCount(11)
   await expect(page.locator('.map-facets')).toHaveCount(0)
 
-  // The list offers only cabled positions, never all 96.
-  await showConnections(page, 'HDF-01').click()
-  const entries = page.getByLabel('HDF-01 connections').locator('li')
-  await expect(entries).toHaveText(['1A / 2', '2D / 4', '3C / 2', '3C / 5'])
-  const search = page.getByLabel('Search HDF-01 connections')
-  await search.fill('3C/5')
-  await expect(entries).toHaveText(['3C / 5'])
-  await search.fill('3C / 5')
-  await expect(entries).toHaveText(['3C / 5'])
-  await search.fill('')
-
-  // With Network A active, the other network's circuit is labeled.
-  await page
-    .getByRole('combobox', { name: 'Show network' })
-    .selectOption({ label: 'Network A' })
-  await expect(entries.filter({ hasText: '3C / 2' })).toContainText('Network B')
-  await expect(entries.filter({ hasText: '3C / 5' })).not.toContainText(
-    'Network',
-  )
-  await expect(page.locator('.map-facets')).toHaveCount(0) // listing is not expanding
+  // Pins are made in the inspector only: the card has no connections list.
+  await expect(
+    page.getByRole('button', { name: /Show connections/ }),
+  ).toHaveCount(0)
+  await expect(page.locator('.map-facets')).toHaveCount(0)
 })
 
 test('C05 a manual position stays while automatic facets follow the route', async ({
@@ -65,11 +45,11 @@ test('C05 a manual position stays while automatic facets follow the route', asyn
   await expect(facets(page, 'HDF-01')).toHaveText([/1A \/ 2.*pinned/])
 
   await page.getByTestId('rf__node-edge-17').click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   const port = await viewport(page)
   await page
-    .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
+    .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(rows(page)).toHaveCount(3)
 
   // AGG-03: automatic 3C/5 next to the manual 1A/2.
@@ -106,12 +86,8 @@ test('C05 a manual position stays while automatic facets follow the route', asyn
   await expect(facets(page, 'HDF-01')).toHaveText([/1A \/ 2.*pinned/])
 
   // Unchecking removes it.
-  await showConnections(page, 'HDF-01').click()
-  await page
-    .getByLabel('HDF-01 connections')
-    .getByRole('checkbox')
-    .first()
-    .uncheck()
+  await openPorts(page, 'hdf-01')
+  await page.getByRole('button', { name: /^Unpin on map: HDF-01/ }).click()
   await expect(page.getByLabel('HDF-01 shown connections')).toHaveCount(0)
 })
 

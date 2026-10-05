@@ -31,10 +31,10 @@ const BUILDING_A = {
 
 async function traceFromEdge17(page: Page) {
   await page.getByTestId('rf__node-edge-17').click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page
-    .getByRole('button', { name: 'Find AGG / BB from all ports of EDGE-17' })
+    .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(rows(page)).toHaveCount(3)
 }
 
@@ -165,7 +165,7 @@ test('POL-15 equipment in Explore is selected, opens the inspector and is center
   await openExplore(page)
   await page.locator('.tree-equipment').filter({ hasText: 'AGG-08' }).click()
 
-  await expect(page.locator('.inspector-hero h2')).toHaveText('AGG-08')
+  await expect(page.locator('.inspector-header h2')).toHaveText('AGG-08')
   await expect(
     page.getByTestId('rf__node-agg-08').locator('.equipment-card'),
   ).toHaveClass(/selected/)
@@ -184,7 +184,7 @@ test('POL-15 equipment in Explore is selected, opens the inspector and is center
   const search = page.getByLabel('Find equipment')
   await search.fill('bb')
   await search.press('Enter')
-  await expect(page.locator('.inspector-hero h2')).toHaveText('BB-01')
+  await expect(page.locator('.inspector-header h2')).toHaveText('BB-01')
   await expectCenteredInVisibleArea(page, 'bb-01')
   await expectMarks(page, { highlightCards: [], dimmedCards: [] })
 
@@ -194,7 +194,7 @@ test('POL-15 equipment in Explore is selected, opens the inspector and is center
   await openExplore(page)
   await page.locator('.tree-equipment').filter({ hasText: 'EDGE-22' }).click()
   await expect(page.locator('.flow-surface')).toBeVisible()
-  await expect(page.locator('.inspector-hero h2')).toHaveText('EDGE-22')
+  await expect(page.locator('.inspector-header h2')).toHaveText('EDGE-22')
   await expectCenteredInVisibleArea(page, 'edge-22')
   await expectMarks(page, { highlightCards: [] })
 })

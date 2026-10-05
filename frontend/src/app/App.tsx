@@ -537,15 +537,6 @@ function Workspace({
     },
     [snapshot.endpoints, traceMutation.mutate],
   )
-  const traceFromDevice = useCallback(
-    (id: string) => {
-      setSelected(id)
-      setMode('distribution')
-      setStart(`device:${id}`)
-      traceMutation.mutate({ mode: 'distribution', device: id })
-    },
-    [traceMutation.mutate],
-  )
   // Choosing a site or node (in Explore, or from the inspector's location links):
   // highlight its equipment and cables on the map, and fit the view to them once.
   const highlightLocation = useCallback(
@@ -692,7 +683,6 @@ function Workspace({
           networkId={networkId}
           onSelect={select}
           onPort={traceFromPort}
-          onTraceDevice={traceFromDevice}
           canEdit={canEdit}
           onCreateEquipment={onCreateEquipment}
           preview={pending}
