@@ -27,7 +27,7 @@ From the repository root:
 
 ```sh
 docker compose up -d --wait
-export DATABASE_URL='postgres://nettop:nettop-local@127.0.0.1:55432/nettop?sslmode=disable'
+cp .env.example .env    # once; DATABASE_URL and TEST_DATABASE_URL
 ```
 
 From `backend/`:
@@ -38,7 +38,7 @@ go run ./cmd/db seed
 go run ./cmd/api
 ```
 
-**Run `seed` only on an empty development database.** It refuses to overwrite existing data. An initialized database only needs applicable explicit migrations and the API start. Go does not automatically load `.env`; export the variables deliberately. The example password belongs to local Compose development, not production credentials.
+**Run `seed` only on an empty development database.** It refuses to overwrite existing data. An initialized database only needs applicable explicit migrations and the API start. The Go commands, Go database tests, and Playwright read `.env` at the repository root (a variable already set in the environment wins); keep `.env` out of commits. The example password belongs to local Compose development, not production credentials.
 
 From `frontend/`, in another terminal:
 
@@ -56,8 +56,7 @@ Do not reset Docker volumes, overwrite recorded inventory, or reseed real data a
 With Compose healthy, from `backend/`:
 
 ```sh
-export TEST_DATABASE_URL='postgres://nettop:nettop-local@127.0.0.1:55432/nettop?sslmode=disable'
-go test -race ./...
+go test -race ./...     # TEST_DATABASE_URL comes from .env
 go vet ./...
 ```
 

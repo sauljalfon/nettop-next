@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"nettop.local/backend/internal/dotenv"
 	"nettop.local/backend/internal/httpapi"
 	"nettop.local/backend/internal/persistence"
 	"os"
@@ -14,6 +15,10 @@ import (
 )
 
 func main() {
+	if _, err := dotenv.Load(); err != nil {
+		slog.Error("reading .env failed", "error", err)
+		os.Exit(1)
+	}
 	addr := os.Getenv("HTTP_ADDR")
 	if addr == "" {
 		addr = "127.0.0.1:8080"

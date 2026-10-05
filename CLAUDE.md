@@ -8,12 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Local Postgres (from repo root): `docker compose up -d --wait` (port 55432). Go does not load `.env`; export variables yourself:
-
-```sh
-export DATABASE_URL='postgres://nettop:nettop-local@127.0.0.1:55432/nettop?sslmode=disable'
-export TEST_DATABASE_URL="$DATABASE_URL"
-```
+Local Postgres (from repo root): `docker compose up -d --wait` (port 55432). Settings live in a gitignored `.env` at the repo root: create it once with `cp .env.example .env`. The Go commands (`cmd/api`, `cmd/db`, `cmd/testserver`), the Go database tests (through `internal/dotenv`), and Playwright load it automatically; a variable already set in the environment wins. Don't `export` the variables; put new settings in `.env` and document them in `.env.example`.
 
 Backend (`backend/`):
 

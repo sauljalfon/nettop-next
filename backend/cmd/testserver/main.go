@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"nettop.local/backend/internal/acceptance"
+	"nettop.local/backend/internal/dotenv"
 	"nettop.local/backend/internal/httpapi"
 	"nettop.local/backend/internal/persistence"
 	"nettop.local/backend/internal/planning"
@@ -29,6 +30,9 @@ func main() {
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if _, err := dotenv.Load(); err != nil {
+		return err
+	}
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
 		return fmt.Errorf("TEST_DATABASE_URL is required")

@@ -45,7 +45,7 @@ From the repository root:
 
 ```sh
 docker compose up -d --wait
-export DATABASE_URL='postgres://nettop:nettop-local@127.0.0.1:55432/nettop?sslmode=disable'
+cp .env.example .env    # once; holds DATABASE_URL and TEST_DATABASE_URL
 cd backend
 go run ./cmd/db migrate
 go run ./cmd/db seed
@@ -78,7 +78,7 @@ npm run dev
 
 Open **http://127.0.0.1:5174**. Vite proxies `/api` to Go at `127.0.0.1:8080`.
 
-On later starts, bring up Compose, export `DATABASE_URL`, and run the API/frontend. Apply explicit new migrations when needed; do not reseed existing data. Startup never migrates, reseeds, or falls back to in-memory storage. `.env.example` documents the variable; Go does not automatically load `.env`.
+On later starts, bring up Compose and run the API/frontend (the `.env` is read automatically). Apply explicit new migrations when needed; do not reseed existing data. Startup never migrates, reseeds, or falls back to in-memory storage. `.env.example` documents the variables; the Go commands, Go database tests, and Playwright load `.env` from the repository root, and a variable already set in the environment wins.
 
 If port 8080 is occupied, change `HTTP_ADDR` for Go and `API_PROXY_TARGET` for Vite together. Authentication is not implemented yet; the default servers bind to loopback for local development.
 
@@ -104,12 +104,11 @@ HDFs appear as one compact card each. `add_hdf` is available through the API: se
 With Compose running, from `backend/`:
 
 ```sh
-export TEST_DATABASE_URL='postgres://nettop:nettop-local@127.0.0.1:55432/nettop?sslmode=disable'
-go test -race ./...
+go test -race ./...     # TEST_DATABASE_URL comes from .env
 go vet ./...
 ```
 
-PostgreSQL integration tests create unique schemas and clean them afterward. They do not reset development inventory. Without `TEST_DATABASE_URL`, database-specific tests explicitly skip.
+PostgreSQL integration tests create unique schemas and clean them afterward. They do not reset development inventory. Without `TEST_DATABASE_URL` (in `.env` or the environment), database-specific tests explicitly skip.
 
 From `frontend/`:
 

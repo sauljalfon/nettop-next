@@ -1,4 +1,11 @@
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from '@playwright/test'
+
+// The repository's .env (see .env.example) supplies TEST_DATABASE_URL; a variable
+// already set in the environment is kept.
+const dotenv = fileURLToPath(new URL('../.env', import.meta.url))
+if (existsSync(dotenv)) process.loadEnvFile(dotenv)
 
 export default defineConfig({
   testDir: './e2e',
