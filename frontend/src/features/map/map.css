@@ -186,7 +186,12 @@
 }
 
 .map-connections {
-  margin-top: 8px;
+  width: 240px;
+  padding: 10px;
+  border: 1px solid #dce4ef;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 10px 26px #31486826;
 }
 
 .map-connections input[type='text'],
@@ -214,49 +219,31 @@
   padding: 2px 0;
 }
 
-/* A card with its connections list open grows over its neighbors: bring it forward. */
-.react-flow__node-equipment:has(.map-connections) {
-  z-index: 60 !important;
+.map-tools {
+  margin: 0;
+  top: 12px;
+  right: 22px;
 }
 
-.map-card .map-focus {
-  display: inline-grid;
-  place-items: center;
-  margin-left: 6px;
-  vertical-align: middle;
-  padding: 2px;
-  border: 1px solid #dce4ef;
-  border-radius: 4px;
-  background: white;
-  color: #6d7b90;
+.map-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 7px 12px;
+  border: 1px solid #dfe4ee;
+  border-radius: 8px;
+  background: #f9fbfd;
+  color: #4d5b70;
   cursor: pointer;
 }
 
-.boundary-card {
-  width: 220px;
-  padding: 10px 12px;
-  border: 1.5px dashed #9bacc0;
-  border-radius: 10px;
-  background: #f7f9fc;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.map-tool.confirm {
+  cursor: default;
+}
+
+.map-tool.confirm button {
   font-size: 12px;
-}
-
-.boundary-card.expanded {
-  border-style: solid;
-}
-
-.boundary-card .cable-ids {
-  color: #8390a4;
-  font-size: 10px;
-  word-break: break-word;
-}
-
-.boundary-card button {
-  align-self: flex-start;
-  font-size: 11px;
   padding: 3px 8px;
   border: 1px solid #c9bfe6;
   border-radius: 5px;
@@ -264,32 +251,17 @@
   color: #5645b6;
 }
 
-.focus-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 12px;
-  padding: 5px 6px 5px 10px;
-  border: 1px solid #c9bfe6;
-  border-radius: 999px;
-  background: #f4f1fb;
-  font-size: 12px;
+/* Overlays keep clear of an open drawer: left of the right one, right of the left one. */
+.studio.drawer-left .map-results,
+.studio.drawer-left .board-caption {
+  left: 477px;
 }
 
-.focus-chip small {
-  color: #7a6cc0;
+.studio.drawer-right .map-results {
+  right: 513px; /* the controls sit between it and the drawer */
 }
 
-.focus-chip button {
-  display: grid;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: #5645b6;
-  padding: 2px;
-}
-
-.focus-action {
-  margin-left: 8px;
-  font-size: 11px;
+.studio.drawer-right .flow-surface .react-flow__controls.react-flow__panel,
+.studio.drawer-right .map-tools {
+  right: 433px;
 }

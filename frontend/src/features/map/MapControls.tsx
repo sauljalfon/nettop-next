@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import type { Network, Snapshot } from '../../shared/types'
 import { mapSession, type MapSession } from './mapSession'
 
@@ -81,6 +81,38 @@ export function FocusChip({
         onClick={() => session.setFocus(undefined)}
       >
         <X size={14} />
+      </button>
+    </span>
+  )
+}
+
+/** Reset layout with an inline confirm; it only drops card positions and refits. */
+export function ResetLayout({ onReset }: { onReset: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  if (!confirming)
+    return (
+      <button
+        className="map-tool"
+        aria-label="Reset layout"
+        onClick={() => setConfirming(true)}
+      >
+        Reset layout
+      </button>
+    )
+  return (
+    <span className="map-tool confirm" role="group" aria-label="Confirm reset">
+      <span>Reset layout?</span>
+      <button
+        aria-label="Reset"
+        onClick={() => {
+          setConfirming(false)
+          onReset()
+        }}
+      >
+        Reset
+      </button>
+      <button aria-label="Cancel reset" onClick={() => setConfirming(false)}>
+        Cancel
       </button>
     </span>
   )

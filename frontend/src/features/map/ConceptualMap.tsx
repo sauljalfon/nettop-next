@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
@@ -12,6 +13,8 @@ import {
   Background,
   Controls,
   Handle,
+  NodeToolbar,
+  Panel,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -42,6 +45,9 @@ import {
 } from './mapGraph'
 import { indexSnapshot } from './snapshotIndex'
 import { mapSession, type MapSession } from './mapSession'
+import { ResetLayout } from './MapControls'
+import { reconciledPosition } from './reconcile'
+import { stackIndex } from './stacking'
 import './map.css'
 
 type CardNode = Node<MapCardData, 'equipment'>
@@ -55,6 +61,9 @@ const Actions = createContext<{
   onToggleManual: (equipmentId: string, key: string) => void
   onFocus: (focus: Focus) => void
   onToggleBundle: (id: string) => void
+  /** Cards whose connections popover is open. */
+  openLists: ReadonlySet<string>
+  onToggleList: (equipmentId: string) => void
   /** Cabled ports or positions of an equipment; computed when a list opens. */
   entriesOf: (equipmentId: string) => ConnectionEntry[]
   /** Network label for an entry on another network than the active filter. */
@@ -65,6 +74,8 @@ const Actions = createContext<{
   onToggleManual: () => undefined,
   onFocus: () => undefined,
   onToggleBundle: () => undefined,
+  openLists: new Set(),
+  onToggleList: () => undefined,
   entriesOf: () => [],
   captionOf: () => undefined,
 })
@@ -125,8 +136,9 @@ const EquipmentCard = memo(function EquipmentCard({
   data,
   selected,
 }: NodeProps<CardNode>) {
-  const { onPort, onTraceDevice, onFocus } = useContext(Actions)
-  const [listOpen, setListOpen] = useState(false)
+  const { onPort, onTraceDevice, onFocus, openLists, onToggleList } =
+    useContext(Actions)
+  const listOpen = openLists.has(id)
   // A route change can swap facets without changing the card's size, so the
   // size observer never fires; tell React Flow to re-read this card's handles.
   const updateNodeInternals = useUpdateNodeInternals()
@@ -188,7 +200,7 @@ const EquipmentCard = memo(function EquipmentCard({
           aria-label={`Show connections of ${e.name}`}
           onClick={(event) => {
             event.stopPropagation()
-            setListOpen((v) => !v)
+            onToggleList(id)
           }}
         >
           Show connections
@@ -206,13 +218,19 @@ const EquipmentCard = memo(function EquipmentCard({
           </button>
         )}
       </div>
-      {listOpen && (
+      {/* A floating popover: it never changes the card's size. */}
+      <NodeToolbar
+        isVisible={listOpen}
+        position={Position.Bottom}
+        align="start"
+        offset={6}
+      >
         <Connections
           equipmentId={e.id}
           name={e.name}
           manualKeys={data.manualKeys}
         />
-      )}
+      </NodeToolbar>
       {data.facets.length > 0 && (
         <ul className="map-facets" aria-label={`${e.name} shown connections`}>
           {data.facets.map((f) => (
@@ -416,6 +434,10 @@ function Canvas({
   const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
   const manual = useSyncExternalStore(session.subscribe, session.manualFacets)
   const focus = useSyncExternalStore(session.subscribe, session.focus)
+  const layoutVersion = useSyncExternalStore(
+    session.subscribe,
+    session.layoutVersion,
+  )
   const expanded = useSyncExternalStore(
     session.subscribe,
     session.expandedBundles,
@@ -443,6 +465,7 @@ function Canvas({
       manual,
       focus,
       expanded,
+      layoutVersion,
     ],
   )
   const edges = useMemo(() => graph.edges.map(flowEdge), [graph.edges])
@@ -457,19 +480,40 @@ function Canvas({
     ...graph.nodes,
     ...graph.boundaries,
   ])
+  // A layout reset drops dragged positions and fits once, then everything else
+  // (trace, pins, focus, filter) carries on untouched.
+  const appliedVersion = useRef(layoutVersion)
+  const [fitToken, setFitToken] = useState(0)
   useEffect(() => {
+    const reset = appliedVersion.current !== layoutVersion
+    appliedVersion.current = layoutVersion
     setNodes((previous) => {
       const existing = new Map(previous.map((n) => [n.id, n]))
       return [...graph.nodes, ...graph.boundaries].map((n) => {
         const prior = existing.get(n.id)
         return {
           ...n,
-          position: prior?.position ?? n.position,
+          position: reconciledPosition(prior?.position, n.position, reset),
           measured: prior?.measured,
         }
       })
     })
-  }, [graph.nodes, graph.boundaries])
+    if (reset) setFitToken((t) => t + 1)
+  }, [graph.nodes, graph.boundaries, layoutVersion])
+  useEffect(() => {
+    if (fitToken === 0) return
+    void flow.fitView(FIT).then(() => session.setViewport(flow.getViewport()))
+  }, [fitToken])
+  const [openLists, setOpenLists] = useState<ReadonlySet<string>>(new Set())
+  const toggleList = useCallback(
+    (id: string) =>
+      setOpenLists((previous) => {
+        const next = new Set(previous)
+        if (!next.delete(id)) next.add(id)
+        return next
+      }),
+    [],
+  )
   const onNodesChange = useCallback(
     (changes: NodeChange<MapNode>[]) =>
       setNodes((previous) => applyNodeChanges(changes, previous)),
@@ -479,6 +523,14 @@ function Canvas({
     const cards: MapNode[] = nodes.map((n) => ({
       ...n,
       selected: n.id === selected,
+      zIndex:
+        n.type === 'equipment'
+          ? stackIndex({
+              selected: n.id === selected,
+              popoverOpen: openLists.has(n.id),
+              facets: n.data.facets.length,
+            })
+          : undefined,
     }))
     if (preview?.position && !preview.rackId)
       cards.push({
@@ -496,7 +548,7 @@ function Canvas({
         },
       })
     return cards
-  }, [nodes, selected, preview, onConfigurePreview])
+  }, [nodes, selected, openLists, preview, onConfigurePreview])
   const entriesOf = useCallback(
     (id: string) => connectionEntries(index, id),
     [index],
@@ -513,10 +565,20 @@ function Canvas({
       onToggleManual: session.toggleManual,
       onFocus: session.setFocus,
       onToggleBundle: session.toggleBundle,
+      openLists,
+      onToggleList: toggleList,
       entriesOf,
       captionOf,
     }),
-    [onPort, onTraceDevice, session, entriesOf, captionOf],
+    [
+      onPort,
+      onTraceDevice,
+      session,
+      openLists,
+      toggleList,
+      entriesOf,
+      captionOf,
+    ],
   )
 
   return (
@@ -571,11 +633,16 @@ function Canvas({
           minZoom={0.25}
           maxZoom={1.8}
           nodesConnectable={false}
+          // Stacking is ours (stackIndex): a selected card is raised with the rest.
+          elevateNodesOnSelect={false}
           deleteKeyCode={null}
           onlyRenderVisibleElements
         >
           <Background color="#ccd5df" gap={24} size={1} />
           <Controls showInteractive={false} />
+          <Panel position="top-right" className="map-tools">
+            <ResetLayout onReset={session.resetLayout} />
+          </Panel>
         </ReactFlow>
       </Actions.Provider>
       <div className="board-caption">

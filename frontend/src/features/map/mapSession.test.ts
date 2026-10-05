@@ -128,3 +128,54 @@ describe('C13 focus and expanded bundles live in the session', () => {
     expect(calls).toBe(3)
   })
 })
+
+describe('POL-03 resetLayout drops positions and viewport only', () => {
+  it('forgets every recorded card and boundary position', () => {
+    const session = createMapSession()
+    session.setPosition('EDGE-17', { x: 1, y: 2 })
+    session.setPosition('boundary:node:a|node:b', { x: 3, y: 4 })
+    session.resetLayout()
+    expect(session.positions().size).toBe(0)
+    expect(session.position('EDGE-17')).toBeUndefined()
+  })
+
+  it('forgets the viewport so the map fits once more', () => {
+    const session = createMapSession()
+    session.setViewport({ x: 1, y: 2, zoom: 0.4 })
+    expect(session.needsFit()).toBe(false)
+    session.resetLayout()
+    expect(session.viewport()).toBeUndefined()
+    expect(session.needsFit()).toBe(true)
+  })
+
+  it('keeps pinned facets, focus and expanded bundles', () => {
+    const session = createMapSession()
+    session.toggleManual('HDF-01', '1A/2')
+    session.setFocus({ kind: 'node', id: 'node-a' })
+    session.toggleBundle('b1')
+    const manual = session.manualFacets()
+    const focus = session.focus()
+    const expanded = session.expandedBundles()
+    session.resetLayout()
+    expect(session.manualFacets()).toBe(manual)
+    expect(session.focus()).toBe(focus)
+    expect(session.expandedBundles()).toBe(expanded)
+  })
+
+  it('counts resets and notifies subscribers, so the map can fit after one', () => {
+    const session = createMapSession()
+    let calls = 0
+    session.subscribe(() => calls++)
+    const before = session.layoutVersion()
+    session.resetLayout()
+    expect(session.layoutVersion()).toBe(before + 1)
+    expect(calls).toBe(1)
+  })
+
+  it('does not count ordinary drags as a reset', () => {
+    const session = createMapSession()
+    const before = session.layoutVersion()
+    session.setPosition('EDGE-17', { x: 1, y: 2 })
+    expect(session.layoutVersion()).toBe(before)
+  })
+})

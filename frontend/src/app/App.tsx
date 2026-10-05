@@ -20,6 +20,7 @@ import type { Context, Plan, Snapshot, TraceRequest } from '../shared/types'
 import ConceptualMap, {
   type PendingEquipment,
 } from '../features/map/ConceptualMap'
+import { drawerSides } from '../features/map/drawers'
 import { mapSession } from '../features/map/mapSession'
 import type { Focus } from '../features/map/focus'
 import {
@@ -166,7 +167,9 @@ export default function App() {
     ? networkChoice
     : undefined
   return (
-    <div className="studio">
+    <div
+      className={`studio ${drawerSides(drawer).left ? 'drawer-left' : ''} ${drawerSides(drawer).right ? 'drawer-right' : ''}`}
+    >
       <header className="studio-header">
         <div className="brand">
           <span className="brand-mark">

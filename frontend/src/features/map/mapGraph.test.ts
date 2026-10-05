@@ -446,3 +446,52 @@ describe('C09/C13 focus view', () => {
     expect(view.boundaries).toEqual([])
   })
 })
+
+describe('POL-03 reset recomputes the first layered layout', () => {
+  const building = { kind: 'node', id: 'node-a' } as const
+
+  it('puts every card back where a fresh session lays it out', () => {
+    const fresh = projectMap(input({ session: createMapSession() }))
+    const session = createMapSession()
+    projectMap(input({ session }))
+    for (const n of fresh.nodes) session.setPosition(n.id, { x: 5000, y: 5000 }) // dragged away
+    session.resetLayout()
+    const after = projectMap(input({ session }))
+    for (const n of fresh.nodes)
+      expect(after.nodes.find((m) => m.id === n.id)!.position).toEqual(
+        n.position,
+      )
+  })
+
+  it('also recomputes boundary card positions', () => {
+    const session = createMapSession()
+    session.setFocus(building)
+    const first = projectMap(input({ session })).boundaries[0]
+    session.setPosition(first.id, { x: 9000, y: 9000 })
+    session.resetLayout()
+    expect(projectMap(input({ session })).boundaries[0].position).toEqual(
+      first.position,
+    )
+  })
+
+  it('keeps pinned facets, the focus, the network filter and the route', () => {
+    const session = createMapSession()
+    session.setFocus(building)
+    session.toggleManual('PANEL-A', '2')
+    projectMap(input({ session, networkId: 'A', route: agg03Route() }))
+    session.resetLayout()
+    const view = projectMap(
+      input({ session, networkId: 'A', route: agg03Route() }),
+    )
+    expect(ids(view.nodes)).toEqual([
+      'AGG-03',
+      'EDGE-17',
+      'HDF-01',
+      'HDF-02',
+      'PANEL-A',
+    ])
+    const panel = view.nodes.find((n) => n.id === 'PANEL-A')!
+    expect(panel.data.facets.map((f) => f.label).sort()).toEqual(['1', '2'])
+    expect(view.edges.some((e) => e.data.highlighted)).toBe(true)
+  })
+})

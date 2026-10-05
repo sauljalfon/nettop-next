@@ -41,6 +41,14 @@ export interface MapSession {
   /** IDs of expanded boundary bundles. Replaced on every change. */
   expandedBundles(): ReadonlySet<string>
   toggleBundle(id: string): void
+  /**
+   * Forgets every recorded card and boundary position and the viewport, so the
+   * next projection lays everything out again and the map fits once. Pinned
+   * facets, focus and expanded bundles are kept.
+   */
+  resetLayout(): void
+  /** Incremented by every resetLayout; lets the map tell a reset from a drag. */
+  layoutVersion(): number
   /** Notified after manual facets change; returns the unsubscribe function. */
   subscribe(listener: () => void): () => void
 }
@@ -50,6 +58,7 @@ export function createMapSession(): MapSession {
   let viewport: Viewport | undefined
   let manual: ManualFacets = new Map()
   let focus: Focus | undefined
+  let layoutVersion = 0
   let expanded: ReadonlySet<string> = new Set()
   const listeners = new Set<() => void>()
   const notify = () => {
@@ -85,6 +94,13 @@ export function createMapSession(): MapSession {
       manual = next
       notify()
     },
+    resetLayout() {
+      positions.clear()
+      viewport = undefined
+      layoutVersion++
+      notify()
+    },
+    layoutVersion: () => layoutVersion,
     focus: () => focus,
     setFocus(next) {
       focus = next && { kind: next.kind, id: next.id }
