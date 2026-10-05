@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { pick } from './helpers'
 
 // Find AGG / BB in the UI against the acceptance fixture: EDGE-17 reaches two
 // AGGs and one BB, listed AGG first, each naming destination, role and network.
@@ -8,9 +9,7 @@ test('Find AGG / BB lists AGG then BB results with destination, role and network
 }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page
-    .getByRole('combobox', { name: 'Start', exact: true })
-    .selectOption({ label: 'EDGE-17 · all ports' })
+  await pick(page, 'Start', 'edge-17 all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
 
   await page.getByRole('button', { name: 'Close Trace tools' }).click()

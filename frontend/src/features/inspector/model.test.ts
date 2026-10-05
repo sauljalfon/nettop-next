@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot } from '../map/acceptanceFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import {
+  canFindFromDevice,
   defaultFilter,
   filterGroups,
   inspectorGroups,
@@ -218,5 +219,18 @@ describe('POL-09 header and location', () => {
     const doctored = acceptanceSnapshot()
     doctored.equipment.find((e) => e.id === 'AGG-12')!.rackId = 'gone'
     expect(inspectorLocation(indexSnapshot(doctored), 'AGG-12')).toEqual({})
+  })
+})
+
+describe('whole-device Find AGG / BB is for switches only', () => {
+  const byId = (id: string) => s.equipment.find((e) => e.id === id)!
+  it('is offered for a switch', () => {
+    expect(canFindFromDevice(byId('EDGE-17'))).toBe(true)
+    expect(canFindFromDevice(byId('BB-01'))).toBe(true)
+  })
+
+  it('is not offered for a panel or an HDF: the backend rejects it', () => {
+    expect(canFindFromDevice(byId('PANEL-A'))).toBe(false)
+    expect(canFindFromDevice(byId('HDF-01'))).toBe(false)
   })
 })

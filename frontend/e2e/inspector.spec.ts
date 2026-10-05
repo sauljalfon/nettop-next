@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectCenteredInVisibleArea, fitted } from './helpers'
+import { expectCenteredInVisibleArea, expectMarks, fitted } from './helpers'
 
 const units = (page: Page) => page.getByTestId('inspector-unit')
 const filter = (page: Page, name: 'Cabled' | 'Free' | 'All') =>
@@ -193,9 +193,15 @@ test('POL-10 Find AGG / BB, Pin and Show on map from an inspector entry, with pi
 
   // Show on map: select the card, highlight it and center it in the visible area.
   await page.getByRole('button', { name: 'Show on map: HDF-01 3C / 5' }).click()
+  await expectMarks(page, {
+    foundCards: ['hdf-01', 'hdf-02', 'panel-a', 'panel-dr'],
+  })
+  await expectMarks(page, {
+    foundCards: ['hdf-01', 'hdf-02', 'panel-a', 'panel-dr'],
+  })
   await expect(page.locator('.equipment-card.found-card')).toContainText(
     'HDF-01',
-  )
+  ) // it is centered, so it is on screen // it is centered, so it is on screen
   await expect(
     page.getByTestId('rf__node-hdf-01').locator('.equipment-card'),
   ).toHaveClass(/selected/)
@@ -233,4 +239,30 @@ test('POL-11 the location actions focus the node and open the rack', async ({
   await expect(page.locator('.flow-surface')).toBeVisible()
   await expect(page.locator('.focus-chip')).toContainText('Building A')
   await expect(page.locator('.board-caption')).toContainText('2 of 11')
+})
+
+test('whole-device Find AGG / BB is offered for switches only', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  const device = (name: string) =>
+    page.getByRole('button', {
+      name: `Find AGG / BB from ${name}`,
+      exact: true,
+    })
+  await inspect(page, 'edge-17')
+  await expect(device('EDGE-17')).toBeVisible()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
+  for (const card of ['panel-a', 'hdf-01']) {
+    await inspect(page, card)
+    await expect(device(card.toUpperCase())).toHaveCount(0)
+    // Positions can still start a search from one exact endpoint.
+    await expect(
+      page.getByRole('button', { name: /^Find AGG \/ BB from here:/ }).first(),
+    ).toBeVisible()
+    await page
+      .getByRole('button', { name: 'Close Equipment inspector' })
+      .click()
+  }
 })

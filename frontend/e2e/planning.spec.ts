@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { pick } from './helpers'
 
 test('save a plan, reconnect a proposed port, reload, and reject stale edits', async ({
   page,
@@ -44,9 +45,7 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
   await expect(page.getByRole('status')).toContainText('revision 3')
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
   await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page
-    .getByRole('combobox', { name: 'Start', exact: true })
-    .selectOption({ label: 'EDGE-BROWSER · all ports' })
+  await pick(page, 'Start', 'edge-browser all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(
     page.getByText('Physical path found', { exact: true }),

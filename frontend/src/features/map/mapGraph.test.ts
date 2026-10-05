@@ -610,3 +610,70 @@ describe('POL-06/07/08 found highlight', () => {
       )
   })
 })
+
+describe("marks: the projection's highlighted and found IDs, for tests and tools", () => {
+  it('has no marks without a route or a found card', () => {
+    expect(projectMap(input()).marks).toEqual({
+      routeLinks: [],
+      routeCards: [],
+      foundLinks: [],
+      foundCards: [],
+      cards: expect.any(Array),
+    })
+  })
+
+  it("lists the route's cables and cards, whatever is on screen", () => {
+    const { marks } = projectMap(input({ route: agg03Route() }))
+    expect(marks.routeLinks).toEqual(['A01', 'A02', 'A03', 'A04'])
+    expect(marks.routeCards).toEqual([
+      'AGG-03',
+      'EDGE-17',
+      'HDF-01',
+      'HDF-02',
+      'PANEL-A',
+    ])
+  })
+
+  it('lists only the cables of a bundle that are on the route', () => {
+    // A01, A05 and A09 share a bundle between EDGE-17 and PANEL-A: only A01 is on this route.
+    const session = createMapSession()
+    const { marks, edges } = projectMap(input({ session, route: agg03Route() }))
+    expect(
+      edges.some(
+        (e) => e.data.linkIds.length > 1 && e.data.linkIds.includes('A05'),
+      ),
+    ).toBe(true)
+    expect(marks.routeLinks).not.toContain('A05')
+  })
+
+  it('lists the found card, its neighbors and their cables', () => {
+    const session = createMapSession()
+    session.setFound('EDGE-17')
+    const { marks } = projectMap(input({ session }))
+    expect(marks.foundCards).toEqual(['EDGE-17', 'PANEL-A'])
+    expect(marks.foundLinks).toEqual(['A01', 'A05', 'A09'])
+  })
+
+  it('keeps route and found independent', () => {
+    const session = createMapSession()
+    session.setFound('EDGE-17')
+    const both = projectMap(input({ session, route: agg03Route() })).marks
+    expect(both.routeLinks).toEqual(['A01', 'A02', 'A03', 'A04'])
+    expect(both.foundLinks).toEqual(['A01', 'A05', 'A09'])
+    session.setFound(undefined)
+    const routeOnly = projectMap(input({ session, route: agg03Route() })).marks
+    expect(routeOnly.routeLinks).toEqual(both.routeLinks)
+    expect(routeOnly.foundLinks).toEqual([])
+  })
+
+  it('lists the shown cards, so a test can tell shown from drawn', () => {
+    const { marks } = projectMap(input({ networkId: 'B' }))
+    expect(marks.cards).toEqual([
+      'AGG-12',
+      'EDGE-22',
+      'HDF-01',
+      'HDF-02',
+      'PANEL-DR',
+    ])
+  })
+})

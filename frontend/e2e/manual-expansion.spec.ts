@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, viewport } from './helpers'
+import { fitted, viewport, expectMarks } from './helpers'
 
 const facets = (page: Page, name: string) =>
   page.getByLabel(`${name} shown connections`).locator('li')
@@ -96,7 +96,7 @@ test('C05 a manual position stays while automatic facets follow the route', asyn
   await page.getByRole('button', { name: 'Clear trace' }).click()
   await expect(facets(page, 'HDF-01')).toHaveText([/1A \/ 2.*pinned/])
   await expect(facets(page, 'HDF-02')).toHaveCount(0)
-  await expect(page.locator('.react-flow__edge.animated')).toHaveCount(0)
+  await expectMarks(page, { routeLinks: [] })
   expect(await viewport(page)).toBe(port)
 
   // The choice is session state shared by Installed and Plan.

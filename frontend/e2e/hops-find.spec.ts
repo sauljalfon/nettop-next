@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectCenteredInVisibleArea, fitted, viewport } from './helpers'
+import {
+  expectCenteredInVisibleArea,
+  expectMarks,
+  fitted,
+  ROUTE_AGG_03,
+  viewport,
+} from './helpers'
 
 const layout = (page: Page) =>
   page.evaluate(() =>
@@ -164,7 +170,11 @@ test('POL-06 choosing EDGE-17 in Explore selects it, centers it in the visible a
   await expect(
     page.getByTestId('rf__node-panel-a').locator('.equipment-card'),
   ).toHaveClass(/found-neighbor/)
-  await expect(page.locator('.equipment-card.found')).toHaveCount(2)
+  // What is found, as the projection has it (centering pans, so some of it may be offscreen).
+  await expectMarks(page, {
+    foundCards: ['edge-17', 'panel-a'],
+    foundLinks: ['cable-a01', 'cable-a05', 'cable-a09'],
+  })
   await expect(
     page.getByTestId('rf__node-edge-17').locator('.equipment-card'),
   ).toHaveClass(/selected/)
@@ -219,7 +229,7 @@ test('POL-06 Enter chooses the first match, another choice replaces it, Esc and 
 
   // Esc clears it.
   await page.keyboard.press('Escape')
-  await expect(page.locator('.equipment-card.found')).toHaveCount(0)
+  await expectMarks(page, { foundCards: [], foundLinks: [] })
   await expect(
     page.getByRole('button', { name: 'Clear highlight' }),
   ).toHaveCount(0)
@@ -228,7 +238,7 @@ test('POL-06 Enter chooses the first match, another choice replaces it, Esc and 
   await chooseInExplore(page, 'AGG-12')
   await expect(found(page)).toContainText('AGG-12')
   await page.getByRole('button', { name: 'Clear highlight' }).click()
-  await expect(page.locator('.equipment-card.found')).toHaveCount(0)
+  await expectMarks(page, { foundCards: [] })
 
   // From the Physical view, choosing switches to the map and highlights there.
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
@@ -273,10 +283,16 @@ test('POL-07 found and trace highlights coexist and clear independently', async 
   await traceFromEdge17(page) // AGG-03 route selected
   await chooseInExplore(page, 'EDGE-17')
 
-  // Cable A01 is both: teal route line with an amber outline.
+  // The projection: route and found cables are both there, and A01 is in both.
+  await expectMarks(page, {
+    routeLinks: ROUTE_AGG_03,
+    foundLinks: ['cable-a01', 'cable-a05', 'cable-a09'],
+    foundCards: ['edge-17', 'panel-a'],
+  })
+  // How cable A01 is drawn: a teal route line with an amber outline.
+  // (EDGE-17 is centered, so this line is on screen whatever the pan has done to the rest.)
   const outline = page.locator('path.found-outline')
   await expect(outline).toHaveCount(1)
-  await expect(page.locator('.react-flow__edge.animated')).toHaveCount(4)
   const colors = await page.evaluate(() => {
     const edge = document.querySelector('.react-flow__edge.found.animated')!
     return {
@@ -295,18 +311,25 @@ test('POL-07 found and trace highlights coexist and clear independently', async 
 
   // Clearing the highlight leaves the trace alone…
   await page.getByRole('button', { name: 'Clear highlight' }).click()
-  await expect(page.locator('.equipment-card.found')).toHaveCount(0)
+  await expectMarks(page, {
+    foundCards: [],
+    foundLinks: [],
+    routeLinks: ROUTE_AGG_03,
+  })
   await expect(outline).toHaveCount(0)
-  await expect(page.locator('.react-flow__edge.animated')).toHaveCount(4)
   await expect(rows(page)).toHaveCount(3)
 
   // …and clearing the trace leaves the highlight alone.
   await chooseInExplore(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Clear trace' }).click()
-  await expect(page.locator('.react-flow__edge.animated')).toHaveCount(0)
+  await expectMarks(page, {
+    routeLinks: [],
+    routeCards: [],
+    foundLinks: ['cable-a01', 'cable-a05', 'cable-a09'],
+    foundCards: ['edge-17', 'panel-a'],
+  })
   await expect(page.getByLabel('Map trace results')).toHaveCount(0)
   await expect(found(page)).toContainText('EDGE-17')
-  await expect(page.locator('.react-flow__edge.found')).toHaveCount(1)
 })
 
 test('POL-08 a found card hidden by the filter or focus is shown while found', async ({
@@ -347,4 +370,60 @@ test('POL-08 a found card hidden by the filter or focus is shown while found', a
   await page.getByRole('button', { name: 'Clear highlight' }).click()
   await expect(caption).toContainText('5 of 11')
   await expect(page.getByTestId('rf__node-edge-17')).toHaveCount(0)
+})
+
+test('Esc does not clear the highlight while the search field has focus', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
+  const search = page.getByLabel('Find equipment')
+  await search.fill('agg-08')
+  await search.press('Enter')
+  await expectMarks(page, { foundCards: ['agg-08', 'hdf-02'] })
+
+  // Typing in the field: Esc belongs to it, so the highlight stays.
+  await expect(search).toBeFocused()
+  await search.press('Escape')
+  await expectMarks(page, { foundCards: ['agg-08', 'hdf-02'] })
+
+  // Once focus is on something that is not a text control, Esc clears it.
+  await page.getByRole('button', { name: 'Reset layout' }).focus()
+  await page.keyboard.press('Escape')
+  await expectMarks(page, { foundCards: [] })
+})
+
+test('Explore hides sites, nodes and racks without a match while the search has text', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
+  await expect(page.locator('.explorer-site')).toHaveCount(2)
+  await expect(page.locator('.tree-rack')).toHaveCount(7)
+
+  const search = page.getByLabel('Find equipment')
+  await search.fill('edge-17')
+  await expect(page.locator('.explorer-site')).toHaveCount(1)
+  await expect(page.locator('.explorer-node')).toHaveCount(1)
+  await expect(page.locator('.tree-rack')).toHaveCount(1)
+  await expect(page.locator('.tree-equipment')).toHaveText(['EDGE-17U8'])
+  await expect(page.locator('.studio-drawer').getByText('DR Site')).toHaveCount(
+    0,
+  )
+
+  await search.fill('agg')
+  await expect(page.locator('.explorer-site')).toHaveCount(2)
+  await expect(page.locator('.tree-rack')).toHaveCount(3) // Core 01, Core 02 and DR02, not Core 03
+  await expect(
+    page.locator('.studio-drawer').getByText('Rack Core 03'),
+  ).toHaveCount(0)
+
+  await search.fill('zzz')
+  await expect(page.locator('.explorer-site')).toHaveCount(0)
+  await expect(page.getByText('No equipment matches.')).toBeVisible()
+
+  await search.fill('')
+  await expect(page.locator('.explorer-site')).toHaveCount(2)
+  await expect(page.locator('.tree-rack')).toHaveCount(7)
 })

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, viewport } from './helpers'
+import { fitted, viewport, expectMarks, ROUTE_AGG_03 } from './helpers'
 
 /** Every card's transform, keyed by node ID (equipment and boundary cards). */
 const layout = (page: Page) =>
@@ -79,7 +79,7 @@ test('C09 a boundary bundle keeps real cable IDs, expands to real cards, and a t
   await traceFromEdge17(page)
   await expect(cards(page)).toHaveCount(5) // EDGE-17, PANEL-A, HDF-01, HDF-02, AGG-03
   await expect(boundaries(page)).toHaveCount(0) // HDF-01 is on screen: real edges, no summary
-  await expect(page.locator('.react-flow__edge.animated')).toHaveCount(4)
+  await expectMarks(page, { routeLinks: ROUTE_AGG_03 })
   expect(await viewport(page)).toBe(port)
 })
 

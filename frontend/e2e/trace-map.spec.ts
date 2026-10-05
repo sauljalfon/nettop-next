@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Plan } from '../src/shared/types'
-import { fitted, viewport } from './helpers'
+import { expectMarks, fitted, pick, viewport } from './helpers'
 
 /** Every card's transform, keyed by equipment ID. */
 const layout = (page: Page) =>
@@ -37,11 +37,14 @@ test('C02 selecting AGG-03, AGG-08 then BB-01 changes the highlight in place', a
   await traceFromEdge17(page)
 
   const expected = [
-    ['AGG-03', '3C / 5', ['1A / 2', '2D / 4']],
-    ['AGG-08', '1A / 2', ['3C / 5', '2D / 4']],
-    ['BB-01', '2D / 4', ['3C / 5', '1A / 2']],
+    ['AGG-03', '3C / 5', ['1A / 2', '2D / 4'], ['a01', 'a02', 'a03', 'a04']],
+    ['AGG-08', '1A / 2', ['3C / 5', '2D / 4'], ['a05', 'a06', 'a07', 'a08']],
+    ['BB-01', '2D / 4', ['3C / 5', '1A / 2'], ['a09', 'a10', 'a11', 'a12']],
   ] as const
-  for (const [i, [destination, position, absent]] of expected.entries()) {
+  for (const [
+    i,
+    [destination, position, absent, cables],
+  ] of expected.entries()) {
     await rows(page).nth(i).click()
     await expect(rows(page).nth(i)).toContainText(destination)
     await expect(rows(page).nth(i)).toHaveAttribute('aria-pressed', 'true')
@@ -50,7 +53,8 @@ test('C02 selecting AGG-03, AGG-08 then BB-01 changes the highlight in place', a
       await expect(
         page.getByLabel('HDF-01 shown connections'),
       ).not.toContainText(other)
-    await expect(page.locator('.react-flow__edge.animated')).toHaveCount(4)
+    // The route's cables as the projection has them, not as many lines as are on screen.
+    await expectMarks(page, { routeLinks: cables.map((c) => `cable-${c}`) })
     // All results stay listed; nothing moved; no refit.
     await expect(rows(page)).toHaveCount(3)
     expect(await layout(page)).toEqual(cards)
@@ -145,9 +149,7 @@ test('P18 a route through equipment the network filter hides is still found and 
   await expect(page.getByTestId('rf__node-edge-17')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page
-    .getByRole('combobox', { name: 'Start', exact: true })
-    .selectOption({ label: 'EDGE-17 · all ports' })
+  await pick(page, 'Start', 'edge-17 all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   // The backend result is complete even though EDGE-17 is not displayed.
   await expect(rows(page)).toHaveCount(3)
@@ -178,7 +180,7 @@ test('Clear trace removes the automatic facets and highlights only', async ({
   await page.getByRole('button', { name: 'Clear trace' }).click()
   await expect(page.getByLabel('Map trace results')).toHaveCount(0)
   await expect(page.locator('.map-facets')).toHaveCount(0)
-  await expect(page.locator('.react-flow__edge.animated')).toHaveCount(0)
+  await expectMarks(page, { routeLinks: [] })
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
   expect(await layout(page)).toEqual(cards)
   expect(await viewport(page)).toBe(port)

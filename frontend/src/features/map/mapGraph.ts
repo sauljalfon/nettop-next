@@ -83,10 +83,23 @@ export interface MapFlowEdge {
  * so existing positions never move when data, filter or route change. Never
  * mutates the snapshot and never feeds traversal.
  */
+/** The projection's highlighted and found IDs, independent of what is drawn on screen. */
+export interface MapMarks {
+  /** Cables of the selected route that the map draws, sorted. */
+  routeLinks: string[]
+  routeCards: string[]
+  /** Cables of the found card that the map draws, sorted. */
+  foundLinks: string[]
+  foundCards: string[]
+  /** Every card the map shows (drawn or not), sorted. */
+  cards: string[]
+}
+
 export function projectMap(input: MapInput): {
   nodes: MapNode[]
   boundaries: MapBoundaryNode[]
   edges: MapFlowEdge[]
+  marks: MapMarks
 } {
   const { snapshot: s, session, route } = input
   session.placeMissing(
@@ -238,7 +251,25 @@ export function projectMap(input: MapInput): {
       )
   }
   edges.sort((a, b) => a.id.localeCompare(b.id))
-  return { nodes, boundaries, edges }
+  const drawn = (wanted: ReadonlySet<string>) =>
+    [
+      ...new Set(
+        edges.flatMap((e) => e.data.linkIds.filter((l) => wanted.has(l))),
+      ),
+    ].sort()
+  const cardIds = (keep: (n: MapNode) => boolean) =>
+    nodes
+      .filter(keep)
+      .map((n) => n.id)
+      .sort()
+  const marks: MapMarks = {
+    routeLinks: drawn(highlight.linkIds),
+    routeCards: cardIds((n) => n.data.highlighted),
+    foundLinks: drawn(foundLinks),
+    foundCards: cardIds((n) => !!n.data.foundRole),
+    cards: cardIds(() => true),
+  }
+  return { nodes, boundaries, edges, marks }
 }
 
 const nodeFocus = (id: string | undefined): Focus | undefined =>

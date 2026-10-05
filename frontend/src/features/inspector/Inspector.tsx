@@ -6,7 +6,12 @@ import type { Focus } from '../map/focus'
 import type { MapSession } from '../map/mapSession'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import EndpointList from './EndpointList'
-import { inspectorGroups, inspectorHeader, inspectorLocation } from './model'
+import {
+  canFindFromDevice,
+  inspectorGroups,
+  inspectorHeader,
+  inspectorLocation,
+} from './model'
 import './inspector.css'
 
 interface Props {
@@ -124,10 +129,12 @@ export default function Inspector({
           {location.rack?.name} · U{equipment.unit}
         </strong>
       </div>
-      <button className="button primary" onClick={onFindFromDevice}>
-        <GitFork size={16} />
-        Find AGG / BB from {equipment.name}
-      </button>
+      {canFindFromDevice(equipment) && (
+        <button className="button primary" onClick={onFindFromDevice}>
+          <GitFork size={16} />
+          Find AGG / BB from {equipment.name}
+        </button>
+      )}
       {children}
       <p className="section-label">Exact endpoints</p>
       <EndpointList

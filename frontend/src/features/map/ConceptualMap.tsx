@@ -50,6 +50,7 @@ import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession } from './mapSession'
 import { ClearHighlight, ResetLayout } from './MapControls'
 import { reconciledPosition } from './reconcile'
+import { shouldClearOnEscape } from './keys'
 import { stackIndex } from './stacking'
 import { useCenterRequests } from './useCenterRequests'
 import './map.css'
@@ -553,7 +554,11 @@ function Canvas({
   useEffect(() => {
     if (!foundId) return
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') session.setFound(undefined)
+      if (
+        event.key === 'Escape' &&
+        shouldClearOnEscape(event.target as HTMLElement | null)
+      )
+        session.setFound(undefined)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -636,7 +641,17 @@ function Canvas({
   )
 
   return (
-    <div className="flow-surface" ref={surface}>
+    <div
+      className="flow-surface"
+      ref={surface}
+      // The projection's own IDs: tests and tools read these instead of counting
+      // what React Flow happens to have drawn inside the current viewport.
+      data-cards={graph.marks.cards.join(' ')}
+      data-route-links={graph.marks.routeLinks.join(' ')}
+      data-route-cards={graph.marks.routeCards.join(' ')}
+      data-found-links={graph.marks.foundLinks.join(' ')}
+      data-found-cards={graph.marks.foundCards.join(' ')}
+    >
       <Actions.Provider value={actions}>
         <ReactFlow<MapNode>
           nodes={rendered}

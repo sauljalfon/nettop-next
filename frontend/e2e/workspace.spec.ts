@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { ROUTE_AGG_03, expectMarks, pick } from './helpers'
 
 test('trace physical continuity on the map and in rack elevations', async ({
   page,
@@ -16,7 +17,7 @@ test('trace physical continuity on the map and in rack elevations', async ({
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
   // The selected route's four cables are highlighted and reveal exact positions.
-  await expect(page.locator('.react-flow__edge.animated')).toHaveCount(4)
+  await expectMarks(page, { routeLinks: ROUTE_AGG_03 })
   await expect(page.getByLabel('HDF-01 shown connections')).toContainText(
     '3C / 5',
   )
@@ -46,12 +47,8 @@ test('trace physical continuity on the map and in rack elevations', async ({
   await page
     .getByRole('combobox', { name: 'Trace mode', exact: true })
     .selectOption('point_to_point')
-  await page
-    .getByRole('combobox', { name: 'Start', exact: true })
-    .selectOption('edge-17:p1')
-  await page
-    .getByRole('combobox', { name: 'Destination', exact: true })
-    .selectOption('agg-03:p1')
+  await pick(page, 'Start', 'edge-17 port 1', 'EDGE-17 · Port 1')
+  await pick(page, 'Destination', 'agg-03 port 1', 'AGG-03 · Port 1')
   await page
     .getByRole('button', { name: 'Trace physical path', exact: true })
     .click()
@@ -65,9 +62,7 @@ test('trace physical continuity on the map and in rack elevations', async ({
   await page
     .getByRole('combobox', { name: 'Trace mode', exact: true })
     .selectOption('distribution')
-  await page
-    .getByRole('combobox', { name: 'Start', exact: true })
-    .selectOption('device:edge-18')
+  await pick(page, 'Start', 'edge-18 all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByText(/1 cables · 0 internal bridges/)).toBeVisible()
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
@@ -85,6 +80,7 @@ test('panels overlay the full-page map and dragging does not render the shell', 
   await expect(page.locator('.tree-equipment')).toHaveCount(1)
   await page.locator('.tree-equipment').click()
   // Explore highlights the card on the map and stays open; the inspector is separate.
+  await expectMarks(page, { foundCards: ['agg-12', 'hdf-02'] })
   await expect(page.locator('.equipment-card.found-card')).toContainText(
     'AGG-12',
   )

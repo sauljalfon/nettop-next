@@ -193,3 +193,10 @@ export function inspectorLocation(index: SnapshotIndex, equipmentId: string) {
     ...(rack && { rack: { id: rack.id, name: rack.name } }),
   }
 }
+
+/**
+ * Find AGG / BB from every port is only for switches: the backend rejects a
+ * whole-device start from a panel or an HDF (those start from one position).
+ */
+export const canFindFromDevice = (equipment: Pick<Equipment, 'kind'>) =>
+  equipment.kind === 'switch'

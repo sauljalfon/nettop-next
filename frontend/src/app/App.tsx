@@ -34,6 +34,10 @@ import RackView from '../features/rack-builder/RackView'
 import PlanEditor from '../features/planning/PlanEditor'
 import PlacementEditor from '../features/planning/PlacementEditor'
 import TracePanel from '../features/pathfinding/TracePanel'
+import TracePicker from '../features/pathfinding/TracePicker'
+import { pickerItems } from '../features/pathfinding/picker'
+import { filterTree } from '../features/explore/tree'
+import { canFindFromDevice } from '../features/inspector/model'
 import { endpointLabel } from '../features/pathfinding/projection'
 import Inspector from '../features/inspector/Inspector'
 import { indexSnapshot } from '../features/map/snapshotIndex'
@@ -478,6 +482,15 @@ function Workspace({
   })
   const equipment =
     snapshot.equipment.find((e) => e.id === selected) ?? snapshot.equipment[0]
+  // The trace pickers' lists, built once per snapshot (and mode).
+  const startItems = useMemo(
+    () => pickerItems(snapshot, { devices: mode === 'distribution' }),
+    [snapshot, mode],
+  )
+  const endItems = useMemo(
+    () => pickerItems(snapshot, { devices: false }),
+    [snapshot],
+  )
   // Snapshot-only work, shared by the map and the inspector.
   const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
   const installedIDs = useMemo(
@@ -766,53 +779,26 @@ function Workspace({
                 <option value="point_to_point">Exact port → port</option>
               </select>
             </label>
-            <label>
-              Start
-              <select
-                value={start}
-                disabled={traceMutation.isPending}
-                onChange={(e) => {
-                  setStart(e.target.value)
+            <TracePicker
+              label="Start"
+              items={startItems}
+              value={start}
+              disabled={traceMutation.isPending}
+              onChange={(value) => {
+                setStart(value)
+                traceMutation.reset()
+              }}
+            />
+            {mode === 'point_to_point' && (
+              <TracePicker
+                label="Destination"
+                items={endItems}
+                value={end}
+                onChange={(value) => {
+                  setEnd(value)
                   traceMutation.reset()
                 }}
-              >
-                {mode === 'distribution' && (
-                  <optgroup label="Equipment">
-                    {snapshot.equipment
-                      .filter((e) => e.kind === 'switch')
-                      .map((e) => (
-                        <option key={e.id} value={`device:${e.id}`}>
-                          {e.name} · all ports
-                        </option>
-                      ))}
-                  </optgroup>
-                )}
-                <optgroup label="Exact endpoints">
-                  {snapshot.endpoints.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {endpointLabel(snapshot, p.id)}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </label>
-            {mode === 'point_to_point' && (
-              <label>
-                Destination
-                <select
-                  value={end}
-                  onChange={(e) => {
-                    setEnd(e.target.value)
-                    traceMutation.reset()
-                  }}
-                >
-                  {snapshot.endpoints.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {endpointLabel(snapshot, p.id)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              />
             )}
             <button
               className="button primary"
@@ -1009,6 +995,7 @@ function Explorer({
   canEdit: boolean
 }) {
   const [search, setSearch] = useState('')
+  const tree = useMemo(() => filterTree(snapshot, search), [snapshot, search])
   return (
     <>
       <label className="search">
@@ -1026,7 +1013,8 @@ function Explorer({
           }}
         />
       </label>
-      {snapshot.sites.map((site) => (
+      {/* With search text, sites, nodes and racks without a match are hidden. */}
+      {tree.map(({ site, nodes }) => (
         <section key={site.id} className="explorer-site">
           <h3>
             <MapPin size={16} />
@@ -1039,66 +1027,57 @@ function Explorer({
               Focus
             </button>
           </h3>
-          {snapshot.nodes
-            .filter((n) => n.siteId === site.id)
-            .map((node) => (
-              <section key={node.id} className="explorer-node">
-                <h4>
-                  <Building2 size={15} />
-                  {node.name}
+          {nodes.map(({ node, racks }) => (
+            <section key={node.id} className="explorer-node">
+              <h4>
+                <Building2 size={15} />
+                {node.name}
+                <button
+                  className="text-button focus-action"
+                  aria-label={`Focus ${node.name}`}
+                  onClick={() => onFocus({ kind: 'node', id: node.id })}
+                >
+                  Focus
+                </button>
+              </h4>
+              {racks.map(({ rack, equipment }) => (
+                <section className="tree-rack" key={rack.id}>
                   <button
-                    className="text-button focus-action"
-                    aria-label={`Focus ${node.name}`}
-                    onClick={() => onFocus({ kind: 'node', id: node.id })}
+                    className="rack-link"
+                    onClick={() => onOpenRack(rack.id)}
                   >
-                    Focus
+                    <Server size={15} />
+                    {rack.name}
+                    <small>{rack.units}U ↗</small>
                   </button>
-                </h4>
-                {snapshot.racks
-                  .filter((r) => r.nodeId === node.id)
-                  .map((rack) => (
-                    <section className="tree-rack" key={rack.id}>
-                      <button
-                        className="rack-link"
-                        onClick={() => onOpenRack(rack.id)}
-                      >
-                        <Server size={15} />
-                        {rack.name}
-                        <small>{rack.units}U ↗</small>
-                      </button>
-                      {snapshot.equipment
-                        .filter(
-                          (e) =>
-                            e.rackId === rack.id &&
-                            `${e.name} ${e.role}`
-                              .toLowerCase()
-                              .includes(search.toLowerCase()),
+                  {equipment.map((e) => (
+                    <button
+                      className={`tree-equipment ${selected === e.id ? 'active' : ''}`}
+                      draggable={canEdit}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData(
+                          'application/x-nettop-item',
+                          `equipment:${e.id}`,
                         )
-                        .map((e) => (
-                          <button
-                            className={`tree-equipment ${selected === e.id ? 'active' : ''}`}
-                            draggable={canEdit}
-                            onDragStart={(event) => {
-                              event.dataTransfer.setData(
-                                'application/x-nettop-item',
-                                `equipment:${e.id}`,
-                              )
-                              event.dataTransfer.effectAllowed = 'copyMove'
-                            }}
-                            key={e.id}
-                            onClick={() => onChoose(e.id)}
-                          >
-                            <span className="dot" />
-                            {e.name}
-                            <small>U{e.unit}</small>
-                          </button>
-                        ))}
-                    </section>
+                        event.dataTransfer.effectAllowed = 'copyMove'
+                      }}
+                      key={e.id}
+                      onClick={() => onChoose(e.id)}
+                    >
+                      <span className="dot" />
+                      {e.name}
+                      <small>U{e.unit}</small>
+                    </button>
                   ))}
-              </section>
-            ))}
+                </section>
+              ))}
+            </section>
+          ))}
         </section>
       ))}
+      {search.trim() && tree.length === 0 && (
+        <p className="muted">No equipment matches.</p>
+      )}
     </>
   )
 }
