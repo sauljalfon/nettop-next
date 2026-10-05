@@ -1,5 +1,5 @@
 import type { ManualFacets } from './facets'
-import type { Focus } from './focus'
+import type { LocationRef } from './highlight'
 import type { Position } from './layout'
 
 export interface Viewport {
@@ -35,21 +35,18 @@ export interface MapSession {
    */
   manualFacets(): ManualFacets
   toggleManual(equipmentId: string, key: string): void
-  /** The location focus, or undefined. Replaced on every change. */
-  focus(): Focus | undefined
-  setFocus(focus: Focus | undefined): void
-  /** IDs of expanded boundary bundles. Replaced on every change. */
-  expandedBundles(): ReadonlySet<string>
-  toggleBundle(id: string): void
   /**
-   * Forgets every recorded card and boundary position and the viewport, so the
-   * next projection lays everything out again and the map fits once. Pinned
-   * facets, focus and expanded bundles are kept.
+   * The site or node whose equipment is highlighted on the map, or undefined.
+   * Replaced on every change. Independent of the trace.
+   */
+  highlight(): LocationRef | undefined
+  setHighlight(location: LocationRef | undefined): void
+  /**
+   * Forgets every recorded card position and the viewport, so the next
+   * projection lays everything out again and the map fits once. Pinned facets
+   * and the highlight are kept.
    */
   resetLayout(): void
-  /** The equipment the user found on the map, or undefined. Independent of the trace. */
-  foundId(): string | undefined
-  setFound(id: string | undefined): void
   /**
    * Asks the map to center the view on a card at the current zoom (not a
    * refit). `serial` increases on every request, so repeating one still counts.
@@ -59,6 +56,14 @@ export interface MapSession {
   /** Serial of the last request the map has acted on; a remount never replays it. */
   centerHandled(): number
   markCenterHandled(serial: number): void
+  /**
+   * Asks the map to fit the view once to these cards (the result of choosing a
+   * location). `serial` increases on every request.
+   */
+  fitRequest(): { ids: string[]; serial: number } | undefined
+  requestFit(ids: readonly string[]): void
+  fitHandled(): number
+  markFitHandled(serial: number): void
   /** Incremented by every resetLayout; lets the map tell a reset from a drag. */
   layoutVersion(): number
   /** Notified after manual facets change; returns the unsubscribe function. */
@@ -69,12 +74,12 @@ export function createMapSession(): MapSession {
   const positions = new Map<string, Position>()
   let viewport: Viewport | undefined
   let manual: ManualFacets = new Map()
-  let focus: Focus | undefined
+  let highlight: LocationRef | undefined
+  let fit: { ids: string[]; serial: number } | undefined
+  let fitHandled = 0
   let layoutVersion = 0
-  let foundId: string | undefined
   let center: { id: string; serial: number } | undefined
   let centerHandled = 0
-  let expanded: ReadonlySet<string> = new Set()
   const listeners = new Set<() => void>()
   const notify = () => {
     for (const listener of listeners) listener()
@@ -116,11 +121,6 @@ export function createMapSession(): MapSession {
       notify()
     },
     layoutVersion: () => layoutVersion,
-    foundId: () => foundId,
-    setFound(id) {
-      foundId = id
-      notify()
-    },
     centerRequest: () => center,
     centerHandled: () => centerHandled,
     markCenterHandled(serial) {
@@ -130,16 +130,18 @@ export function createMapSession(): MapSession {
       center = { id, serial: (center?.serial ?? 0) + 1 }
       notify()
     },
-    focus: () => focus,
-    setFocus(next) {
-      focus = next && { kind: next.kind, id: next.id }
+    highlight: () => highlight,
+    setHighlight(next) {
+      highlight = next && { kind: next.kind, id: next.id }
       notify()
     },
-    expandedBundles: () => expanded,
-    toggleBundle(id) {
-      const next = new Set(expanded)
-      if (!next.delete(id)) next.add(id)
-      expanded = next
+    fitRequest: () => fit,
+    fitHandled: () => fitHandled,
+    markFitHandled(serial) {
+      fitHandled = Math.max(fitHandled, serial)
+    },
+    requestFit(ids) {
+      fit = { ids: [...ids], serial: (fit?.serial ?? 0) + 1 }
       notify()
     },
     subscribe(listener) {

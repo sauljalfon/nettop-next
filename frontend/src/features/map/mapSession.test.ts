@@ -88,52 +88,11 @@ describe('C05 manual facets live in the session, per equipment ID', () => {
   })
 })
 
-describe('C13 focus and expanded bundles live in the session', () => {
-  const building = { kind: 'node', id: 'node-a' } as const
-
-  it('sets and clears the focus', () => {
-    const session = createMapSession()
-    expect(session.focus()).toBeUndefined()
-    session.setFocus(building)
-    expect(session.focus()).toEqual(building)
-    session.setFocus(undefined)
-    expect(session.focus()).toBeUndefined()
-  })
-
-  it('replaces the focus object so subscribers can compare references', () => {
-    const session = createMapSession()
-    session.setFocus(building)
-    const before = session.focus()
-    session.setFocus({ ...building })
-    expect(session.focus()).not.toBe(before)
-  })
-
-  it('toggles bundle expansion and replaces the set on change', () => {
-    const session = createMapSession()
-    const before = session.expandedBundles()
-    session.toggleBundle('b1')
-    expect(session.expandedBundles().has('b1')).toBe(true)
-    expect(before.has('b1')).toBe(false)
-    session.toggleBundle('b1')
-    expect(session.expandedBundles().size).toBe(0)
-  })
-
-  it('notifies subscribers on focus and expansion changes', () => {
-    const session = createMapSession()
-    let calls = 0
-    session.subscribe(() => calls++)
-    session.setFocus(building)
-    session.toggleBundle('b1')
-    session.setFocus(undefined)
-    expect(calls).toBe(3)
-  })
-})
-
 describe('POL-03 resetLayout drops positions and viewport only', () => {
-  it('forgets every recorded card and boundary position', () => {
+  it('forgets every recorded card position', () => {
     const session = createMapSession()
     session.setPosition('EDGE-17', { x: 1, y: 2 })
-    session.setPosition('boundary:node:a|node:b', { x: 3, y: 4 })
+    session.setPosition('HDF-01', { x: 3, y: 4 })
     session.resetLayout()
     expect(session.positions().size).toBe(0)
     expect(session.position('EDGE-17')).toBeUndefined()
@@ -148,18 +107,15 @@ describe('POL-03 resetLayout drops positions and viewport only', () => {
     expect(session.needsFit()).toBe(true)
   })
 
-  it('keeps pinned facets, focus and expanded bundles', () => {
+  it('keeps pinned facets and the highlight', () => {
     const session = createMapSession()
     session.toggleManual('HDF-01', '1A/2')
-    session.setFocus({ kind: 'node', id: 'node-a' })
-    session.toggleBundle('b1')
+    session.setHighlight({ kind: 'node', id: 'node-a' })
     const manual = session.manualFacets()
-    const focus = session.focus()
-    const expanded = session.expandedBundles()
+    const highlight = session.highlight()
     session.resetLayout()
     expect(session.manualFacets()).toBe(manual)
-    expect(session.focus()).toBe(focus)
-    expect(session.expandedBundles()).toBe(expanded)
+    expect(session.highlight()).toBe(highlight)
   })
 
   it('counts resets and notifies subscribers, so the map can fit after one', () => {
@@ -180,36 +136,8 @@ describe('POL-03 resetLayout drops positions and viewport only', () => {
   })
 })
 
-describe('POL-06/07 found state and center requests live in the session', () => {
-  it('sets and clears the found card, replacing nothing else', () => {
-    const session = createMapSession()
-    session.toggleManual('HDF-01', '1A/2')
-    const manual = session.manualFacets()
-    expect(session.foundId()).toBeUndefined()
-    session.setFound('EDGE-17')
-    expect(session.foundId()).toBe('EDGE-17')
-    session.setFound(undefined)
-    expect(session.foundId()).toBeUndefined()
-    expect(session.manualFacets()).toBe(manual)
-  })
-
-  it('survives a layout reset like the other session choices', () => {
-    const session = createMapSession()
-    session.setFound('EDGE-17')
-    session.resetLayout()
-    expect(session.foundId()).toBe('EDGE-17')
-  })
-
-  it('notifies subscribers when the found card changes', () => {
-    const session = createMapSession()
-    let calls = 0
-    session.subscribe(() => calls++)
-    session.setFound('EDGE-17')
-    session.setFound(undefined)
-    expect(calls).toBe(2)
-  })
-
-  it('numbers center requests, so repeating one for the same card still counts', () => {
+describe('POL-05 center requests', () => {
+  it('numbers requests, so repeating one for the same card still counts', () => {
     const session = createMapSession()
     expect(session.centerRequest()).toBeUndefined()
     session.requestCenter('EDGE-17')
@@ -219,7 +147,7 @@ describe('POL-06/07 found state and center requests live in the session', () => 
     expect(session.centerRequest()!.serial).toBe(first.serial + 1)
   })
 
-  it('a center request does not move any card or touch the viewport', () => {
+  it('does not move any card or touch the viewport', () => {
     const session = createMapSession()
     session.setPosition('EDGE-17', { x: 1, y: 2 })
     session.setViewport({ x: 3, y: 4, zoom: 0.5 })
@@ -253,5 +181,91 @@ describe('POL-05/06 a center request is handled once, even across a remount', ()
     session.markCenterHandled(2)
     session.markCenterHandled(1)
     expect(session.centerHandled()).toBe(2)
+  })
+})
+
+describe('POL-14 the location highlight lives in the session', () => {
+  const building = { kind: 'node', id: 'node-a' } as const
+
+  it('sets, replaces and clears the highlight', () => {
+    const session = createMapSession()
+    expect(session.highlight()).toBeUndefined()
+    session.setHighlight(building)
+    expect(session.highlight()).toEqual(building)
+    session.setHighlight({ kind: 'site', id: 'site-dr' })
+    expect(session.highlight()).toEqual({ kind: 'site', id: 'site-dr' })
+    session.setHighlight(undefined)
+    expect(session.highlight()).toBeUndefined()
+  })
+
+  it('replaces the highlight object so subscribers can compare references', () => {
+    const session = createMapSession()
+    session.setHighlight(building)
+    const before = session.highlight()
+    session.setHighlight({ ...building })
+    expect(session.highlight()).not.toBe(before)
+  })
+
+  it('does not alias the object it was given', () => {
+    const session = createMapSession()
+    const given = { kind: 'node' as const, id: 'node-a' }
+    session.setHighlight(given)
+    given.id = 'changed'
+    expect(session.highlight()).toEqual(building)
+  })
+
+  it('notifies subscribers, and leaves pins and the viewport alone', () => {
+    const session = createMapSession()
+    session.toggleManual('HDF-01', '1A/2')
+    session.setViewport({ x: 1, y: 2, zoom: 0.5 })
+    const manual = session.manualFacets()
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.setHighlight(building)
+    session.setHighlight(undefined)
+    expect(calls).toBe(2)
+    expect(session.manualFacets()).toBe(manual)
+    expect(session.viewport()).toEqual({ x: 1, y: 2, zoom: 0.5 })
+  })
+})
+
+describe('POL-14 a fit request is handled once, like a center request', () => {
+  it('numbers requests and carries the cards to fit', () => {
+    const session = createMapSession()
+    expect(session.fitRequest()).toBeUndefined()
+    session.requestFit(['EDGE-17', 'PANEL-A'])
+    expect(session.fitRequest()).toEqual({
+      ids: ['EDGE-17', 'PANEL-A'],
+      serial: 1,
+    })
+    session.requestFit(['EDGE-17', 'PANEL-A'])
+    expect(session.fitRequest()!.serial).toBe(2)
+  })
+
+  it('marks a request handled, never backwards', () => {
+    const session = createMapSession()
+    session.requestFit(['a'])
+    session.requestFit(['b'])
+    expect(session.fitHandled()).toBe(0)
+    session.markFitHandled(2)
+    session.markFitHandled(1)
+    expect(session.fitHandled()).toBe(2)
+  })
+
+  it('does not move any card or change the viewport by itself', () => {
+    const session = createMapSession()
+    session.setPosition('EDGE-17', { x: 1, y: 2 })
+    session.setViewport({ x: 3, y: 4, zoom: 0.5 })
+    session.requestFit(['EDGE-17'])
+    expect(session.position('EDGE-17')).toEqual({ x: 1, y: 2 })
+    expect(session.viewport()).toEqual({ x: 3, y: 4, zoom: 0.5 })
+  })
+
+  it('does not alias the list it was given', () => {
+    const session = createMapSession()
+    const ids = ['a']
+    session.requestFit(ids)
+    ids.push('b')
+    expect(session.fitRequest()!.ids).toEqual(['a'])
   })
 })

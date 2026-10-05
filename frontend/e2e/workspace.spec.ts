@@ -79,14 +79,7 @@ test('panels overlay the full-page map and dragging does not render the shell', 
   await page.getByLabel('Find equipment').fill('agg-12')
   await expect(page.locator('.tree-equipment')).toHaveCount(1)
   await page.locator('.tree-equipment').click()
-  // Explore highlights the card on the map and stays open; the inspector is separate.
-  await expectMarks(page, { foundCards: ['agg-12', 'hdf-02'] })
-  await expect(page.locator('.equipment-card.found-card')).toContainText(
-    'AGG-12',
-  )
-  await page
-    .getByRole('button', { name: 'Open inspector', exact: true })
-    .click()
+  // Choosing equipment in Explore opens the inspector on it, with no highlight.
   await expect(page.locator('.inspector-hero h2')).toHaveText('AGG-12')
   await expect(page.locator('.location-breadcrumb')).toContainText(
     'DR Site / DR Distribution / Rack DR02 / AGG-12',

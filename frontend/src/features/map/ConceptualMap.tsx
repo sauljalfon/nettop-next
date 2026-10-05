@@ -29,7 +29,7 @@ import {
   type NodeChange,
   type NodeProps,
 } from '@xyflow/react'
-import { Crosshair, GitFork, Network, PanelTop, Plus } from 'lucide-react'
+import { GitFork, Network, PanelTop, Plus } from 'lucide-react'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Route, Snapshot } from '../../shared/types'
 import {
@@ -39,33 +39,24 @@ import {
   type ConnectionEntry,
 } from './connections'
 import { facetStart } from './facets'
-import type { BoundaryBundle, Focus } from './focus'
-import {
-  projectMap,
-  type MapBoundaryNode,
-  type MapCardData,
-  type MapFlowEdge,
-} from './mapGraph'
+import { projectMap, type MapCardData, type MapFlowEdge } from './mapGraph'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession } from './mapSession'
 import { ClearHighlight, ResetLayout } from './MapControls'
 import { reconciledPosition } from './reconcile'
 import { shouldClearOnEscape } from './keys'
 import { stackIndex } from './stacking'
-import { useCenterRequests } from './useCenterRequests'
+import { useViewRequests } from './useViewRequests'
 import './map.css'
 
 type CardNode = Node<MapCardData, 'equipment'>
 type PreviewNode = Node<{ name: string; onConfigure: () => void }, 'preview'>
-type BoundaryNode = Node<MapBoundaryNode['data'], 'boundary'>
-type MapNode = CardNode | PreviewNode | BoundaryNode
+type MapNode = CardNode | PreviewNode
 
 const Actions = createContext<{
   onPort: (id: string) => void
   onTraceDevice: (id: string) => void
   onToggleManual: (equipmentId: string, key: string) => void
-  onFocus: (focus: Focus) => void
-  onToggleBundle: (id: string) => void
   /** Cards whose connections popover is open. */
   openLists: ReadonlySet<string>
   onToggleList: (equipmentId: string) => void
@@ -77,8 +68,6 @@ const Actions = createContext<{
   onPort: () => undefined,
   onTraceDevice: () => undefined,
   onToggleManual: () => undefined,
-  onFocus: () => undefined,
-  onToggleBundle: () => undefined,
   openLists: new Set(),
   onToggleList: () => undefined,
   entriesOf: () => [],
@@ -145,8 +134,7 @@ const EquipmentCard = memo(function EquipmentCard({
   data,
   selected,
 }: NodeProps<CardNode>) {
-  const { onPort, onTraceDevice, onFocus, openLists, onToggleList } =
-    useContext(Actions)
+  const { onPort, onTraceDevice, openLists, onToggleList } = useContext(Actions)
   const listOpen = openLists.has(id)
   // A route change can swap facets without changing the card's size, so the
   // size observer never fires; tell React Flow to re-read this card's handles.
@@ -163,7 +151,7 @@ const EquipmentCard = memo(function EquipmentCard({
       : Network
   return (
     <article
-      className={`equipment-card map-card ${data.highlighted ? 'traced' : ''} ${data.foundRole ? `found found-${data.foundRole}` : ''} ${selected ? 'selected' : ''} ${data.proposed ? 'proposed' : ''}`}
+      className={`equipment-card map-card ${data.highlighted ? 'traced' : ''} ${data.highlightRole === 'card' ? 'hl' : data.highlightRole === 'neighbor' ? 'hl-neighbor' : ''} ${data.dimmed ? 'dimmed' : ''} ${selected ? 'selected' : ''} ${data.proposed ? 'proposed' : ''}`}
     >
       <div className="equipment-heading">
         <span className="equipment-icon">
@@ -174,22 +162,7 @@ const EquipmentCard = memo(function EquipmentCard({
         </span>
       </div>
       <h3>{e.name}</h3>
-      <p className="map-location">
-        {data.location}
-        {data.focusNode && (
-          <button
-            className="nodrag map-focus"
-            aria-label={`Focus ${data.focusNodeName}`}
-            title={`Focus ${data.focusNodeName}`}
-            onClick={(event) => {
-              event.stopPropagation()
-              onFocus(data.focusNode!)
-            }}
-          >
-            <Crosshair size={12} />
-          </button>
-        )}
-      </p>
+      <p className="map-location">{data.location}</p>
       <p className="map-summary">
         {summary.cabled} of {summary.total} cabled
       </p>
@@ -295,49 +268,6 @@ const EquipmentCard = memo(function EquipmentCard({
   )
 })
 
-const BoundaryCard = memo(function BoundaryCard({
-  data,
-}: NodeProps<BoundaryNode>) {
-  const { onToggleBundle } = useContext(Actions)
-  const { bundle } = data
-  const shownIds = bundle.linkIds.slice(0, 6).join(' · ')
-  return (
-    <aside
-      className={`boundary-card ${bundle.expanded ? 'expanded' : ''}`}
-      data-cable-ids={bundle.linkIds.join(' ')}
-    >
-      <strong>{bundle.label}</strong>
-      <small className="cable-ids">
-        {shownIds}
-        {bundle.linkIds.length > 6 && ` · +${bundle.linkIds.length - 6}`}
-      </small>
-      <button
-        className="nodrag"
-        aria-expanded={bundle.expanded}
-        aria-label={`${bundle.expanded ? 'Collapse' : 'Expand'} ${bundle.label}`}
-        onClick={(event) => {
-          event.stopPropagation()
-          onToggleBundle(bundle.id)
-        }}
-      >
-        {bundle.expanded ? 'Collapse' : 'Expand'}
-      </button>
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="summary"
-        isConnectable={false}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="summary"
-        isConnectable={false}
-      />
-    </aside>
-  )
-})
-
 const Preview = memo(function Preview({ data }: NodeProps<PreviewNode>) {
   return (
     <button className="unplaced-card nodrag" onClick={data.onConfigure}>
@@ -349,16 +279,23 @@ const Preview = memo(function Preview({ data }: NodeProps<PreviewNode>) {
   )
 })
 /**
- * A cable line. Found and traced at once: the teal route line keeps its place
- * and the found color shows as a wider amber outline beneath it.
+ * A cable line. Highlighted and traced at once: the teal route line keeps its
+ * place and the amber highlight shows as a wider outline beneath it. A faded
+ * line (something else is highlighted) is dimmed; the route is never faded.
  */
+/** Opacity of a faded card or line. */
+const DIM = 0.3
+
 function MapEdge(props: EdgeProps) {
   const [path, labelX, labelY] = getSmoothStepPath(props)
   const data = props.data as MapFlowEdge['data'] | undefined
   return (
-    <g data-cable-ids={data?.linkIds.join(' ')}>
-      {data?.found && data.highlighted && (
-        <path d={path} className="found-outline" fill="none" />
+    <g
+      data-cable-ids={data?.linkIds.join(' ')}
+      style={data?.dimmed ? { opacity: DIM } : undefined}
+    >
+      {data?.highlight && data.highlighted && (
+        <path d={path} className="hl-outline" fill="none" />
       )}
       <BaseEdge
         id={props.id}
@@ -376,7 +313,6 @@ const edgeTypes = { map: MapEdge }
 const nodeTypes = {
   equipment: EquipmentCard,
   preview: Preview,
-  boundary: BoundaryCard,
 }
 
 export interface PendingEquipment {
@@ -436,14 +372,14 @@ function flowEdge(e: MapFlowEdge): Edge {
     targetHandle: e.targetHandle,
     label: e.label,
     type: 'map',
-    className: e.data.found ? 'found' : undefined,
+    className: e.data.highlight ? 'hl' : undefined,
     animated: lit,
     zIndex: 10,
     interactionWidth: 20,
     data: e.data,
     style: {
-      stroke: lit ? '#108b79' : e.data.found ? '#e09a00' : '#9bacc0',
-      strokeWidth: lit || e.data.found ? 3 : 1.8,
+      stroke: lit ? '#108b79' : e.data.highlight ? '#e09a00' : '#9bacc0',
+      strokeWidth: lit || e.data.highlight ? 3 : 1.8,
       strokeDasharray: e.data.proposed ? '6 4' : undefined,
     },
   }
@@ -475,15 +411,10 @@ function Canvas({
   )
   const index = (givenIndex ?? ownIndex)!
   const manual = useSyncExternalStore(session.subscribe, session.manualFacets)
-  const focus = useSyncExternalStore(session.subscribe, session.focus)
-  const foundId = useSyncExternalStore(session.subscribe, session.foundId)
+  const highlight = useSyncExternalStore(session.subscribe, session.highlight)
   const layoutVersion = useSyncExternalStore(
     session.subscribe,
     session.layoutVersion,
-  )
-  const expanded = useSyncExternalStore(
-    session.subscribe,
-    session.expandedBundles,
   )
   const graph = useMemo(
     () =>
@@ -496,7 +427,7 @@ function Canvas({
         installedLinkIDs,
         index,
       }),
-    // Manual facets, focus and expansion are read through the session; they are dependencies so changes re-project.
+    // Manual facets and the highlight are read through the session; they are dependencies so changes re-project.
     [
       snapshot,
       session,
@@ -506,10 +437,8 @@ function Canvas({
       installedLinkIDs,
       index,
       manual,
-      focus,
-      expanded,
+      highlight,
       layoutVersion,
-      foundId,
     ],
   )
   const edges = useMemo(() => graph.edges.map(flowEdge), [graph.edges])
@@ -520,12 +449,9 @@ function Canvas({
 
   // Local node state carries RF's measurements and in-progress drags; a
   // refetch, filter, route or context change only reconciles it by ID.
-  const [nodes, setNodes] = useState<MapNode[]>(() => [
-    ...graph.nodes,
-    ...graph.boundaries,
-  ])
+  const [nodes, setNodes] = useState<MapNode[]>(() => [...graph.nodes])
   // A layout reset drops dragged positions and fits once, then everything else
-  // (trace, pins, focus, filter) carries on untouched.
+  // (trace, pins, highlight, filter) carries on untouched.
   const appliedVersion = useRef(layoutVersion)
   const [fitToken, setFitToken] = useState(0)
   useEffect(() => {
@@ -533,7 +459,7 @@ function Canvas({
     appliedVersion.current = layoutVersion
     setNodes((previous) => {
       const existing = new Map(previous.map((n) => [n.id, n]))
-      return [...graph.nodes, ...graph.boundaries].map((n) => {
+      return graph.nodes.map((n) => {
         const prior = existing.get(n.id)
         return {
           ...n,
@@ -543,26 +469,26 @@ function Canvas({
       })
     })
     if (reset) setFitToken((t) => t + 1)
-  }, [graph.nodes, graph.boundaries, layoutVersion])
+  }, [graph.nodes, layoutVersion])
   useEffect(() => {
     if (fitToken === 0) return
     void flow.fitView(FIT).then(() => session.setViewport(flow.getViewport()))
   }, [fitToken])
   const surface = useRef<HTMLDivElement>(null)
-  useCenterRequests(session, surface, nodes)
-  // Esc clears the highlight (found state) without touching the trace.
+  useViewRequests(session, surface, nodes)
+  // Esc clears the highlight without touching the trace.
   useEffect(() => {
-    if (!foundId) return
+    if (!highlight) return
     const onKey = (event: KeyboardEvent) => {
       if (
         event.key === 'Escape' &&
         shouldClearOnEscape(event.target as HTMLElement | null)
       )
-        session.setFound(undefined)
+        session.setHighlight(undefined)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [foundId, session])
+  }, [highlight, session])
   const [openLists, setOpenLists] = useState<ReadonlySet<string>>(new Set())
   const toggleList = useCallback(
     (id: string) =>
@@ -622,8 +548,6 @@ function Canvas({
       onPort,
       onTraceDevice,
       onToggleManual: session.toggleManual,
-      onFocus: session.setFocus,
-      onToggleBundle: session.toggleBundle,
       openLists,
       onToggleList: toggleList,
       entriesOf,
@@ -649,8 +573,10 @@ function Canvas({
       data-cards={graph.marks.cards.join(' ')}
       data-route-links={graph.marks.routeLinks.join(' ')}
       data-route-cards={graph.marks.routeCards.join(' ')}
-      data-found-links={graph.marks.foundLinks.join(' ')}
-      data-found-cards={graph.marks.foundCards.join(' ')}
+      data-highlight-links={graph.marks.highlightLinks.join(' ')}
+      data-highlight-cards={graph.marks.highlightCards.join(' ')}
+      data-highlight-neighbors={graph.marks.highlightNeighbors.join(' ')}
+      data-dimmed-cards={graph.marks.dimmedCards.join(' ')}
     >
       <Actions.Provider value={actions}>
         <ReactFlow<MapNode>
@@ -663,7 +589,7 @@ function Canvas({
             if (node.type === 'equipment') onSelect(node.id)
           }}
           onNodeDragStop={(_, node) => {
-            if (node.type === 'equipment' || node.type === 'boundary')
+            if (node.type === 'equipment')
               session.setPosition(node.id, node.position)
           }}
           onInit={() => {
@@ -711,8 +637,8 @@ function Canvas({
           <Background color="#ccd5df" gap={24} size={1} />
           <Controls showInteractive={false} />
           <Panel position="top-right" className="map-tools">
-            {foundId && (
-              <ClearHighlight onClear={() => session.setFound(undefined)} />
+            {highlight && (
+              <ClearHighlight onClear={() => session.setHighlight(undefined)} />
             )}
             <ResetLayout onReset={session.resetLayout} />
           </Panel>

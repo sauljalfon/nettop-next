@@ -51,12 +51,14 @@ export interface Marks {
   cards: string[]
   routeLinks: string[]
   routeCards: string[]
-  foundLinks: string[]
-  foundCards: string[]
+  highlightLinks: string[]
+  highlightCards: string[]
+  highlightNeighbors: string[]
+  dimmedCards: string[]
 }
 
 /**
- * The projection's own highlighted/found IDs, written on .flow-surface. Unlike
+ * The projection's own route/highlight IDs, written on .flow-surface. Unlike
  * counting `.react-flow__edge.animated`, this does not depend on which cards
  * React Flow has drawn inside the current viewport (a pan hides offscreen ones).
  */
@@ -68,8 +70,10 @@ export const marks = (page: Page): Promise<Marks> =>
       cards: list('data-cards'),
       routeLinks: list('data-route-links'),
       routeCards: list('data-route-cards'),
-      foundLinks: list('data-found-links'),
-      foundCards: list('data-found-cards'),
+      highlightLinks: list('data-highlight-links'),
+      highlightCards: list('data-highlight-cards'),
+      highlightNeighbors: list('data-highlight-neighbors'),
+      dimmedCards: list('data-dimmed-cards'),
     }
   })
 
@@ -99,4 +103,84 @@ export async function pick(
     .getByRole('listbox', { name: `${name} matches` })
     .getByRole('option')
   await (option ? options.filter({ hasText: option }) : options).first().click()
+}
+
+/**
+ * Every given card is inside the part of the canvas that is visible: not under
+ * an open drawer or the results overlay.
+ */
+export async function expectInsideVisibleArea(page: Page, ids: string[]) {
+  await expect
+    .poll(async () => {
+      const boxes = await Promise.all(
+        ids.map((id) => page.getByTestId(`rf__node-${id}`).boundingBox()),
+      )
+      return page.evaluate((cards) => {
+        const surface = document
+          .querySelector('.flow-surface')!
+          .getBoundingClientRect()
+        let left = 0
+        let right = 0
+        let bottom = 0
+        for (const d of document.querySelectorAll('.studio-drawer')) {
+          const r = d.getBoundingClientRect()
+          if (d.classList.contains('left')) left = Math.max(left, r.right)
+          else right = Math.max(right, surface.right - r.left)
+        }
+        for (const o of document.querySelectorAll('.map-results'))
+          bottom = Math.max(
+            bottom,
+            surface.bottom - o.getBoundingClientRect().top,
+          )
+        return cards.every(
+          (c) =>
+            c !== null &&
+            c.x >= Math.max(surface.left, left) - 1 &&
+            c.y >= surface.top - 1 &&
+            c.x + c.width <= surface.right - right + 1 &&
+            c.y + c.height <= surface.bottom - bottom + 1,
+        )
+      }, boxes)
+    })
+    .toBe(true)
+}
+
+/** The viewport once two reads in a row agree, so an animation has finished. */
+export async function settledViewport(page: Page) {
+  let previous = ''
+  await expect
+    .poll(async () => {
+      const current = (await viewport(page)) ?? ''
+      const same = current === previous
+      previous = current
+      return same
+    })
+    .toBe(true)
+  return previous
+}
+
+/** Every drawn card's transform, keyed by node ID. */
+export const layout = (page: Page) =>
+  page.evaluate(() =>
+    Object.fromEntries(
+      [...document.querySelectorAll('.react-flow__node')].map((n) => [
+        n.getAttribute('data-id'),
+        (n as HTMLElement).style.transform,
+      ]),
+    ),
+  )
+
+export async function openExplore(page: Page) {
+  if ((await page.locator('.studio-drawer.left').count()) === 0)
+    await page
+      .getByRole('button', { name: 'Open explorer', exact: true })
+      .click()
+}
+
+/** Click a site or node name in the Explore drawer. */
+export async function highlightLocation(page: Page, name: string) {
+  await openExplore(page)
+  await page
+    .getByRole('button', { name: `Highlight ${name} on the map` })
+    .click()
 }

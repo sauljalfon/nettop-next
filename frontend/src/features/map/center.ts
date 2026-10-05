@@ -77,3 +77,27 @@ export function viewportFor(
 ) {
   return { x: at.x - target.x * zoom, y: at.y - target.y * zoom, zoom }
 }
+
+/**
+ * The viewport that fits `bounds` (in flow coordinates) into the part of the
+ * canvas that is not covered, with padding, centered there. The zoom is capped
+ * at `maxZoom` (a few cards are not blown up) and floored at `minZoom`.
+ */
+export function fitViewport(
+  bounds: { x: number; y: number; width: number; height: number },
+  size: { width: number; height: number },
+  covers: Covers,
+  { padding = 48, minZoom = 0.25, maxZoom = 1 } = {},
+) {
+  const width = size.width - covers.left - covers.right - 2 * padding
+  const height = size.height - covers.top - covers.bottom - 2 * padding
+  const wanted =
+    width > 0 && height > 0
+      ? Math.min(
+          bounds.width > 0 ? width / bounds.width : Infinity,
+          bounds.height > 0 ? height / bounds.height : Infinity,
+        )
+      : maxZoom
+  const zoom = Math.min(maxZoom, Math.max(minZoom, wanted))
+  return viewportFor(centerTarget(bounds), visibleCenter(size, covers), zoom)
+}

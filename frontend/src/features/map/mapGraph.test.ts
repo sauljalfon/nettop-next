@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot, agg03Route } from './acceptanceFixture'
 import { createMapSession } from './mapSession'
-import { boundaryId } from './focus'
 import { ROW_HEIGHT } from './layout'
 import { projectMap, type MapInput } from './mapGraph'
 
@@ -276,180 +275,7 @@ describe('C05 manual facets survive route selection, change and clear', () => {
   })
 })
 
-describe('C09/C13 focus view', () => {
-  const building = { kind: 'node', id: 'node-a' } as const
-  const toSm = boundaryId(building, { kind: 'node', id: 'node-sm' })
-  const focused = (expand = false) => {
-    const session = createMapSession()
-    session.setFocus(building)
-    if (expand) session.toggleBundle(toSm)
-    return session
-  }
-
-  it('shows only focused equipment and one boundary card per outside location', () => {
-    const view = projectMap(input({ session: focused() }))
-    expect(ids(view.nodes)).toEqual(['EDGE-17', 'PANEL-A'])
-    expect(view.boundaries.map((b) => b.id)).toEqual([toSm])
-    expect(view.boundaries[0].data.bundle.label).toBe(
-      '3 cables to North Sub-main',
-    )
-  })
-
-  it('draws the boundary as summary edges that keep every cable ID', () => {
-    const { edges } = projectMap(input({ session: focused() }))
-    const line = edges.find((e) => e.target === toSm || e.source === toSm)!
-    expect(line.data.linkIds).toEqual(['A02', 'A06', 'A10'])
-    expect(line.sourceHandle).toBe('summary')
-    expect(line.targetHandle).toBe('summary')
-    // No real edge reaches the hidden neighbor.
-    expect(
-      edges.some((e) => e.source === 'HDF-01' || e.target === 'HDF-01'),
-    ).toBe(false)
-  })
-
-  it('expanding shows the real neighbor at its session position with real edges', () => {
-    const session = focused()
-    const all = projectMap(input({ session: createMapSession() }))
-    const before = projectMap(input({ session }))
-    session.toggleBundle(toSm)
-    const after = projectMap(input({ session }))
-    expect(ids(after.nodes)).toEqual(['EDGE-17', 'HDF-01', 'PANEL-A'])
-    expect(after.boundaries[0].data.bundle.expanded).toBe(true)
-    const hdf = after.nodes.find((n) => n.id === 'HDF-01')!
-    // The first layout is deterministic, so the neighbor sits where the full map puts it.
-    expect(hdf.position).toEqual(
-      all.nodes.find((n) => n.id === 'HDF-01')!.position,
-    )
-    expect(
-      after.edges
-        .filter((e) => e.source === 'HDF-01' || e.target === 'HDF-01')
-        .flatMap((e) => e.data.linkIds)
-        .sort(),
-    ).toEqual(['A02', 'A06', 'A10'])
-    // The boundary summary lines are replaced by the real edges.
-    expect(
-      after.edges.some((e) => e.source === toSm || e.target === toSm),
-    ).toBe(false)
-    for (const n of before.nodes)
-      expect(after.nodes.find((m) => m.id === n.id)!.position).toEqual(
-        n.position,
-      )
-  })
-
-  it('never moves a card when focusing, expanding or clearing', () => {
-    const session = createMapSession()
-    const full = projectMap(input({ session }))
-    session.setFocus(building)
-    const f = projectMap(input({ session }))
-    session.toggleBundle(toSm)
-    const e = projectMap(input({ session }))
-    session.setFocus(undefined)
-    const cleared = projectMap(input({ session }))
-    for (const view of [f, e, cleared])
-      for (const n of view.nodes)
-        expect(n.position).toEqual(
-          full.nodes.find((m) => m.id === n.id)!.position,
-        )
-    expect(cleared.boundaries).toEqual([])
-    expect(cleared.nodes).toHaveLength(11)
-  })
-
-  it('records a boundary card position once and keeps it', () => {
-    const session = focused()
-    const first = projectMap(input({ session })).boundaries[0].position
-    session.setPosition(toSm, { x: 777, y: 8 })
-    expect(projectMap(input({ session })).boundaries[0].position).toEqual({
-      x: 777,
-      y: 8,
-    })
-    expect(first).not.toEqual({ x: 777, y: 8 })
-  })
-
-  it('gives boundary cards distinct positions', () => {
-    const session = createMapSession()
-    session.setFocus({ kind: 'node', id: 'node-core' })
-    const positions = projectMap(input({ session })).boundaries.map(
-      (b) => `${b.position.x},${b.position.y}`,
-    )
-    expect(positions).toHaveLength(2)
-    expect(new Set(positions).size).toBe(2)
-  })
-
-  it('moves a new boundary card down by a full row until it is free', () => {
-    const free = projectMap(input({ session: focused() })).boundaries[0]
-      .position
-    const session = focused()
-    session.setPosition('AGG-03', free) // something already sits where it would go
-    const placed = projectMap(input({ session })).boundaries[0].position
-    expect(placed).toEqual({ x: free.x, y: free.y + ROW_HEIGHT })
-  })
-
-  it('combines with the network filter', () => {
-    const session = createMapSession()
-    session.setFocus({ kind: 'node', id: 'node-core' })
-    const view = projectMap(input({ session, networkId: 'A' }))
-    expect(ids(view.nodes)).toEqual([
-      'AGG-03',
-      'AGG-08',
-      'AGG-15',
-      'BB-01',
-      'HDF-02',
-    ])
-    expect(view.boundaries.map((b) => b.data.bundle.label)).toEqual([
-      '4 cables to North Sub-main',
-    ])
-  })
-
-  it('reveals a selected route outside the focus and hides it again on clear', () => {
-    const session = focused()
-    const routed = projectMap(input({ session, route: agg03Route() }))
-    expect(ids(routed.nodes)).toEqual([
-      'AGG-03',
-      'EDGE-17',
-      'HDF-01',
-      'HDF-02',
-      'PANEL-A',
-    ])
-    expect(routed.boundaries).toEqual([])
-    expect(
-      routed.edges
-        .filter((e) => e.data.highlighted)
-        .map((e) => e.id)
-        .sort(),
-    ).toEqual(['A01', 'A02', 'A03', 'A04'])
-    expect(ids(projectMap(input({ session })).nodes)).toEqual([
-      'EDGE-17',
-      'PANEL-A',
-    ])
-  })
-
-  it('keeps manual facets working on focused cards', () => {
-    const session = focused()
-    session.toggleManual('PANEL-A', '2')
-    const panel = projectMap(input({ session })).nodes.find(
-      (n) => n.id === 'PANEL-A',
-    )!
-    expect(panel.data.facets.map((f) => f.label)).toEqual(['2'])
-  })
-
-  it('lets a card focus its own node, naming it', () => {
-    const data = projectMap(input()).nodes.find((n) => n.id === 'EDGE-17')!.data
-    expect(data.focusNode).toEqual(building)
-    expect(data.focusNodeName).toBe('Building A')
-  })
-
-  it('ignores a focus that is not in this snapshot', () => {
-    const session = createMapSession()
-    session.setFocus({ kind: 'node', id: 'gone' })
-    const view = projectMap(input({ session }))
-    expect(view.nodes).toHaveLength(11)
-    expect(view.boundaries).toEqual([])
-  })
-})
-
 describe('POL-03 reset recomputes the first layered layout', () => {
-  const building = { kind: 'node', id: 'node-a' } as const
-
   it('puts every card back where a fresh session lays it out', () => {
     const fresh = projectMap(input({ session: createMapSession() }))
     const session = createMapSession()
@@ -463,161 +289,251 @@ describe('POL-03 reset recomputes the first layered layout', () => {
       )
   })
 
-  it('also recomputes boundary card positions', () => {
+  it('keeps pinned facets, the highlight, the network filter and the route', () => {
     const session = createMapSession()
-    session.setFocus(building)
-    const first = projectMap(input({ session })).boundaries[0]
-    session.setPosition(first.id, { x: 9000, y: 9000 })
+    session.setHighlight({ kind: 'node', id: 'node-a' })
+    session.toggleManual('PANEL-A', '2')
+    const view = () =>
+      projectMap(input({ session, networkId: 'A', route: agg03Route() }))
+    const before = view()
     session.resetLayout()
-    expect(projectMap(input({ session })).boundaries[0].position).toEqual(
-      first.position,
+    const after = view()
+    expect(after.marks).toEqual(before.marks)
+    expect(after.marks.highlightCards).toEqual(['EDGE-17', 'PANEL-A'])
+    expect(after.marks.routeLinks).toEqual(['A01', 'A02', 'A03', 'A04'])
+    const panel = after.nodes.find((n) => n.id === 'PANEL-A')!
+    expect(panel.data.facets.map((f) => f.label).sort()).toEqual(['1', '2'])
+  })
+})
+
+describe('POL-14 a location highlight: amber, neighbors lighter, the rest dimmed', () => {
+  const node = (id: string) => {
+    const session = createMapSession()
+    session.setHighlight({ kind: 'node', id })
+    return session
+  }
+  const role = (view: ReturnType<typeof projectMap>, id: string) =>
+    view.nodes.find((n) => n.id === id)?.data.highlightRole
+  const dimmed = (view: ReturnType<typeof projectMap>, id: string) =>
+    view.nodes.find((n) => n.id === id)!.data.dimmed
+
+  it("highlights Building A's equipment, the cables leaving it, and its neighbor", () => {
+    const view = projectMap(input({ session: node('node-a') }))
+    expect(role(view, 'EDGE-17')).toBe('card')
+    expect(role(view, 'PANEL-A')).toBe('card')
+    expect(role(view, 'HDF-01')).toBe('neighbor')
+    expect(role(view, 'EDGE-22')).toBeUndefined()
+    expect(view.marks).toMatchObject({
+      highlightCards: ['EDGE-17', 'PANEL-A'],
+      highlightNeighbors: ['HDF-01'],
+      highlightLinks: ['A01', 'A02', 'A05', 'A06', 'A09', 'A10'],
+    })
+  })
+
+  it('dims every other card and line, but keeps every card where it is', () => {
+    const none = projectMap(input({ session: createMapSession() }))
+    const view = projectMap(input({ session: node('node-a') }))
+    expect(view.marks.dimmedCards).toEqual([
+      'AGG-03',
+      'AGG-08',
+      'AGG-12',
+      'AGG-15',
+      'BB-01',
+      'EDGE-22',
+      'HDF-02',
+      'PANEL-DR',
+    ])
+    expect(dimmed(view, 'EDGE-17')).toBe(false)
+    expect(dimmed(view, 'HDF-01')).toBe(false) // the neighbor is not dimmed
+    expect(dimmed(view, 'AGG-03')).toBe(true)
+    for (const e of view.edges)
+      expect(e.data.dimmed).toBe(!e.data.highlight && !e.data.highlighted)
+    // The line between two dimmed cards is dimmed; the highlighted lines are not.
+    expect(
+      view.edges.find((e) => e.data.linkIds.includes('A03'))!.data.dimmed,
+    ).toBe(true)
+    expect(
+      view.edges.find((e) => e.data.linkIds.includes('A01'))!.data,
+    ).toMatchObject({
+      highlight: true,
+      dimmed: false,
+    })
+    for (const n of none.nodes)
+      expect(view.nodes.find((m) => m.id === n.id)!.position).toEqual(
+        n.position,
+      )
+  })
+
+  it('dims nothing without a highlight', () => {
+    const view = projectMap(input())
+    expect(view.marks.dimmedCards).toEqual([])
+    expect(view.marks.highlightCards).toEqual([])
+    expect(
+      view.nodes.every((n) => !n.data.dimmed && !n.data.highlightRole),
+    ).toBe(true)
+    expect(view.edges.every((e) => !e.data.dimmed && !e.data.highlight)).toBe(
+      true,
     )
   })
 
-  it('keeps pinned facets, the focus, the network filter and the route', () => {
+  it('highlights a whole site', () => {
     const session = createMapSession()
-    session.setFocus(building)
-    session.toggleManual('PANEL-A', '2')
-    projectMap(input({ session, networkId: 'A', route: agg03Route() }))
-    session.resetLayout()
-    const view = projectMap(
-      input({ session, networkId: 'A', route: agg03Route() }),
+    session.setHighlight({ kind: 'site', id: 'site-main' })
+    const { marks } = projectMap(input({ session }))
+    expect(marks.highlightCards).toEqual([
+      'AGG-03',
+      'AGG-08',
+      'AGG-15',
+      'BB-01',
+      'EDGE-17',
+      'HDF-01',
+      'HDF-02',
+      'PANEL-A',
+    ])
+    expect(marks.highlightNeighbors).toEqual(['AGG-12', 'PANEL-DR'])
+    expect(marks.dimmedCards).toEqual(['EDGE-22'])
+  })
+
+  it('ignores a location that is not in this snapshot', () => {
+    const session = createMapSession()
+    session.setHighlight({ kind: 'node', id: 'gone' })
+    const view = projectMap(input({ session }))
+    expect(view.marks.dimmedCards).toEqual([])
+    expect(view.nodes).toHaveLength(11)
+  })
+})
+
+describe('POL-16 highlight, route and network filter combine and clear independently', () => {
+  const highlighted = () => {
+    const session = createMapSession()
+    session.setHighlight({ kind: 'node', id: 'node-a' })
+    return session
+  }
+
+  it('shows the highlighted part even where the network filter would hide it', () => {
+    const session = highlighted()
+    const hidden = projectMap(
+      input({ session: createMapSession(), networkId: 'B' }),
     )
-    expect(ids(view.nodes)).toEqual([
+    expect(ids(hidden.nodes)).not.toContain('EDGE-17')
+    const view = projectMap(input({ session, networkId: 'B' }))
+    expect(ids(view.nodes)).toEqual(
+      expect.arrayContaining([
+        'EDGE-17',
+        'PANEL-A',
+        'HDF-01',
+        'EDGE-22',
+        'AGG-12',
+      ]),
+    )
+    expect(view.marks.highlightCards).toEqual(['EDGE-17', 'PANEL-A'])
+    // The Network A device AGG-03 stays hidden: it is neither highlighted nor a neighbor.
+    expect(ids(view.nodes)).not.toContain('AGG-03')
+    session.setHighlight(undefined)
+    expect(
+      ids(projectMap(input({ session, networkId: 'B' })).nodes),
+    ).not.toContain('EDGE-17')
+  })
+
+  it('keeps route cards and lines teal and never dims them', () => {
+    const view = projectMap(
+      input({ session: highlighted(), route: agg03Route() }),
+    )
+    // HDF-02 and AGG-03 are outside Building A, so they would be dimmed if they were not on the route.
+    for (const id of ['AGG-03', 'HDF-01', 'HDF-02'])
+      expect(view.nodes.find((n) => n.id === id)!.data).toMatchObject({
+        highlighted: true,
+        dimmed: false,
+      })
+    // Everything else outside Building A is dimmed, but no route card is.
+    expect(view.marks.dimmedCards).toEqual([
+      'AGG-08',
+      'AGG-12',
+      'AGG-15',
+      'BB-01',
+      'EDGE-22',
+      'PANEL-DR',
+    ])
+    const a03 = view.edges.find((e) => e.id === 'A03')!
+    expect(a03.data).toMatchObject({ highlighted: true, dimmed: false })
+    const a04 = view.edges.find((e) => e.id === 'A04')!
+    expect(a04.data).toMatchObject({ highlighted: true, dimmed: false })
+  })
+
+  it('draws a cable that is both on the route and highlighted as route, with the highlight beneath', () => {
+    const view = projectMap(
+      input({ session: highlighted(), route: agg03Route() }),
+    )
+    const a01 = view.edges.find((e) => e.data.linkIds.includes('A01'))!
+    expect(a01.data).toMatchObject({
+      highlighted: true,
+      highlight: true,
+      dimmed: false,
+    })
+  })
+
+  it('clears independently: the route keeps the highlight and the highlight keeps the route', () => {
+    const session = highlighted()
+    const both = projectMap(input({ session, route: agg03Route() })).marks
+    expect(both.routeLinks).toEqual(['A01', 'A02', 'A03', 'A04'])
+    expect(both.highlightLinks).toEqual([
+      'A01',
+      'A02',
+      'A05',
+      'A06',
+      'A09',
+      'A10',
+    ])
+
+    const noRoute = projectMap(input({ session })).marks
+    expect(noRoute.routeLinks).toEqual([])
+    expect(noRoute.highlightLinks).toEqual(both.highlightLinks)
+    expect(noRoute.dimmedCards.length).toBeGreaterThan(0)
+
+    session.setHighlight(undefined)
+    const noHighlight = projectMap(
+      input({ session, route: agg03Route() }),
+    ).marks
+    expect(noHighlight.routeLinks).toEqual(both.routeLinks)
+    expect(noHighlight.highlightCards).toEqual([])
+    expect(noHighlight.dimmedCards).toEqual([])
+  })
+
+  it('combines all three: filter, highlight and route', () => {
+    const view = projectMap(
+      input({ session: highlighted(), networkId: 'B', route: agg03Route() }),
+    )
+    expect(view.marks.routeCards).toEqual([
       'AGG-03',
       'EDGE-17',
       'HDF-01',
       'HDF-02',
       'PANEL-A',
     ])
-    const panel = view.nodes.find((n) => n.id === 'PANEL-A')!
-    expect(panel.data.facets.map((f) => f.label).sort()).toEqual(['1', '2'])
-    expect(view.edges.some((e) => e.data.highlighted)).toBe(true)
+    expect(view.marks.highlightCards).toEqual(['EDGE-17', 'PANEL-A'])
+    // Network B's own cards are dimmed, since a highlight is on and they are not part of it.
+    expect(view.marks.dimmedCards).toEqual(['AGG-12', 'EDGE-22', 'PANEL-DR'])
+  })
+
+  it('shows a highlighted card with its manual facets', () => {
+    const session = highlighted()
+    session.toggleManual('PANEL-A', '2')
+    const panel = projectMap(input({ session })).nodes.find(
+      (n) => n.id === 'PANEL-A',
+    )!
+    expect(panel.data.facets.map((f) => f.label)).toEqual(['2'])
   })
 })
 
-describe('POL-06/07/08 found highlight', () => {
-  const found = (id: string) => {
-    const session = createMapSession()
-    session.setFound(id)
-    return session
-  }
-  const roleOf = (view: ReturnType<typeof projectMap>, id: string) =>
-    view.nodes.find((n) => n.id === id)?.data.foundRole
-
-  it('marks the card, its neighbors and their cables, and nothing else', () => {
-    const view = projectMap(input({ session: found('EDGE-17') }))
-    expect(roleOf(view, 'EDGE-17')).toBe('card')
-    expect(roleOf(view, 'PANEL-A')).toBe('neighbor')
-    expect(roleOf(view, 'HDF-01')).toBeUndefined()
-    const lit = view.edges.filter((e) => e.data.found)
-    expect(lit.flatMap((e) => e.data.linkIds).sort()).toEqual([
-      'A01',
-      'A05',
-      'A09',
-    ])
-    expect(
-      view.edges
-        .filter((e) => !e.data.found)
-        .every((e) => !e.data.linkIds.includes('A01')),
-    ).toBe(true)
-  })
-
-  it('marks nothing without a found card, and ignores an unknown one', () => {
-    expect(projectMap(input()).nodes.every((n) => !n.data.foundRole)).toBe(true)
-    const view = projectMap(input({ session: found('nope') }))
-    expect(view.nodes.every((n) => !n.data.foundRole)).toBe(true)
-    expect(view.edges.every((e) => !e.data.found)).toBe(true)
-  })
-
-  it('coexists with a selected route: a cable can be both highlighted and found', () => {
-    const view = projectMap(
-      input({ session: found('EDGE-17'), route: agg03Route() }),
-    )
-    const a01 = view.edges.find((e) => e.data.linkIds.includes('A01'))!
-    expect(a01.data).toMatchObject({ highlighted: true, found: true })
-    // A05 is found but not on the AGG-03 route; A02 is on the route but not found.
-    const a05 = view.edges.find((e) => e.data.linkIds.includes('A05'))!
-    expect(a05.data).toMatchObject({ highlighted: false, found: true })
-    const a02 = view.edges.find((e) => e.data.linkIds.includes('A02'))!
-    expect(a02.data).toMatchObject({ highlighted: true, found: false })
-    expect(view.nodes.find((n) => n.id === 'PANEL-A')!.data).toMatchObject({
-      highlighted: true,
-      foundRole: 'neighbor',
-    })
-  })
-
-  it('clears independently: removing the route keeps the find, and vice versa', () => {
-    const session = found('EDGE-17')
-    const routed = projectMap(input({ session, route: agg03Route() }))
-    const noRoute = projectMap(input({ session }))
-    expect(roleOf(noRoute, 'EDGE-17')).toBe('card')
-    expect(noRoute.edges.some((e) => e.data.highlighted)).toBe(false)
-    session.setFound(undefined)
-    const noFound = projectMap(input({ session, route: agg03Route() }))
-    const lit = (v: typeof routed) =>
-      v.edges.filter((e) => e.data.highlighted).map((e) => e.id)
-    expect(lit(noFound)).toEqual(lit(routed))
-    expect(noFound.edges.some((e) => e.data.found)).toBe(false)
-  })
-
-  it('shows found cards the network filter hides, and hides them when the find is cleared', () => {
-    const session = found('EDGE-17')
-    const hidden = projectMap(
-      input({ session: createMapSession(), networkId: 'B' }),
-    )
-    expect(ids(hidden.nodes)).not.toContain('EDGE-17')
-    const shown = projectMap(input({ session, networkId: 'B' }))
-    expect(ids(shown.nodes)).toEqual(
-      expect.arrayContaining(['EDGE-17', 'PANEL-A', 'EDGE-22', 'AGG-12']),
-    )
-    session.setFound(undefined)
-    expect(
-      ids(projectMap(input({ session, networkId: 'B' })).nodes),
-    ).not.toContain('EDGE-17')
-  })
-
-  it('shows found cards outside a focus, with real lines instead of a summary', () => {
-    const session = createMapSession()
-    session.setFocus({ kind: 'node', id: 'node-a' })
-    session.setFound('HDF-01')
-    const view = projectMap(input({ session }))
-    expect(ids(view.nodes)).toEqual(
-      expect.arrayContaining([
-        'EDGE-17',
-        'PANEL-A',
-        'HDF-01',
-        'HDF-02',
-        'PANEL-DR',
-      ]),
-    )
-    expect(view.edges.some((e) => e.data.found)).toBe(true)
-    session.setFound(undefined)
-    expect(ids(projectMap(input({ session })).nodes)).toEqual([
-      'EDGE-17',
-      'PANEL-A',
-    ])
-  })
-
-  it('never moves a card', () => {
-    const session = createMapSession()
-    const before = projectMap(input({ session }))
-    session.setFound('AGG-03')
-    const after = projectMap(input({ session }))
-    for (const n of before.nodes)
-      expect(after.nodes.find((m) => m.id === n.id)!.position).toEqual(
-        n.position,
-      )
-  })
-})
-
-describe("marks: the projection's highlighted and found IDs, for tests and tools", () => {
-  it('has no marks without a route or a found card', () => {
+describe("marks: the projection's route and highlight IDs, for tests and tools", () => {
+  it('has no marks without a route or a highlight', () => {
     expect(projectMap(input()).marks).toEqual({
       routeLinks: [],
       routeCards: [],
-      foundLinks: [],
-      foundCards: [],
+      highlightLinks: [],
+      highlightCards: [],
+      highlightNeighbors: [],
+      dimmedCards: [],
       cards: expect.any(Array),
     })
   })
@@ -636,34 +552,13 @@ describe("marks: the projection's highlighted and found IDs, for tests and tools
 
   it('lists only the cables of a bundle that are on the route', () => {
     // A01, A05 and A09 share a bundle between EDGE-17 and PANEL-A: only A01 is on this route.
-    const session = createMapSession()
-    const { marks, edges } = projectMap(input({ session, route: agg03Route() }))
+    const { marks, edges } = projectMap(input({ route: agg03Route() }))
     expect(
       edges.some(
         (e) => e.data.linkIds.length > 1 && e.data.linkIds.includes('A05'),
       ),
     ).toBe(true)
     expect(marks.routeLinks).not.toContain('A05')
-  })
-
-  it('lists the found card, its neighbors and their cables', () => {
-    const session = createMapSession()
-    session.setFound('EDGE-17')
-    const { marks } = projectMap(input({ session }))
-    expect(marks.foundCards).toEqual(['EDGE-17', 'PANEL-A'])
-    expect(marks.foundLinks).toEqual(['A01', 'A05', 'A09'])
-  })
-
-  it('keeps route and found independent', () => {
-    const session = createMapSession()
-    session.setFound('EDGE-17')
-    const both = projectMap(input({ session, route: agg03Route() })).marks
-    expect(both.routeLinks).toEqual(['A01', 'A02', 'A03', 'A04'])
-    expect(both.foundLinks).toEqual(['A01', 'A05', 'A09'])
-    session.setFound(undefined)
-    const routeOnly = projectMap(input({ session, route: agg03Route() })).marks
-    expect(routeOnly.routeLinks).toEqual(both.routeLinks)
-    expect(routeOnly.foundLinks).toEqual([])
   })
 
   it('lists the shown cards, so a test can tell shown from drawn', () => {

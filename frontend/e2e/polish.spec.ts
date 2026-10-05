@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, viewport } from './helpers'
+import { expectMarks, fitted, highlightLocation, viewport } from './helpers'
 
 /** Every card's transform, keyed by node ID. */
 const layout = (page: Page) =>
@@ -118,7 +118,7 @@ test('POL-02 every overlay button stays clickable with each drawer open', async 
   }
 })
 
-test('POL-03 reset recomputes the first layout and keeps pins, focus, filter and trace', async ({
+test('POL-03 reset recomputes the first layout and keeps pins, highlight, filter and trace', async ({
   page,
 }) => {
   await page.goto('/')
@@ -126,7 +126,7 @@ test('POL-03 reset recomputes the first layout and keeps pins, focus, filter and
   await expect(cards(page)).toHaveCount(11)
   const first = await layout(page)
 
-  // Build up state: filter, a pinned position, a focus, and a selected trace.
+  // Build up state: filter, a pinned position, a highlight, and a selected trace.
   await page
     .getByRole('combobox', { name: 'Show network' })
     .selectOption({ label: 'Network A' })
@@ -139,14 +139,13 @@ test('POL-03 reset recomputes the first layout and keeps pins, focus, filter and
     .first()
     .check()
   await page.getByRole('button', { name: 'Show connections of HDF-01' }).click()
-  await page
-    .getByTestId('rf__node-edge-17')
-    .getByRole('button', { name: 'Focus Building A' })
-    .click()
-  await expect(page.locator('.focus-chip')).toContainText('Building A')
+  await highlightLocation(page, 'Building A')
+  await expectMarks(page, { highlightCards: ['edge-17', 'panel-a'] })
+  await page.getByRole('button', { name: 'Open explorer', exact: true }).click() // close Explore
   await traceFromEdge17(page)
   await rows(page).nth(1).click() // AGG-08, which uses 1A/2
-  await expect(cards(page)).toHaveCount(5)
+  await expect(page.locator('.board-caption')).toContainText('8 of 11')
+  await expectMarks(page, { dimmedCards: ['agg-03', 'agg-15', 'bb-01'] })
   await expect(
     page.getByLabel('HDF-01 shown connections').getByRole('button'),
   ).toHaveAttribute('data-source', 'auto manual')
@@ -193,10 +192,13 @@ test('POL-03 reset recomputes the first layout and keeps pins, focus, filter and
   await expect(
     page.getByRole('combobox', { name: 'Show network' }),
   ).toHaveValue('net-a')
-  await expect(page.locator('.focus-chip')).toContainText('Building A')
+  await expectMarks(page, {
+    highlightCards: ['edge-17', 'panel-a'],
+    dimmedCards: ['agg-03', 'agg-15', 'bb-01'],
+  })
   await expect(rows(page)).toHaveCount(3)
   await expect(rows(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
-  await expect(cards(page)).toHaveCount(5)
+  await expect(page.locator('.board-caption')).toContainText('8 of 11')
   await expect(
     page.getByLabel('HDF-01 shown connections').getByRole('button'),
   ).toHaveAttribute('data-source', 'auto manual')

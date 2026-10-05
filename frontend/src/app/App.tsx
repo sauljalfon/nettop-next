@@ -22,9 +22,8 @@ import ConceptualMap, {
 } from '../features/map/ConceptualMap'
 import { drawerSides } from '../features/map/drawers'
 import { mapSession } from '../features/map/mapSession'
-import type { Focus } from '../features/map/focus'
+import { highlightFor, type LocationRef } from '../features/map/highlight'
 import {
-  FocusChip,
   NetworkSelect,
   ViewSwitch,
   type MapView,
@@ -193,7 +192,6 @@ export default function App() {
           value={networkId}
           onChange={setNetworkChoice}
         />
-        {topology.data && <FocusChip snapshot={topology.data} />}
         <div className="context-switch">
           <button
             className={context === 'installed' ? 'active' : ''}
@@ -441,7 +439,7 @@ function Workspace({
   networkId,
 }: WorkspaceProps) {
   const [selected, setSelected] = useState(snapshot.equipment[0]?.id ?? '')
-  const [focusedRack, setFocusedRack] = useState<string>()
+  const [physicalRack, setPhysicalRack] = useState<string>()
   const [mode, setMode] = useState<'distribution' | 'point_to_point'>(
     'distribution',
   )
@@ -547,22 +545,26 @@ function Workspace({
     },
     [traceMutation.mutate],
   )
-  const focusLocation = useCallback(
-    (focus: Focus) => {
-      mapSession.setFocus(focus)
+  // Choosing a site or node (in Explore, or from the inspector's location links):
+  // highlight its equipment and cables on the map, and fit the view to them once.
+  const highlightLocation = useCallback(
+    (location: LocationRef) => {
+      mapSession.setHighlight(location)
       onViewChange('conceptual')
+      const h = highlightFor(index, location)
+      if (h) mapSession.requestFit([...h.equipmentIds, ...h.neighborIds])
     },
-    [onViewChange],
+    [index, onViewChange],
   )
   const openRack = useCallback(
     (id: string) => {
-      setFocusedRack(id)
+      setPhysicalRack(id)
       onViewChange('physical')
     },
     [onViewChange],
   )
   useEffect(() => {
-    if (view === 'conceptual') setFocusedRack(undefined)
+    if (view === 'conceptual') setPhysicalRack(undefined)
   }, [view])
   const canEdit =
     !!plan &&
@@ -598,13 +600,13 @@ function Workspace({
   )
   const rackSnapshot = useMemo(
     () =>
-      focusedRack
+      physicalRack
         ? {
             ...snapshot,
-            racks: snapshot.racks.filter((r) => r.id === focusedRack),
+            racks: snapshot.racks.filter((r) => r.id === physicalRack),
           }
         : snapshot,
-    [snapshot, focusedRack],
+    [snapshot, physicalRack],
   )
   function runTrace() {
     traceMutation.mutate(
@@ -622,16 +624,22 @@ function Workspace({
       traceMutation.mutate({ mode: 'distribution', device: equipment.id })
     }
   }
-  // Explore, the inspector and Show on map all do this: select the card, show the
-  // map, highlight the card and its neighbors, and center on it.
+  // Select the card, show the map and center on the card. No highlight.
   const showOnMap = useCallback(
     (id: string) => {
       setSelected(id)
       onViewChange('conceptual')
-      mapSession.setFound(id)
       mapSession.requestCenter(id)
     },
     [onViewChange],
+  )
+  // Equipment chosen in Explore (a click, or Enter in its search) also opens the inspector.
+  const chooseEquipment = useCallback(
+    (id: string) => {
+      showOnMap(id)
+      onSelectEquipment()
+    },
+    [showOnMap, onSelectEquipment],
   )
   const drawerEquipment = equipment && (
     <Inspector
@@ -643,7 +651,7 @@ function Workspace({
       onFindFromDevice={useSelected}
       onFindFromHere={traceFromPort}
       onShowOnMap={showOnMap}
-      onFocus={focusLocation}
+      onHighlight={highlightLocation}
       onOpenRack={openRack}
     >
       {plan && (
@@ -667,7 +675,7 @@ function Workspace({
           <h1>
             {view === 'conceptual'
               ? 'Connected infrastructure.'
-              : (snapshot.racks.find((r) => r.id === focusedRack)?.name ??
+              : (snapshot.racks.find((r) => r.id === physicalRack)?.name ??
                 'Rack workshop')}
           </h1>
         </div>
@@ -737,9 +745,9 @@ function Workspace({
           <Explorer
             snapshot={snapshot}
             selected={selected}
-            onChoose={showOnMap}
+            onChoose={chooseEquipment}
             onOpenRack={openRack}
-            onFocus={focusLocation}
+            onHighlight={highlightLocation}
             canEdit={canEdit}
           />
         </DrawerPanel>
@@ -983,15 +991,16 @@ function Explorer({
   selected,
   onChoose,
   onOpenRack,
-  onFocus,
+  onHighlight,
   canEdit,
 }: {
   snapshot: Snapshot
   selected: string
-  /** Show the equipment on the map: select, center and highlight it. */
+  /** Select the equipment, open the inspector and center on its card. */
   onChoose: (id: string) => void
   onOpenRack: (id: string) => void
-  onFocus: (focus: Focus) => void
+  /** Highlight a site or node on the map. */
+  onHighlight: (location: LocationRef) => void
   canEdit: boolean
 }) {
   const [search, setSearch] = useState('')
@@ -1018,26 +1027,26 @@ function Explorer({
         <section key={site.id} className="explorer-site">
           <h3>
             <MapPin size={16} />
-            {site.name}
             <button
-              className="text-button focus-action"
-              aria-label={`Focus ${site.name}`}
-              onClick={() => onFocus({ kind: 'site', id: site.id })}
+              className="location-name"
+              aria-label={`Highlight ${site.name} on the map`}
+              title="Highlight on the map"
+              onClick={() => onHighlight({ kind: 'site', id: site.id })}
             >
-              Focus
+              {site.name}
             </button>
           </h3>
           {nodes.map(({ node, racks }) => (
             <section key={node.id} className="explorer-node">
               <h4>
                 <Building2 size={15} />
-                {node.name}
                 <button
-                  className="text-button focus-action"
-                  aria-label={`Focus ${node.name}`}
-                  onClick={() => onFocus({ kind: 'node', id: node.id })}
+                  className="location-name"
+                  aria-label={`Highlight ${node.name} on the map`}
+                  title="Highlight on the map"
+                  onClick={() => onHighlight({ kind: 'node', id: node.id })}
                 >
-                  Focus
+                  {node.name}
                 </button>
               </h4>
               {racks.map(({ rack, equipment }) => (

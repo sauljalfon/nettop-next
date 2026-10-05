@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   centerTarget,
   coversFromRects,
+  fitViewport,
   viewportFor,
   visibleCenter,
 } from './center'
@@ -129,5 +130,86 @@ describe('POL-05 the viewport that puts a point where we want it', () => {
       y: 390 - 50,
       zoom: 0.5,
     })
+  })
+})
+
+describe('POL-14 fitting the view to some cards, in the visible area', () => {
+  const size = { width: 1440, height: 984 }
+  const none = { left: 0, right: 0, top: 0, bottom: 0 }
+  const bounds = { x: 100, y: 200, width: 640, height: 300 }
+
+  it('is capped at zoom 1: a few cards are not blown up', () => {
+    const v = fitViewport(bounds, size, none)
+    expect(v.zoom).toBe(1)
+    // The middle of the cards lands at the middle of the canvas.
+    expect(v.x + (100 + 320) * v.zoom).toBeCloseTo(720)
+    expect(v.y + (200 + 150) * v.zoom).toBeCloseTo(492)
+  })
+
+  it('zooms out to fit tall or wide bounds, with padding', () => {
+    const v = fitViewport(
+      { x: 0, y: 0, width: 400, height: 2000 },
+      size,
+      none,
+      { padding: 48 },
+    )
+    expect(v.zoom).toBeCloseTo((984 - 96) / 2000)
+    const w = fitViewport(
+      { x: 0, y: 0, width: 4000, height: 100 },
+      size,
+      none,
+      { padding: 40 },
+    )
+    expect(w.zoom).toBeCloseTo((1440 - 80) / 4000)
+  })
+
+  it('fits inside the part that is not covered, and centers there', () => {
+    const covers = { left: 461, right: 0, top: 0, bottom: 204 }
+    const v = fitViewport(
+      { x: 0, y: 0, width: 2000, height: 2000 },
+      size,
+      covers,
+      { padding: 48 },
+    )
+    expect(v.zoom).toBeCloseTo(
+      Math.min((1440 - 461 - 96) / 2000, (984 - 204 - 96) / 2000),
+    )
+    // The bounds' center (1000, 1000) is at the middle of the visible area.
+    expect(v.x + 1000 * v.zoom).toBeCloseTo(461 + (1440 - 461) / 2)
+    expect(v.y + 1000 * v.zoom).toBeCloseTo((984 - 204) / 2)
+  })
+
+  it('keeps every corner of the bounds inside the visible area, padding included', () => {
+    const covers = { left: 0, right: 417, top: 0, bottom: 204 }
+    const b = { x: -300, y: 50, width: 1800, height: 900 }
+    const v = fitViewport(b, size, covers, { padding: 48 })
+    const left = v.x + b.x * v.zoom
+    const right = v.x + (b.x + b.width) * v.zoom
+    const top = v.y + b.y * v.zoom
+    const bottom = v.y + (b.y + b.height) * v.zoom
+    expect(left).toBeGreaterThanOrEqual(48 - 0.001)
+    expect(right).toBeLessThanOrEqual(1440 - 417 - 48 + 0.001)
+    expect(top).toBeGreaterThanOrEqual(48 - 0.001)
+    expect(bottom).toBeLessThanOrEqual(984 - 204 - 48 + 0.001)
+  })
+
+  it('never zooms below the minimum', () => {
+    expect(
+      fitViewport({ x: 0, y: 0, width: 100000, height: 100000 }, size, none)
+        .zoom,
+    ).toBe(0.25)
+  })
+
+  it('copes with empty bounds and with covers that leave no room', () => {
+    expect(
+      fitViewport({ x: 5, y: 5, width: 0, height: 0 }, size, none).zoom,
+    ).toBe(1)
+    const v = fitViewport(bounds, size, {
+      left: 800,
+      right: 800,
+      top: 0,
+      bottom: 0,
+    })
+    expect(Number.isFinite(v.x) && Number.isFinite(v.zoom)).toBe(true)
   })
 })

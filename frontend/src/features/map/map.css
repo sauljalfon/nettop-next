@@ -266,109 +266,43 @@
   right: var(--clear-of-right-drawer);
 }
 
-.map-card .map-focus {
-  display: inline-grid;
-  place-items: center;
-  margin-left: 6px;
-  vertical-align: middle;
-  padding: 2px;
-  border: 1px solid #dce4ef;
-  border-radius: 4px;
-  background: white;
-  color: #6d7b90;
-  cursor: pointer;
-}
-
-.boundary-card {
-  width: 220px;
-  padding: 10px 12px;
-  border: 1.5px dashed #9bacc0;
-  border-radius: 10px;
-  background: #f7f9fc;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.boundary-card.expanded {
-  border-style: solid;
-}
-
-.boundary-card .cable-ids {
-  color: #8390a4;
-  font-size: 10px;
-  word-break: break-word;
-}
-
-.boundary-card button {
-  align-self: flex-start;
-  font-size: 11px;
-  padding: 3px 8px;
-  border: 1px solid #c9bfe6;
-  border-radius: 5px;
-  background: #f4f1fb;
-  color: #5645b6;
-}
-
-.focus-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 12px;
-  padding: 5px 6px 5px 10px;
-  border: 1px solid #c9bfe6;
-  border-radius: 999px;
-  background: #f4f1fb;
-  font-size: 12px;
-}
-
-.focus-chip small {
-  color: #7a6cc0;
-}
-
-.focus-chip button {
-  display: grid;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: #5645b6;
-  padding: 2px;
-}
-
-.focus-action {
-  margin-left: 8px;
-  font-size: 11px;
-}
-
-/* Found: amber, separate from the teal route color. */
-.equipment-card.map-card.found {
+/* Location highlight: amber, separate from the teal route color; the rest fades. */
+.equipment-card.map-card.hl {
   border: 3px solid #e09a00;
   box-shadow:
     0 0 0 6px #f5b30166,
     0 0 22px #f5b3018c;
 }
 
-.equipment-card.map-card.found-neighbor {
+.equipment-card.map-card.hl-neighbor {
   border: 2px solid #f0c15a;
   background: #fffaf0;
+  box-shadow: none;
 }
 
-/* Traced and found: the amber border stays, the teal ring shows around it. */
-.equipment-card.map-card.found.traced {
+/* On the route and highlighted: the amber border stays, the teal ring shows around it. */
+.equipment-card.map-card.hl.traced {
   box-shadow:
     0 0 0 3px #108b7966,
     0 0 0 8px #f5b30166,
     0 0 22px #f5b3018c;
 }
 
-.react-flow__edge .found-outline {
+.equipment-card.map-card.hl-neighbor.traced {
+  border-color: #58b294; /* on the route: teal wins; the amber tint stays */
+}
+
+.equipment-card.map-card.dimmed {
+  opacity: 0.3;
+}
+
+.react-flow__edge .hl-outline {
   stroke: #f2b134;
   stroke-width: 8px;
   stroke-opacity: 0.85;
 }
 
-.react-flow__edge.animated path.found-outline {
+.react-flow__edge.animated path.hl-outline {
   stroke-dasharray: none;
   animation: none;
 }

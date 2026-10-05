@@ -1136,3 +1136,20 @@ button:hover:not(:disabled) {
     padding: 15px;
   }
 }
+
+/* A site or node name in Explore: clicking it highlights it on the map. */
+.location-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.location-name:hover {
+  text-decoration: underline;
+  text-decoration-color: #e09a00;
+  text-underline-offset: 3px;
+}

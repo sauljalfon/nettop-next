@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectCenteredInVisibleArea, expectMarks, fitted } from './helpers'
+import {
+  expectCenteredInVisibleArea,
+  expectInsideVisibleArea,
+  expectMarks,
+  fitted,
+} from './helpers'
 
 const units = (page: Page) => page.getByTestId('inspector-unit')
 const filter = (page: Page, name: 'Cabled' | 'Free' | 'All') =>
@@ -191,39 +196,50 @@ test('POL-10 Find AGG / BB, Pin and Show on map from an inspector entry, with pi
     page.getByLabel('HDF-01 shown connections').locator('li'),
   ).toHaveCount(1) // only the pinned 3C / 5 remains
 
-  // Show on map: select the card, highlight it and center it in the visible area.
+  // Show on map: select the card and center it in the visible area, with no highlight.
   await page.getByRole('button', { name: 'Show on map: HDF-01 3C / 5' }).click()
-  await expectMarks(page, {
-    foundCards: ['hdf-01', 'hdf-02', 'panel-a', 'panel-dr'],
-  })
-  await expectMarks(page, {
-    foundCards: ['hdf-01', 'hdf-02', 'panel-a', 'panel-dr'],
-  })
-  await expect(page.locator('.equipment-card.found-card')).toContainText(
-    'HDF-01',
-  ) // it is centered, so it is on screen // it is centered, so it is on screen
+  await expectMarks(page, { highlightCards: [], dimmedCards: [] })
   await expect(
     page.getByTestId('rf__node-hdf-01').locator('.equipment-card'),
   ).toHaveClass(/selected/)
   await expectCenteredInVisibleArea(page, 'hdf-01')
 })
 
-test('POL-11 the location actions focus the node and open the rack', async ({
+test('POL-11 the location links highlight the site or node on the map, and the rack opens in Physical', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await inspect(page, 'edge-17')
 
-  // Site and node focus the map.
-  await page.getByRole('button', { name: 'Focus node Building A' }).click()
-  await expect(page.locator('.focus-chip')).toContainText('Node focus')
-  await expect(page.locator('.focus-chip')).toContainText('Building A')
-  await expect(page.locator('.board-caption')).toContainText('2 of 11')
-  await page.getByRole('button', { name: 'Focus site Main Campus' }).click()
-  await expect(page.locator('.focus-chip')).toContainText('Site focus')
-  await expect(page.locator('.focus-chip')).toContainText('Main Campus')
-  await expect(page.locator('.board-caption')).toContainText('8 of 11')
+  // Node and site highlight their equipment and cables, and fit the view to them.
+  await page
+    .getByRole('button', { name: 'Highlight node Building A on the map' })
+    .click()
+  await expectMarks(page, {
+    highlightCards: ['edge-17', 'panel-a'],
+    highlightNeighbors: ['hdf-01'],
+  })
+  await expectInsideVisibleArea(page, ['edge-17', 'panel-a', 'hdf-01'])
+  await expect(
+    page.getByRole('button', { name: 'Clear highlight' }),
+  ).toBeVisible()
+  await page
+    .getByRole('button', { name: 'Highlight site Main Campus on the map' })
+    .click()
+  await expectMarks(page, {
+    highlightCards: [
+      'agg-03',
+      'agg-08',
+      'agg-15',
+      'bb-01',
+      'edge-17',
+      'hdf-01',
+      'hdf-02',
+      'panel-a',
+    ],
+    highlightNeighbors: ['agg-12', 'panel-dr'],
+  })
 
   // The rack opens in Physical.
   await page.getByRole('button', { name: 'Open Rack A03 in Physical' }).click()
@@ -234,11 +250,12 @@ test('POL-11 the location actions focus the node and open the rack', async ({
   )
   await expect(page.getByTestId('rack-slot-rack-core-01-8')).toHaveCount(0) // only that rack
 
-  // From Physical, a focus action switches back to the map.
-  await page.getByRole('button', { name: 'Focus node Building A' }).click()
+  // From Physical, a location link switches back to the map and highlights there.
+  await page
+    .getByRole('button', { name: 'Highlight node Building A on the map' })
+    .click()
   await expect(page.locator('.flow-surface')).toBeVisible()
-  await expect(page.locator('.focus-chip')).toContainText('Building A')
-  await expect(page.locator('.board-caption')).toContainText('2 of 11')
+  await expectMarks(page, { highlightCards: ['edge-17', 'panel-a'] })
 })
 
 test('whole-device Find AGG / BB is offered for switches only', async ({

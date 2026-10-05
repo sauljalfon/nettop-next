@@ -2,7 +2,7 @@ import { GitFork, Network, PanelTop } from 'lucide-react'
 import { useMemo, useSyncExternalStore, type ReactNode } from 'react'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Equipment, Snapshot } from '../../shared/types'
-import type { Focus } from '../map/focus'
+import type { LocationRef } from '../map/highlight'
 import type { MapSession } from '../map/mapSession'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import EndpointList from './EndpointList'
@@ -27,7 +27,8 @@ interface Props {
   onFindFromHere: (endpointId: string) => void
   /** Select the card, center on it and highlight it (like choosing it in Explore). */
   onShowOnMap: (equipmentId: string) => void
-  onFocus: (focus: Focus) => void
+  /** Highlight the site or node on the map. */
+  onHighlight: (location: LocationRef) => void
   onOpenRack: (rackId: string) => void
   /** The plan placement form, when a plan is open. */
   children?: ReactNode
@@ -43,7 +44,7 @@ export default function Inspector({
   onFindFromDevice,
   onFindFromHere,
   onShowOnMap,
-  onFocus,
+  onHighlight,
   onOpenRack,
   children,
 }: Props) {
@@ -75,8 +76,10 @@ export default function Inspector({
           <>
             <button
               className="location-link"
-              aria-label={`Focus site ${location.site.name}`}
-              onClick={() => onFocus({ kind: 'site', id: location.site!.id })}
+              aria-label={`Highlight site ${location.site.name} on the map`}
+              onClick={() =>
+                onHighlight({ kind: 'site', id: location.site!.id })
+              }
             >
               {location.site.name}
             </button>{' '}
@@ -87,8 +90,10 @@ export default function Inspector({
           <>
             <button
               className="location-link"
-              aria-label={`Focus node ${location.node.name}`}
-              onClick={() => onFocus({ kind: 'node', id: location.node!.id })}
+              aria-label={`Highlight node ${location.node.name} on the map`}
+              onClick={() =>
+                onHighlight({ kind: 'node', id: location.node!.id })
+              }
             >
               {location.node.name}
             </button>{' '}

@@ -53,23 +53,23 @@ describe('C03 the connections list shows only cabled positions and ports', () =>
 
 describe('search by label', () => {
   const list = entries('HDF-01')
-  const found = (q: string) => searchConnections(list, q).map((e) => e.label)
+  const matches = (q: string) => searchConnections(list, q).map((e) => e.label)
 
   it('matches "3C/5" and "3C / 5" alike, in any case', () => {
-    expect(found('3C/5')).toEqual(['3C / 5'])
-    expect(found('3C / 5')).toEqual(['3C / 5'])
-    expect(found('3c/5')).toEqual(['3C / 5'])
+    expect(matches('3C/5')).toEqual(['3C / 5'])
+    expect(matches('3C / 5')).toEqual(['3C / 5'])
+    expect(matches('3c/5')).toEqual(['3C / 5'])
   })
 
   it('matches a partial label', () => {
-    expect(found('3C')).toEqual(['3C / 2', '3C / 5'])
-    expect(found('d')).toEqual(['2D / 4'])
+    expect(matches('3C')).toEqual(['3C / 2', '3C / 5'])
+    expect(matches('d')).toEqual(['2D / 4'])
   })
 
   it('returns everything for an empty query and nothing for no match', () => {
-    expect(found('')).toHaveLength(4)
-    expect(found('  ')).toHaveLength(4)
-    expect(found('9Z')).toEqual([])
+    expect(matches('')).toHaveLength(4)
+    expect(matches('  ')).toHaveLength(4)
+    expect(matches('9Z')).toEqual([])
   })
 })
 

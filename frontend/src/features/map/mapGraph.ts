@@ -2,14 +2,8 @@ import type { Equipment, Route, Snapshot } from '../../shared/types'
 import { routeHighlight } from '../pathfinding/projection'
 import { crossNetworkCaption, mapEdges } from './edges'
 import { facetEndpointIds, facetsFor, type Facet } from './facets'
-import { foundFor } from './found'
-import { focusView, type BoundaryBundle, type Focus } from './focus'
-import {
-  COLUMN_WIDTH,
-  layeredLayout,
-  ROW_HEIGHT,
-  type Position,
-} from './layout'
+import { highlightFor } from './highlight'
+import { layeredLayout, type Position } from './layout'
 import type { MapSession } from './mapSession'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { visibleEquipment } from './networks'
@@ -30,19 +24,18 @@ export interface MapInput {
 export interface MapCardData extends Record<string, unknown> {
   equipment: Equipment
   location: string
-  /** Focusing on this card's node; undefined when its location is unknown. */
-  focusNode?: Focus
-  /** Name of that node, for the focus button's label. */
-  focusNodeName?: string
   summary: { cabled: number; total: number }
   /** Network names of the circuits through a passive card. */
   badges: string[]
   facets: Facet[]
   /** Facet keys the user chose to show on this card. */
   manualKeys: string[]
+  /** On the selected route: teal, and never dimmed. */
   highlighted: boolean
-  /** Set while this card is the found card, or one cabled directly to it. */
-  foundRole?: 'card' | 'neighbor'
+  /** In the highlighted location, or at the far end of a cable from it. */
+  highlightRole?: 'card' | 'neighbor'
+  /** Faded: a location is highlighted and this card is neither in it nor on the route. */
+  dimmed: boolean
   proposed: boolean
 }
 export interface MapNode {
@@ -50,13 +43,6 @@ export interface MapNode {
   type: 'equipment'
   position: Position
   data: MapCardData
-}
-/** A compact card summarizing the cables that leave the focus toward one location. */
-export interface MapBoundaryNode {
-  id: string
-  type: 'boundary'
-  position: Position
-  data: { bundle: BoundaryBundle }
 }
 export interface MapFlowEdge {
   id: string
@@ -68,9 +54,12 @@ export interface MapFlowEdge {
   data: {
     /** Every cable ID drawn by this line (one, or a bundle's). */
     linkIds: string[]
+    /** A cable on this line is on the selected route. */
     highlighted: boolean
-    /** True when a cable on this line belongs to the found card. */
-    found: boolean
+    /** A cable on this line leaves the highlighted location. */
+    highlight: boolean
+    /** Faded: a location is highlighted and no cable here is on it or on the route. */
+    dimmed: boolean
     proposed: boolean
     networkId: string
   }
@@ -83,21 +72,25 @@ export interface MapFlowEdge {
  * so existing positions never move when data, filter or route change. Never
  * mutates the snapshot and never feeds traversal.
  */
-/** The projection's highlighted and found IDs, independent of what is drawn on screen. */
+/** The projection's route and highlight IDs, independent of what is drawn on screen. */
 export interface MapMarks {
   /** Cables of the selected route that the map draws, sorted. */
   routeLinks: string[]
   routeCards: string[]
-  /** Cables of the found card that the map draws, sorted. */
-  foundLinks: string[]
-  foundCards: string[]
+  /** Cables leaving the highlighted location that the map draws, sorted. */
+  highlightLinks: string[]
+  /** Shown cards in the highlighted location. */
+  highlightCards: string[]
+  /** Shown cards at the far ends of its cables. */
+  highlightNeighbors: string[]
+  /** Shown cards that are faded. */
+  dimmedCards: string[]
   /** Every card the map shows (drawn or not), sorted. */
   cards: string[]
 }
 
 export function projectMap(input: MapInput): {
   nodes: MapNode[]
-  boundaries: MapBoundaryNode[]
   edges: MapFlowEdge[]
   marks: MapMarks
 } {
@@ -115,31 +108,19 @@ export function projectMap(input: MapInput): {
 
   const index = input.index ?? indexSnapshot(s)
   const highlight = routeHighlight(s, route)
-  const found = session.foundId()
-    ? foundFor(index, session.foundId()!)
-    : undefined
-  // Route cards and found cards are shown whatever the filter or focus says.
+  const lit = highlightFor(index, session.highlight())
+  const litCards = new Set(lit?.equipmentIds)
+  const litNeighbors = new Set(lit?.neighborIds)
+  const litLinks = new Set(lit?.linkIds)
+  // Route cards and the highlighted part are shown whatever the network filter says.
   const revealed = new Set(highlight.equipmentIds)
-  if (found) for (const id of [found.id, ...found.neighborIds]) revealed.add(id)
-  const foundLinks = new Set(found?.linkIds)
-  const passes = visibleEquipment(s, input.networkId, [], index.badges)
-  const { shown, bundles: boundaryBundles } = focusView(index, {
-    focus: session.focus(),
-    passes,
-    reveal: revealed,
-    expanded: session.expandedBundles(),
-  })
+  if (lit)
+    for (const id of [...lit.equipmentIds, ...lit.neighborIds]) revealed.add(id)
+  const shown = new Set([
+    ...visibleEquipment(s, input.networkId, [], index.badges),
+    ...revealed,
+  ])
   const manual = session.manualFacets()
-  session.placeMissing(
-    boundaryBundles.map((b) => b.id),
-    (missing) => boundaryPositions(boundaryBundles, missing, session),
-  )
-  const boundaries: MapBoundaryNode[] = boundaryBundles.map((bundle) => ({
-    id: bundle.id,
-    type: 'boundary',
-    position: session.position(bundle.id)!,
-    data: { bundle },
-  }))
   const facets = facetsFor(s, route, manual, index.lookup)
   const networkName = (id: string) =>
     s.networks.find((n) => n.id === id)?.name ?? id
@@ -153,25 +134,26 @@ export function projectMap(input: MapInput): {
       data: {
         equipment: e,
         location: index.locations.get(e.id) ?? '',
-        focusNode: nodeFocus(index.places.get(e.id)?.nodeId),
-        focusNodeName: index.nodes.get(index.places.get(e.id)?.nodeId ?? '')
-          ?.name,
         summary: index.summaries.get(e.id) ?? { cabled: 0, total: 0 },
         badges: (index.badges.get(e.id) ?? []).map(networkName),
         facets: facets.get(e.id) ?? [],
         manualKeys: [...(manual.get(e.id) ?? [])].sort(),
         highlighted: highlight.equipmentIds.has(e.id),
-        foundRole:
-          found?.id === e.id
-            ? 'card'
-            : found?.neighborIds.includes(e.id)
-              ? 'neighbor'
-              : undefined,
+        highlightRole: litCards.has(e.id)
+          ? 'card'
+          : litNeighbors.has(e.id)
+            ? 'neighbor'
+            : undefined,
+        // A highlight dims everything that is not part of it; the route is never dimmed.
+        dimmed:
+          !!lit &&
+          !litCards.has(e.id) &&
+          !litNeighbors.has(e.id) &&
+          !highlight.equipmentIds.has(e.id),
         proposed: !input.installedIDs.has(e.id),
       },
     }))
   const x = new Map(nodes.map((n) => [n.id, n.position.x]))
-  for (const b of boundaries) x.set(b.id, b.position.x)
 
   const { edges: cables, bundles } = mapEdges(
     s,
@@ -190,6 +172,7 @@ export function projectMap(input: MapInput): {
     linkIds: string[],
     networkId: string,
   ) => {
+    const onRoute = linkIds.some((l) => highlight.linkIds.has(l))
     // Always draw left to right.
     const flip = (x.get(a.card) ?? 0) > (x.get(b.card) ?? 0)
     const [from, to] = flip ? [b, a] : [a, b]
@@ -202,8 +185,9 @@ export function projectMap(input: MapInput): {
       label,
       data: {
         linkIds,
-        highlighted: linkIds.some((l) => highlight.linkIds.has(l)),
-        found: linkIds.some((l) => foundLinks.has(l)),
+        highlighted: onRoute,
+        highlight: linkIds.some((l) => litLinks.has(l)),
+        dimmed: !!lit && !onRoute && !linkIds.some((l) => litLinks.has(l)),
         proposed: linkIds.some((l) => !input.installedLinkIDs.has(l)),
         networkId,
       },
@@ -232,24 +216,6 @@ export function projectMap(input: MapInput): {
     )
   }
 
-  for (const bundle of boundaryBundles) {
-    if (bundle.expanded) continue // the real edges replace the summary lines
-    const byInside = new Map<string, string[]>()
-    for (const c of bundle.cables)
-      byInside.set(c.insideEquipmentId, [
-        ...(byInside.get(c.insideEquipmentId) ?? []),
-        c.linkId,
-      ])
-    for (const [inside, linkIds] of byInside)
-      push(
-        `${bundle.id}>${inside}`,
-        { card: inside, handle: 'summary' },
-        { card: bundle.id, handle: 'summary' },
-        undefined,
-        linkIds,
-        '',
-      )
-  }
   edges.sort((a, b) => a.id.localeCompare(b.id))
   const drawn = (wanted: ReadonlySet<string>) =>
     [
@@ -265,41 +231,11 @@ export function projectMap(input: MapInput): {
   const marks: MapMarks = {
     routeLinks: drawn(highlight.linkIds),
     routeCards: cardIds((n) => n.data.highlighted),
-    foundLinks: drawn(foundLinks),
-    foundCards: cardIds((n) => !!n.data.foundRole),
+    highlightLinks: drawn(litLinks),
+    highlightCards: cardIds((n) => n.data.highlightRole === 'card'),
+    highlightNeighbors: cardIds((n) => n.data.highlightRole === 'neighbor'),
+    dimmedCards: cardIds((n) => n.data.dimmed),
     cards: cardIds(() => true),
   }
-  return { nodes, boundaries, edges, marks }
-}
-
-const nodeFocus = (id: string | undefined): Focus | undefined =>
-  id ? { kind: 'node', id } : undefined
-
-/**
- * First position of each new boundary card: one column right of its focused
- * cards, at their average height, nudged down until it is free.
- */
-function boundaryPositions(
-  bundles: readonly BoundaryBundle[],
-  missing: readonly string[],
-  session: MapSession,
-) {
-  const taken = new Set(
-    [...session.positions().values()].map((p) => `${p.x},${p.y}`),
-  )
-  const result = new Map<string, Position>()
-  for (const id of missing) {
-    const bundle = bundles.find((b) => b.id === id)!
-    const inside = bundle.insideEquipment
-      .map((e) => session.position(e))
-      .filter((p): p is Position => !!p)
-    const x = Math.max(0, ...inside.map((p) => p.x)) + COLUMN_WIDTH
-    let y = inside.length
-      ? Math.round(inside.reduce((n, p) => n + p.y, 0) / inside.length)
-      : 0
-    while (taken.has(`${x},${y}`)) y += ROW_HEIGHT
-    taken.add(`${x},${y}`)
-    result.set(id, { x, y })
-  }
-  return result
+  return { nodes, edges, marks }
 }
