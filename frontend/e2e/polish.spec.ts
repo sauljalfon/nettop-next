@@ -203,3 +203,91 @@ test('POL-03 reset recomputes the first layout and keeps pins, highlight, filter
     page.getByLabel('HDF-01 shown connections').getByRole('button'),
   ).toHaveAttribute('data-source', 'auto manual')
 })
+
+const pill = (page: Page, cable: string) =>
+  page.locator(`.map-pill[data-cable-ids~="${cable}"]`)
+
+test('POL-17 EDGE-17–PANEL-A is one line with a "3" pill in Network A\'s color whose tooltip lists the cables', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  const p = pill(page, 'cable-a01')
+  await expect(p).toHaveText('3')
+  await expect(p).toHaveAttribute(
+    'data-cable-ids',
+    'cable-a01 cable-a05 cable-a09',
+  )
+  // Network A's color, the same as its badge on the PANEL-A card.
+  const badge = page
+    .getByTestId('rf__node-panel-a')
+    .locator('.network-badge', { hasText: 'Network A' })
+  const color = await badge.evaluate((el) => (el as HTMLElement).style.color)
+  await expect(p).toHaveCSS('background-color', color)
+  await expect(page.locator('.map-tooltip')).toHaveCount(0)
+  await p.hover()
+  const tip = page.getByRole('tooltip')
+  for (const id of ['cable-a01', 'cable-a05', 'cable-a09'])
+    await expect(tip).toContainText(id)
+  // Hovering the line shows it too.
+  await page.mouse.move(0, 0)
+  await expect(tip).toHaveCount(0)
+  await page
+    .locator('.react-flow__edge[data-id]')
+    .filter({ has: page.locator('[data-cable-ids~="cable-a01"]') })
+    .locator('.react-flow__edge-interaction')
+    // Near its start: the pill covers the middle.
+    .hover({ position: { x: 6, y: 2 } })
+  await expect(tip).toContainText('cable-a05')
+  // No "N cables" text on any line.
+  await expect(page.locator('.map-caption', { hasText: /cables/ })).toHaveCount(
+    0,
+  )
+})
+
+test('POL-18 clicking the pill splits the line into labeled cables, clicking again joins them, and width grows with the count', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  const widthOf = (id: string) =>
+    page
+      .locator(`g[data-cable-ids~="${id}"] path.react-flow__edge-path`)
+      .first()
+      .evaluate((el) =>
+        Number(getComputedStyle(el).strokeWidth.replace('px', '')),
+      )
+  const single = await widthOf('cable-b03')
+  const bundled = await widthOf('cable-a01')
+  expect(bundled).toBeGreaterThan(single)
+  await pill(page, 'cable-a01').click()
+  await expect(page.locator('.flow-surface')).toHaveAttribute(
+    'data-split-pairs',
+    'edge-17|panel-a|net-a',
+  )
+  await expect(pill(page, 'cable-a01')).toHaveCount(0)
+  for (const id of ['cable-a01', 'cable-a05', 'cable-a09'])
+    await expect(
+      page.locator(`.map-cable-label[data-cable-id="${id}"]`),
+    ).toBeVisible()
+  const ys = await page
+    .locator('.map-cable-label')
+    .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top))
+  expect(new Set(ys.map((y) => Math.round(y))).size).toBe(ys.length)
+  // The map stays at one line per cable, each as thin as a single cable.
+  expect(await widthOf('cable-a05')).toBe(single)
+  await page.getByRole('button', { name: 'Join 3 cables' }).click()
+  await expect(page.locator('.flow-surface')).toHaveAttribute(
+    'data-split-pairs',
+    '',
+  )
+  await expect(pill(page, 'cable-a01')).toHaveText('3')
+  // Clicking a split line joins it, too.
+  await pill(page, 'cable-a01').click()
+  await page
+    .locator('.react-flow__edge')
+    .filter({ has: page.locator('[data-cable-ids="cable-a05"]') })
+    .locator('.react-flow__edge-interaction')
+    .click({ position: { x: 6, y: 2 } })
+  await expect(pill(page, 'cable-a01')).toHaveText('3')
+})

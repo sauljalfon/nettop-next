@@ -25,14 +25,23 @@ export interface MapBundle {
   target: string
   /** Every cable ID in the bundle, sorted. */
   linkIds: string[]
-  label: string
+  /** The card pair and network; the key under which the bundle is split or joined. */
+  pairKey: string
   /** Shared by every cable in the bundle; empty when unresolved. */
   networkId: string
 }
 
+/** Key of a card pair within one network, the same whichever card is first. */
+export const pairKey = (a: string, b: string, networkId: string): string =>
+  [...[a, b].sort(), networkId].join('|')
+
+/** Stroke width of a line drawing `count` cables: 1.5 px plus 1 px per extra cable, up to 7 px. */
+export const lineWidth = (count: number): number =>
+  Math.min(7, 1.5 + Math.max(0, count - 1))
+
 /**
  * One edge per cable between shown cards. Cables whose both ends are summary
- * anchors and that run between the same pair of cards are bundled ("N cables"),
+ * anchors and that run between the same pair of cards are bundled,
  * keeping every cable ID. Edges, bundles and anchors are drawing aids only;
  * traversal never uses them.
  */
@@ -68,7 +77,7 @@ export function mapEdges(
       edge.sourceHandle === SUMMARY_HANDLE &&
       edge.targetHandle === SUMMARY_HANDLE
     ) {
-      const key = [...[source, target].sort(), edge.networkId].join('\u0000')
+      const key = pairKey(source, target, edge.networkId)
       groups.set(key, [...(groups.get(key) ?? []), edge])
     } else edges.push(edge)
   }
@@ -81,7 +90,7 @@ export function mapEdges(
         source: group[0].source,
         target: group[0].target,
         linkIds: group.map((e) => e.id),
-        label: `${group.length} cables`,
+        pairKey: pairKey(group[0].source, group[0].target, group[0].networkId),
         networkId: group[0].networkId,
       })
   }

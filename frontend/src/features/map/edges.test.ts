@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot } from './acceptanceFixture'
-import { crossNetworkCaption, mapEdges } from './edges'
+import { crossNetworkCaption, lineWidth, mapEdges, pairKey } from './edges'
 
 const all = (s = acceptanceSnapshot()) => new Set(s.equipment.map((e) => e.id))
 const cableIds = (s = acceptanceSnapshot()) =>
@@ -49,7 +49,7 @@ describe('C09 cable bundles keep real cable IDs', () => {
     const { edges, bundles } = mapEdges(s, all(s), new Set())
     const bundle = bundles.find((b) => b.linkIds.includes('A01'))!
     expect(bundle.linkIds).toEqual(['A01', 'A05', 'A09'])
-    expect(bundle.label).toBe('3 cables')
+    expect(bundle).not.toHaveProperty('label')
     expect(edges.find((e) => e.id === 'A01')).toBeUndefined()
   })
 
@@ -173,5 +173,30 @@ describe('mapEdges takes the endpoint owner lookup from the caller', () => {
     owner.set('EDGE-22:p1', 'EDGE-17') // doctored: B01 now starts at EDGE-17
     const { edges } = mapEdges(s, all(s), new Set(), undefined, owner)
     expect(edges.find((e) => e.id === 'B01')!.source).toBe('EDGE-17')
+  })
+})
+
+describe('POL-18 line width and pair keys', () => {
+  it('is 1.5 px for one cable and grows 1 px per extra cable', () => {
+    expect(lineWidth(1)).toBe(1.5)
+    expect(lineWidth(2)).toBe(2.5)
+    expect(lineWidth(3)).toBe(3.5)
+  })
+
+  it('is capped at 7 px', () => {
+    expect(lineWidth(7)).toBe(7)
+    expect(lineWidth(50)).toBe(7)
+  })
+
+  it('keys a pair by both cards, in either order, and the network', () => {
+    expect(pairKey('B', 'A', 'N')).toBe(pairKey('A', 'B', 'N'))
+    expect(pairKey('A', 'B', 'N')).not.toBe(pairKey('A', 'B', 'M'))
+  })
+
+  it('gives a bundle the key of its pair', () => {
+    const s = acceptanceSnapshot()
+    const { bundles } = mapEdges(s, all(s), new Set())
+    const b = bundles.find((x) => x.linkIds.includes('A01'))!
+    expect(b.pairKey).toBe(pairKey('EDGE-17', 'PANEL-A', 'A'))
   })
 })

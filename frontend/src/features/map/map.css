@@ -356,3 +356,69 @@
   display: flex;
   align-items: flex-start;
 }
+
+.map-pill {
+  position: absolute;
+  pointer-events: all;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 2px solid #fff;
+  border-radius: 15px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  cursor: pointer;
+  z-index: 12;
+}
+
+.map-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: #1f2a37;
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  z-index: 30;
+}
+
+.map-cable-label {
+  position: absolute;
+  pointer-events: none;
+  background: #fff;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 13px;
+  z-index: 12;
+}
+
+.map-join {
+  position: absolute;
+  pointer-events: all;
+  background: #fff;
+  border: 1px solid #9bacc0;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  z-index: 12;
+}
+
+.react-flow__edge {
+  cursor: pointer;
+}
+
+.map-caption {
+  position: absolute;
+  pointer-events: none;
+  font-size: 12px;
+  color: #5b6b82;
+  background: #ffffffd9;
+  border-radius: 4px;
+  padding: 0 4px;
+  z-index: 11;
+}

@@ -3,6 +3,8 @@ import { acceptanceSnapshot, agg03Route } from './acceptanceFixture'
 import { createMapSession } from './mapSession'
 import { ROW_HEIGHT } from './layout'
 import { projectMap, type MapInput } from './mapGraph'
+import { PALETTE, UNRESOLVED_COLOR } from './networkColors'
+import { pairKey } from './edges'
 
 function input(over: Partial<MapInput> = {}): MapInput {
   const snapshot = over.snapshot ?? acceptanceSnapshot()
@@ -34,9 +36,9 @@ describe('C01 default map', () => {
       .map((l) => l.id)
       .sort()
     expect(edges.flatMap((e) => e.data.linkIds).sort()).toEqual(cables)
-    expect(edges.find((e) => e.data.linkIds.length === 3)!.label).toMatch(
-      /3 cables/,
-    )
+    expect(
+      edges.find((e) => e.data.linkIds.length === 3)!.label,
+    ).toBeUndefined()
   })
 
   it('lays out left to right and orients every edge the same way', () => {
@@ -131,9 +133,9 @@ describe('C07 Network A filter', () => {
     const b = edges.find((e) => e.id === 'B03')!
     expect(b.label).toBe('Network B')
     expect(b.data.networkId).toBe('B')
-    expect(edges.find((e) => e.data.linkIds.includes('A01'))!.label).toBe(
-      '3 cables',
-    )
+    expect(
+      edges.find((e) => e.data.linkIds.includes('A01'))!.label,
+    ).toBeUndefined()
   })
 
   it('keeps positions identical to the unfiltered map', () => {
@@ -163,7 +165,7 @@ describe('C08 Network B filter', () => {
       'PANEL-DR',
     ])
     const a = edges.find((e) => e.data.linkIds.includes('A03'))!
-    expect(a.label).toBe('3 cables · Network A')
+    expect(a.label).toBe('Network A')
     expect(a.data.networkId).toBe('A')
   })
 
@@ -534,6 +536,7 @@ describe("marks: the projection's route and highlight IDs, for tests and tools",
       highlightCards: [],
       highlightNeighbors: [],
       dimmedCards: [],
+      splitPairs: [],
       cards: expect.any(Array),
     })
   })
@@ -569,6 +572,86 @@ describe("marks: the projection's route and highlight IDs, for tests and tools",
       'HDF-01',
       'HDF-02',
       'PANEL-DR',
+    ])
+  })
+})
+
+describe('POL-17/18 cable lines', () => {
+  const bundle = (e: { data: { linkIds: string[] } }) =>
+    e.data.linkIds.includes('A01')
+
+  it('draws parallel cables as one line in the network color, widened by count', () => {
+    const { edges } = projectMap(input())
+    const line = edges.find(bundle)!
+    expect(line.data.linkIds).toEqual(['A01', 'A05', 'A09'])
+    expect(line.data.count).toBe(3)
+    expect(line.data.color).toBe(PALETTE[0])
+    expect(line.data.width).toBe(3.5)
+    expect(line.data.split).toBe(false)
+    const single = edges.find((e) => e.id === 'B03')!
+    expect(single.data.count).toBe(1)
+    expect(single.data.color).toBe(PALETTE[1])
+    expect(single.data.width).toBe(1.5)
+  })
+
+  it('draws a cable with an unresolved network in grey', () => {
+    const s = acceptanceSnapshot()
+    s.networks = []
+    const { edges } = projectMap(input({ snapshot: s }))
+    expect(edges.every((e) => e.data.color === UNRESOLVED_COLOR)).toBe(true)
+  })
+
+  it('splits a pair into one offset line per cable, each keeping its ID', () => {
+    const session = createMapSession()
+    const key = pairKey('EDGE-17', 'PANEL-A', 'A')
+    session.toggleSplit(key)
+    const { edges, marks } = projectMap(input({ session }))
+    const lines = edges.filter((e) => ['A01', 'A05', 'A09'].includes(e.id))
+    expect(lines.map((e) => e.data.linkIds)).toEqual([
+      ['A01'],
+      ['A05'],
+      ['A09'],
+    ])
+    expect(lines.map((e) => e.data.splitIndex)).toEqual([0, 1, 2])
+    expect(lines.every((e) => e.data.splitCount === 3 && e.data.split)).toBe(
+      true,
+    )
+    expect(lines.every((e) => e.data.pairKey === key)).toBe(true)
+    expect(lines.every((e) => e.data.width === 1.5)).toBe(true)
+    expect(marks.splitPairs).toEqual([key])
+  })
+
+  it('draws a joined pair again once toggled back', () => {
+    const session = createMapSession()
+    const key = pairKey('EDGE-17', 'PANEL-A', 'A')
+    session.toggleSplit(key)
+    session.toggleSplit(key)
+    const { edges, marks } = projectMap(input({ session }))
+    expect(edges.find(bundle)!.data.count).toBe(3)
+    expect(marks.splitPairs).toEqual([])
+  })
+
+  it('keeps the route and highlight colors over the network color, joined and split', () => {
+    const route = agg03Route()
+    const session = createMapSession()
+    const onRoute = (edges: ReturnType<typeof projectMap>['edges']) =>
+      edges.filter((e) => e.data.highlighted)
+    const joined = projectMap(input({ session, route }))
+    expect(onRoute(joined.edges).length).toBeGreaterThan(0)
+    session.toggleSplit(pairKey('EDGE-17', 'PANEL-A', 'A'))
+    const split = projectMap(input({ session, route }))
+    // Only A01 of the three split lines is on the route.
+    expect(split.edges.find((e) => e.id === 'A01')!.data.highlighted).toBe(true)
+    expect(split.edges.find((e) => e.id === 'A05')!.data.highlighted).toBe(
+      false,
+    )
+  })
+
+  it('gives card badges the same colors as the lines', () => {
+    const { nodes } = projectMap(input())
+    expect(nodes.find((n) => n.id === 'HDF-01')!.data.badgeColors).toEqual([
+      PALETTE[0],
+      PALETTE[1],
     ])
   })
 })

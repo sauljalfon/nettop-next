@@ -22,7 +22,8 @@ test('C01 default map shows equipment and actual cable references, not an invent
   )
   // Sixteen cables: three bundles of three, and ten single lines.
   await expect(page.locator('.react-flow__edge')).toHaveCount(10)
-  await expect(page.getByText('3 cables', { exact: true })).toHaveCount(3)
+  await expect(page.locator('.map-pill')).toHaveCount(3)
+  await expect(page.locator('.map-pill').first()).toHaveText('3')
   const hdf = page.getByTestId('rf__node-hdf-01')
   await expect(hdf).toContainText('Network A')
   await expect(hdf).toContainText('Network B')
@@ -43,7 +44,9 @@ test('C07/C08 network filter retains shared HDFs and leaves positions alone', as
   await expect(page.getByTestId('rf__node-hdf-01')).toBeVisible()
   await expect(page.getByTestId('rf__node-hdf-02')).toBeVisible()
   expect(await transform(page, 'hdf-01')).toBe(before)
-  await expect(page.getByText('3 cables · Network A')).toBeVisible()
+  await expect(
+    page.locator('.map-caption', { hasText: 'Network A' }),
+  ).toBeVisible()
 })
 
 test('C10 opening and closing tools keeps the full-page canvas and viewport', async ({

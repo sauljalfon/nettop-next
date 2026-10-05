@@ -5,6 +5,7 @@ import {
   Building2,
   GitBranch,
   GitFork,
+  Highlighter,
   Layers,
   MapPin,
   Network,
@@ -1034,6 +1035,7 @@ function Explorer({
               onClick={() => onHighlight({ kind: 'site', id: site.id })}
             >
               {site.name}
+              <Highlighter size={13} className="location-icon" aria-hidden />
             </button>
           </h3>
           {nodes.map(({ node, racks }) => (
@@ -1047,6 +1049,11 @@ function Explorer({
                   onClick={() => onHighlight({ kind: 'node', id: node.id })}
                 >
                   {node.name}
+                  <Highlighter
+                    size={13}
+                    className="location-icon"
+                    aria-hidden
+                  />
                 </button>
               </h4>
               {racks.map(({ rack, equipment }) => (

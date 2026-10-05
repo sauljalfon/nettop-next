@@ -55,6 +55,7 @@ export interface Marks {
   highlightCards: string[]
   highlightNeighbors: string[]
   dimmedCards: string[]
+  splitPairs: string[]
 }
 
 /**
@@ -74,6 +75,7 @@ export const marks = (page: Page): Promise<Marks> =>
       highlightCards: list('data-highlight-cards'),
       highlightNeighbors: list('data-highlight-neighbors'),
       dimmedCards: list('data-dimmed-cards'),
+      splitPairs: list('data-split-pairs'),
     }
   })
 

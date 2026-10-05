@@ -13,7 +13,8 @@ import {
   Background,
   BaseEdge,
   Controls,
-  getSmoothStepPath,
+  getBezierPath,
+  EdgeLabelRenderer,
   Handle,
   NodeToolbar,
   Panel,
@@ -57,6 +58,8 @@ const Actions = createContext<{
   onPort: (id: string) => void
   onTraceDevice: (id: string) => void
   onToggleManual: (equipmentId: string, key: string) => void
+  /** Splits a pair's parallel cables into separate lines, or joins them again. */
+  onToggleSplit: (pairKey: string) => void
   /** Cards whose connections popover is open. */
   openLists: ReadonlySet<string>
   onToggleList: (equipmentId: string) => void
@@ -68,6 +71,7 @@ const Actions = createContext<{
   onPort: () => undefined,
   onTraceDevice: () => undefined,
   onToggleManual: () => undefined,
+  onToggleSplit: () => undefined,
   openLists: new Set(),
   onToggleList: () => undefined,
   entriesOf: () => [],
@@ -168,8 +172,15 @@ const EquipmentCard = memo(function EquipmentCard({
       </p>
       {data.badges.length > 0 && (
         <p className="map-badges">
-          {data.badges.map((b) => (
-            <span className="badge" key={b}>
+          {data.badges.map((b, i) => (
+            <span
+              className="badge network-badge"
+              key={b}
+              style={{
+                color: data.badgeColors[i],
+                background: `${data.badgeColors[i]}1f`,
+              }}
+            >
               {b}
             </span>
           ))}
@@ -278,36 +289,142 @@ const Preview = memo(function Preview({ data }: NodeProps<PreviewNode>) {
     </button>
   )
 })
+/** Opacity of a faded card or line. */
+const DIM = 0.3
+/** Vertical distance between the split lines of a pair. */
+const SPLIT_GAP = 16
+const ROUTE_COLOR = '#108b79'
+const HIGHLIGHT_COLOR = '#e09a00'
+
 /**
  * A cable line. Highlighted and traced at once: the teal route line keeps its
  * place and the amber highlight shows as a wider outline beneath it. A faded
  * line (something else is highlighted) is dimmed; the route is never faded.
+ * Several cables are one line with a count pill that splits it; a split line
+ * is offset from its siblings and labeled with its cable ID.
  */
-/** Opacity of a faded card or line. */
-const DIM = 0.3
-
 function MapEdge(props: EdgeProps) {
-  const [path, labelX, labelY] = getSmoothStepPath(props)
+  const { onToggleSplit } = useContext(Actions)
+  const [hover, setHover] = useState(false)
   const data = props.data as MapFlowEdge['data'] | undefined
+  const offset = data?.split
+    ? (data.splitIndex - (data.splitCount - 1) / 2) * SPLIT_GAP
+    : 0
+  const [path, labelX, labelY] = getBezierPath({
+    ...props,
+    sourceY: props.sourceY + offset,
+    targetY: props.targetY + offset,
+  })
+  const color = edgeColor(data)
+  const ids = data?.linkIds.join(' ')
+  const faded = data?.dimmed ? { opacity: DIM } : undefined
+  const joined = !!data?.pairKey && !data.split
+  const text = color === HIGHLIGHT_COLOR ? '#3a2a00' : '#fff'
+  // The labels are portaled but still React children of the edge: keep their
+  // clicks from reaching the edge's own click, which would toggle twice.
+  const toggle = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation()
+    if (data?.pairKey) onToggleSplit(data.pairKey)
+  }
+  const stop = {
+    onMouseEnter: () => setHover(true),
+    onMouseLeave: () => setHover(false),
+  }
   return (
-    <g
-      data-cable-ids={data?.linkIds.join(' ')}
-      style={data?.dimmed ? { opacity: DIM } : undefined}
-    >
-      {data?.highlight && data.highlighted && (
-        <path d={path} className="hl-outline" fill="none" />
-      )}
-      <BaseEdge
-        id={props.id}
-        path={path}
-        label={props.label}
-        labelX={labelX}
-        labelY={labelY}
-        style={props.style}
-        interactionWidth={20}
-      />
-    </g>
+    <>
+      <g data-cable-ids={ids} style={faded} {...stop}>
+        {data?.highlight && data.highlighted && (
+          <path d={path} className="hl-outline" fill="none" />
+        )}
+        <BaseEdge
+          id={props.id}
+          path={path}
+          style={props.style}
+          interactionWidth={20}
+        />
+      </g>
+      <EdgeLabelRenderer>
+        {props.label && !data?.split && (
+          <span
+            className="map-caption nodrag nopan"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + (joined && data.count > 1 ? 24 : -28)}px)`,
+              ...faded,
+            }}
+          >
+            {props.label}
+          </span>
+        )}
+        {joined && data.count > 1 && (
+          <button
+            className="map-pill nodrag nopan"
+            data-cable-ids={ids}
+            aria-label={`Split ${data.count} cables: ${ids}`}
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              background: color,
+              color: text,
+              ...faded,
+            }}
+            onClick={toggle}
+            onFocus={() => setHover(true)}
+            onBlur={() => setHover(false)}
+            {...stop}
+          >
+            {data.count}
+          </button>
+        )}
+        {hover && joined && data.count > 1 && (
+          <div
+            role="tooltip"
+            className="map-tooltip nodrag nopan"
+            data-cable-ids={ids}
+            style={{
+              transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 16}px)`,
+            }}
+          >
+            {data.linkIds.map((id) => (
+              <div key={id}>{id}</div>
+            ))}
+          </div>
+        )}
+        {data?.split && (
+          <span
+            className="map-cable-label nodrag nopan"
+            data-cable-id={data.linkIds[0]}
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              borderColor: color,
+              ...faded,
+            }}
+          >
+            {data.linkIds[0]}
+          </span>
+        )}
+        {data?.split && data.splitIndex === 0 && (
+          <button
+            className="map-join nodrag nopan"
+            data-pair-join={data.pairKey}
+            aria-label={`Join ${data.splitCount} cables`}
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - (data.splitCount * SPLIT_GAP) / 2 - 14 + offset * -1}px)`,
+              ...faded,
+            }}
+            onClick={toggle}
+          >
+            join
+          </button>
+        )}
+      </EdgeLabelRenderer>
+    </>
   )
+}
+
+/** Route teal and highlight amber win over the network color. */
+function edgeColor(data: MapFlowEdge['data'] | undefined): string {
+  if (data?.highlighted) return ROUTE_COLOR
+  if (data?.highlight) return HIGHLIGHT_COLOR
+  return data?.color ?? '#9bacc0'
 }
 const edgeTypes = { map: MapEdge }
 const nodeTypes = {
@@ -378,8 +495,9 @@ function flowEdge(e: MapFlowEdge): Edge {
     interactionWidth: 20,
     data: e.data,
     style: {
-      stroke: lit ? '#108b79' : e.data.highlight ? '#e09a00' : '#9bacc0',
-      strokeWidth: lit || e.data.highlight ? 3 : 1.8,
+      stroke: edgeColor(e.data),
+      strokeWidth:
+        lit || e.data.highlight ? Math.max(3, e.data.width) : e.data.width,
       strokeDasharray: e.data.proposed ? '6 4' : undefined,
     },
   }
@@ -412,6 +530,7 @@ function Canvas({
   const index = (givenIndex ?? ownIndex)!
   const manual = useSyncExternalStore(session.subscribe, session.manualFacets)
   const highlight = useSyncExternalStore(session.subscribe, session.highlight)
+  const split = useSyncExternalStore(session.subscribe, session.splitPairs)
   const layoutVersion = useSyncExternalStore(
     session.subscribe,
     session.layoutVersion,
@@ -438,6 +557,7 @@ function Canvas({
       index,
       manual,
       highlight,
+      split,
       layoutVersion,
     ],
   )
@@ -548,6 +668,7 @@ function Canvas({
       onPort,
       onTraceDevice,
       onToggleManual: session.toggleManual,
+      onToggleSplit: session.toggleSplit,
       openLists,
       onToggleList: toggleList,
       entriesOf,
@@ -577,6 +698,7 @@ function Canvas({
       data-highlight-cards={graph.marks.highlightCards.join(' ')}
       data-highlight-neighbors={graph.marks.highlightNeighbors.join(' ')}
       data-dimmed-cards={graph.marks.dimmedCards.join(' ')}
+      data-split-pairs={graph.marks.splitPairs.join(' ')}
     >
       <Actions.Provider value={actions}>
         <ReactFlow<MapNode>
@@ -585,6 +707,10 @@ function Canvas({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
+          onEdgeClick={(_, edge) => {
+            const pair = (edge.data as MapFlowEdge['data'] | undefined)?.pairKey
+            if (pair) session.toggleSplit(pair)
+          }}
           onNodeClick={(_, node) => {
             if (node.type === 'equipment') onSelect(node.id)
           }}

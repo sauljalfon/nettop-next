@@ -42,6 +42,12 @@ export interface MapSession {
   highlight(): LocationRef | undefined
   setHighlight(location: LocationRef | undefined): void
   /**
+   * Card pairs (per network) whose parallel cables are drawn as separate lines
+   * instead of one. Replaced on every change; kept by a layout reset.
+   */
+  splitPairs(): ReadonlySet<string>
+  toggleSplit(pairKey: string): void
+  /**
    * Forgets every recorded card position and the viewport, so the next
    * projection lays everything out again and the map fits once. Pinned facets
    * and the highlight are kept.
@@ -75,6 +81,7 @@ export function createMapSession(): MapSession {
   let viewport: Viewport | undefined
   let manual: ManualFacets = new Map()
   let highlight: LocationRef | undefined
+  let split: ReadonlySet<string> = new Set()
   let fit: { ids: string[]; serial: number } | undefined
   let fitHandled = 0
   let layoutVersion = 0
@@ -112,6 +119,13 @@ export function createMapSession(): MapSession {
       if (keys.size) next.set(equipmentId, keys)
       else next.delete(equipmentId)
       manual = next
+      notify()
+    },
+    splitPairs: () => split,
+    toggleSplit(key) {
+      const next = new Set(split)
+      if (!next.delete(key)) next.add(key)
+      split = next
       notify()
     },
     resetLayout() {

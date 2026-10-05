@@ -269,3 +269,32 @@ describe('POL-14 a fit request is handled once, like a center request', () => {
     expect(session.fitRequest()!.ids).toEqual(['a'])
   })
 })
+
+describe('POL-18 split pairs', () => {
+  it('toggles a pair between joined and split', () => {
+    const session = createMapSession()
+    expect(session.splitPairs().size).toBe(0)
+    session.toggleSplit('p')
+    expect(session.splitPairs().has('p')).toBe(true)
+    session.toggleSplit('p')
+    expect(session.splitPairs().has('p')).toBe(false)
+  })
+
+  it('replaces the set on change and notifies subscribers', () => {
+    const session = createMapSession()
+    const before = session.splitPairs()
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.toggleSplit('p')
+    expect(session.splitPairs()).not.toBe(before)
+    expect(before.size).toBe(0)
+    expect(calls).toBe(1)
+  })
+
+  it('survives a layout reset', () => {
+    const session = createMapSession()
+    session.toggleSplit('p')
+    session.resetLayout()
+    expect(session.splitPairs().has('p')).toBe(true)
+  })
+})

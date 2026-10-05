@@ -1148,6 +1148,22 @@ button:hover:not(:disabled) {
   text-align: left;
 }
 
+.location-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.location-name .location-icon {
+  opacity: 0;
+  color: #e09a00;
+}
+
+.location-name:hover .location-icon,
+.location-name:focus-visible .location-icon {
+  opacity: 1;
+}
+
 .location-name:hover {
   text-decoration: underline;
   text-decoration-color: #e09a00;

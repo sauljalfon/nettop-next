@@ -1,6 +1,7 @@
 import type { Equipment, Route, Snapshot } from '../../shared/types'
 import { routeHighlight } from '../pathfinding/projection'
-import { crossNetworkCaption, mapEdges } from './edges'
+import { crossNetworkCaption, lineWidth, mapEdges } from './edges'
+import { colorOf, networkColors } from './networkColors'
 import { facetEndpointIds, facetsFor, type Facet } from './facets'
 import { highlightFor } from './highlight'
 import { layeredLayout, type Position } from './layout'
@@ -27,6 +28,8 @@ export interface MapCardData extends Record<string, unknown> {
   summary: { cabled: number; total: number }
   /** Network names of the circuits through a passive card. */
   badges: string[]
+  /** Network colors of the badges, in the same order. */
+  badgeColors: string[]
   facets: Facet[]
   /** Facet keys the user chose to show on this card. */
   manualKeys: string[]
@@ -62,6 +65,18 @@ export interface MapFlowEdge {
     dimmed: boolean
     proposed: boolean
     networkId: string
+    /** The network's color (grey when unresolved); route and highlight override it when drawn. */
+    color: string
+    /** Stroke width, grown by the number of cables on the line. */
+    width: number
+    /** Cables on this line (1 for a single or split line). */
+    count: number
+    /** Key of the card pair when this line is a bundle or one of its split lines. */
+    pairKey?: string
+    split: boolean
+    /** Position among the split lines of its pair, and how many there are. */
+    splitIndex: number
+    splitCount: number
   }
 }
 
@@ -85,6 +100,8 @@ export interface MapMarks {
   highlightNeighbors: string[]
   /** Shown cards that are faded. */
   dimmedCards: string[]
+  /** Card pairs drawn as separate lines, sorted. */
+  splitPairs: string[]
   /** Every card the map shows (drawn or not), sorted. */
   cards: string[]
 }
@@ -122,6 +139,8 @@ export function projectMap(input: MapInput): {
   ])
   const manual = session.manualFacets()
   const facets = facetsFor(s, route, manual, index.lookup)
+  const colors = networkColors(s.networks)
+  const splitSet = session.splitPairs()
   const networkName = (id: string) =>
     s.networks.find((n) => n.id === id)?.name ?? id
 
@@ -136,6 +155,9 @@ export function projectMap(input: MapInput): {
         location: index.locations.get(e.id) ?? '',
         summary: index.summaries.get(e.id) ?? { cabled: 0, total: 0 },
         badges: (index.badges.get(e.id) ?? []).map(networkName),
+        badgeColors: (index.badges.get(e.id) ?? []).map((id) =>
+          colorOf(colors, id),
+        ),
         facets: facets.get(e.id) ?? [],
         manualKeys: [...(manual.get(e.id) ?? [])].sort(),
         highlighted: highlight.equipmentIds.has(e.id),
@@ -171,6 +193,7 @@ export function projectMap(input: MapInput): {
     label: string | undefined,
     linkIds: string[],
     networkId: string,
+    pair?: { key: string; index: number; count: number; split: boolean },
   ) => {
     const onRoute = linkIds.some((l) => highlight.linkIds.has(l))
     // Always draw left to right.
@@ -190,9 +213,17 @@ export function projectMap(input: MapInput): {
         dimmed: !!lit && !onRoute && !linkIds.some((l) => litLinks.has(l)),
         proposed: linkIds.some((l) => !input.installedLinkIDs.has(l)),
         networkId,
+        color: colorOf(colors, networkId),
+        width: lineWidth(linkIds.length),
+        count: linkIds.length,
+        pairKey: pair?.key,
+        split: pair?.split ?? false,
+        splitIndex: pair?.index ?? 0,
+        splitCount: pair?.count ?? 1,
       },
     })
   }
+  const splitKeys = new Set<string>()
   for (const e of cables) {
     const cross = caption(e.networkId)
     push(
@@ -206,14 +237,25 @@ export function projectMap(input: MapInput): {
   }
   for (const b of bundles) {
     const cross = caption(b.networkId)
-    push(
-      b.id,
-      { card: b.source, handle: 'summary' },
-      { card: b.target, handle: 'summary' },
-      cross ? `${b.label} · ${cross}` : b.label,
-      b.linkIds,
-      b.networkId,
-    )
+    const a = { card: b.source, handle: 'summary' }
+    const z = { card: b.target, handle: 'summary' }
+    if (splitSet.has(b.pairKey)) {
+      splitKeys.add(b.pairKey)
+      b.linkIds.forEach((id, index) =>
+        push(id, a, z, cross, [id], b.networkId, {
+          key: b.pairKey,
+          index,
+          count: b.linkIds.length,
+          split: true,
+        }),
+      )
+    } else
+      push(b.id, a, z, cross, b.linkIds, b.networkId, {
+        key: b.pairKey,
+        index: 0,
+        count: 1,
+        split: false,
+      })
   }
 
   edges.sort((a, b) => a.id.localeCompare(b.id))
@@ -235,6 +277,7 @@ export function projectMap(input: MapInput): {
     highlightCards: cardIds((n) => n.data.highlightRole === 'card'),
     highlightNeighbors: cardIds((n) => n.data.highlightRole === 'neighbor'),
     dimmedCards: cardIds((n) => n.data.dimmed),
+    splitPairs: [...splitKeys].sort(),
     cards: cardIds(() => true),
   }
   return { nodes, edges, marks }
