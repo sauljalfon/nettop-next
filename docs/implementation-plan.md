@@ -213,6 +213,46 @@ Same rules as M1/M2: test-first, the whole repository green at the end of each s
 | 5 | **Focus and summaries.** Location focus with boundary bundles that keep cable IDs and expand to real cards; selected routes reveal objects outside the focus | C09, C13 |
 | 6 | **Status and handoff.** `current-status.md`, README smoke flow on the new map, `ui-spec`-relevant notes, `CLAUDE.md` | Full check run |
 
+## M3.1 — Map polish and small features
+
+A short checkpoint between M3 and M4, requested by the user on 2026-10-05. It refines the M3 map and inspector and adds no API, migration, or backend behavior. Nothing in it pulls M5 or M6 work forward: no saved layout, no undo, no drag-to-rack, no delete/disconnect, no HDF creation UI.
+
+### Recorded answers (2026-10-05)
+
+1. **Scope.** Polish: card overlap, results overlay under drawers, hop list on the map, searchable trace picker, the unexplained `hdf-display` flake plus a mismatch browser spec. Features: find on map, reset layout, and inspector improvements. The 500-for-half-valid-plans fix is not in scope.
+2. **Find on map** finds equipment by name, centers on its card, and highlights the card, every card it is cabled to, and those cables in a distinct "found" color (amber), independent of the teal trace highlight. Both can show at once.
+3. **Inspector** gets all four improvements: connection details per cabled endpoint, a grouped and filterable list, per-endpoint actions, and location actions.
+
+### M3.1 implementation design (agreed 2026-10-05)
+
+1. **Card growth never moves other cards.** "Show connections" opens as a floating popover attached to the card (React Flow `NodeToolbar` or an equivalent portal), so it no longer changes the card's size. A card that is selected, has its popover open, or carries facets is raised above its neighbors. Positions are still only changed by the user's drag or by Reset layout.
+2. **Overlay and drawers.** The map results overlay keeps clear of open drawers: its left and right edges follow the open left or right drawer, so every overlay button stays clickable with the Trace tool, inspector, Explore, or library open. Map controls (zoom, find, reset) follow the same rule.
+3. **Hops on the map.** The selected route row in the map overlay expands to the ordered hop list (start, then each hop as CABLE or PANEL BRIDGE with the endpoint label and link ID), built by a pure helper shared with `TracePanel`. Clicking a hop selects its equipment and centers the view on its card at the current zoom.
+4. **Centering is an explicit user action.** "Center on card" (used by find, hop clicks, and the inspector's Show on map) pans to the card at the current zoom, with a short animation, and records the new viewport in the session. It is not a refit. Automatic refits remain forbidden.
+5. **Find on map.** A search field in the map controls matches equipment by name (case-insensitive substring, ranked by prefix match, then name), with keyboard navigation (arrows, Enter, Esc). Choosing a result selects the card, centers on it, and sets the **found** state: the card, its direct cable neighbors, and the cables between them get the amber found style. The found state is pure (`found.ts`: card ID → neighbor IDs and cable IDs) and kept in `mapSession`. When a line is both on the selected route and found, the teal route style wins and the amber is shown as an outline, so both stay readable. Found cards hidden by the network filter or focus are shown while found, exactly like route cards. A new search, the × button, or Esc clears it. Neither clearing the trace nor clearing the find affects the other.
+6. **Reset layout.** A map control with an inline confirm ("Reset layout?" → "Reset"). It drops every recorded card and boundary position, recomputes the first layered layout for all cards, and fits once. Pinned facets, focus, filter, found state, and the trace are kept.
+7. **Inspector.** It moves out of `App.tsx` into `frontend/src/features/inspector/` (pure helpers plus components). Header: name, role, network (switches), installed/proposed, and "N of M cabled". Location: site / node / rack, where the site and node focus the map and the rack opens it in Physical. Endpoint list:
+   - grouped: switch ports, panel positions (front and rear together), and HDF positions by subpanel (1A, 1B, …), with subpanel groups collapsible;
+   - filter **Cabled / Free / All** plus label search ("3C/5" and "3C / 5" alike). The default is Cabled when the equipment has more than 48 ports or positions, otherwise All;
+   - each cabled side shows its far end ("→ HDF-01 · 3C/5 rear"), the cable ID, and the circuit network;
+   - per endpoint or position: **Find AGG / BB from here**, **Pin on map** (the same manual facet as "Show connections"), and **Show on map** (select and center the card).
+
+   Lookups come from a per-snapshot index (endpoint → cable, far end), never an endpoints × links scan as the current list does.
+8. **Searchable trace picker.** The Trace tool's Start and Destination selects become comboboxes keeping the accessible names "Start" and "Destination". They match equipment ("EDGE-17 · all ports" in distribution mode) and endpoints by "equipment label" tokens, so "edge-17 3", "hdf-01 3c/5", and "panel-a 1 rear" all work. They show at most 50 matches with a "refine the search" note. Matching is a pure, unit-tested function over a per-snapshot list.
+9. **Flake and mismatch coverage.** Find the cause of the `hdf-display.spec.ts` failure from M3 step 5 before changing the test. The working hypothesis is that a newly proposed, unconnected card is placed in the parked row outside the fitted view, and `onlyRenderVisibleElements` does not render it, so "visible" depends on timing. Fix the cause (or use find on map in the test if it is expected behavior) and document it. Add a browser spec for a cross-network cable (EDGE-17 Port 4 → AGG-12 Port 2 in a draft): three routes plus AGG-12 under "On another network (not routes)" in both the map overlay and the Trace tool.
+
+### M3.1 steps
+
+Same rules as M3: test-first, the whole repository green at the end of each step (Go with `TEST_DATABASE_URL`, frontend tests, typecheck, build, format, and Playwright three times in a row), reviewed before the next. Test names use the IDs below.
+
+| Step | Work | Tests |
+| --- | --- | --- |
+| 1 | **Layout polish.** Connections popover, raised cards (design 1); overlay and controls clear of drawers (2); Reset layout (6) | POL-01 popover does not resize the card or move neighbors; POL-02 every overlay button is clickable with each drawer open; POL-03 reset recomputes the first layout and keeps pins, focus, filter, and trace |
+| 2 | **Hops and find.** Hop list in the map overlay with center-on-click (3, 4); find on map with the amber found state (5) | POL-04 hop list order and labels match `TracePanel`; POL-05 clicking a hop selects and centers without changing zoom; POL-06 find centers on EDGE-17 and highlights EDGE-17, PANEL-A, and cable-a01/a05/a09 in amber; POL-07 found and trace highlights coexist and clear independently; POL-08 a found card hidden by the filter or focus is shown while found |
+| 3 | **Inspector.** `features/inspector/` with header, location actions, grouped and filtered list, connection details, and per-endpoint actions (7) | POL-09 HDF-01 lists its 4 cabled positions by default, grouped by subpanel, with far ends, cable IDs, and networks; POL-10 Find AGG / BB, Pin, and Show on map from an inspector entry; POL-11 location actions focus the node and open the rack |
+| 4 | **Trace picker and test hygiene.** Searchable Start/Destination (8); `hdf-display` flake cause and fix; mismatch browser spec (9) | POL-12 picker matching (unit) and keyboard use; POL-13 the mismatch spec; the flake explained in the commit message |
+| 5 | **Status and handoff.** `current-status.md`, README smoke flow, `ui-spec` notes, `CLAUDE.md` | Full check run |
+
 ## M4 — Approved physical explorer
 
 ### Scope
