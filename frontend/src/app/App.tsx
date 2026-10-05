@@ -755,66 +755,71 @@ function Workspace({
           side="right"
         >
           {drawer === 'inspector' && drawerEquipment}
-          <section className="trace-form">
-            <p className="section-label">Pathfinding</p>
-            <label>
-              Trace mode
-              <select
-                value={mode}
-                disabled={traceMutation.isPending}
-                onChange={(e) => {
-                  const next = e.target.value as typeof mode
-                  setMode(next)
-                  if (next === 'point_to_point' && start.startsWith('device:'))
-                    setStart(
-                      snapshot.endpoints.find(
-                        (p) => p.equipmentId === start.slice(7),
-                      )?.id ?? '',
+          {drawer === 'trace' && (
+            <section className="trace-form">
+              <p className="section-label">Pathfinding</p>
+              <label>
+                Trace mode
+                <select
+                  value={mode}
+                  disabled={traceMutation.isPending}
+                  onChange={(e) => {
+                    const next = e.target.value as typeof mode
+                    setMode(next)
+                    if (
+                      next === 'point_to_point' &&
+                      start.startsWith('device:')
                     )
-                  traceMutation.reset()
-                }}
-              >
-                <option value="distribution">Find AGG / BB</option>
-                <option value="point_to_point">Exact port → port</option>
-              </select>
-            </label>
-            <TracePicker
-              label="Start"
-              items={startItems}
-              value={start}
-              disabled={traceMutation.isPending}
-              onChange={(value) => {
-                setStart(value)
-                traceMutation.reset()
-              }}
-            />
-            {mode === 'point_to_point' && (
+                      setStart(
+                        snapshot.endpoints.find(
+                          (p) => p.equipmentId === start.slice(7),
+                        )?.id ?? '',
+                      )
+                    traceMutation.reset()
+                  }}
+                >
+                  <option value="distribution">Find AGG / BB</option>
+                  <option value="point_to_point">Exact port → port</option>
+                </select>
+              </label>
               <TracePicker
-                label="Destination"
-                items={endItems}
-                value={end}
+                label="Start"
+                items={startItems}
+                value={start}
+                disabled={traceMutation.isPending}
                 onChange={(value) => {
-                  setEnd(value)
+                  setStart(value)
                   traceMutation.reset()
                 }}
               />
-            )}
-            <button
-              className="button primary"
-              disabled={traceMutation.isPending || !start}
-              onClick={runTrace}
-            >
-              {traceMutation.isPending
-                ? 'Tracing…'
-                : mode === 'distribution'
-                  ? 'Find AGG / BB'
-                  : 'Trace physical path'}
-            </button>
-            <p className="muted">
-              Cables and panel bridges only. No inferred transit through switch
-              ports.
-            </p>
-          </section>
+              {mode === 'point_to_point' && (
+                <TracePicker
+                  label="Destination"
+                  items={endItems}
+                  value={end}
+                  onChange={(value) => {
+                    setEnd(value)
+                    traceMutation.reset()
+                  }}
+                />
+              )}
+              <button
+                className="button primary"
+                disabled={traceMutation.isPending || !start}
+                onClick={runTrace}
+              >
+                {traceMutation.isPending
+                  ? 'Tracing…'
+                  : mode === 'distribution'
+                    ? 'Find AGG / BB'
+                    : 'Trace physical path'}
+              </button>
+              <p className="muted">
+                Cables and panel bridges only. No inferred transit through
+                switch ports.
+              </p>
+            </section>
+          )}
           {traceMutation.error && (
             <p role="alert" className="inline-error">
               {traceMutation.error.message}

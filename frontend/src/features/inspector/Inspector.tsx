@@ -1,9 +1,18 @@
 import { Crosshair, GitFork, Network, PanelTop } from 'lucide-react'
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
+import {
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Equipment, Snapshot } from '../../shared/types'
 import type { LocationRef } from '../map/highlight'
 import type { MapSession } from '../map/mapSession'
+import NetworkBadge from '../map/NetworkBadge'
+import { colorOf, networkColors } from '../map/networkColors'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import {
   canFindFromDevice,
@@ -36,6 +45,7 @@ interface Props {
 }
 
 type Tab = 'overview' | 'ports'
+const TABS: readonly Tab[] = ['overview', 'ports']
 
 /**
  * The equipment inspector: a sticky header (identity, cabling meter, location,
@@ -55,6 +65,17 @@ export default function Inspector({
   children,
 }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({})
+  // WAI-ARIA tabs: only the selected tab is in the tab order; arrows move and select.
+  const onTabKey = (event: KeyboardEvent) => {
+    const step =
+      event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+    if (!step) return
+    event.preventDefault()
+    const next = TABS[(TABS.indexOf(tab) + step + TABS.length) % TABS.length]
+    setTab(next)
+    tabRefs.current[next]?.focus()
+  }
   const header = inspectorHeader(snapshot, index, equipment, installedIDs)
   const location = inspectorLocation(index, equipment.id)
   const groups = useMemo(
@@ -68,6 +89,8 @@ export default function Inspector({
   )
   const networkName = (id: string) =>
     snapshot.networks.find((n) => n.id === id)?.name ?? id
+  const colors = useMemo(() => networkColors(snapshot.networks), [snapshot])
+  const networkColor = (id: string) => colorOf(colors, id)
   const summary = index.summaries.get(equipment.id) ?? { cabled: 0, total: 0 }
   const passive = isPassiveEquipment(equipment)
   const Icon = passive ? PanelTop : Network
@@ -83,7 +106,12 @@ export default function Inspector({
         </div>
         <div className="inspector-badges">
           <span className="badge">{header.role}</span>
-          {header.network && <span className="badge">{header.network}</span>}
+          {header.network && equipment.networkId && (
+            <NetworkBadge
+              name={header.network}
+              color={networkColor(equipment.networkId)}
+            />
+          )}
           <span className={`badge ${header.proposed ? 'green' : ''}`}>
             {header.proposed ? 'Proposed' : 'Installed'}
           </span>
@@ -161,22 +189,19 @@ export default function Inspector({
             </button>
           )}
         </div>
-        <div className="inspector-tabs" role="tablist">
-          {(
-            [
-              ['overview', 'Overview'],
-              ['ports', portsLabel],
-            ] as const
-          ).map(([id, label]) => (
+        <div className="inspector-tabs" role="tablist" onKeyDown={onTabKey}>
+          {TABS.map((id) => (
             <button
               key={id}
+              ref={(el) => void (tabRefs.current[id] = el)}
               role="tab"
               id={`inspector-tab-${id}`}
               aria-selected={tab === id}
               aria-controls="inspector-panel"
+              tabIndex={tab === id ? 0 : -1}
               onClick={() => setTab(id)}
             >
-              {label}
+              {id === 'overview' ? 'Overview' : portsLabel}
             </button>
           ))}
         </div>
@@ -197,6 +222,7 @@ export default function Inspector({
             }
             groups={groups}
             networkName={networkName}
+            networkColor={networkColor}
           >
             {children}
           </Overview>
@@ -206,6 +232,7 @@ export default function Inspector({
             equipmentName={equipment.name}
             groups={groups}
             networkName={networkName}
+            networkColor={networkColor}
             pinned={pinned}
             onFindFromHere={onFindFromHere}
             onPin={(key) => session.toggleManual(equipment.id, key)}

@@ -1,8 +1,10 @@
 import { ChevronDown, ChevronRight, GitFork, Pin, PinOff } from 'lucide-react'
 import { useState } from 'react'
+import NetworkBadge from '../map/NetworkBadge'
 import {
   defaultFilter,
   filterGroups,
+  shortFarLabel,
   toggleCollapsed,
   unitCount,
   type EndpointFilter,
@@ -13,8 +15,9 @@ import {
 interface Props {
   equipmentName: string
   groups: InspectorGroup[]
-  /** Display name of a network ID. */
+  /** Display name and shared color of a network ID. */
   networkName: (id: string) => string
+  networkColor: (id: string) => string
   /** Facet keys pinned on the map. */
   pinned: ReadonlySet<string>
   onFindFromHere: (endpointId: string) => void
@@ -38,6 +41,7 @@ export default function PortTable({
   equipmentName,
   groups,
   networkName,
+  networkColor,
   pinned,
   onFindFromHere,
   onPin,
@@ -49,7 +53,6 @@ export default function PortTable({
   const [selected, setSelected] = useState<string>()
   const shown = filterGroups(groups, { mode, query })
   const ports = groups[0]?.id === 'ports'
-  const grouped = groups.some((g) => /^\d/.test(g.id)) // HDF subpanels
   return (
     <div className="port-list">
       <div className="port-controls">
@@ -89,12 +92,12 @@ export default function PortTable({
           </thead>
           <tbody>
             {shown.map((group) => {
-              const open = !grouped || !collapsed.has(group.id)
+              const open = !group.collapsible || !collapsed.has(group.id)
               return (
                 <GroupRows
                   key={group.id}
                   group={group}
-                  grouped={grouped}
+                  grouped={group.collapsible}
                   open={open}
                   onToggle={() =>
                     setCollapsed((c) => toggleCollapsed(c, group.id))
@@ -106,6 +109,7 @@ export default function PortTable({
                       unit={unit}
                       equipmentName={equipmentName}
                       networkName={networkName}
+                      networkColor={networkColor}
                       pinned={pinned.has(unit.key)}
                       selected={selected === unit.key}
                       onSelect={() => setSelected(unit.key)}
@@ -159,6 +163,7 @@ function Row({
   unit,
   equipmentName,
   networkName,
+  networkColor,
   pinned,
   selected,
   onSelect,
@@ -168,6 +173,7 @@ function Row({
   unit: InspectorUnit
   equipmentName: string
   networkName: (id: string) => string
+  networkColor: (id: string) => string
   pinned: boolean
   selected: boolean
   onSelect: () => void
@@ -207,7 +213,7 @@ function Row({
               </abbr>
             )}
             {side.cable ? (
-              `→ ${side.cable.farLabel}`
+              `→ ${side.side === 'port' ? side.cable.farLabel : shortFarLabel(side.cable.farLabel)}`
             ) : (
               <span className="free-side">free</span>
             )}
@@ -225,9 +231,10 @@ function Row({
         {unit.sides.map((side) => (
           <div key={side.endpointId} data-side={side.side}>
             {side.cable?.networkId && (
-              <span className="badge" data-network={side.cable.networkId}>
-                {networkName(side.cable.networkId)}
-              </span>
+              <NetworkBadge
+                name={networkName(side.cable.networkId)}
+                color={networkColor(side.cable.networkId)}
+              />
             )}
           </div>
         ))}

@@ -9,6 +9,7 @@ import {
   inspectorHeader,
   inspectorLocation,
   networkCounts,
+  shortFarLabel,
   toggleCollapsed,
   unitCount,
 } from './model'
@@ -260,5 +261,30 @@ describe('POL-20 overview counts and collapsed groups', () => {
     expect(one.has('1A')).toBe(true)
     expect(none.size).toBe(0)
     expect(toggleCollapsed(one, '1A').has('1A')).toBe(false)
+  })
+})
+
+describe('POL-20 grouping flag and far-end text', () => {
+  it('marks HDF groups as collapsible and no others', () => {
+    expect(groups('HDF-01').every((g) => g.collapsible)).toBe(true)
+    expect(groups('EDGE-17').some((g) => g.collapsible)).toBe(false)
+    expect(groups('PANEL-A').some((g) => g.collapsible)).toBe(false)
+  })
+
+  it('still shows an HDF grouped when one of its endpoints has no subpanel', () => {
+    const bare = acceptanceSnapshot()
+    for (const p of bare.endpoints)
+      if (p.equipmentId === 'HDF-01' && p.position === 5)
+        delete (p as { subpanelId?: string }).subpanelId
+    const g = inspectorGroups(bare, indexSnapshot(bare), 'HDF-01')
+    expect(g.length).toBeGreaterThan(0)
+    expect(g.every((x) => x.collapsible)).toBe(true)
+    expect(g.some((x) => x.id === '?')).toBe(true)
+  })
+
+  it("drops the far end's Front/Rear suffix from the short text only", () => {
+    expect(shortFarLabel('HDF-02 · 2B/3 front')).toBe('HDF-02 · 2B/3')
+    expect(shortFarLabel('PANEL-A · 1 · Rear')).toBe('PANEL-A · 1')
+    expect(shortFarLabel('EDGE-17 · Port 1')).toBe('EDGE-17 · Port 1')
   })
 })

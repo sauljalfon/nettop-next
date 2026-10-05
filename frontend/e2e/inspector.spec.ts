@@ -286,6 +286,16 @@ test('POL-20 the inspector has Overview and Ports tabs, a compact port table, al
   await expect(p1.locator('.col-far [data-side]')).toHaveCount(2)
   await expect(p1.locator('.col-cable [data-side]')).toHaveCount(2)
 
+  // The table's network badge is colored like the same network's badge on the card.
+  const cardBadge = page
+    .getByTestId('rf__node-panel-a')
+    .locator('.network-badge', { hasText: 'Network A' })
+  const tableBadge = p1.locator('.col-network .network-badge').first()
+  await expect(tableBadge).toHaveText('Network A')
+  expect(await tableBadge.evaluate((e) => (e as HTMLElement).style.color)).toBe(
+    await cardBadge.evaluate((e) => (e as HTMLElement).style.color),
+  )
+
   // Row actions are always visible (no hover), small, with tooltips and names.
   const trace = p1.getByRole('button', {
     name: 'Find AGG / BB from here: PANEL-A 1',
@@ -326,4 +336,52 @@ test('POL-20 the inspector has Overview and Ports tabs, a compact port table, al
   await expect(
     header.getByRole('button', { name: 'Show on map: HDF-01' }),
   ).toBeVisible()
+})
+
+test('POL-21 the inspector has no trace form: one Find AGG / BB button, and its result still shows', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await inspect(page, 'edge-17')
+  await expect(page.getByRole('combobox', { name: 'Trace mode' })).toHaveCount(
+    0,
+  )
+  await expect(page.getByText('Pathfinding')).toHaveCount(0)
+  const find = page.getByRole('button', { name: /Find AGG \/ BB/ })
+  await expect(find).toHaveCount(1)
+  await find.click()
+  await expect(
+    page.getByLabel('Map trace results').getByTestId('route-row'),
+  ).toHaveCount(3)
+  // The trace tools still have the form.
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
+  await expect(page.getByRole('combobox', { name: 'Trace mode' })).toBeVisible()
+})
+
+test('POL-20 the tabs follow the WAI-ARIA pattern: roving tabindex and arrow keys', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await inspect(page, 'edge-17')
+  const overview = page.getByRole('tab', { name: 'Overview' })
+  const ports = page.getByRole('tab', { name: 'Ports' })
+  await expect(overview).toHaveAttribute('tabindex', '0')
+  await expect(ports).toHaveAttribute('tabindex', '-1')
+  await overview.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(ports).toBeFocused()
+  await expect(ports).toHaveAttribute('aria-selected', 'true')
+  await expect(ports).toHaveAttribute('tabindex', '0')
+  await expect(overview).toHaveAttribute('tabindex', '-1')
+  await expect(page.getByRole('tabpanel')).toContainText('24 of 24 ports')
+  await page.keyboard.press('ArrowRight') // wraps around
+  await expect(overview).toBeFocused()
+  await expect(overview).toHaveAttribute('aria-selected', 'true')
+  await page.keyboard.press('ArrowLeft') // and back
+  await expect(ports).toBeFocused()
+  await expect(ports).toHaveAttribute('aria-selected', 'true')
 })

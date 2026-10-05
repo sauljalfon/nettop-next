@@ -36,6 +36,8 @@ export interface InspectorGroup {
   id: string
   title: string
   units: InspectorUnit[]
+  /** Shown as a collapsible group row (an HDF's subpanels); decided by the equipment, never by the group's ID. */
+  collapsible: boolean
 }
 
 export type EndpointFilter = 'cabled' | 'free' | 'all'
@@ -115,6 +117,7 @@ export function inspectorGroups(
         id: equipment.kind === 'switch' ? 'ports' : 'positions',
         title: equipment.kind === 'switch' ? 'Ports' : 'Positions',
         units: all.sort(natural).map(strip),
+        collapsible: false,
       },
     ]
   const bySubpanel = new Map<string, typeof all>()
@@ -128,6 +131,7 @@ export function inspectorGroups(
       id,
       title: `Subpanel ${id}`,
       units: list.sort((a, b) => a.position - b.position).map(strip),
+      collapsible: true,
     }))
 }
 
@@ -223,3 +227,10 @@ export function toggleCollapsed(
   if (!next.delete(groupId)) next.add(groupId)
   return next
 }
+
+/**
+ * A far end without its own Front/Rear suffix ("HDF-02 · 2B/3 front" becomes
+ * "HDF-02 · 2B/3"): the row's F/R marker and the tooltip carry the sides.
+ */
+export const shortFarLabel = (label: string) =>
+  label.replace(/\s*(·\s*)?(front|rear)$/i, '')

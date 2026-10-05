@@ -33,6 +33,7 @@ import { GitFork, Network, PanelTop, Plus } from 'lucide-react'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Route, Snapshot } from '../../shared/types'
 import { facetStart } from './facets'
+import NetworkBadge from './NetworkBadge'
 import { projectMap, type MapCardData, type MapFlowEdge } from './mapGraph'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession } from './mapSession'
@@ -96,16 +97,7 @@ const EquipmentCard = memo(function EquipmentCard({
       {data.badges.length > 0 && (
         <p className="map-badges">
           {data.badges.map((b, i) => (
-            <span
-              className="badge network-badge"
-              key={b}
-              style={{
-                color: data.badgeColors[i],
-                background: `${data.badgeColors[i]}1f`,
-              }}
-            >
-              {b}
-            </span>
+            <NetworkBadge key={b} name={b} color={data.badgeColors[i]} />
           ))}
         </p>
       )}

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import NetworkBadge from '../map/NetworkBadge'
 import { networkCounts, type InspectorGroup } from './model'
 
 interface Props {
@@ -6,8 +7,9 @@ interface Props {
   /** Placement, e.g. "Rack A03 · U11"; undefined when unplaced. */
   placement?: string
   groups: InspectorGroup[]
-  /** Display name of a network ID. */
+  /** Display name and shared color of a network ID. */
   networkName: (id: string) => string
+  networkColor: (id: string) => string
   /** The plan placement form, when a plan is open. */
   children?: ReactNode
 }
@@ -18,6 +20,7 @@ export default function Overview({
   placement,
   groups,
   networkName,
+  networkColor,
   children,
 }: Props) {
   const counts = networkCounts(groups)
@@ -40,9 +43,10 @@ export default function Overview({
         <ul className="network-counts">
           {counts.map((c) => (
             <li key={c.networkId} data-testid="network-count">
-              <span className="badge">
-                {c.networkId ? networkName(c.networkId) : 'Unresolved'}
-              </span>
+              <NetworkBadge
+                name={c.networkId ? networkName(c.networkId) : 'Unresolved'}
+                color={networkColor(c.networkId)}
+              />
               <span>{c.cabled} cabled</span>
             </li>
           ))}

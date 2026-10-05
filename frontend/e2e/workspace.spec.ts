@@ -39,6 +39,10 @@ test('trace physical continuity on the map and in rack elevations', async ({
   await page
     .getByRole('button', { name: 'EDGE-17 Port 2, set trace start' })
     .click()
+  // The trace form lives in the trace tools only; the chosen start is kept.
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByText(/4 cables · 3 internal bridges/)).toBeVisible()
   await expect(page.getByTestId('route-destination')).toHaveText(
