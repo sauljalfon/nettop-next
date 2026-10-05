@@ -260,6 +260,25 @@ test('POL-18 clicking the pill splits the line into labeled cables, clicking aga
   const single = await widthOf('cable-b03')
   const bundled = await widthOf('cable-a01')
   expect(bundled).toBeGreaterThan(single)
+  const startOf = (id: string) =>
+    page
+      .locator(`g[data-cable-ids~="${id}"] path.react-flow__edge-path`)
+      .first()
+      .getAttribute('d')
+      .then((d) =>
+        d!
+          .match(/^M\s*([\d.-]+)[ ,]([\d.-]+)/)!
+          .slice(1)
+          .join(','),
+      )
+  const joinedStart = await startOf('cable-a01')
+  // Only a line that can be split looks clickable.
+  await expect(
+    page.locator('.react-flow__edge.map-edge-splittable'),
+  ).toHaveCount(3)
+  await expect(
+    page.locator('.react-flow__edge:not(.map-edge-splittable)').first(),
+  ).toHaveCSS('cursor', 'default')
   await pill(page, 'cable-a01').click()
   await expect(page.locator('.flow-surface')).toHaveAttribute(
     'data-split-pairs',
@@ -270,10 +289,22 @@ test('POL-18 clicking the pill splits the line into labeled cables, clicking aga
     await expect(
       page.locator(`.map-cable-label[data-cable-id="${id}"]`),
     ).toBeVisible()
-  const ys = await page
-    .locator('.map-cable-label')
-    .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top))
-  expect(new Set(ys.map((y) => Math.round(y))).size).toBe(ys.length)
+  // The labels never overlap, and every split line fans out from the same
+  // point the joined line started at.
+  const boxes = await page.locator('.map-cable-label').evaluateAll((els) =>
+    els.map((e) => {
+      const b = e.getBoundingClientRect()
+      return { l: b.left, r: b.right, t: b.top, b: b.bottom }
+    }),
+  )
+  expect(boxes).toHaveLength(3)
+  for (let i = 0; i < boxes.length; i++)
+    for (let j = i + 1; j < boxes.length; j++) {
+      const [a, b] = [boxes[i], boxes[j]]
+      expect(a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b).toBe(false)
+    }
+  for (const id of ['cable-a01', 'cable-a05', 'cable-a09'])
+    expect(await startOf(id)).toBe(joinedStart)
   // The map stays at one line per cable, each as thin as a single cable.
   expect(await widthOf('cable-a05')).toBe(single)
   await page.getByRole('button', { name: 'Join 3 cables' }).click()
@@ -282,12 +313,14 @@ test('POL-18 clicking the pill splits the line into labeled cables, clicking aga
     '',
   )
   await expect(pill(page, 'cable-a01')).toHaveText('3')
-  // Clicking a split line joins it, too.
+  // Clicking a split line joins it, too: at its middle, where the lines are apart.
   await pill(page, 'cable-a01').click()
-  await page
-    .locator('.react-flow__edge')
-    .filter({ has: page.locator('[data-cable-ids="cable-a05"]') })
-    .locator('.react-flow__edge-interaction')
-    .click({ position: { x: 6, y: 2 } })
+  const label = await page
+    .locator('.map-cable-label[data-cable-id="cable-a05"]')
+    .boundingBox()
+  await page.mouse.click(
+    label!.x + label!.width / 2,
+    label!.y + label!.height / 2,
+  )
   await expect(pill(page, 'cable-a01')).toHaveText('3')
 })

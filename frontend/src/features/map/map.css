@@ -360,14 +360,14 @@
 .map-pill {
   position: absolute;
   pointer-events: all;
-  min-width: 30px;
-  height: 30px;
-  padding: 0 8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
   border: 2px solid #fff;
-  border-radius: 15px;
-  font-size: 18px;
+  border-radius: 10px;
+  font-size: 12px;
   font-weight: 700;
-  line-height: 24px;
+  line-height: 16px;
   cursor: pointer;
   z-index: 12;
 }
@@ -392,7 +392,8 @@
   border: 1px solid;
   border-radius: 4px;
   padding: 1px 6px;
-  font-size: 13px;
+  font-size: 11px;
+  line-height: 14px;
   z-index: 12;
 }
 
@@ -408,7 +409,11 @@
   z-index: 12;
 }
 
-.react-flow__edge {
+.react-flow__edge.selectable:not(.map-edge-splittable) {
+  cursor: default; /* React Flow makes every edge a pointer; only splittable lines look clickable */
+}
+
+.react-flow__edge.map-edge-splittable {
   cursor: pointer;
 }
 

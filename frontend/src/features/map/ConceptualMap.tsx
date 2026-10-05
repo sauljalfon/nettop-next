@@ -45,6 +45,7 @@ import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession } from './mapSession'
 import { ClearHighlight, ResetLayout } from './MapControls'
 import { reconciledPosition } from './reconcile'
+import { SPLIT_GAP, splitPath } from './splitPath'
 import { shouldClearOnEscape } from './keys'
 import { stackIndex } from './stacking'
 import { useViewRequests } from './useViewRequests'
@@ -291,8 +292,6 @@ const Preview = memo(function Preview({ data }: NodeProps<PreviewNode>) {
 })
 /** Opacity of a faded card or line. */
 const DIM = 0.3
-/** Vertical distance between the split lines of a pair. */
-const SPLIT_GAP = 16
 const ROUTE_COLOR = '#108b79'
 const HIGHLIGHT_COLOR = '#e09a00'
 
@@ -310,11 +309,17 @@ function MapEdge(props: EdgeProps) {
   const offset = data?.split
     ? (data.splitIndex - (data.splitCount - 1) / 2) * SPLIT_GAP
     : 0
-  const [path, labelX, labelY] = getBezierPath({
-    ...props,
-    sourceY: props.sourceY + offset,
-    targetY: props.targetY + offset,
-  })
+  // A split line starts and ends on the handles like the joined line; only its middle fans out.
+  const [path, labelX, labelY] = data?.split
+    ? splitPath(
+        props.sourceX,
+        props.sourceY,
+        props.targetX,
+        props.targetY,
+        data.splitIndex,
+        data.splitCount,
+      )
+    : getBezierPath(props)
   const color = edgeColor(data)
   const ids = data?.linkIds.join(' ')
   const faded = data?.dimmed ? { opacity: DIM } : undefined
@@ -489,7 +494,10 @@ function flowEdge(e: MapFlowEdge): Edge {
     targetHandle: e.targetHandle,
     label: e.label,
     type: 'map',
-    className: e.data.highlight ? 'hl' : undefined,
+    className:
+      [e.data.highlight && 'hl', e.data.pairKey && 'map-edge-splittable']
+        .filter(Boolean)
+        .join(' ') || undefined,
     animated: lit,
     zIndex: 10,
     interactionWidth: 20,
