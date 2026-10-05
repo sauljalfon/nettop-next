@@ -495,3 +495,118 @@ describe('POL-03 reset recomputes the first layered layout', () => {
     expect(view.edges.some((e) => e.data.highlighted)).toBe(true)
   })
 })
+
+describe('POL-06/07/08 found highlight', () => {
+  const found = (id: string) => {
+    const session = createMapSession()
+    session.setFound(id)
+    return session
+  }
+  const roleOf = (view: ReturnType<typeof projectMap>, id: string) =>
+    view.nodes.find((n) => n.id === id)?.data.foundRole
+
+  it('marks the card, its neighbors and their cables, and nothing else', () => {
+    const view = projectMap(input({ session: found('EDGE-17') }))
+    expect(roleOf(view, 'EDGE-17')).toBe('card')
+    expect(roleOf(view, 'PANEL-A')).toBe('neighbor')
+    expect(roleOf(view, 'HDF-01')).toBeUndefined()
+    const lit = view.edges.filter((e) => e.data.found)
+    expect(lit.flatMap((e) => e.data.linkIds).sort()).toEqual([
+      'A01',
+      'A05',
+      'A09',
+    ])
+    expect(
+      view.edges
+        .filter((e) => !e.data.found)
+        .every((e) => !e.data.linkIds.includes('A01')),
+    ).toBe(true)
+  })
+
+  it('marks nothing without a found card, and ignores an unknown one', () => {
+    expect(projectMap(input()).nodes.every((n) => !n.data.foundRole)).toBe(true)
+    const view = projectMap(input({ session: found('nope') }))
+    expect(view.nodes.every((n) => !n.data.foundRole)).toBe(true)
+    expect(view.edges.every((e) => !e.data.found)).toBe(true)
+  })
+
+  it('coexists with a selected route: a cable can be both highlighted and found', () => {
+    const view = projectMap(
+      input({ session: found('EDGE-17'), route: agg03Route() }),
+    )
+    const a01 = view.edges.find((e) => e.data.linkIds.includes('A01'))!
+    expect(a01.data).toMatchObject({ highlighted: true, found: true })
+    // A05 is found but not on the AGG-03 route; A02 is on the route but not found.
+    const a05 = view.edges.find((e) => e.data.linkIds.includes('A05'))!
+    expect(a05.data).toMatchObject({ highlighted: false, found: true })
+    const a02 = view.edges.find((e) => e.data.linkIds.includes('A02'))!
+    expect(a02.data).toMatchObject({ highlighted: true, found: false })
+    expect(view.nodes.find((n) => n.id === 'PANEL-A')!.data).toMatchObject({
+      highlighted: true,
+      foundRole: 'neighbor',
+    })
+  })
+
+  it('clears independently: removing the route keeps the find, and vice versa', () => {
+    const session = found('EDGE-17')
+    const routed = projectMap(input({ session, route: agg03Route() }))
+    const noRoute = projectMap(input({ session }))
+    expect(roleOf(noRoute, 'EDGE-17')).toBe('card')
+    expect(noRoute.edges.some((e) => e.data.highlighted)).toBe(false)
+    session.setFound(undefined)
+    const noFound = projectMap(input({ session, route: agg03Route() }))
+    const lit = (v: typeof routed) =>
+      v.edges.filter((e) => e.data.highlighted).map((e) => e.id)
+    expect(lit(noFound)).toEqual(lit(routed))
+    expect(noFound.edges.some((e) => e.data.found)).toBe(false)
+  })
+
+  it('shows found cards the network filter hides, and hides them when the find is cleared', () => {
+    const session = found('EDGE-17')
+    const hidden = projectMap(
+      input({ session: createMapSession(), networkId: 'B' }),
+    )
+    expect(ids(hidden.nodes)).not.toContain('EDGE-17')
+    const shown = projectMap(input({ session, networkId: 'B' }))
+    expect(ids(shown.nodes)).toEqual(
+      expect.arrayContaining(['EDGE-17', 'PANEL-A', 'EDGE-22', 'AGG-12']),
+    )
+    session.setFound(undefined)
+    expect(
+      ids(projectMap(input({ session, networkId: 'B' })).nodes),
+    ).not.toContain('EDGE-17')
+  })
+
+  it('shows found cards outside a focus, with real lines instead of a summary', () => {
+    const session = createMapSession()
+    session.setFocus({ kind: 'node', id: 'node-a' })
+    session.setFound('HDF-01')
+    const view = projectMap(input({ session }))
+    expect(ids(view.nodes)).toEqual(
+      expect.arrayContaining([
+        'EDGE-17',
+        'PANEL-A',
+        'HDF-01',
+        'HDF-02',
+        'PANEL-DR',
+      ]),
+    )
+    expect(view.edges.some((e) => e.data.found)).toBe(true)
+    session.setFound(undefined)
+    expect(ids(projectMap(input({ session })).nodes)).toEqual([
+      'EDGE-17',
+      'PANEL-A',
+    ])
+  })
+
+  it('never moves a card', () => {
+    const session = createMapSession()
+    const before = projectMap(input({ session }))
+    session.setFound('AGG-03')
+    const after = projectMap(input({ session }))
+    for (const n of before.nodes)
+      expect(after.nodes.find((m) => m.id === n.id)!.position).toEqual(
+        n.position,
+      )
+  })
+})

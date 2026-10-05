@@ -162,3 +162,35 @@ test('clicking a card selects it and leaves the focus alone; its focus button fo
   await expect(page.locator('.focus-chip')).toContainText('Building A')
   await expect(cards(page)).toHaveCount(2)
 })
+
+test('focus mode is styled: a dashed fixed-width boundary card and a pill focus chip', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await page
+    .getByTestId('rf__node-edge-17')
+    .getByRole('button', { name: 'Focus Building A' })
+    .click()
+  const style = (selector: string) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate((el) => {
+        const s = getComputedStyle(el)
+        return {
+          borderStyle: s.borderTopStyle,
+          width: s.width,
+          radius: parseFloat(s.borderTopLeftRadius),
+        }
+      })
+  const boundary = await style('.boundary-card')
+  expect(boundary.borderStyle).toBe('dashed')
+  expect(boundary.width).toBe('220px')
+  expect((await style('.focus-chip')).radius).toBeGreaterThanOrEqual(20)
+  // Expanded cards switch to a solid border.
+  await page
+    .getByRole('button', { name: 'Expand 3 cables to North Sub-main' })
+    .click()
+  expect((await style('.boundary-card')).borderStyle).toBe('solid')
+})

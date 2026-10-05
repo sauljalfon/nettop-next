@@ -54,6 +54,19 @@ button:hover:not(:disabled) {
   filter: brightness(0.98);
 }
 .studio {
+  /* Drawer geometry, defined once; the map overlays derive their clearance from it. */
+  --drawer-left-edge: 91px;
+  --drawer-left-width: 370px;
+  --drawer-right-edge: 17px;
+  --drawer-right-width: 400px;
+  --drawer-gap: 16px;
+  --controls-reserve: 80px; /* the map controls sit between an overlay and a drawer */
+  --clear-of-left-drawer: calc(
+    var(--drawer-left-edge) + var(--drawer-left-width) + var(--drawer-gap)
+  );
+  --clear-of-right-drawer: calc(
+    var(--drawer-right-edge) + var(--drawer-right-width) + var(--drawer-gap)
+  );
   height: 100dvh;
   overflow: hidden;
   position: relative;
@@ -367,7 +380,7 @@ button:hover:not(:disabled) {
   position: absolute;
   top: 80px;
   bottom: 20px;
-  width: 370px;
+  width: var(--drawer-left-width);
   background: #fffffff5;
   border: 1px solid #dde3ed;
   box-shadow: 0 12px 38px #30466815;
@@ -378,11 +391,11 @@ button:hover:not(:disabled) {
   backdrop-filter: blur(14px);
 }
 .studio-drawer.left {
-  left: 91px;
+  left: var(--drawer-left-edge);
 }
 .studio-drawer.right {
-  right: 17px;
-  width: 400px;
+  right: var(--drawer-right-edge);
+  width: var(--drawer-right-width);
 }
 .studio-drawer > header {
   display: flex;

@@ -11,7 +11,9 @@ import {
 } from 'react'
 import {
   Background,
+  BaseEdge,
   Controls,
+  getSmoothStepPath,
   Handle,
   NodeToolbar,
   Panel,
@@ -22,6 +24,7 @@ import {
   useReactFlow,
   useUpdateNodeInternals,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeChange,
   type NodeProps,
@@ -45,9 +48,11 @@ import {
 } from './mapGraph'
 import { indexSnapshot } from './snapshotIndex'
 import { mapSession, type MapSession } from './mapSession'
+import FindOnMap from './FindOnMap'
 import { ResetLayout } from './MapControls'
 import { reconciledPosition } from './reconcile'
 import { stackIndex } from './stacking'
+import { useCenterRequests } from './useCenterRequests'
 import './map.css'
 
 type CardNode = Node<MapCardData, 'equipment'>
@@ -154,7 +159,7 @@ const EquipmentCard = memo(function EquipmentCard({
       : Network
   return (
     <article
-      className={`equipment-card map-card ${data.highlighted ? 'traced' : ''} ${selected ? 'selected' : ''} ${data.proposed ? 'proposed' : ''}`}
+      className={`equipment-card map-card ${data.highlighted ? 'traced' : ''} ${data.foundRole ? `found found-${data.foundRole}` : ''} ${selected ? 'selected' : ''} ${data.proposed ? 'proposed' : ''}`}
     >
       <div className="equipment-heading">
         <span className="equipment-icon">
@@ -339,6 +344,31 @@ const Preview = memo(function Preview({ data }: NodeProps<PreviewNode>) {
     </button>
   )
 })
+/**
+ * A cable line. Found and traced at once: the teal route line keeps its place
+ * and the found color shows as a wider amber outline beneath it.
+ */
+function MapEdge(props: EdgeProps) {
+  const [path, labelX, labelY] = getSmoothStepPath(props)
+  const data = props.data as MapFlowEdge['data'] | undefined
+  return (
+    <g data-cable-ids={data?.linkIds.join(' ')}>
+      {data?.found && data.highlighted && (
+        <path d={path} className="found-outline" fill="none" />
+      )}
+      <BaseEdge
+        id={props.id}
+        path={path}
+        label={props.label}
+        labelX={labelX}
+        labelY={labelY}
+        style={props.style}
+        interactionWidth={20}
+      />
+    </g>
+  )
+}
+const edgeTypes = { map: MapEdge }
 const nodeTypes = {
   equipment: EquipmentCard,
   preview: Preview,
@@ -399,14 +429,15 @@ function flowEdge(e: MapFlowEdge): Edge {
     sourceHandle: e.sourceHandle,
     targetHandle: e.targetHandle,
     label: e.label,
-    type: 'smoothstep',
+    type: 'map',
+    className: e.data.found ? 'found' : undefined,
     animated: lit,
     zIndex: 10,
     interactionWidth: 20,
     data: e.data,
     style: {
-      stroke: lit ? '#108b79' : '#9bacc0',
-      strokeWidth: lit ? 3 : 1.8,
+      stroke: lit ? '#108b79' : e.data.found ? '#e09a00' : '#9bacc0',
+      strokeWidth: lit || e.data.found ? 3 : 1.8,
       strokeDasharray: e.data.proposed ? '6 4' : undefined,
     },
   }
@@ -434,6 +465,7 @@ function Canvas({
   const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
   const manual = useSyncExternalStore(session.subscribe, session.manualFacets)
   const focus = useSyncExternalStore(session.subscribe, session.focus)
+  const foundId = useSyncExternalStore(session.subscribe, session.foundId)
   const layoutVersion = useSyncExternalStore(
     session.subscribe,
     session.layoutVersion,
@@ -466,6 +498,7 @@ function Canvas({
       focus,
       expanded,
       layoutVersion,
+      foundId,
     ],
   )
   const edges = useMemo(() => graph.edges.map(flowEdge), [graph.edges])
@@ -504,6 +537,7 @@ function Canvas({
     if (fitToken === 0) return
     void flow.fitView(FIT).then(() => session.setViewport(flow.getViewport()))
   }, [fitToken])
+  useCenterRequests(session, nodes)
   const [openLists, setOpenLists] = useState<ReadonlySet<string>>(new Set())
   const toggleList = useCallback(
     (id: string) =>
@@ -588,6 +622,7 @@ function Canvas({
           nodes={rendered}
           edges={edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onNodeClick={(_, node) => {
             if (node.type === 'equipment') onSelect(node.id)
@@ -641,6 +676,11 @@ function Canvas({
           <Background color="#ccd5df" gap={24} size={1} />
           <Controls showInteractive={false} />
           <Panel position="top-right" className="map-tools">
+            <FindOnMap
+              equipment={snapshot.equipment}
+              session={session}
+              onChoose={onSelect}
+            />
             <ResetLayout onReset={session.resetLayout} />
           </Panel>
         </ReactFlow>

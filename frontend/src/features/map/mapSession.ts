@@ -47,6 +47,15 @@ export interface MapSession {
    * facets, focus and expanded bundles are kept.
    */
   resetLayout(): void
+  /** The equipment the user found on the map, or undefined. Independent of the trace. */
+  foundId(): string | undefined
+  setFound(id: string | undefined): void
+  /**
+   * Asks the map to center the view on a card at the current zoom (not a
+   * refit). `serial` increases on every request, so repeating one still counts.
+   */
+  centerRequest(): { id: string; serial: number } | undefined
+  requestCenter(id: string): void
   /** Incremented by every resetLayout; lets the map tell a reset from a drag. */
   layoutVersion(): number
   /** Notified after manual facets change; returns the unsubscribe function. */
@@ -59,6 +68,8 @@ export function createMapSession(): MapSession {
   let manual: ManualFacets = new Map()
   let focus: Focus | undefined
   let layoutVersion = 0
+  let foundId: string | undefined
+  let center: { id: string; serial: number } | undefined
   let expanded: ReadonlySet<string> = new Set()
   const listeners = new Set<() => void>()
   const notify = () => {
@@ -101,6 +112,16 @@ export function createMapSession(): MapSession {
       notify()
     },
     layoutVersion: () => layoutVersion,
+    foundId: () => foundId,
+    setFound(id) {
+      foundId = id
+      notify()
+    },
+    centerRequest: () => center,
+    requestCenter(id) {
+      center = { id, serial: (center?.serial ?? 0) + 1 }
+      notify()
+    },
     focus: () => focus,
     setFocus(next) {
       focus = next && { kind: next.kind, id: next.id }

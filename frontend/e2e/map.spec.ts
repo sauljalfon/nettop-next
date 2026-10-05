@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
+import { fitted, viewport } from './helpers'
 
-const viewport = (page: Page) =>
-  page.locator('.react-flow__viewport').getAttribute('style')
 // Only the position: the style attribute also carries React Flow's
 // visibility: hidden until a card has been measured.
 const transform = (page: Page, id: string) =>
@@ -53,6 +52,7 @@ test('C10 opening and closing tools keeps the full-page canvas and viewport', as
   await page.goto('/')
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
   const bounds = await page.locator('.flow-surface').boundingBox()
+  await fitted(page) // read the viewport only after the one-time fit has settled
   const port = await viewport(page)
   for (const name of [
     'Open explorer',
@@ -79,6 +79,7 @@ test('C11 dragging a card is local: no requests, no viewport change, kept across
     if (r.url().includes('/api/')) requests.push(r.url())
   })
   const planBefore = await (await request.get('/api/plans/expansion')).json()
+  await fitted(page) // read the viewport only after the one-time fit has settled
   const port = await viewport(page)
   const item = page.getByTestId('rf__node-edge-17')
   const before = await item.boundingBox()
@@ -114,6 +115,7 @@ test('C12 saving and refetching reconcile by ID without remounting or resetting'
   await page.evaluate(() => {
     document.querySelector('.flow-surface')!.setAttribute('data-mounted', 'yes')
   })
+  await fitted(page) // read the viewport only after the one-time fit has settled
   const port = await viewport(page)
   const edge17 = await transform(page, 'edge-17')
   const agg03 = await transform(page, 'agg-03')

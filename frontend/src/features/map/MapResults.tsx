@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useState } from 'react'
 import type { Snapshot, TraceResult } from '../../shared/types'
+import { hopRows } from '../pathfinding/hops'
 import { mismatchLine, truncationNotice } from '../pathfinding/results'
 import { resultsSummary, routeRows } from './routeList'
 
@@ -9,6 +10,8 @@ interface Props {
   result: TraceResult
   routeIndex: number
   onRoute: (index: number) => void
+  /** A hop was clicked: select its equipment and center on it. */
+  onHop: (endpointId: string) => void
   onClear: () => void
 }
 
@@ -21,6 +24,7 @@ export default function MapResults({
   result,
   routeIndex,
   onRoute,
+  onHop,
   onClear,
 }: Props) {
   const [open, setOpen] = useState(true)
@@ -68,6 +72,25 @@ export default function MapResults({
                     <span>{row.label}</span>
                     <small>{row.counts}</small>
                   </button>
+                  {row.index === routeIndex && result.routes[row.index] && (
+                    <ol className="map-hops" aria-label="Route hops">
+                      {hopRows(snapshot, result.routes[row.index]).map(
+                        (hop) => (
+                          <li key={hop.key}>
+                            <button
+                              data-testid="map-hop-row"
+                              className={`map-hop ${hop.kind}`}
+                              onClick={() => onHop(hop.endpointId)}
+                            >
+                              <small>{hop.title}</small>
+                              <span>{hop.label}</span>
+                              {hop.linkId && <em>{hop.linkId}</em>}
+                            </button>
+                          </li>
+                        ),
+                      )}
+                    </ol>
+                  )}
                 </li>
               ))}
             </ol>

@@ -896,6 +896,12 @@ function Workspace({
             result={traceMutation.data}
             routeIndex={routeIndex}
             onRoute={setRouteIndex}
+            onHop={(endpointId) => {
+              const port = snapshot.endpoints.find((p) => p.id === endpointId)
+              if (!port) return
+              select(port.equipmentId)
+              mapSession.requestCenter(port.equipmentId)
+            }}
             onClear={() => traceMutation.reset()}
           />
         )}

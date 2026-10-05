@@ -179,3 +179,52 @@ describe('POL-03 resetLayout drops positions and viewport only', () => {
     expect(session.layoutVersion()).toBe(before)
   })
 })
+
+describe('POL-06/07 found state and center requests live in the session', () => {
+  it('sets and clears the found card, replacing nothing else', () => {
+    const session = createMapSession()
+    session.toggleManual('HDF-01', '1A/2')
+    const manual = session.manualFacets()
+    expect(session.foundId()).toBeUndefined()
+    session.setFound('EDGE-17')
+    expect(session.foundId()).toBe('EDGE-17')
+    session.setFound(undefined)
+    expect(session.foundId()).toBeUndefined()
+    expect(session.manualFacets()).toBe(manual)
+  })
+
+  it('survives a layout reset like the other session choices', () => {
+    const session = createMapSession()
+    session.setFound('EDGE-17')
+    session.resetLayout()
+    expect(session.foundId()).toBe('EDGE-17')
+  })
+
+  it('notifies subscribers when the found card changes', () => {
+    const session = createMapSession()
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.setFound('EDGE-17')
+    session.setFound(undefined)
+    expect(calls).toBe(2)
+  })
+
+  it('numbers center requests, so repeating one for the same card still counts', () => {
+    const session = createMapSession()
+    expect(session.centerRequest()).toBeUndefined()
+    session.requestCenter('EDGE-17')
+    const first = session.centerRequest()!
+    expect(first.id).toBe('EDGE-17')
+    session.requestCenter('EDGE-17')
+    expect(session.centerRequest()!.serial).toBe(first.serial + 1)
+  })
+
+  it('a center request does not move any card or touch the viewport', () => {
+    const session = createMapSession()
+    session.setPosition('EDGE-17', { x: 1, y: 2 })
+    session.setViewport({ x: 3, y: 4, zoom: 0.5 })
+    session.requestCenter('EDGE-17')
+    expect(session.position('EDGE-17')).toEqual({ x: 1, y: 2 })
+    expect(session.viewport()).toEqual({ x: 3, y: 4, zoom: 0.5 })
+  })
+})

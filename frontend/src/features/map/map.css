@@ -251,17 +251,232 @@
   color: #5645b6;
 }
 
-/* Overlays keep clear of an open drawer: left of the right one, right of the left one. */
+/* Overlays keep clear of an open drawer: right of the left one, left of the right one. */
 .studio.drawer-left .map-results,
 .studio.drawer-left .board-caption {
-  left: 477px;
+  left: var(--clear-of-left-drawer);
 }
 
 .studio.drawer-right .map-results {
-  right: 513px; /* the controls sit between it and the drawer */
+  right: calc(var(--clear-of-right-drawer) + var(--controls-reserve));
 }
 
 .studio.drawer-right .flow-surface .react-flow__controls.react-flow__panel,
 .studio.drawer-right .map-tools {
-  right: 433px;
+  right: var(--clear-of-right-drawer);
+}
+
+.map-card .map-focus {
+  display: inline-grid;
+  place-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+  padding: 2px;
+  border: 1px solid #dce4ef;
+  border-radius: 4px;
+  background: white;
+  color: #6d7b90;
+  cursor: pointer;
+}
+
+.boundary-card {
+  width: 220px;
+  padding: 10px 12px;
+  border: 1.5px dashed #9bacc0;
+  border-radius: 10px;
+  background: #f7f9fc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.boundary-card.expanded {
+  border-style: solid;
+}
+
+.boundary-card .cable-ids {
+  color: #8390a4;
+  font-size: 10px;
+  word-break: break-word;
+}
+
+.boundary-card button {
+  align-self: flex-start;
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid #c9bfe6;
+  border-radius: 5px;
+  background: #f4f1fb;
+  color: #5645b6;
+}
+
+.focus-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid #c9bfe6;
+  border-radius: 999px;
+  background: #f4f1fb;
+  font-size: 12px;
+}
+
+.focus-chip small {
+  color: #7a6cc0;
+}
+
+.focus-chip button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #5645b6;
+  padding: 2px;
+}
+
+.focus-action {
+  margin-left: 8px;
+  font-size: 11px;
+}
+
+/* Found: amber, separate from the teal route color. */
+.equipment-card.map-card.found {
+  border: 2px solid #e09a00;
+  box-shadow: 0 0 0 3px #f5b30133;
+}
+
+.equipment-card.map-card.found-neighbor {
+  border: 2px solid #f0c15a;
+  background: #fffaf0;
+}
+
+/* Traced and found: the amber border stays, the teal ring shows around it. */
+.equipment-card.map-card.found.traced {
+  box-shadow:
+    0 0 0 3px #108b7966,
+    0 0 0 6px #f5b30133;
+}
+
+.react-flow__edge .found-outline {
+  stroke: #f2b134;
+  stroke-width: 8px;
+  stroke-opacity: 0.85;
+}
+
+.react-flow__edge.animated path.found-outline {
+  stroke-dasharray: none;
+  animation: none;
+}
+
+.map-find {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.map-find input {
+  width: 190px;
+  font-size: 12px;
+  padding: 7px 28px 7px 10px;
+  border: 1px solid #dfe4ee;
+  border-radius: 8px;
+  background: #f9fbfd;
+}
+
+.map-find-clear {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #728097;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.map-find ul {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: white;
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px #31486822;
+  z-index: 70;
+}
+
+.map-find li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.map-find li.active {
+  background: #f0edfa;
+}
+
+.map-find li small {
+  color: #8390a4;
+}
+
+.map-hops {
+  list-style: none;
+  margin: 4px 0 8px 14px;
+  padding: 0 0 0 10px;
+  border-left: 2px solid #cfe3dc;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.map-hop {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.map-hop:hover {
+  background: #eef5f2;
+}
+
+.map-hop small {
+  min-width: 108px;
+  color: #6d7b90;
+  font-size: 10px;
+}
+
+.map-hop.internal small {
+  color: #7a6cc0;
+}
+
+.map-hop em {
+  margin-left: auto;
+  font-style: normal;
+  color: #8390a4;
+  font-size: 10px;
+}
+
+.map-tools {
+  display: flex;
+  align-items: flex-start;
 }

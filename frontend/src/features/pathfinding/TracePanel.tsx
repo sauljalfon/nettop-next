@@ -1,6 +1,6 @@
 import { ArrowRight, GitFork, Route as RouteIcon, X } from 'lucide-react'
 import type { Snapshot, TraceResult } from '../../shared/types'
-import { endpointLabel } from './projection'
+import { hopRows } from './hops'
 import {
   destinationOf,
   mismatchLine,
@@ -100,26 +100,32 @@ export default function TracePanel({
           )}
           {route && (
             <div className="hop-list">
-              <button className="hop start" onClick={() => onHop(route.start)}>
-                <small>START</small>
-                {endpointLabel(snapshot, route.start)}
-              </button>
-              {route.hops.map((hop, i) => (
-                <div className="hop-step" key={hop.linkId}>
-                  <ArrowRight size={15} />
+              {hopRows(snapshot, route).map((row) =>
+                row.kind === 'start' ? (
                   <button
-                    className={`hop ${hop.kind}`}
-                    onClick={() => onHop(hop.to)}
+                    key={row.key}
+                    className="hop start"
+                    data-testid="hop-row"
+                    onClick={() => onHop(row.endpointId)}
                   >
-                    <small>
-                      {i + 1} ·{' '}
-                      {hop.kind === 'internal' ? 'PANEL BRIDGE' : 'CABLE'}
-                    </small>
-                    {endpointLabel(snapshot, hop.to)}
-                    <span>{hop.linkId}</span>
+                    <small>{row.title}</small>
+                    {row.label}
                   </button>
-                </div>
-              ))}
+                ) : (
+                  <div className="hop-step" key={row.key}>
+                    <ArrowRight size={15} />
+                    <button
+                      className={`hop ${row.kind}`}
+                      data-testid="hop-row"
+                      onClick={() => onHop(row.endpointId)}
+                    >
+                      <small>{row.title}</small>
+                      {row.label}
+                      <span>{row.linkId}</span>
+                    </button>
+                  </div>
+                ),
+              )}
             </div>
           )}
           <p className="trace-explanation">

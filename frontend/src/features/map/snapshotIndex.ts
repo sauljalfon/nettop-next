@@ -22,6 +22,8 @@ export interface SnapshotIndex {
   lookup: EndpointLookup
   /** Equipment owning each endpoint. */
   owner: ReadonlyMap<string, string>
+  /** Each equipment's cables and the equipment at their other end. */
+  cablesByEquipment: ReadonlyMap<string, { linkId: string; otherId: string }[]>
   /** Cable links only, in snapshot order. */
   cables: readonly Link[]
   /** Node and site of each equipment, from its rack; absent parts are unknown. */
@@ -49,9 +51,28 @@ export function indexSnapshot(s: Snapshot): SnapshotIndex {
       siteId: sites.get(node?.siteId ?? '')?.id,
     })
   }
+  const owner = new Map(s.endpoints.map((p) => [p.id, p.equipmentId]))
+  const cables = s.links.filter((l) => l.kind === 'cable')
+  const cablesByEquipment = new Map<
+    string,
+    { linkId: string; otherId: string }[]
+  >()
+  const add = (id: string, linkId: string, otherId: string) => {
+    const list = cablesByEquipment.get(id)
+    if (list) list.push({ linkId, otherId })
+    else cablesByEquipment.set(id, [{ linkId, otherId }])
+  }
+  for (const l of cables) {
+    const a = owner.get(l.a)
+    const b = owner.get(l.b)
+    if (!a || !b || a === b) continue
+    add(a, l.id, b)
+    add(b, l.id, a)
+  }
   return {
-    owner: new Map(s.endpoints.map((p) => [p.id, p.equipmentId])),
-    cables: s.links.filter((l) => l.kind === 'cable'),
+    owner,
+    cables,
+    cablesByEquipment,
     places,
     nodes,
     sites,

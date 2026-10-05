@@ -2,6 +2,7 @@ import type { Equipment, Route, Snapshot } from '../../shared/types'
 import { routeHighlight } from '../pathfinding/projection'
 import { crossNetworkCaption, mapEdges } from './edges'
 import { facetEndpointIds, facetsFor, type Facet } from './facets'
+import { foundFor } from './found'
 import { focusView, type BoundaryBundle, type Focus } from './focus'
 import {
   COLUMN_WIDTH,
@@ -40,6 +41,8 @@ export interface MapCardData extends Record<string, unknown> {
   /** Facet keys the user chose to show on this card. */
   manualKeys: string[]
   highlighted: boolean
+  /** Set while this card is the found card, or one cabled directly to it. */
+  foundRole?: 'card' | 'neighbor'
   proposed: boolean
 }
 export interface MapNode {
@@ -66,6 +69,8 @@ export interface MapFlowEdge {
     /** Every cable ID drawn by this line (one, or a bundle's). */
     linkIds: string[]
     highlighted: boolean
+    /** True when a cable on this line belongs to the found card. */
+    found: boolean
     proposed: boolean
     networkId: string
   }
@@ -97,11 +102,18 @@ export function projectMap(input: MapInput): {
 
   const index = input.index ?? indexSnapshot(s)
   const highlight = routeHighlight(s, route)
+  const found = session.foundId()
+    ? foundFor(index, session.foundId()!)
+    : undefined
+  // Route cards and found cards are shown whatever the filter or focus says.
+  const revealed = new Set(highlight.equipmentIds)
+  if (found) for (const id of [found.id, ...found.neighborIds]) revealed.add(id)
+  const foundLinks = new Set(found?.linkIds)
   const passes = visibleEquipment(s, input.networkId, [], index.badges)
   const { shown, bundles: boundaryBundles } = focusView(index, {
     focus: session.focus(),
     passes,
-    reveal: highlight.equipmentIds,
+    reveal: revealed,
     expanded: session.expandedBundles(),
   })
   const manual = session.manualFacets()
@@ -136,6 +148,12 @@ export function projectMap(input: MapInput): {
         facets: facets.get(e.id) ?? [],
         manualKeys: [...(manual.get(e.id) ?? [])].sort(),
         highlighted: highlight.equipmentIds.has(e.id),
+        foundRole:
+          found?.id === e.id
+            ? 'card'
+            : found?.neighborIds.includes(e.id)
+              ? 'neighbor'
+              : undefined,
         proposed: !input.installedIDs.has(e.id),
       },
     }))
@@ -172,6 +190,7 @@ export function projectMap(input: MapInput): {
       data: {
         linkIds,
         highlighted: linkIds.some((l) => highlight.linkIds.has(l)),
+        found: linkIds.some((l) => foundLinks.has(l)),
         proposed: linkIds.some((l) => !input.installedLinkIDs.has(l)),
         networkId,
       },
