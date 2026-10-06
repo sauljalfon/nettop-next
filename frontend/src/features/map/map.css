@@ -442,3 +442,14 @@
   background: #5645b6;
   color: #fff;
 }
+
+.map-results.map-trace-error {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.map-trace-error .inline-error {
+  margin: 0;
+  flex: 1;
+}

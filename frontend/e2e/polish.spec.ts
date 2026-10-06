@@ -323,3 +323,39 @@ test('POL-18 clicking the pill splits the line into labeled cables, clicking aga
   )
   await expect(pill(page, 'cable-a01')).toHaveText('3')
 })
+
+test('POL-32 a trace that fails with every drawer closed shows its error on the map, once', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await pinFromInspector(page, 'edge-17', '1')
+  await expect(page.locator('.studio-drawer')).toHaveCount(0)
+  await page.route('**/api/traces*', (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'Trace engine unavailable' }),
+    }),
+  )
+  await page
+    .getByRole('button', { name: 'EDGE-17 Port 1, find AGG / BB from here' })
+    .click()
+  const alert = page
+    .getByRole('alert')
+    .filter({ hasText: 'Trace engine unavailable' })
+  await expect(alert).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(1)
+  // With the Trace drawer open the error shows there instead, never twice.
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
+  await expect(page.getByRole('alert')).toHaveCount(1)
+  await expect(page.locator('.studio-drawer').getByRole('alert')).toContainText(
+    'Trace engine unavailable',
+  )
+  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  // It can be dismissed.
+  await page.getByRole('button', { name: 'Dismiss trace error' }).click()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})

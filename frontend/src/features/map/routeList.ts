@@ -1,4 +1,9 @@
-import type { Route, Snapshot, TraceResult } from '../../shared/types'
+import type {
+  Route,
+  Snapshot,
+  TraceRequest,
+  TraceResult,
+} from '../../shared/types'
 import {
   destinationOf,
   routeOptionLabel,
@@ -43,3 +48,7 @@ export function resultsSummary(
   const head = `${n} route${n === 1 ? '' : 's'}`
   return d ? `${head} · ${d.name} · ${d.role} · ${d.network}` : head
 }
+
+/** The overlay's title: the search it shows the result of. */
+export const resultsTitle = (mode: TraceRequest['mode']): string =>
+  mode === 'point_to_point' ? 'Exact port → port' : 'Find AGG / BB'

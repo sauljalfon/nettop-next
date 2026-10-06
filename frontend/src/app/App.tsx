@@ -37,6 +37,7 @@ import {
   type MapView,
 } from '../features/map/MapControls'
 import MapResults from '../features/map/MapResults'
+import MapTraceError from '../features/map/MapTraceError'
 import RackView from '../features/rack-builder/RackView'
 import PlanEditor from '../features/planning/PlanEditor'
 import PlacementEditor from '../features/planning/PlacementEditor'
@@ -861,6 +862,17 @@ function Workspace({
           </button>
         </div>
       )}
+      {/* The Trace and inspector drawers show a trace error themselves. */}
+      {view === 'conceptual' &&
+        traceMutation.error &&
+        drawer !== 'inspector' &&
+        drawer !== 'trace' && (
+          <MapTraceError
+            message={traceMutation.error.message}
+            onRefresh={() => void onRefresh()}
+            onDismiss={() => traceMutation.reset()}
+          />
+        )}
       {view === 'conceptual' &&
         traceMutation.data?.revision === snapshot.revision && (
           <MapResults

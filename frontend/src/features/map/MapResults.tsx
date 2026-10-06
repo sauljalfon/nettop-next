@@ -5,7 +5,7 @@ import { hopRows } from '../pathfinding/hops'
 import { endpointLabel } from '../pathfinding/projection'
 import { exportHeader, exportRouteView } from './exportRoute'
 import { mismatchLine, truncationNotice } from '../pathfinding/results'
-import { resultsSummary, routeRows } from './routeList'
+import { resultsSummary, resultsTitle, routeRows } from './routeList'
 
 interface Props {
   snapshot: Snapshot
@@ -82,7 +82,7 @@ export default function MapResults({
       aria-label="Map trace results"
     >
       <header>
-        <strong>Find AGG / BB</strong>
+        <strong>{resultsTitle(result.mode)}</strong>
         <span className={`badge ${result.status === 'reached' ? 'green' : ''}`}>
           {result.status === 'reached' ? 'Physical path found' : 'No route'}
         </span>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot, edge17Result } from './acceptanceFixture'
-import { hopCounts, resultsSummary, routeRows } from './routeList'
+import { hopCounts, resultsSummary, resultsTitle, routeRows } from './routeList'
 
 describe('P18 route list for the map results overlay', () => {
   const s = acceptanceSnapshot()
@@ -46,5 +46,15 @@ describe('P18 route list for the map results overlay', () => {
       reason: 'Nothing reached.',
     }
     expect(resultsSummary(s, result, 0)).toBe('No route · Nothing reached.')
+  })
+})
+
+describe('POL-33 the results overlay title', () => {
+  it('says Find AGG / BB for a distribution search', () => {
+    expect(resultsTitle('distribution')).toBe('Find AGG / BB')
+  })
+
+  it('says Exact port → port for a point-to-point trace', () => {
+    expect(resultsTitle('point_to_point')).toBe('Exact port → port')
   })
 })
