@@ -61,7 +61,7 @@ Use text/role/side labels in addition to color. BB must be labeled BB, not disgu
 ## 5. Physical explorer composition
 
 - **Sites:** approachable cards with actual name/location data and truthful node/rack/equipment counts. Optional actual photos may be added when supplied.
-- **Site:** legacy-inspired visual membership navigator with a recognizable central site and its owned nodes. Label/describe membership so the lines are not mistaken for cables.
+- **Site:** the site's own nodes, arranged freely by the user, joined by cable summary lines that say what they count (real cables between the nodes). *(Amended 2026-10-06: no central site card; membership is the breadcrumb and heading.)*
 - **Node:** owned rack previews, inventory counts, and exact involved-rack highlights. Main Distribution can contain many racks; focus/search/paginate rather than dump every detail.
 - **Rack:** dark cabinet/rails, clear U numbers, actual height/position, one multi-U asset spanning its full height, and mounted-equipment inspection.
 - **Equipment:** complete device bank, standard panel sides, or HDF matrix. The selected endpoint's inspector explains its external cable peer and same-position internal peer separately.

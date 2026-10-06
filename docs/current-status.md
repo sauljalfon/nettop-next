@@ -100,9 +100,10 @@ React/TypeScript, TanStack Query, React Flow. Installed/Plan switching, plan for
 | Scoped neighborhood and route-object fetch APIs; summaries and scaling for large networks | Not implemented; the client loads full snapshots and does highlight, route view, and summaries itself. A 32-row HDF adds 1,536 endpoints to a snapshot | M6 |
 | Saved layout and undo | Positions, viewport, pinned facets, highlight, split pairs, and the route view last only for the browser session | M6 |
 | HDF-aware creation UI, container creation, delete/disconnect commands, drag-to-rack on the map | `add_hdf` exists in the API only; sites/nodes/racks cannot be created; no delete or disconnect; map drag is layout-only | M5 |
-| Network provisioning and renaming | Networks are seed-only and read-only | Not scheduled |
+| Network provisioning and renaming | Networks are seed-only and read-only | M4 (create and rename) |
 | Legacy NetTop import with explicit ID/network/HDF mapping | Not implemented | Separate later checkpoint |
-| Authentication, approval, explicit installation recording | Not implemented | M7 |
+| Recording a plan as installed (changing installed data), inventory list screen, more equipment/port/cable details | Installed data comes only from the seed; no inventory list; equipment has name, role, network and placement only | M5 |
+| Authentication, permissions, approval, audit | Not implemented | M7 |
 
 ## Known limits
 

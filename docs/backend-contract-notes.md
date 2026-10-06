@@ -133,7 +133,7 @@ Resolved in M1 and M2 (see §2, §3, and [current-status.md](current-status.md) 
 Still open:
 
 - **Focused equipment/neighborhood, expanded HDF endpoint, location-summary, and missing-route-object fetches by stable ID.** Deferred to M6 (the M3 map does focus, collapse, and summaries on the client over full snapshots), to be designed against measured large-network data.
-- **Network provisioning and renaming.** Networks are seed-only and read-only. No checkpoint is scheduled; broad administration is governance scope (M7).
+- **Network provisioning and renaming.** Planned for M4 (create and rename, no delete; see the M4 design in [implementation-plan.md](implementation-plan.md)). Permissions are M7.
 - **Pagination.** `GET /api/plans` returns full drafts (M6).
 
 A new request shape still requires documented mandatory/optional fields, unknown-field behavior, error status, revision semantics, and backward compatibility in OpenAPI and tests. These items do not reopen the locked role, network, bridge, or two-view semantics.

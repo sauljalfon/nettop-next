@@ -33,7 +33,7 @@ Sites → selected site → physical node → rack elevation → equipment → e
 ```
 
 - Sites have visual cards with name/location and inventory counts.
-- Opening a site shows a legacy-inspired location navigator: site centered with its physical nodes around it, explicit site-membership relationships, and actions to open each node's racks.
+- Opening a site shows its physical nodes as cards the user **arranges freely by drag** (positions saved on the server, shared, never physical coordinates), joined by **cable summary lines**: one line per pair of nodes with cables between them, with a count, the cable IDs on hover and a list of the cables on click. Each node card opens its racks. *(Amended 2026-10-06: replaces "site centered with its nodes around it"; see [agent-handoff.md](agent-handoff.md).)*
 - Node views show only their owned rack previews, equipment/occupancy counts, and active-trace highlights.
 - Rack views show real units and configured equipment height; one 3U asset is one object spanning three units.
 - Equipment inspection shows a device port bank, standard panel positions, or the complete HDF grid.

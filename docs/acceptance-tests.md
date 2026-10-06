@@ -93,7 +93,7 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | ID | Scenario | Expected behavior |
 | --- | --- | --- |
 | F01 | Physical Sites | Names/locations/counts and relevant trace badges; no invented floor-plan coordinates |
-| F02 | Open Main Campus | Legacy-inspired site with owned physical nodes and explicit membership relationships |
+| F02 | Open Main Campus | Only its three nodes, freely arranged (saved positions or the default), with cable summary lines between them that count real cables (Building A ↔ North Sub-main 3, North Sub-main ↔ Main Distribution 4); no central site card |
 | F03 | Open Main Distribution | Only its three fixture racks; owned equipment counts; selected route marks actual involved racks |
 | F04 | Rack has a 3U HDF | One object spanning U4–U6, not three duplicate pieces of equipment |
 | F05 | Conceptual endpoint → Physical | Correct site/node/rack/chassis/subpanel/position/side is opened |

@@ -60,6 +60,8 @@ The user asked how sites/nodes would appear in Physical and referenced the legac
 
 Improve breadcrumbs, state restoration, consistent drill-down, and direct endpoint navigation. Avoid stacks of rack drawers/modals with overlapping paths. Site-membership diagrams are not cable graphs or measured floor plans. Actual facility images/coordinates were not supplied.
 
+*Amendment (2026-10-06, M4 planning, requested by the owner after the clickable demo):* the site screen drops the central site card. It shows the site's nodes, **arranged freely by the user** (positions saved on the server as presentation data), joined by **cable summary lines** counted from real cable records between the nodes (each line lists its cable IDs). Membership is shown by the breadcrumb and the heading. It is still not a measured floor plan, and the lines are summaries, never traversal edges.
+
 ## D09 — Scale means focused exploration
 
 The user expects hundreds of devices/panels and thousands to tens of thousands of connections. Rendering every object/endpoint/cable simultaneously is not the requirement.
