@@ -416,6 +416,14 @@
 
 .map-route-tools {
   margin: 4px 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.route-list .route-view-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .route-list .route-view-toggle {

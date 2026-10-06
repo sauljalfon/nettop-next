@@ -877,6 +877,7 @@ function Workspace({
             onClear={() => traceMutation.reset()}
             routeView={routeView}
             onRouteView={mapSession.setRouteView}
+            planName={plan?.name}
           />
         )}
       {view === 'physical' &&

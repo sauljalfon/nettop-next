@@ -2,6 +2,8 @@ import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useState } from 'react'
 import type { Snapshot, TraceResult } from '../../shared/types'
 import { hopRows } from '../pathfinding/hops'
+import { endpointLabel } from '../pathfinding/projection'
+import { exportHeader, exportRouteView } from './exportRoute'
 import { mismatchLine, truncationNotice } from '../pathfinding/results'
 import { resultsSummary, routeRows } from './routeList'
 
@@ -16,6 +18,8 @@ interface Props {
   /** Show only this route, laid out for reading (session-only). */
   routeView: boolean
   onRouteView: (on: boolean) => void
+  /** The plan's name when the routes are in a plan; absent for the installed topology. */
+  planName?: string
 }
 
 /**
@@ -31,8 +35,45 @@ export default function MapResults({
   onClear,
   routeView,
   onRouteView,
+  planName,
 }: Props) {
   const [open, setOpen] = useState(true)
+  const [exporting, setExporting] = useState<'png' | 'pdf'>()
+  const [exportError, setExportError] = useState<string>()
+  // One capture of the route view's React Flow viewport; nothing on the page changes.
+  async function exportRoute(format: 'png' | 'pdf') {
+    const route = result.routes[routeIndex]
+    const viewport = document.querySelector<HTMLElement>(
+      '.flow-surface .react-flow__viewport',
+    )
+    if (!route || !viewport) return
+    const start = endpointLabel(snapshot, route.start)
+    const end = endpointLabel(snapshot, route.end)
+    setExporting(format)
+    setExportError(undefined)
+    try {
+      await exportRouteView({
+        format,
+        viewport,
+        start,
+        end,
+        header: exportHeader({
+          start,
+          end,
+          mode: result.mode,
+          networkName: snapshot.networks.find(
+            (n) => n.id === route.sourceNetworkId,
+          )?.name,
+          plan: planName,
+          date: new Date().toLocaleDateString('en-CA'),
+        }),
+      })
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : 'Export failed.')
+    } finally {
+      setExporting(undefined)
+    }
+  }
   const rows = routeRows(snapshot, result)
   const notice = truncationNotice(result)
   return (
@@ -87,6 +128,29 @@ export default function MapResults({
                         >
                           Route view
                         </button>
+                        {(['png', 'pdf'] as const).map((format) => (
+                          <button
+                            key={format}
+                            className="route-view-toggle"
+                            aria-label={`Export ${format.toUpperCase()}`}
+                            disabled={!routeView || exporting !== undefined}
+                            title={
+                              routeView
+                                ? `Download the route as a ${format.toUpperCase()}`
+                                : 'Turn on Route view to export'
+                            }
+                            onClick={() => void exportRoute(format)}
+                          >
+                            {exporting === format
+                              ? 'Exporting…'
+                              : format.toUpperCase()}
+                          </button>
+                        ))}
+                        {exportError && (
+                          <span role="alert" className="inline-error">
+                            {exportError}
+                          </span>
+                        )}
                       </div>
                       <ol className="map-hops" aria-label="Route hops">
                         {hopRows(snapshot, result.routes[row.index]).map(
