@@ -82,11 +82,11 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | C06 | Route uses multiple positions of one HDF | Show each exact position independently, under the same parent |
 | C07 | Network A filter | Active A devices plus relevant passive infrastructure; B labels/circuits remain distinguishable where shown |
 | C08 | Network B filter | Same shared chassis, different exact positions; no active equipment with two memberships |
-| C09 | Collapsed group/cable bundle | Keep actual cable IDs; expand to real detail; never use summary anchors as traversal vertices |
+| C09 | Cable bundle | Parallel cables between two cards are one line that keeps every real cable ID (shown in its tooltip), splits into one real line per cable, and joins again; summary anchors are never traversal vertices. Covered by the `edges` unit tests (bundles keep real IDs, lines are drawing aids) and browser specs POL-17 and POL-18 |
 | C10 | Open/close tools | Full-page canvas dimensions/viewport remain stable; avoid permanent oversized forms |
 | C11 | Drag/pan/zoom | Local interaction state; stable node references; no per-pointer backend request |
 | C12 | Save/refetch | Incremental reconciliation by IDs, not revision-keyed workspace remount |
-| C13 | Search/focus and distant route | Reveal the required neighborhood/trace objects without loading all ports everywhere |
+| C13 | Highlight and distant route | The location highlight (a site or node chosen in Explore) and a selected route reveal the objects the network filter would hide, with only the needed exact positions, and hide them again when cleared. Covered by POL-14, POL-16, the route-reveal check in P18, and the browser spec "C13 a route and a highlight reveal objects the network filter hides" (a Network B filter with a Network A route, and with a highlight of Building A) |
 
 ## M4 — Physical explorer and view synchronization
 

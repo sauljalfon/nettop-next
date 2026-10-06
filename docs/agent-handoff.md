@@ -30,8 +30,8 @@ Other locations include a DR site with a smaller LAN and small sites with limite
 ## Locked decisions — do not reopen
 
 1. **Two views of the same network:** Conceptual and Physical. Network selection and Installed/Plan context are independent controls.
-2. **Conceptual is a connected equipment map:** actual cable links, free arrangement, small location labels, optional light grouping. It is not a nested inventory tree, concept-only ownership graph, or separate linear trace strip.
-3. **Tracing highlights that same map:** keep equipment positions, viewport, and surrounding context. Reveal missing/relevant detail, not a replacement layout.
+2. **Conceptual is a connected equipment map:** actual cable links, free arrangement, small location labels, optional light grouping. It is not a nested inventory tree, concept-only ownership graph, or separate linear trace strip. *(Amended 2026-10-06, see below.)*
+3. **Tracing highlights that same map:** keep equipment positions, viewport, and surrounding context. Reveal missing/relevant detail, not a replacement layout. *(Amended 2026-10-06, see below.)*
 4. **Physical uses the useful legacy navigation:** sites → site/node explorer → owned rack previews → rack elevation → equipment → exact ports. Breadcrumbs and direct contextual links preserve the selected trace.
 5. **One network per active device:** devices have explicit membership. Passive panels, HDF chassis, and subpanels can carry multiple networks through different positions.
 6. **Exact passive continuity:** unordered external cables plus front/rear continuity only at the same subpanel/local position. No implicit cross-position/subpanel connection and no sibling switch-port transit.
@@ -39,7 +39,12 @@ Other locations include a DR site with a smaller LAN and small sites with limite
 8. **HDF design:** four columns A–D, variable rows, six local positions per row/column subpanel, two side endpoints per position. Preserve the HDF parent on the map.
 9. **HDF presentation:** compact overview; selected trace automatically reveals only its positions; manual expansion reveals other connected positions; Physical shows the full grid. Automatic and manual expansion are distinct state.
 10. **Plans are proposals:** installed topology, plan overlays, and board coordinates are separate. Approval is not evidence of physical installation.
-11. **Scale through focus and summaries:** scoped data, bounded neighborhoods, actual-cable bundles, search, selective endpoint detail. Backend tracing is not limited to what the canvas currently displays.
+11. **Scale through focus and summaries:** scoped data, bounded neighborhoods, actual-cable bundles, search, selective endpoint detail. Backend tracing is not limited to what the canvas currently displays. *(Amended 2026-10-06, see below.)*
+
+### Amendments to the locked decisions (2026-10-06, approved by the owner)
+
+- **Locked 2 and 3 (map and trace).** An opt-in **route view** is allowed as a reading and export aid: a toggle in the results overlay that shows only the active route in a left-to-right layout with node and rack outlines, and exports it as PNG or PDF. It is session-only, never changes the full map, and turning it off restores the map exactly. **Tracing on the map itself is unchanged**: it highlights in place and keeps equipment positions and the viewport. The route view is a separate presentation the user chooses, not a replacement layout for the trace.
+- **Locked 11 / D09 (scale).** The M3 location **focus** and its **boundary summaries** were replaced in M3.1 by the **node/site highlight** (the located equipment, every cable leaving it, and the far-end cards, with everything else faded; the view fits it once). Bounded neighborhoods and scoped data are **moved to M6**, with measured budgets. Actual-cable bundles, search and selective endpoint detail remain. Today the default map draws every card and cable; see the measurement note in M6 of [implementation-plan.md](implementation-plan.md).
 
 Backend role values should preserve the prototype's `access`, `aggregation`, `passive` and add `backbone` for UI BB. Names such as AGG-03 or BB-01 are display names, never the way roles are inferred.
 

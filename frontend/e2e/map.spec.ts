@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, viewport } from './helpers'
+import {
+  expectMarks,
+  fitted,
+  highlightLocation,
+  pick,
+  viewport,
+} from './helpers'
 
 // Only the position: the style attribute also carries React Flow's
 // visibility: hidden until a card has been measured.
@@ -142,4 +148,38 @@ test('C12 saving and refetching reconcile by ID without remounting or resetting'
   expect(await viewport(page)).toBe(port)
   expect(await transform(page, 'edge-17')).toBe(edge17)
   expect(await transform(page, 'agg-03')).toBe(agg03)
+})
+
+test('C13 a route and a highlight reveal objects the network filter hides, and hide them again', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  const underB = ['agg-12', 'edge-22', 'hdf-01', 'hdf-02', 'panel-dr']
+  await page
+    .getByRole('combobox', { name: 'Show network' })
+    .selectOption({ label: 'Network B' })
+  await expectMarks(page, { cards: underB })
+
+  // A Network A route (EDGE-17 → AGG-03) shows its cards under the Network B filter.
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
+  await pick(page, 'Start', 'edge-17 all ports')
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await expectMarks(page, {
+    cards: [...underB, 'agg-03', 'edge-17', 'panel-a'].sort(),
+    routeCards: ['agg-03', 'edge-17', 'hdf-01', 'hdf-02', 'panel-a'],
+  })
+  await page.getByRole('button', { name: 'Clear trace' }).click()
+  await expectMarks(page, { cards: underB })
+
+  // A highlight of Building A shows EDGE-17 and PANEL-A under the same filter.
+  await highlightLocation(page, 'Building A')
+  await expectMarks(page, {
+    cards: [...underB, 'edge-17', 'panel-a'].sort(),
+    highlightCards: ['edge-17', 'panel-a'],
+  })
+  await page.getByRole('button', { name: 'Clear highlight' }).click()
+  await expectMarks(page, { cards: underB })
 })

@@ -350,6 +350,8 @@ Persist workspace references/coordinates/expansion preferences; separate layout 
 
 ### Acceptance
 
+**Starting point (measured):** the default map currently draws every card and every cable. A network of 1,700 equipment and 36,000 cables projects in about 110 ms; rendering and drag costs have **not** been measured yet. Bounded neighborhoods and scoped data (moved here from the M3 focus; see the 2026-10-06 amendment in [agent-handoff.md](agent-handoff.md)) need agreed budgets from those measurements.
+
 Reload restores layout/context without changing physical placement. Summary counts map to real cables. Search/focus/trace operate on representative hundreds-of-equipment and thousands-to-tens-of-thousands-of-cables datasets, including large HDFs. Record measured graph-build/search/render/drag costs and agreed budgets; do not cite static mockup counts as benchmarks.
 
 ## M7 — Identity, governance, and recorded implementation

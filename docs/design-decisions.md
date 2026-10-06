@@ -42,6 +42,8 @@ The user demonstrated a multi-panel route alternating front/rear transitions. Th
 
 **Final:** selected path highlighting on the existing graph; retain equipment coordinates and viewport. A hop/detail panel can explain the same route but must not become the replacement visualization. Other connections remain visible, muted, summarized, or bundled.
 
+*Amendment (2026-10-06, approved by the owner):* an opt-in **route view** (a toggle in the results overlay) may show only the active route in a left-to-right layout with node and rack outlines, as a reading and export aid (PNG and PDF). Tracing on the map itself still highlights in place and keeps positions and the viewport; turning the route view off restores the map exactly. See the amendments in [agent-handoff.md](agent-handoff.md).
+
 ## D07 — HDF: compact parent, selective subpanel detail
 
 The user confirmed the legacy HDF has four columns and variable rows of mini subpanels. Inspection of legacy creation/rendering found six local positions per row/column block with front/rear endpoints.
@@ -63,6 +65,8 @@ Improve breadcrumbs, state restoration, consistent drill-down, and direct endpoi
 The user expects hundreds of devices/panels and thousands to tens of thousands of connections. Rendering every object/endpoint/cable simultaneously is not the requirement.
 
 Use summarized site/node/corridor overviews, dense-core focus, search, bounded neighborhoods, actual-cable bundles, selective HDF details, and missing-object loading for traces. Backend traversal remains independent of display filters and collapsed objects. Measure real graph build/search/render costs; static large-number illustrations are not benchmarks.
+
+*Amendment (2026-10-06, approved by the owner):* the M3 location focus and boundary summaries were replaced in M3.1 by the **node/site highlight** (located equipment, the cables leaving it and their far-end cards; everything else faded). Bounded neighborhoods and scoped data are moved to M6 and need measured budgets: the default map currently draws every card and cable.
 
 ## D10 — Main campus, distribution center, sub-main/passive corridors
 
