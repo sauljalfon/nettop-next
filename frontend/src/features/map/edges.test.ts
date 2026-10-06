@@ -200,3 +200,21 @@ describe('POL-18 line width and pair keys', () => {
     expect(b.pairKey).toBe(pairKey('EDGE-17', 'PANEL-A', 'A'))
   })
 })
+
+describe('POL-22 only some cables', () => {
+  it('draws just the cables asked for, bundling what is left', () => {
+    const s = acceptanceSnapshot()
+    const { edges, bundles } = mapEdges(
+      s,
+      all(s),
+      new Set(),
+      undefined,
+      undefined,
+      new Set(['A01', 'A02']),
+    )
+    expect(
+      [...edges.map((e) => e.id), ...bundles.flatMap((b) => b.linkIds)].sort(),
+    ).toEqual(['A01', 'A02'])
+    expect(bundles).toEqual([])
+  })
+})

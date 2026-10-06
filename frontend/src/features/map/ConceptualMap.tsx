@@ -36,9 +36,16 @@ import { facetStart } from './facets'
 import NetworkBadge from './NetworkBadge'
 import { projectMap, type MapCardData, type MapFlowEdge } from './mapGraph'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
-import { mapSession, type MapSession } from './mapSession'
+import { mapSession, type MapSession, type Viewport } from './mapSession'
 import { ClearHighlight, ResetLayout } from './MapControls'
 import { reconciledPosition } from './reconcile'
+import {
+  CARD_WIDTH,
+  NODE_PAD,
+  RACK_PAD,
+  outlineRect,
+  type Rect,
+} from './routeView'
 import { SPLIT_GAP, splitPath } from './splitPath'
 import { shouldClearOnEscape } from './keys'
 import { stackIndex } from './stacking'
@@ -47,7 +54,8 @@ import './map.css'
 
 type CardNode = Node<MapCardData, 'equipment'>
 type PreviewNode = Node<{ name: string; onConfigure: () => void }, 'preview'>
-type MapNode = CardNode | PreviewNode
+type OutlineNode = Node<{ label: string; kind: 'node' | 'rack' }, 'outline'>
+type MapNode = CardNode | PreviewNode | OutlineNode
 
 const Actions = createContext<{
   onPort: (id: string) => void
@@ -308,9 +316,63 @@ function edgeColor(data: MapFlowEdge['data'] | undefined): string {
   return data?.color ?? '#9bacc0'
 }
 const edgeTypes = { map: MapEdge }
+/** A dashed box behind a run of cards in the route view: a drawing aid only. */
+const Outline = memo(function Outline({ data }: NodeProps<OutlineNode>) {
+  return (
+    <div className={`route-outline ${data.kind}`}>
+      <span className="route-outline-label">{data.label}</span>
+    </div>
+  )
+})
 const nodeTypes = {
   equipment: EquipmentCard,
   preview: Preview,
+  outline: Outline,
+}
+
+/**
+ * The route view's dashed boxes, sized from the cards' measured rectangles (a
+ * card is as tall as its facets make it), so they follow a dragged card. They
+ * sit behind everything, take no clicks, and never feed the route.
+ */
+function outlines(
+  model: ReturnType<typeof projectMap>['routeView'],
+  nodes: readonly MapNode[],
+): OutlineNode[] {
+  if (!model) return []
+  const rect = (id: string): Rect | undefined => {
+    const n = nodes.find((x) => x.id === id)
+    return (
+      n && {
+        x: n.position.x,
+        y: n.position.y,
+        width: n.measured?.width ?? CARD_WIDTH,
+        height: n.measured?.height ?? 130,
+      }
+    )
+  }
+  const make = (
+    kind: 'node' | 'rack',
+    runs: typeof model.nodeRuns,
+  ): OutlineNode[] =>
+    runs.flatMap((run) => {
+      const cards = run.cardIds.map(rect).filter((r): r is Rect => !!r)
+      if (!cards.length) return []
+      const box = outlineRect(cards, kind === 'node' ? NODE_PAD : RACK_PAD)
+      return {
+        id: `outline:${run.id}`,
+        type: 'outline' as const,
+        position: { x: box.x, y: box.y },
+        width: box.width,
+        height: box.height,
+        zIndex: kind === 'node' ? -2 : -1,
+        draggable: false,
+        selectable: false,
+        focusable: false,
+        data: { label: run.label, kind },
+      }
+    })
+  return [...make('node', model.nodeRuns), ...make('rack', model.rackRuns)]
 }
 
 export interface PendingEquipment {
@@ -412,6 +474,20 @@ function Canvas({
   const manual = useSyncExternalStore(session.subscribe, session.manualFacets)
   const highlight = useSyncExternalStore(session.subscribe, session.highlight)
   const split = useSyncExternalStore(session.subscribe, session.splitPairs)
+  const routeViewOn = useSyncExternalStore(session.subscribe, session.routeView)
+  // The route view needs a route; without one the full map is what is drawn.
+  const active = routeViewOn && !!route
+  const activeRef = useRef(active)
+  activeRef.current = active
+  // The route view keeps its own viewport; the full map's is never overwritten.
+  const record = useCallback(
+    (v: Viewport) =>
+      activeRef.current ? session.setRouteViewport(v) : session.setViewport(v),
+    [session],
+  )
+  useEffect(() => {
+    if (routeViewOn && !route) session.setRouteView(false)
+  }, [routeViewOn, route, session])
   const layoutVersion = useSyncExternalStore(
     session.subscribe,
     session.layoutVersion,
@@ -426,6 +502,7 @@ function Canvas({
         installedIDs,
         installedLinkIDs,
         index,
+        routeView: active,
       }),
     // Manual facets and the highlight are read through the session; they are dependencies so changes re-project.
     [
@@ -439,6 +516,7 @@ function Canvas({
       manual,
       highlight,
       split,
+      active,
       layoutVersion,
     ],
   )
@@ -454,9 +532,12 @@ function Canvas({
   // A layout reset drops dragged positions and fits once, then everything else
   // (trace, pins, highlight, filter) carries on untouched.
   const appliedVersion = useRef(layoutVersion)
+  const appliedActive = useRef(active)
   const [fitToken, setFitToken] = useState(0)
   useEffect(() => {
-    const reset = appliedVersion.current !== layoutVersion
+    const switched = appliedActive.current !== active
+    appliedActive.current = active
+    const reset = appliedVersion.current !== layoutVersion || switched
     appliedVersion.current = layoutVersion
     setNodes((previous) => {
       const existing = new Map(previous.map((n) => [n.id, n]))
@@ -469,14 +550,19 @@ function Canvas({
         }
       })
     })
-    if (reset) setFitToken((t) => t + 1)
+    if (switched && !active) {
+      // Back to the full map: its viewport comes back from the session untouched.
+      const saved = session.viewport()
+      if (saved) void flow.setViewport(saved)
+      else setFitToken((t) => t + 1)
+    } else if (reset) setFitToken((t) => t + 1) // a reset, or entering the route view: fit once
   }, [graph.nodes, layoutVersion])
   useEffect(() => {
     if (fitToken === 0) return
-    void flow.fitView(FIT).then(() => session.setViewport(flow.getViewport()))
+    void flow.fitView(FIT).then(() => record(flow.getViewport()))
   }, [fitToken])
   const surface = useRef<HTMLDivElement>(null)
-  useViewRequests(session, surface, nodes)
+  useViewRequests(session, surface, nodes, record)
   // Esc clears the highlight without touching the trace.
   useEffect(() => {
     if (!highlight) return
@@ -522,8 +608,9 @@ function Canvas({
           onConfigure: onConfigurePreview,
         },
       })
+    for (const outline of outlines(graph.routeView, nodes)) cards.push(outline)
     return cards
-  }, [nodes, selected, preview, onConfigurePreview])
+  }, [nodes, selected, preview, onConfigurePreview, graph.routeView])
   const actions = useMemo(
     () => ({ onPort, onToggleSplit: session.toggleSplit }),
     [onPort, session],
@@ -543,6 +630,9 @@ function Canvas({
       data-highlight-neighbors={graph.marks.highlightNeighbors.join(' ')}
       data-dimmed-cards={graph.marks.dimmedCards.join(' ')}
       data-split-pairs={graph.marks.splitPairs.join(' ')}
+      data-node-boxes={graph.marks.nodeBoxes.join(' ')}
+      data-rack-boxes={graph.marks.rackBoxes.join(' ')}
+      data-route-view={graph.marks.routeView}
     >
       <Actions.Provider value={actions}>
         <ReactFlow<MapNode>
@@ -559,17 +649,21 @@ function Canvas({
             if (node.type === 'equipment') onSelect(node.id)
           }}
           onNodeDragStop={(_, node) => {
-            if (node.type === 'equipment')
+            // Dragging in the route view stays local to the canvas.
+            if (node.type === 'equipment' && !active)
               session.setPosition(node.id, node.position)
           }}
           onInit={() => {
-            if (!session.needsFit()) return
+            if (active ? session.routeViewport() : !session.needsFit()) return
             void flow.fitView(FIT).then(() => {
-              if (session.needsFit()) session.setViewport(flow.getViewport())
+              if (active ? !session.routeViewport() : session.needsFit())
+                record(flow.getViewport())
             })
           }}
-          onMoveEnd={(_, viewport) => session.setViewport(viewport)}
-          defaultViewport={session.viewport()}
+          onMoveEnd={(_, viewport) => record(viewport)}
+          defaultViewport={
+            active ? session.routeViewport() : session.viewport()
+          }
           onDragOver={(event) => {
             if (canEdit) {
               event.preventDefault()
@@ -607,10 +701,10 @@ function Canvas({
           <Background color="#ccd5df" gap={24} size={1} />
           <Controls showInteractive={false} />
           <Panel position="top-right" className="map-tools">
-            {highlight && (
+            {!active && highlight && (
               <ClearHighlight onClear={() => session.setHighlight(undefined)} />
             )}
-            <ResetLayout onReset={session.resetLayout} />
+            {!active && <ResetLayout onReset={session.resetLayout} />}
           </Panel>
         </ReactFlow>
       </Actions.Provider>

@@ -5,6 +5,8 @@ import { ROW_HEIGHT } from './layout'
 import { projectMap, type MapInput } from './mapGraph'
 import { PALETTE, UNRESOLVED_COLOR } from './networkColors'
 import { pairKey } from './edges'
+import { routeView } from './routeView'
+import { indexSnapshot } from './snapshotIndex'
 
 function input(over: Partial<MapInput> = {}): MapInput {
   const snapshot = over.snapshot ?? acceptanceSnapshot()
@@ -537,6 +539,9 @@ describe("marks: the projection's route and highlight IDs, for tests and tools",
       highlightNeighbors: [],
       dimmedCards: [],
       splitPairs: [],
+      nodeBoxes: [],
+      rackBoxes: [],
+      routeView: false,
       cards: expect.any(Array),
     })
   })
@@ -653,5 +658,79 @@ describe('POL-17/18 cable lines', () => {
       PALETTE[0],
       PALETTE[1],
     ])
+  })
+})
+
+describe('POL-22/23/24 route view projection', () => {
+  const rv = (over: Partial<MapInput> = {}) =>
+    projectMap(input({ route: agg03Route(), routeView: true, ...over }))
+
+  it('shows only the route cards and cables, at the positions the model gives', () => {
+    const { nodes, edges, marks } = rv()
+    expect(ids(nodes)).toEqual([
+      'AGG-03',
+      'EDGE-17',
+      'HDF-01',
+      'HDF-02',
+      'PANEL-A',
+    ])
+    expect(edges.flatMap((e) => e.data.linkIds).sort()).toEqual([
+      'A01',
+      'A02',
+      'A03',
+      'A04',
+    ])
+    const model = routeView(agg03Route(), indexSnapshot(acceptanceSnapshot()))
+    for (const c of model.cards)
+      expect(nodes.find((n) => n.id === c.id)!.position).toEqual({
+        x: c.x,
+        y: c.y,
+      })
+    expect(marks.routeView).toBe(true)
+    expect(marks.cards).toEqual(ids(nodes))
+  })
+
+  it('draws every line as the route (teal), with its route facets', () => {
+    const { nodes, edges } = rv()
+    expect(edges.every((e) => e.data.highlighted)).toBe(true)
+    expect(
+      nodes.find((n) => n.id === 'HDF-01')!.data.facets.map((f) => f.label),
+    ).toEqual(['3C / 5'])
+  })
+
+  it('counts the boxes: three node runs and two rack runs for this route', () => {
+    const { marks, routeView: model } = rv()
+    expect(marks.nodeBoxes).toHaveLength(3)
+    expect(marks.rackBoxes).toHaveLength(2)
+    expect(model!.nodeRuns.map((r) => r.id)).toEqual(marks.nodeBoxes)
+  })
+
+  it('ignores pins, the highlight and the network filter', () => {
+    const session = createMapSession()
+    session.toggleManual('HDF-01', '1A/2')
+    session.setHighlight({ kind: 'node', id: 'node-a' })
+    const { nodes, marks } = rv({ session, networkId: 'B' })
+    expect(ids(nodes)).toHaveLength(5)
+    expect(
+      nodes.find((n) => n.id === 'HDF-01')!.data.facets.map((f) => f.label),
+    ).toEqual(['3C / 5'])
+    expect(marks.dimmedCards).toEqual([])
+    expect(marks.highlightCards).toEqual([])
+  })
+
+  it('never touches the full map: no position is recorded, and recorded ones stay', () => {
+    const session = createMapSession()
+    rv({ session })
+    expect(session.positions().size).toBe(0)
+    projectMap(input({ session })) // the full map's first layout
+    const before = new Map(session.positions())
+    rv({ session })
+    expect(session.positions()).toEqual(before)
+  })
+
+  it('is the full map when no route is active', () => {
+    const { nodes, marks } = projectMap(input({ routeView: true }))
+    expect(nodes).toHaveLength(11)
+    expect(marks.routeView).toBe(false)
   })
 })

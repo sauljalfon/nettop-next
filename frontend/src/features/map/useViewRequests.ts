@@ -7,7 +7,7 @@ import {
   viewportFor,
   visibleCenter,
 } from './center'
-import type { MapSession } from './mapSession'
+import type { MapSession, Viewport } from './mapSession'
 
 const OVERLAYS = '.studio-drawer, .map-results'
 
@@ -25,6 +25,8 @@ export function useViewRequests(
   session: MapSession,
   surface: RefObject<HTMLElement | null>,
   nodesVersion: unknown,
+  /** Where the new viewport is kept: the full map's, or the route view's own. */
+  record: (viewport: Viewport) => void = session.setViewport,
 ) {
   const flow = useReactFlow()
   const center = useSyncExternalStore(session.subscribe, session.centerRequest)
@@ -71,7 +73,7 @@ export function useViewRequests(
           .setViewport(viewportFor(centerTarget(card), at, flow.getZoom()), {
             duration: 300,
           })
-          .then(() => session.setViewport(flow.getViewport()))
+          .then(() => record(flow.getViewport()))
       })
     })
     return () => {
@@ -101,7 +103,7 @@ export function useViewRequests(
           .setViewport(fitViewport(bounds, where.box, where.covers), {
             duration: 300,
           })
-          .then(() => session.setViewport(flow.getViewport()))
+          .then(() => record(flow.getViewport()))
       })
     })
     return () => {

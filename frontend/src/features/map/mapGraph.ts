@@ -4,6 +4,7 @@ import { crossNetworkCaption, lineWidth, mapEdges } from './edges'
 import { colorOf, networkColors } from './networkColors'
 import { facetEndpointIds, facetsFor, type Facet } from './facets'
 import { highlightFor } from './highlight'
+import { routeView, type RouteViewModel } from './routeView'
 import { layeredLayout, type Position } from './layout'
 import type { MapSession } from './mapSession'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
@@ -20,6 +21,8 @@ export interface MapInput {
   installedLinkIDs: ReadonlySet<string>
   /** Snapshot-only results; computed here when absent. Memoize on the snapshot. */
   index?: SnapshotIndex
+  /** Show only the route, laid out by the route-view model; ignored without a route. */
+  routeView?: boolean
 }
 
 export interface MapCardData extends Record<string, unknown> {
@@ -102,6 +105,11 @@ export interface MapMarks {
   dimmedCards: string[]
   /** Card pairs drawn as separate lines, sorted. */
   splitPairs: string[]
+  /** Outline boxes of the route view: node runs and rack runs. */
+  nodeBoxes: string[]
+  rackBoxes: string[]
+  /** The route view is what is drawn. */
+  routeView: boolean
   /** Every card the map shows (drawn or not), sorted. */
   cards: string[]
 }
@@ -110,22 +118,28 @@ export function projectMap(input: MapInput): {
   nodes: MapNode[]
   edges: MapFlowEdge[]
   marks: MapMarks
+  /** The route-view layout and runs, when the route view is what is drawn. */
+  routeView?: RouteViewModel
 } {
   const { snapshot: s, session, route } = input
-  session.placeMissing(
-    s.equipment.map((e) => e.id),
-    (missing) => {
-      const wanted = new Set(missing)
-      const have = new Map<string, Position>()
-      for (const [id, p] of session.positions()) have.set(id, p)
-      const layout = layeredLayout(s, have)
-      return new Map([...layout].filter(([id]) => wanted.has(id)))
-    },
-  )
-
   const index = input.index ?? indexSnapshot(s)
+  // The route view never records positions: the full map's stay as they are.
+  const rv = input.routeView && route ? routeView(route, index) : undefined
+  if (!rv)
+    session.placeMissing(
+      s.equipment.map((e) => e.id),
+      (missing) => {
+        const wanted = new Set(missing)
+        const have = new Map<string, Position>()
+        for (const [id, p] of session.positions()) have.set(id, p)
+        const layout = layeredLayout(s, have)
+        return new Map([...layout].filter(([id]) => wanted.has(id)))
+      },
+    )
+
   const highlight = routeHighlight(s, route)
-  const lit = highlightFor(index, session.highlight())
+  // The route view shows the route alone: no highlight, pins or filter.
+  const lit = rv ? undefined : highlightFor(index, session.highlight())
   const litCards = new Set(lit?.equipmentIds)
   const litNeighbors = new Set(lit?.neighborIds)
   const litLinks = new Set(lit?.linkIds)
@@ -133,23 +147,28 @@ export function projectMap(input: MapInput): {
   const revealed = new Set(highlight.equipmentIds)
   if (lit)
     for (const id of [...lit.equipmentIds, ...lit.neighborIds]) revealed.add(id)
-  const shown = new Set([
-    ...visibleEquipment(s, input.networkId, [], index.badges),
-    ...revealed,
-  ])
-  const manual = session.manualFacets()
+  const shown = rv
+    ? new Set(rv.cards.map((c) => c.id))
+    : new Set([
+        ...visibleEquipment(s, input.networkId, [], index.badges),
+        ...revealed,
+      ])
+  const manual = rv ? new Map() : session.manualFacets()
   const facets = facetsFor(s, route, manual, index.lookup)
   const colors = networkColors(s.networks)
   const splitSet = session.splitPairs()
   const networkName = (id: string) =>
     s.networks.find((n) => n.id === id)?.name ?? id
 
+  const rvPosition = new Map(
+    (rv?.cards ?? []).map((c) => [c.id, { x: c.x, y: c.y }] as const),
+  )
   const nodes: MapNode[] = s.equipment
     .filter((e) => shown.has(e.id))
     .map((e) => ({
       id: e.id,
       type: 'equipment',
-      position: session.position(e.id)!,
+      position: rvPosition.get(e.id) ?? session.position(e.id)!,
       data: {
         equipment: e,
         location: index.locations.get(e.id) ?? '',
@@ -182,6 +201,8 @@ export function projectMap(input: MapInput): {
     shown,
     facetEndpointIds(facets),
     index.circuits,
+    undefined,
+    rv ? new Set(rv.lines.map((l) => l.linkId)) : undefined,
   )
   const caption = (networkId: string) =>
     crossNetworkCaption(networkId, input.networkId, s.networks)
@@ -278,7 +299,10 @@ export function projectMap(input: MapInput): {
     highlightNeighbors: cardIds((n) => n.data.highlightRole === 'neighbor'),
     dimmedCards: cardIds((n) => n.data.dimmed),
     splitPairs: [...splitKeys].sort(),
+    nodeBoxes: rv?.nodeRuns.map((r) => r.id) ?? [],
+    rackBoxes: rv?.rackRuns.map((r) => r.id) ?? [],
+    routeView: !!rv,
     cards: cardIds(() => true),
   }
-  return { nodes, edges, marks }
+  return { nodes, edges, marks, routeView: rv }
 }

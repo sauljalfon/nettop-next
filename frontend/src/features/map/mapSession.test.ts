@@ -298,3 +298,57 @@ describe('POL-18 split pairs', () => {
     expect(session.splitPairs().has('p')).toBe(true)
   })
 })
+
+describe('POL-22 route view state', () => {
+  it('is off by default and toggles', () => {
+    const session = createMapSession()
+    expect(session.routeView()).toBe(false)
+    session.setRouteView(true)
+    expect(session.routeView()).toBe(true)
+    session.setRouteView(false)
+    expect(session.routeView()).toBe(false)
+  })
+
+  it('keeps its own viewport, and asks for a fresh fit every time it is entered', () => {
+    const session = createMapSession()
+    session.setRouteView(true)
+    expect(session.routeViewport()).toBeUndefined()
+    session.setRouteViewport({ x: 1, y: 2, zoom: 0.5 })
+    expect(session.routeViewport()).toEqual({ x: 1, y: 2, zoom: 0.5 })
+    session.setRouteView(false)
+    session.setRouteView(true)
+    expect(session.routeViewport()).toBeUndefined()
+  })
+
+  it('leaves the full map exactly as it was: positions, viewport, pins, highlight and split pairs', () => {
+    const session = createMapSession()
+    session.setPosition('EDGE-17', { x: 5, y: 6 })
+    session.setViewport({ x: 10, y: 20, zoom: 0.7 })
+    session.toggleManual('HDF-01', '3C/5')
+    session.setHighlight({ kind: 'node', id: 'node-a' })
+    session.toggleSplit('pair')
+    const before = {
+      positions: new Map(session.positions()),
+      viewport: session.viewport(),
+      manual: session.manualFacets(),
+      highlight: session.highlight(),
+      split: session.splitPairs(),
+    }
+    session.setRouteView(true)
+    session.setRouteViewport({ x: 99, y: 99, zoom: 2 })
+    session.setRouteView(false)
+    expect(session.positions()).toEqual(before.positions)
+    expect(session.viewport()).toEqual(before.viewport)
+    expect(session.manualFacets()).toBe(before.manual)
+    expect(session.highlight()).toEqual(before.highlight)
+    expect(session.splitPairs()).toBe(before.split)
+  })
+
+  it('notifies subscribers when toggled', () => {
+    const session = createMapSession()
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.setRouteView(true)
+    expect(calls).toBe(1)
+  })
+})

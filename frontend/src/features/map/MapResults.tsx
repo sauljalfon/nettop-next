@@ -13,6 +13,9 @@ interface Props {
   /** A hop was clicked: select its equipment and center on it. */
   onHop: (endpointId: string) => void
   onClear: () => void
+  /** Show only this route, laid out for reading (session-only). */
+  routeView: boolean
+  onRouteView: (on: boolean) => void
 }
 
 /**
@@ -26,6 +29,8 @@ export default function MapResults({
   onRoute,
   onHop,
   onClear,
+  routeView,
+  onRouteView,
 }: Props) {
   const [open, setOpen] = useState(true)
   const rows = routeRows(snapshot, result)
@@ -73,23 +78,34 @@ export default function MapResults({
                     <small>{row.counts}</small>
                   </button>
                   {row.index === routeIndex && result.routes[row.index] && (
-                    <ol className="map-hops" aria-label="Route hops">
-                      {hopRows(snapshot, result.routes[row.index]).map(
-                        (hop) => (
-                          <li key={hop.key}>
-                            <button
-                              data-testid="map-hop-row"
-                              className={`map-hop ${hop.kind}`}
-                              onClick={() => onHop(hop.endpointId)}
-                            >
-                              <small>{hop.title}</small>
-                              <span>{hop.label}</span>
-                              {hop.linkId && <em>{hop.linkId}</em>}
-                            </button>
-                          </li>
-                        ),
-                      )}
-                    </ol>
+                    <>
+                      <div className="map-route-tools">
+                        <button
+                          className="route-view-toggle"
+                          aria-pressed={routeView}
+                          onClick={() => onRouteView(!routeView)}
+                        >
+                          Route view
+                        </button>
+                      </div>
+                      <ol className="map-hops" aria-label="Route hops">
+                        {hopRows(snapshot, result.routes[row.index]).map(
+                          (hop) => (
+                            <li key={hop.key}>
+                              <button
+                                data-testid="map-hop-row"
+                                className={`map-hop ${hop.kind}`}
+                                onClick={() => onHop(hop.endpointId)}
+                              >
+                                <small>{hop.title}</small>
+                                <span>{hop.label}</span>
+                                {hop.linkId && <em>{hop.linkId}</em>}
+                              </button>
+                            </li>
+                          ),
+                        )}
+                      </ol>
+                    </>
                   )}
                 </li>
               ))}

@@ -53,9 +53,11 @@ export function mapEdges(
   owner: ReadonlyMap<string, string> = new Map(
     s.endpoints.map((p) => [p.id, p.equipmentId]),
   ),
+  /** Draw only these cables (the route view); every cable when absent. */
+  only?: ReadonlySet<string>,
 ): { edges: MapEdge[]; bundles: MapBundle[] } {
   const cables = s.links
-    .filter((l) => l.kind === 'cable')
+    .filter((l) => l.kind === 'cable' && (!only || only.has(l.id)))
     .sort((a, b) => a.id.localeCompare(b.id))
   const edges: MapEdge[] = []
   const groups = new Map<string, MapEdge[]>()

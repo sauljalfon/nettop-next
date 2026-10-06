@@ -48,6 +48,16 @@ export interface MapSession {
   splitPairs(): ReadonlySet<string>
   toggleSplit(pairKey: string): void
   /**
+   * The route view: only the active route, laid out for reading. Session-only,
+   * with its own viewport; it never touches the full map's positions, viewport,
+   * pins, highlight or split pairs. Entering it clears its viewport, so it fits
+   * once each time it is entered.
+   */
+  routeView(): boolean
+  setRouteView(on: boolean): void
+  routeViewport(): Viewport | undefined
+  setRouteViewport(viewport: Viewport): void
+  /**
    * Forgets every recorded card position and the viewport, so the next
    * projection lays everything out again and the map fits once. Pinned facets
    * and the highlight are kept.
@@ -82,6 +92,8 @@ export function createMapSession(): MapSession {
   let manual: ManualFacets = new Map()
   let highlight: LocationRef | undefined
   let split: ReadonlySet<string> = new Set()
+  let routeView = false
+  let routeViewport: Viewport | undefined
   let fit: { ids: string[]; serial: number } | undefined
   let fitHandled = 0
   let layoutVersion = 0
@@ -121,6 +133,16 @@ export function createMapSession(): MapSession {
       manual = next
       notify()
     },
+    routeView: () => routeView,
+    setRouteView(on) {
+      if (on === routeView) return
+      routeView = on
+      routeViewport = undefined
+      notify()
+    },
+    routeViewport: () => routeViewport,
+    setRouteViewport: (v) =>
+      void (routeViewport = { x: v.x, y: v.y, zoom: v.zoom }),
     splitPairs: () => split,
     toggleSplit(key) {
       const next = new Set(split)

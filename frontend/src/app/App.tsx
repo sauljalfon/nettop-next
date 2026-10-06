@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -492,6 +499,10 @@ function Workspace({
   )
   // Snapshot-only work, shared by the map and the inspector.
   const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
+  const routeView = useSyncExternalStore(
+    mapSession.subscribe,
+    mapSession.routeView,
+  )
   const installedIDs = useMemo(
     () => new Set(installed.equipment.map((e) => e.id)),
     [installed.equipment],
@@ -864,6 +875,8 @@ function Workspace({
               mapSession.requestCenter(port.equipmentId)
             }}
             onClear={() => traceMutation.reset()}
+            routeView={routeView}
+            onRouteView={mapSession.setRouteView}
           />
         )}
       {view === 'physical' &&

@@ -374,3 +374,63 @@
   padding: 0 4px;
   z-index: 11;
 }
+
+/* Route view: dashed outlines behind the route's cards. Drawing aids only. */
+.route-outline {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.route-outline.node {
+  border: 2px dashed #8fa6c2;
+  border-radius: 20px;
+  background: #f4f7fb99;
+}
+
+.route-outline.rack {
+  border: 1.5px dashed #bccade;
+  border-radius: 13px;
+  background: #ffffff66;
+}
+
+.route-outline-label {
+  position: absolute;
+  top: 6px;
+  left: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5b6b82;
+  white-space: nowrap;
+}
+
+.route-outline.rack .route-outline-label {
+  top: 4px;
+  left: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #8896ab;
+}
+
+.map-route-tools {
+  margin: 4px 0 0 14px;
+}
+
+.route-list .route-view-toggle {
+  width: auto;
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 9px;
+  border: 1px solid #c9bfe6;
+  border-radius: 5px;
+  background: #f4f1fb;
+  color: #5645b6;
+  cursor: pointer;
+}
+
+.route-list .route-view-toggle[aria-pressed='true'] {
+  background: #5645b6;
+  color: #fff;
+}
