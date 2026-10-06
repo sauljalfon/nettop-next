@@ -6,6 +6,7 @@ import {
   fitViewport,
   viewportFor,
   visibleCenter,
+  withToolRail,
 } from './center'
 import type { MapSession, Viewport } from './mapSession'
 
@@ -36,23 +37,28 @@ export function useViewRequests(
     const element = surface.current
     if (!element) return undefined
     const box = element.getBoundingClientRect()
-    const covers = coversFromRects(
-      box,
-      [...document.querySelectorAll(OVERLAYS)].map((el) =>
-        el.getBoundingClientRect(),
+    const covers = withToolRail(
+      coversFromRects(
+        box,
+        [...document.querySelectorAll(OVERLAYS)].map((el) =>
+          el.getBoundingClientRect(),
+        ),
       ),
+      box,
+      document.querySelector('.tool-rail')?.getBoundingClientRect(),
     )
     return { box, covers }
   }
   const measured = (id: string) => {
     const node = flow.getInternalNode(id)
-    const width = node?.measured.width ?? 0
+    // A box with an explicit size (the route view's outlines) has it before it is drawn.
+    const width = node?.measured.width ?? node?.internals.userNode.width ?? 0
     return node && width
       ? {
           x: node.internals.positionAbsolute.x,
           y: node.internals.positionAbsolute.y,
           width,
-          height: node.measured.height ?? 0,
+          height: node.measured.height ?? node.internals.userNode.height ?? 0,
         }
       : undefined
   }

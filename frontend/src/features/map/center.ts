@@ -54,6 +54,22 @@ export function coversFromRects(surface: Rect, rects: readonly Rect[]): Covers {
 }
 
 /**
+ * The permanent tool rail at the canvas's left edge also covers it: it is a
+ * short panel, so `coversFromRects` would not read it as a left cover. Without a
+ * rail, or when it is not at the left edge, the covers are unchanged.
+ */
+export function withToolRail(
+  covers: Covers,
+  surface: Rect,
+  rail: Rect | undefined,
+): Covers {
+  if (!rail || rail.right <= surface.left) return covers
+  if (rail.left > surface.left + (surface.right - surface.left) / 4)
+    return covers
+  return { ...covers, left: Math.max(covers.left, rail.right - surface.left) }
+}
+
+/**
  * The middle of the part of the canvas that is not covered, in pixels from the
  * canvas's top-left corner. Falls back to the whole canvas when covers leave no
  * room.

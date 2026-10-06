@@ -38,6 +38,11 @@ export async function expectCenteredInVisibleArea(page: Page, id: string) {
           const r = o.getBoundingClientRect()
           bottom = Math.max(bottom, surface.bottom - r.top)
         }
+        // The tool rail at the canvas's left edge covers it too.
+        const rail = document
+          .querySelector('.tool-rail')
+          ?.getBoundingClientRect()
+        if (rail) left = Math.max(left, rail.right - surface.left)
         const x = surface.left + (left + (surface.width - right)) / 2
         const y = surface.top + (surface.height - bottom) / 2
         return Math.hypot(c!.x + c!.width / 2 - x, c!.y + c!.height / 2 - y)
@@ -141,6 +146,10 @@ export async function expectInsideVisibleArea(page: Page, ids: string[]) {
             bottom,
             surface.bottom - o.getBoundingClientRect().top,
           )
+        const rail = document
+          .querySelector('.tool-rail')
+          ?.getBoundingClientRect()
+        if (rail) left = Math.max(left, rail.right)
         return cards.every(
           (c) =>
             c !== null &&

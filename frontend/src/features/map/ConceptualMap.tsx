@@ -39,13 +39,7 @@ import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession, type Viewport } from './mapSession'
 import { ClearHighlight, ResetLayout } from './MapControls'
 import { reconciledPosition } from './reconcile'
-import {
-  CARD_WIDTH,
-  NODE_PAD,
-  RACK_PAD,
-  outlineRect,
-  type Rect,
-} from './routeView'
+import { CARD_WIDTH, fitIds, outlineBoxes } from './routeView'
 import { SPLIT_GAP, splitPath } from './splitPath'
 import { shouldClearOnEscape } from './keys'
 import { stackIndex } from './stacking'
@@ -340,7 +334,7 @@ function outlines(
   nodes: readonly MapNode[],
 ): OutlineNode[] {
   if (!model) return []
-  const rect = (id: string): Rect | undefined => {
+  return outlineBoxes(model, (id) => {
     const n = nodes.find((x) => x.id === id)
     return (
       n && {
@@ -350,29 +344,18 @@ function outlines(
         height: n.measured?.height ?? 130,
       }
     )
-  }
-  const make = (
-    kind: 'node' | 'rack',
-    runs: typeof model.nodeRuns,
-  ): OutlineNode[] =>
-    runs.flatMap((run) => {
-      const cards = run.cardIds.map(rect).filter((r): r is Rect => !!r)
-      if (!cards.length) return []
-      const box = outlineRect(cards, kind === 'node' ? NODE_PAD : RACK_PAD)
-      return {
-        id: `outline:${run.id}`,
-        type: 'outline' as const,
-        position: { x: box.x, y: box.y },
-        width: box.width,
-        height: box.height,
-        zIndex: kind === 'node' ? -2 : -1,
-        draggable: false,
-        selectable: false,
-        focusable: false,
-        data: { label: run.label, kind },
-      }
-    })
-  return [...make('node', model.nodeRuns), ...make('rack', model.rackRuns)]
+  }).map((box) => ({
+    id: box.id,
+    type: 'outline' as const,
+    position: { x: box.rect.x, y: box.rect.y },
+    width: box.rect.width,
+    height: box.rect.height,
+    zIndex: box.kind === 'node' ? -2 : -1,
+    draggable: false,
+    selectable: false,
+    focusable: false,
+    data: { label: box.label, kind: box.kind },
+  }))
 }
 
 export interface PendingEquipment {
@@ -555,7 +538,11 @@ function Canvas({
       const saved = session.viewport()
       if (saved) void flow.setViewport(saved)
       else setFitToken((t) => t + 1)
-    } else if (reset) setFitToken((t) => t + 1) // a reset, or entering the route view: fit once
+    } else if (switched && graph.routeView) {
+      // Entering the route view: fit once to the route and its boxes, in the
+      // part of the canvas the drawers and the results overlay leave free.
+      session.requestFit(fitIds(graph.routeView))
+    } else if (reset) setFitToken((t) => t + 1) // a layout reset: fit the full map once
   }, [graph.nodes, layoutVersion])
   useEffect(() => {
     if (fitToken === 0) return
@@ -578,7 +565,13 @@ function Canvas({
   }, [highlight, session])
   const onNodesChange = useCallback(
     (changes: NodeChange<MapNode>[]) =>
-      setNodes((previous) => applyNodeChanges(changes, previous)),
+      setNodes((previous) => {
+        // The outlines are not in this state; their measurements must not
+        // replace it (that would restart every pending view request).
+        const known = new Set(previous.map((n) => n.id))
+        const mine = changes.filter((c) => !('id' in c) || known.has(c.id))
+        return mine.length ? applyNodeChanges(mine, previous) : previous
+      }),
     [],
   )
   const rendered = useMemo(() => {
@@ -654,10 +647,15 @@ function Canvas({
               session.setPosition(node.id, node.position)
           }}
           onInit={() => {
-            if (active ? session.routeViewport() : !session.needsFit()) return
+            if (active) {
+              // Mounted with the route view on and nothing recorded yet.
+              if (!session.routeViewport() && graph.routeView)
+                session.requestFit(fitIds(graph.routeView))
+              return
+            }
+            if (!session.needsFit()) return
             void flow.fitView(FIT).then(() => {
-              if (active ? !session.routeViewport() : session.needsFit())
-                record(flow.getViewport())
+              if (session.needsFit()) record(flow.getViewport())
             })
           }}
           onMoveEnd={(_, viewport) => record(viewport)}
@@ -696,7 +694,8 @@ function Canvas({
           // Stacking is ours (stackIndex): a selected card is raised with the rest.
           elevateNodesOnSelect={false}
           deleteKeyCode={null}
-          onlyRenderVisibleElements
+          // The route view has few cards, and all must be measured to be fitted.
+          onlyRenderVisibleElements={!active}
         >
           <Background color="#ccd5df" gap={24} size={1} />
           <Controls showInteractive={false} />

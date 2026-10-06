@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   centerTarget,
   coversFromRects,
+  withToolRail,
   fitViewport,
   viewportFor,
   visibleCenter,
@@ -211,5 +212,30 @@ describe('POL-14 fitting the view to some cards, in the visible area', () => {
       bottom: 0,
     })
     expect(Number.isFinite(v.x) && Number.isFinite(v.zoom)).toBe(true)
+  })
+})
+
+describe('POL-31 the tool rail covers the canvas edge too', () => {
+  const rail = rect(17, 156, 82, 423) // the rail: short, at the far left
+
+  it('adds its right edge to the left cover, even though it is not a tall panel', () => {
+    const covers = { left: 0, right: 417, top: 0, bottom: 300 }
+    expect(withToolRail(covers, surface, rail)).toEqual({
+      ...covers,
+      left: 82,
+    })
+  })
+
+  it('keeps a larger left cover (an open left drawer)', () => {
+    const covers = { left: 461, right: 0, top: 0, bottom: 0 }
+    expect(withToolRail(covers, surface, rail).left).toBe(461)
+  })
+
+  it('does nothing without a rail, or when the rail is not at the left edge', () => {
+    const covers = { left: 0, right: 0, top: 0, bottom: 0 }
+    expect(withToolRail(covers, surface, undefined)).toEqual(covers)
+    expect(withToolRail(covers, surface, rect(900, 156, 960, 423))).toEqual(
+      covers,
+    )
   })
 })

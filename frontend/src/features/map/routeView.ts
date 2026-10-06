@@ -151,3 +151,53 @@ export function outlineRect(
     height: bottom - top + pad.top + pad.bottom,
   }
 }
+
+/** The ID a run's outline has on the canvas. */
+export const outlineNodeId = (runId: string) => `outline:${runId}`
+
+export interface OutlineBox {
+  /** Canvas ID. */
+  id: string
+  kind: 'node' | 'rack'
+  label: string
+  rect: Rect
+}
+
+/**
+ * The boxes to draw: every node run, then every rack run, each around its
+ * cards' rectangles (measured, since a card is as tall as its facets make it).
+ * A run with no placed card is skipped.
+ */
+export function outlineBoxes(
+  model: RouteViewModel,
+  rectOf: (cardId: string) => Rect | undefined,
+): OutlineBox[] {
+  const make = (
+    kind: 'node' | 'rack',
+    list: RouteViewRun[],
+    pad: typeof NODE_PAD,
+  ): OutlineBox[] =>
+    list.flatMap((run) => {
+      const cards = run.cardIds
+        .map(rectOf)
+        .filter((r): r is Rect => r !== undefined)
+      if (!cards.length) return []
+      return {
+        id: outlineNodeId(run.id),
+        kind,
+        label: run.label,
+        rect: outlineRect(cards, pad),
+      }
+    })
+  return [
+    ...make('node', model.nodeRuns, NODE_PAD),
+    ...make('rack', model.rackRuns, RACK_PAD),
+  ]
+}
+
+/** Everything the route view fits the canvas to: its cards and all its boxes. */
+export const fitIds = (model: RouteViewModel): string[] => [
+  ...model.cards.map((c) => c.id),
+  ...model.nodeRuns.map((r) => outlineNodeId(r.id)),
+  ...model.rackRuns.map((r) => outlineNodeId(r.id)),
+]

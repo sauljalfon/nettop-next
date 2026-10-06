@@ -117,6 +117,7 @@ test('POL-23 the route lays out left to right in hop order, on one row', async (
   await traceFromEdge17(page)
   await toggle(page).click()
   await expectMarks(page, { routeView: true })
+  await settledViewport(page) // the fit animates for a moment
   const boxes = []
   for (const id of ORDER)
     boxes.push(await box(page, `[data-testid="rf__node-${id}"]`))
@@ -134,6 +135,7 @@ test('POL-24 EDGE-17 → AGG-03 shows a dashed node box per run with its label, 
   await traceFromEdge17(page)
   await toggle(page).click()
   await expectMarks(page, { routeView: true })
+  await settledViewport(page)
   const marks = await page.locator('.flow-surface').evaluate((el) => ({
     node: el.getAttribute('data-node-boxes')!.split(' ').length,
     rack: el.getAttribute('data-rack-boxes')!.split(' ').length,
@@ -212,4 +214,70 @@ test('POL-25 a route that leaves a node and returns gets two boxes for it', asyn
   ])
   // Rack A03 is boxed once, around EDGE-17 and PANEL-A; AGG-03 alone gets no rack box.
   await expect(page.locator('.route-outline.rack')).toHaveCount(1)
+})
+
+/** Every route card and node box lies fully inside the canvas, clear of every drawer, the tool rail and the results overlay. */
+async function expectRouteInVisibleArea(page: Page) {
+  await expect
+    .poll(async () => {
+      return page.evaluate(() => {
+        const surface = document
+          .querySelector('.flow-surface')!
+          .getBoundingClientRect()
+        const covers = [
+          ...document.querySelectorAll(
+            '.studio-drawer, .map-results, .tool-rail',
+          ),
+        ].map((el) => el.getBoundingClientRect())
+        const things = [
+          ...document.querySelectorAll('.react-flow__node-equipment'),
+          ...document.querySelectorAll('.route-outline.node'),
+        ]
+        if (things.length !== 5 + 3) return `drawn: ${things.length}`
+        const bad = things.filter((el) => {
+          const r = el.getBoundingClientRect()
+          const inCanvas =
+            r.left >= surface.left - 1 &&
+            r.top >= surface.top - 1 &&
+            r.right <= surface.right + 1 &&
+            r.bottom <= surface.bottom + 1
+          const underCover = covers.some(
+            (c) =>
+              r.left < c.right - 1 &&
+              c.left < r.right - 1 &&
+              r.top < c.bottom - 1 &&
+              c.top < r.bottom - 1,
+          )
+          return !inCanvas || underCover
+        })
+        return bad.length ? `outside: ${bad.length}` : 'ok'
+      })
+    })
+    .toBe('ok')
+}
+
+test('POL-31 entering the route view fits the route and its boxes into the visible area, clear of the drawers and the overlay', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await traceFromEdge17(page)
+
+  // With Trace tools open.
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
+  await toggle(page).click()
+  await expectMarks(page, { routeView: true })
+  await expectRouteInVisibleArea(page)
+
+  // With the inspector open instead.
+  await toggle(page).click()
+  await expectMarks(page, { routeView: false })
+  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await page.getByTestId('rf__node-edge-17').click()
+  await expect(page.locator('.studio-drawer.right')).toBeVisible()
+  await toggle(page).click()
+  await expectMarks(page, { routeView: true })
+  await expectRouteInVisibleArea(page)
 })

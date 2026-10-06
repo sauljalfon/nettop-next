@@ -5,6 +5,9 @@ import {
   CARD_WIDTH,
   NODE_PAD,
   RACK_PAD,
+  fitIds,
+  outlineBoxes,
+  outlineNodeId,
   outlineRect,
   routeView,
 } from './routeView'
@@ -165,5 +168,43 @@ describe('POL-26 outlines never feed traversal', () => {
         'label',
         'locationId',
       ])
+  })
+})
+
+describe('POL-31 what the route view fits to', () => {
+  const cardRect = (id: string, model = view()) => {
+    const c = model.cards.find((x) => x.id === id)!
+    return { x: c.x, y: c.y, width: CARD_WIDTH, height: 120 }
+  }
+
+  it('boxes every run around its measured cards, node boxes outside rack boxes', () => {
+    const model = view()
+    const boxes = outlineBoxes(model, (id) => cardRect(id, model))
+    expect(boxes.map((b) => [b.kind, b.label])).toEqual([
+      ['node', 'Main Campus / Building A'],
+      ['node', 'Main Campus / North Sub-main'],
+      ['node', 'Main Campus / Main Distribution'],
+      ['rack', 'Rack A03'],
+      ['rack', 'Rack Core 01'],
+    ])
+    const [a, , , rackA] = boxes
+    expect(rackA.rect.x).toBeGreaterThan(a.rect.x)
+    expect(rackA.rect.y + rackA.rect.height).toBeLessThan(
+      a.rect.y + a.rect.height,
+    )
+  })
+
+  it('skips a run whose cards are not measured or placed yet', () => {
+    expect(outlineBoxes(view(), () => undefined)).toEqual([])
+  })
+
+  it('fits to every card and every box, by the IDs the canvas draws them with', () => {
+    const model = view()
+    expect(fitIds(model)).toEqual([
+      ...model.cards.map((c) => c.id),
+      ...model.nodeRuns.map((r) => outlineNodeId(r.id)),
+      ...model.rackRuns.map((r) => outlineNodeId(r.id)),
+    ])
+    expect(fitIds(model)).toHaveLength(5 + 3 + 2)
   })
 })
