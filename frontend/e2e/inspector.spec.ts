@@ -385,3 +385,26 @@ test('POL-20 the tabs follow the WAI-ARIA pattern: roving tabindex and arrow key
   await expect(ports).toBeFocused()
   await expect(ports).toHaveAttribute('aria-selected', 'true')
 })
+
+test('POL-35 Enter or Space on a focused card selects it and opens the inspector, like a click', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await expect(page.locator('.studio-drawer')).toHaveCount(0)
+  const edge = page.getByTestId('rf__node-edge-17')
+  await edge.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.inspector-header h2')).toHaveText('EDGE-17')
+  await expect(edge.locator('.equipment-card')).toHaveClass(/selected/)
+  // Space on another card replaces it, and does not scroll the page.
+  const panel = page.getByTestId('rf__node-panel-a')
+  await panel.focus()
+  await page.keyboard.press('Space')
+  await expect(page.locator('.inspector-header h2')).toHaveText('PANEL-A')
+  await expect(panel.locator('.equipment-card')).toHaveClass(/selected/)
+  // Any card works the same way.
+  await page.getByTestId('rf__node-hdf-01').focus()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.inspector-header h2')).toHaveText('HDF-01')
+})

@@ -83,13 +83,6 @@ export interface MapFlowEdge {
   }
 }
 
-/**
- * Projects a snapshot onto the conceptual map: one card per shown equipment,
- * one line per cable (or per bundle of parallel summary cables). Cards without
- * a recorded position get their first layout and are recorded in the session,
- * so existing positions never move when data, filter or route change. Never
- * mutates the snapshot and never feeds traversal.
- */
 /** The projection's route and highlight IDs, independent of what is drawn on screen. */
 export interface MapMarks {
   /** Cables of the selected route that the map draws, sorted. */
@@ -114,6 +107,13 @@ export interface MapMarks {
   cards: string[]
 }
 
+/**
+ * Projects a snapshot onto the conceptual map: one card per shown equipment,
+ * one line per cable (or per bundle of parallel summary cables). Cards without
+ * a recorded position get their first layout and are recorded in the session,
+ * so existing positions never move when data, filter or route change. Never
+ * mutates the snapshot and never feeds traversal.
+ */
 export function projectMap(input: MapInput): {
   nodes: MapNode[]
   edges: MapFlowEdge[]

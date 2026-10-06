@@ -621,7 +621,7 @@ function Workspace({
           : { mode, start },
     )
   }
-  function useSelected() {
+  function traceSelectedDevice() {
     if (equipment) {
       setMode('distribution')
       setStart(`device:${equipment.id}`)
@@ -652,7 +652,7 @@ function Workspace({
       equipment={equipment}
       installedIDs={installedIDs}
       session={mapSession}
-      onFindFromDevice={useSelected}
+      onFindFromDevice={traceSelectedDevice}
       onFindFromHere={traceFromPort}
       onShowOnMap={showOnMap}
       onHighlight={highlightLocation}

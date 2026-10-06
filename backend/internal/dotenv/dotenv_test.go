@@ -67,3 +67,23 @@ func TestLoadFromWithoutAFileIsNotAnError(t *testing.T) {
 		t.Fatalf("got %q, %v; want no file and no error", path, err)
 	}
 }
+
+func TestParseStripsAnUnquotedInlineComment(t *testing.T) {
+	got, err := parse([]byte("A=value # why\nB=a#b\nC=\"keep # this\" # but not this\nD='x # y'   # z\nE= # only a comment\nF=http://h/#frag\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"A": "value",
+		"B": "a#b",         // no space before #: part of the value
+		"C": "keep # this", // quoted: kept; the comment after it goes
+		"D": "x # y",
+		"E": "",
+		"F": "http://h/#frag",
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %q, want %q", k, got[k], v)
+		}
+	}
+}

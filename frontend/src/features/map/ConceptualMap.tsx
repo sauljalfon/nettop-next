@@ -621,6 +621,18 @@ function Canvas({
       ref={surface}
       // The projection's own IDs: tests and tools read these instead of counting
       // what React Flow happens to have drawn inside the current viewport.
+      // A focused card is a React Flow node wrapper: Enter or Space selects it
+      // (and opens the inspector) like a click. Keys on a control inside it stay its own.
+      onKeyDown={(event) => {
+        const target = event.target as HTMLElement
+        if (
+          (event.key !== 'Enter' && event.key !== ' ') ||
+          !target.classList.contains('react-flow__node-equipment')
+        )
+          return
+        event.preventDefault()
+        onSelect(target.dataset.id!)
+      }}
       data-cards={graph.marks.cards.join(' ')}
       data-route-links={graph.marks.routeLinks.join(' ')}
       data-route-cards={graph.marks.routeCards.join(' ')}

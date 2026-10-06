@@ -25,6 +25,8 @@ export interface EndpointLookup {
   endpoints: ReadonlyMap<string, Endpoint>
   byEquipment: ReadonlyMap<string, Endpoint[]>
   subpanels: ReadonlyMap<string, Subpanel>
+  /** Each side's endpoint of a position -> the ID of its internal bridge. */
+  bridges: ReadonlyMap<string, string>
 }
 
 export function endpointLookup(s: Snapshot): EndpointLookup {
@@ -34,7 +36,14 @@ export function endpointLookup(s: Snapshot): EndpointLookup {
     if (list) list.push(p)
     else byEquipment.set(p.equipmentId, [p])
   }
+  const bridges = new Map<string, string>()
+  for (const l of s.links)
+    if (l.kind === 'internal') {
+      bridges.set(l.a, l.id)
+      bridges.set(l.b, l.id)
+    }
   return {
+    bridges,
     endpoints: new Map(s.endpoints.map((p) => [p.id, p])),
     byEquipment,
     subpanels: new Map(s.subpanels.map((x) => [x.id, x])),
@@ -121,13 +130,11 @@ export function facetsFor(
       if (p.side === 'front') facet.frontEndpointId = p.id
       if (p.side === 'rear') facet.rearEndpointId = p.id
     }
-    if (facet.frontEndpointId && facet.rearEndpointId)
-      facet.bridgeLinkId = s.links.find(
-        (l) =>
-          l.kind === 'internal' &&
-          [l.a, l.b].includes(facet.frontEndpointId!) &&
-          [l.a, l.b].includes(facet.rearEndpointId!),
-      )?.id
+    if (facet.frontEndpointId && facet.rearEndpointId) {
+      const bridge = lookup.bridges.get(facet.frontEndpointId)
+      if (bridge === lookup.bridges.get(facet.rearEndpointId))
+        facet.bridgeLinkId = bridge
+    }
     result.set(facet.equipmentId, [
       ...(result.get(facet.equipmentId) ?? []),
       facet,

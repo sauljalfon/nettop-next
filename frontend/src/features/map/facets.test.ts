@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot, agg03Route } from './acceptanceFixture'
-import { facetsFor, facetStart } from './facets'
+import { endpointLookup, facetsFor, facetStart } from './facets'
 
 describe('C04 route facets are automatic and exact', () => {
   it('reveals only the route positions and ports, per equipment', () => {
@@ -108,5 +108,26 @@ describe('starting a trace from a facet', () => {
       'EDGE-17',
     )!
     expect(facetStart(facet)).toBe('EDGE-17:p1')
+  })
+})
+
+describe('bridges come from a per-snapshot lookup', () => {
+  const snapshot = acceptanceSnapshot()
+  const lookup = endpointLookup(snapshot)
+
+  it('maps both sides of a position to its internal bridge', () => {
+    expect(lookup.bridges.get('PANEL-A:1:f')).toBe('PANEL-A:1:bridge')
+    expect(lookup.bridges.get('PANEL-A:1:r')).toBe('PANEL-A:1:bridge')
+    expect(lookup.bridges.get('HDF-01:3C/5:f')).toBe('HDF-01:3C/5:bridge')
+  })
+
+  it('has no entry for a cabled port or an unknown endpoint', () => {
+    expect(lookup.bridges.has('EDGE-17:p1')).toBe(false)
+    expect(lookup.bridges.has('nope')).toBe(false)
+  })
+
+  it('is what a facet reports as its bridge', () => {
+    const facets = facetsFor(snapshot, agg03Route(), new Map(), lookup)
+    expect(facets.get('HDF-01')![0].bridgeLinkId).toBe('HDF-01:3C/5:bridge')
   })
 })

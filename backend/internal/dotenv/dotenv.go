@@ -54,8 +54,10 @@ func LoadFrom(dir string) (string, error) {
 }
 
 // parse reads KEY=VALUE lines. Blank lines and lines starting with # are
-// skipped, an optional "export " prefix is allowed, and a value wrapped in
-// single or double quotes is taken literally.
+// skipped, an optional "export " prefix is allowed, a value wrapped in single
+// or double quotes is taken literally (a comment may follow the closing quote),
+// and an unquoted value ends at a " #" (a # with space or tab before it, or at
+// the start of the value).
 func parse(data []byte) (map[string]string, error) {
 	values := map[string]string{}
 	for i, line := range strings.Split(string(data), "\n") {
@@ -69,11 +71,34 @@ func parse(data []byte) (map[string]string, error) {
 		if !ok || key == "" {
 			return nil, fmt.Errorf("line %d: expected KEY=VALUE", i+1)
 		}
-		value = strings.TrimSpace(value)
-		if len(value) >= 2 && (value[0] == '"' || value[0] == '\'') && value[len(value)-1] == value[0] {
-			value = value[1 : len(value)-1]
-		}
-		values[key] = value
+		values[key] = parseValue(strings.TrimSpace(value))
 	}
 	return values, nil
+}
+
+// parseValue reads one trimmed value: quoted text literally, otherwise the text
+// before an inline " # comment".
+func parseValue(value string) string {
+	if len(value) >= 2 && (value[0] == '"' || value[0] == '\'') {
+		if end := strings.IndexByte(value[1:], value[0]); end >= 0 {
+			rest := strings.TrimSpace(value[end+2:])
+			if rest == "" || strings.HasPrefix(rest, "#") {
+				return value[1 : end+1]
+			}
+		}
+		if value[len(value)-1] == value[0] {
+			return value[1 : len(value)-1]
+		}
+	}
+	if strings.HasPrefix(value, "#") {
+		return ""
+	}
+	if i := strings.IndexAny(value, " \t"); i >= 0 {
+		for j := i; j < len(value); j++ {
+			if value[j] == '#' && (value[j-1] == ' ' || value[j-1] == '\t') {
+				return strings.TrimSpace(value[:j])
+			}
+		}
+	}
+	return value
 }
