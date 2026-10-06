@@ -9,6 +9,7 @@ import {
   outlineBoxes,
   outlineNodeId,
   outlineRect,
+  routeKey,
   routeView,
 } from './routeView'
 import { indexSnapshot } from './snapshotIndex'
@@ -206,5 +207,37 @@ describe('POL-31 what the route view fits to', () => {
       ...model.rackRuns.map((r) => outlineNodeId(r.id)),
     ])
     expect(fitIds(model)).toHaveLength(5 + 3 + 2)
+  })
+})
+
+describe('POL-34 changing the route', () => {
+  /** Starts at HDF-01 (a passive start): fewer cards, in another order. */
+  const short = () => {
+    const route = agg03Route()
+    const from = route.hops.findIndex((h) => h.linkId === 'A03')
+    return {
+      ...route,
+      start: 'HDF-01:3C/5:f',
+      hops: route.hops.slice(from),
+    }
+  }
+
+  it('lays each route out by its own order, even for cards both share', () => {
+    const index = indexSnapshot(s)
+    const long = routeView(agg03Route(), index).cards
+    const brief = routeView(short(), index).cards
+    expect(brief.map((c) => c.id)).toEqual(['HDF-01', 'HDF-02', 'AGG-03'])
+    const x = (cards: typeof long, id: string) =>
+      cards.find((c) => c.id === id)!.x
+    // HDF-01 is the third card of the long route and the first of the short one.
+    expect(x(long, 'HDF-01')).toBe(2 * (CARD_WIDTH + CARD_GAP))
+    expect(x(brief, 'HDF-01')).toBe(0)
+    expect(x(brief, 'AGG-03')).toBe(2 * (CARD_WIDTH + CARD_GAP))
+  })
+
+  it('has a key that tells routes apart and ignores a refetch of the same one', () => {
+    expect(routeKey(agg03Route())).toBe(routeKey(agg03Route()))
+    expect(routeKey(agg03Route())).not.toBe(routeKey(short()))
+    expect(routeKey(undefined)).toBe('')
   })
 })

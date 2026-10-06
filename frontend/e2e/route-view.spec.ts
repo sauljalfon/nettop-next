@@ -281,3 +281,58 @@ test('POL-31 entering the route view fits the route and its boxes into the visib
   await expectMarks(page, { routeView: true })
   await expectRouteInVisibleArea(page)
 })
+
+test('POL-34 choosing another route in the route view lays it out afresh and fits it, whatever was dragged', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await traceFromEdge17(page)
+  await toggle(page).click()
+  await expectMarks(page, { routeView: true })
+  await settledViewport(page)
+  // Drag HDF-01 away: local to the route view.
+  const hdf = page.getByTestId('rf__node-hdf-01')
+  const at = (await hdf.boundingBox())!
+  await page.mouse.move(at.x + 60, at.y + 20)
+  await page.mouse.down()
+  await page.mouse.move(at.x + 60, at.y + 160, { steps: 8 })
+  await page.mouse.up()
+  expect((await hdf.boundingBox())!.y).toBeGreaterThan(at.y + 80)
+
+  // The third route (BB-01) takes the same five places, in its own order.
+  await page
+    .getByLabel('Map trace results')
+    .getByTestId('route-row')
+    .nth(2)
+    .click()
+  await expectMarks(page, {
+    cards: ['bb-01', 'edge-17', 'hdf-01', 'hdf-02', 'panel-a'],
+  })
+  await settledViewport(page)
+  // Every card is where the route-view model puts it: one row, one card per 360 px.
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Object.fromEntries(
+          [...document.querySelectorAll('.react-flow__node-equipment')].map(
+            (n) => {
+              const [x, y] = (n as HTMLElement).style.transform
+                .match(/-?[\d.]+/g)!
+                .map(Number)
+              return [n.getAttribute('data-id'), [x, y]]
+            },
+          ),
+        ),
+      ),
+    )
+    .toEqual(
+      Object.fromEntries(
+        ['edge-17', 'panel-a', 'hdf-01', 'hdf-02', 'bb-01'].map((id, i) => [
+          id,
+          [i * 360, 0],
+        ]),
+      ),
+    )
+  await expectRouteInVisibleArea(page)
+})

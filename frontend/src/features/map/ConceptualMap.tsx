@@ -39,7 +39,7 @@ import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession, type Viewport } from './mapSession'
 import { ClearHighlight, ResetLayout } from './MapControls'
 import { reconciledPosition } from './reconcile'
-import { CARD_WIDTH, fitIds, outlineBoxes } from './routeView'
+import { CARD_WIDTH, fitIds, outlineBoxes, routeKey } from './routeView'
 import { SPLIT_GAP, splitPath } from './splitPath'
 import { shouldClearOnEscape } from './keys'
 import { stackIndex } from './stacking'
@@ -516,11 +516,17 @@ function Canvas({
   // (trace, pins, highlight, filter) carries on untouched.
   const appliedVersion = useRef(layoutVersion)
   const appliedActive = useRef(active)
+  const key = routeKey(route)
+  const appliedKey = useRef(key)
   const [fitToken, setFitToken] = useState(0)
   useEffect(() => {
     const switched = appliedActive.current !== active
     appliedActive.current = active
-    const reset = appliedVersion.current !== layoutVersion || switched
+    // Another route while the route view is on is laid out afresh, like entering it.
+    const rerouted = active && appliedKey.current !== key
+    appliedKey.current = key
+    const entering = switched || rerouted
+    const reset = appliedVersion.current !== layoutVersion || entering
     appliedVersion.current = layoutVersion
     setNodes((previous) => {
       const existing = new Map(previous.map((n) => [n.id, n]))
@@ -538,8 +544,8 @@ function Canvas({
       const saved = session.viewport()
       if (saved) void flow.setViewport(saved)
       else setFitToken((t) => t + 1)
-    } else if (switched && graph.routeView) {
-      // Entering the route view: fit once to the route and its boxes, in the
+    } else if (entering && graph.routeView) {
+      // Entering the route view, or choosing another route in it: fit once to the route and its boxes, in the
       // part of the canvas the drawers and the results overlay leave free.
       session.requestFit(fitIds(graph.routeView))
     } else if (reset) setFitToken((t) => t + 1) // a layout reset: fit the full map once

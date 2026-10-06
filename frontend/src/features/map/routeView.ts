@@ -201,3 +201,12 @@ export const fitIds = (model: RouteViewModel): string[] => [
   ...model.nodeRuns.map((r) => outlineNodeId(r.id)),
   ...model.rackRuns.map((r) => outlineNodeId(r.id)),
 ]
+
+/**
+ * Identifies a route by its start, end and cables, so a refetch of the same
+ * route is not a new route. Empty without a route.
+ */
+export const routeKey = (route: Route | undefined): string =>
+  route
+    ? [route.start, route.end, ...route.hops.map((h) => h.linkId)].join('|')
+    : ''
