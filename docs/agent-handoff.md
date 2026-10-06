@@ -55,7 +55,7 @@ Backend role values should preserve the prototype's `access`, `aggregation`, `pa
 
 ## Immediate next task
 
-**M1, M2, and M3 are complete** (see [current-status.md](current-status.md)): network membership, the explicit BB role, stable HDF structure and atomic `add_hdf`, the acceptance seed, **Find AGG / BB** discovery, and the connected conceptual map (layered layout, network filter, results overlay, automatic and pinned facets, location focus with boundary bundles). Continue with **M4** (the approved physical explorer) in [implementation-plan.md](implementation-plan.md). M3 added no API; scoped fetch APIs were deferred to M6. The M1 input questions below were answered and recorded in the implementation plan; they are kept here as history.
+**M1, M2, M3, and M3.1 are complete** (see [current-status.md](current-status.md)): network membership, the explicit BB role, stable HDF structure and atomic `add_hdf`, the acceptance seed, **Find AGG / BB** discovery, the connected conceptual map (layered layout, network filter, results overlay, automatic and pinned facets), and **M3.1** (node/site highlight, cable lines with network colors and split/join, the redesigned inspector, the hop list and searchable trace picker, the route view with node and rack outlines, and PNG/PDF export; location focus and boundary bundles were removed). Continue with **M4** (the approved physical explorer) in [implementation-plan.md](implementation-plan.md). M3 and M3.1 added no API; scoped fetch APIs were deferred to M6. The M1 input questions below were answered and recorded in the implementation plan; they are kept here as history.
 
 Before schema changes, resolve only the necessary open inputs:
 
@@ -65,7 +65,7 @@ Before schema changes, resolve only the necessary open inputs:
 
 These are not answered by the mockups. Do not infer real network membership from equipment names or use a destructive reseed as migration. Independent code inspection and test planning can proceed while questions are being answered.
 
-M1, M2, and M3 are done; M4 (physical) is next. This order avoids building UI against an incompatible temporary HDF/network model.
+M1, M2, M3, and M3.1 are done; M4 (physical) is next. This order avoids building UI against an incompatible temporary HDF/network model.
 
 ## End-to-end acceptance to work toward
 

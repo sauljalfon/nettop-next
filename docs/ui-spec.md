@@ -20,6 +20,12 @@ Both views share stable equipment/endpoint IDs, physical ownership, network cont
 - A trace changes highlighting and relevant detail **on the existing map**. Equipment positions and viewport remain stable; other connections remain visible, bundled, or visually quieter.
 - Core/main-distribution views can be anchored and focused. An anchor does not imply that every cable route must pass through it.
 
+*Built (M3.1):*
+- **Cables.** One line per card pair and network, in that network's color (one stable palette color per network, grey when unresolved). Its width grows with the number of parallel cables, and a count pill at its midpoint shows the count. Hovering the line or the pill lists the cable IDs; clicking splits it into one line per cable, each labeled with its ID, and clicking again joins it. The route's teal and the highlight's amber override the network color. Lines attached to specific positions stay one per cable.
+- **Cards** are compact (icon, name, role, location, "N of M cabled", network badges, route and pinned facets); selecting one never changes its size.
+- **Route view.** A toggle in the map results overlay shows only the active route, laid out left to right in hop order, inside dashed node boxes ("Site / Node") and lighter rack boxes where two or more consecutive cards share a rack. It has its own viewport; turning it off restores the full map exactly. The outlines are drawing aids and never part of a trace.
+- **Export.** PNG and PDF of the route view (enabled only while it is on), at twice the size, under a header with start → end, the mode, the network, and Installed or the plan's name, plus the date.
+
 ### Physical explorer
 
 ```text
@@ -44,6 +50,8 @@ Sites → selected site → physical node → rack elevation → equipment → e
 - Trace results are expandable and list all matching AGG/BB destinations.
 - Use readable controls and clear text contrast. Avoid miniature forms or exposing every backend operation permanently around the board.
 - The physical work area can use the navigator + main detail + contextual inspector layout appropriate to its level.
+
+*Built (M3.1):* the inspector has a sticky header (identity, cabling meter, location breadcrumb, **Show on map**, **Find AGG / BB** for switches), an **Overview** tab (placement, cabled counts per network, the placement form in a plan) and a **Ports / Positions** tab: a compact table of far end, cable ID and network per row, collapsible HDF subpanels, and always-visible row actions (find AGG / BB from here, pin). The Pathfinding form (trace mode, Start, Destination) is only in the Trace drawer; its Start and Destination are searchable. The results overlay lists each route's ordered hops, and clicking a hop centers its card.
 
 ## 3. AGG / BB interaction
 
@@ -86,7 +94,7 @@ One compact HDF object identifies its parent chassis, physical location, row/col
 
 Reveal additional connected subpanels/positions, with search/filtering when needed. Preserve cable identity and endpoint occupancy. Other networks' circuits must be recognizable as such; they are not connected internally to the selected circuit.
 
-*Built (M3):* a facet is tagged "route" when it comes from the selected route and "pinned" when the user chose it; a position that is both shows once with both tags. **Show connections** on a card lists only that equipment's cabled ports or positions (never every configured one), with label search that ignores case and the spacing around the slash. Entries on another network than the active filter carry that network's badge.
+*Built (M3, M3.1):* a facet is tagged "route" when it comes from the selected route and "pinned" when the user chose it; a position that is both shows once with both tags. Cards have no connections list: pins are made only in the inspector, whose **Positions** table lists a panel's or HDF's positions (cabled ones by default above 48, with a Cabled / Free / All filter and label search that ignores case and the spacing around the slash) and pins one with the pin icon on its row.
 
 ### Physical grid
 
@@ -119,7 +127,7 @@ Reveal additional connected subpanels/positions, with search/filtering when need
 - “Show how this node reaches distribution” reveals the actual passive corridor rather than expanding every campus device.
 - Summary links must identify what they count (physical boundary cables, not inferred reachability). Expand to real detail.
 
-*Built (M3):* a location focus (a site or node, chosen in the Explore drawer or with the focus button beside a card's location) is shown as a chip in the header with **Clear focus**. Cables leaving the focus are summarized by one **boundary card** per outside location, "N cables to <location>", listing the real cable IDs, with **Expand** / **Collapse** for the real neighbor cards. Boundary cards are drawing aids only. Cards on a selected route are shown even outside the focus or the network filter and hide again when the trace is cleared.
+*Built (M3.1):* there is no location focus and there are no boundary cards. Clicking a **site or node name in the Explore drawer** (or the site or node link in the inspector) **highlights** the equipment located there, every cable leaving it, and the far-end cards (lighter), fading everything else to about 30% and fitting the view once, with **Clear highlight** and Esc to clear it. It is independent of the trace and of the network filter (the highlighted part is shown even where the filter would hide it). Cards on a selected route are shown even outside the network filter or the highlight, and hide again when the trace is cleared.
 - Hidden/collapsed/filtered equipment remains part of backend physical tracing. Load the exact objects needed to explain results.
 - Large-network visuals are not proof of performance; measure real datasets and rendering costs.
 

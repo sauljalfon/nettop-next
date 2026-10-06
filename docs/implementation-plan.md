@@ -213,9 +213,9 @@ Same rules as M1/M2: test-first, the whole repository green at the end of each s
 | 5 | **Focus and summaries.** Location focus with boundary bundles that keep cable IDs and expand to real cards; selected routes reveal objects outside the focus | C09, C13 |
 | 6 | **Status and handoff.** `current-status.md`, README smoke flow on the new map, `ui-spec`-relevant notes, `CLAUDE.md` | Full check run |
 
-## M3.1 — Map polish and small features
+## M3.1 — Map polish and small features (complete)
 
-A short checkpoint between M3 and M4, requested by the user on 2026-10-05. It refines the M3 map and inspector and adds no API, migration, or backend behavior. Nothing in it pulls M5 or M6 work forward: no saved layout, no undo, no drag-to-rack, no delete/disconnect, no HDF creation UI.
+A short checkpoint between M3 and M4, requested by the user on 2026-10-05. **Complete (2026-10-06):** steps 1–10 and their fixups are committed (hashes in the steps table). The route view and export (steps 8–9) were added by the user after step 7. It refines the M3 map and inspector and adds no API, migration, or backend behavior. Nothing in it pulls M5 or M6 work forward: no saved layout, no undo, no drag-to-rack, no delete/disconnect, no HDF creation UI.
 
 ### Recorded answers (2026-10-05)
 
@@ -278,20 +278,41 @@ The user tried the result and found the pieces individually reasonable but poorl
    - "Show on map" moves to the header; it selects and centers the card.
    - Do a visual pass: consistent type scale, spacing, and muted secondary text. Check light rendering in screenshots.
 
+### Route view and export (agreed 2026-10-06)
+
+Added by the user after step 7. No API, migration, or backend change.
+
+**Route view design.**
+
+1. **Entry point.** A "Route view" toggle in the map results overlay, next to the hop list, wherever a route is active on the map. No new drawer, no new header control.
+2. **What it shows.** Only the active route's cards and lines. Everything else is hidden. The full map is not changed: card positions, pins, highlight, the network filter, split pairs, and the viewport stay in `mapSession` and return when the toggle is turned off. The route view's own layout and viewport are session-only and are never written to the full map's positions.
+3. **Layout.** A dedicated pure function lays the route out left to right in hop order (`routeView.ts`), one card per equipment in order of first appearance, with the route's exact positions as facets as today. It does not use the layered layout of the full map.
+4. **Outlines.** Dashed rounded boxes drawn behind the cards: one **node** box around each run of consecutive cards in the same node, labeled "Site / Node"; a lighter **rack** box nested inside it only where two or more consecutive cards share a rack, labeled with the rack name. Other cards show their rack in their location line as today. A route that leaves a node and returns gets a second box for the second run. Boxes follow the grouping in `snapshotIndex` (location by ID, never by name). Outlines are drawing aids and never feed traversal.
+5. **Where it lives.** Pure model in `features/map/routeView.ts` (hop order → ordered cards, runs, boxes), thin rendering in `ConceptualMap` or a sibling component.
+
+**Export design.**
+
+1. **Where.** "Export" actions (PNG, PDF) in the same overlay, enabled only while the route view is on.
+2. **Capture.** One client-side capture of the route view (React Flow's image export recipe, for example `html-to-image`), at about 2× pixel ratio, fitted to the route and its outlines, with a header band: start → end, mode, network, and "Installed" or "Proposed: <plan name>", plus the date. No backend call.
+3. **PDF.** Built from the same capture with a small library (for example `jspdf`), one page sized to the image. No print stylesheet.
+4. **Dependencies.** The two libraries are added to `frontend/package.json` and noted in `docs/current-status.md`. Exporting never mutates state.
+
 ### M3.1 steps
 
 Same rules as M3: test-first, the whole repository green at the end of each step (Go with `TEST_DATABASE_URL`, frontend tests, typecheck, build, format, and Playwright three times in a row), reviewed before the next. Test names use the IDs below.
 
-| Step | Work | Tests |
-| --- | --- | --- |
-| 1 | **Layout polish.** Connections popover, raised cards (design 1); overlay and controls clear of drawers (2); Reset layout (6) | POL-01 popover does not resize the card or move neighbors; POL-02 every overlay button is clickable with each drawer open; POL-03 reset recomputes the first layout and keeps pins, focus, filter, and trace |
-| 2 | **Hops and find.** Hop list in the map overlay with center-on-click (3, 4); find on map with the amber found state (5) | POL-04 hop list order and labels match `TracePanel`; POL-05 clicking a hop selects and centers without changing zoom; POL-06 find centers on EDGE-17 and highlights EDGE-17, PANEL-A, and cable-a01/a05/a09 in amber; POL-07 found and trace highlights coexist and clear independently; POL-08 a found card hidden by the filter or focus is shown while found |
-| 3 | **Inspector.** `features/inspector/` with header, location actions, grouped and filtered list, connection details, and per-endpoint actions (7) | POL-09 HDF-01 lists its 4 cabled positions by default, grouped by subpanel, with far ends, cable IDs, and networks; POL-10 Find AGG / BB, Pin, and Show on map from an inspector entry; POL-11 location actions focus the node and open the rack |
-| 4 | **Trace picker and test hygiene.** Searchable Start/Destination (8); `hdf-display` flake cause and fix; mismatch browser spec (9) | POL-12 picker matching (unit) and keyboard use; POL-13 the mismatch spec; the flake explained in the commit message |
-| 5 | **Node highlight replaces focus** (redesign 1) | POL-14 clicking Building A in Explore highlights EDGE-17 and PANEL-A plus every cable leaving them, dims the rest, and fits them in view; POL-15 equipment click selects, centers, and opens the inspector without highlighting; POL-16 highlight, route, and network filter combine and clear independently; focus, boundary cards, and the focus chip are gone |
-| 6 | **Cables** (redesign 2) | POL-17 EDGE-17–PANEL-A shows one line with a "3" pill in Network A's color, and its tooltip lists cable-a01/a05/a09; POL-18 clicking it splits into three labeled lines and clicking again joins them; line width grows with the count |
-| 7 | **One port list; inspector redesign** (redesign 3, 4) | POL-19 cards have no "Show connections" popover, and pins and route facets still show on cards; POL-20 inspector tabs, compact port table, row actions, sticky header; POL-09/10/11 rewritten for the new inspector; screenshots reviewed |
-| 8 | **Status and handoff.** `current-status.md`, README smoke flow, `ui-spec` notes, `CLAUDE.md` | Full check run |
+| Step | Work | Tests | Commits |
+| --- | --- | --- | --- |
+| 1 | **Layout polish.** Connections popover, raised cards (design 1); overlay and controls clear of drawers (2); Reset layout (6) | POL-01 popover does not resize the card or move neighbors; POL-02 every overlay button is clickable with each drawer open; POL-03 reset recomputes the first layout and keeps pins, focus, filter, and trace | `2da8556` |
+| 2 | **Hops and find.** Hop list in the map overlay with center-on-click (3, 4); find on map with the amber found state (5) | POL-04 hop list order and labels match `TracePanel`; POL-05 clicking a hop selects and centers without changing zoom; POL-06 find centers on EDGE-17 and highlights EDGE-17, PANEL-A, and cable-a01/a05/a09 in amber; POL-07 found and trace highlights coexist and clear independently; POL-08 a found card hidden by the filter or focus is shown while found | `e27dd1e` |
+| 3 | **Inspector.** `features/inspector/` with header, location actions, grouped and filtered list, connection details, and per-endpoint actions (7) | POL-09 HDF-01 lists its 4 cabled positions by default, grouped by subpanel, with far ends, cable IDs, and networks; POL-10 Find AGG / BB, Pin, and Show on map from an inspector entry; POL-11 location actions focus the node and open the rack | `4ae997d` |
+| 4 | **Trace picker and test hygiene.** Searchable Start/Destination (8); `hdf-display` flake cause and fix; mismatch browser spec (9) | POL-12 picker matching (unit) and keyboard use; POL-13 the mismatch spec; the flake explained in the commit message | `4f43586` |
+| 5 | **Node highlight replaces focus** (redesign 1) | POL-14 clicking Building A in Explore highlights EDGE-17 and PANEL-A plus every cable leaving them, dims the rest, and fits them in view; POL-15 equipment click selects, centers, and opens the inspector without highlighting; POL-16 highlight, route, and network filter combine and clear independently; focus, boundary cards, and the focus chip are gone | `1b01e21` |
+| 6 | **Cables** (redesign 2) | POL-17 EDGE-17–PANEL-A shows one line with a "3" pill in Network A's color, and its tooltip lists cable-a01/a05/a09; POL-18 clicking it splits into three labeled lines and clicking again joins them; line width grows with the count | `e1c1ebe`, fixup `4a7e96d` |
+| 7 | **One port list; inspector redesign** (redesign 3, 4) | POL-19 cards have no "Show connections" popover, and pins and route facets still show on cards; POL-20 inspector tabs, compact port table, row actions, sticky header; POL-09/10/11 rewritten for the new inspector; screenshots reviewed. *Fixup:* POL-21 the inspector has no trace form (the Pathfinding form is only in the Trace drawer): one Find AGG / BB button, and a trace started from it still shows its result; the arrow-key tab behavior and shared network colors are covered in POL-20 | `97819e5`, fixup `aa25695` |
+| 8 | **Route view** (route view design) | POL-22 the toggle shows only the route's cards and lines, hides everything else, and turning it off restores the same map, positions, pins, highlight, and filter; POL-23 the route lays out left to right in hop order; POL-24 EDGE-17 → PANEL-A → HDF-01 → HDF-02 → AGG-03 shows one dashed node box per contiguous run with its label, and a rack box only where two or more hops share a rack; POL-25 a route that leaves a node and returns gets two boxes; POL-26 the outlines never change a trace result (unit: the route-view model has no input path into traversal). *Fixup:* POL-31 entering the route view fits its cards and boxes into the visible canvas, clear of the open drawers, the results overlay and the tool rail, once per entry | `47d8dba`, fixup `1c57dcd` |
+| 9 | **Export** (export design) | POL-27 PNG export downloads a non-empty image of the route view with the header; POL-28 PDF export downloads a one-page PDF sized to it (*fixup:* and under 2 MB; the image is deflated); POL-29 the header names start → end, mode, network, and Installed or the plan name (checked on the PDF's text layer; the PNG's header is drawn into the image); POL-30 export is unavailable without an active route or until the route view is on | `597fd79`, fixup `9bc4cad` |
+| 10 | **Status and handoff.** `current-status.md`, README smoke flow, `ui-spec` notes, `CLAUDE.md` | Full check run | the commit "M3.1 step 10: status and handoff" |
 
 ## M4 — Approved physical explorer
 
