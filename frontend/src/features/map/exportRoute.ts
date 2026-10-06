@@ -225,6 +225,7 @@ export async function exportRouteView(options: {
     orientation: layout.width > layout.height ? 'landscape' : 'portrait',
     hotfixes: ['px_scaling'],
   })
+  // 'FAST' deflates the pixels (lossless); stored raw, one page is about 9 MB.
   pdf.addImage(
     canvas.toDataURL('image/png'),
     'PNG',
@@ -232,6 +233,8 @@ export async function exportRouteView(options: {
     0,
     layout.width,
     layout.height,
+    undefined,
+    'FAST',
   )
   // An invisible text layer: the header can be searched and copied.
   pdfText(header).forEach((line, i) =>

@@ -92,6 +92,8 @@ test('POL-28 PDF export downloads a one-page PDF sized like the image', async ({
   const { name, bytes } = await download(page, 'PDF')
   expect(name).toBe('route-EDGE-17-Port-1-AGG-03-Port-1.pdf')
   expect(bytes.subarray(0, 4).toString()).toBe('%PDF')
+  // The image is compressed: a one-page route stays small (it was about 9 MB uncompressed).
+  expect(bytes.length).toBeLessThan(2_000_000)
   const text = bytes.toString('latin1')
   expect(text.match(/\/Type\s*\/Page(?![s\w])/g)).toHaveLength(1)
   const box = /\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/.exec(text)!
