@@ -41,6 +41,12 @@ Sites → selected site → physical node → rack elevation → equipment → e
 - Physical inventory may include other networks. Make the difference between complete physical inventory and selected trace/network scope explicit.
 - A location navigator is not a geographic map or measured floor plan. Optional actual photos/floor plans require real layout data.
 
+*Built (M4):*
+- **Navigation.** Sites → site → node → rack → equipment, with clickable breadcrumbs and an in-app **Back** over a session-only history (no router, nothing in the URL; a reload starts at Sites). A one-line scope note under the breadcrumbs says the inventory is complete and which network, if any, is only marked: other networks' devices are muted, never hidden. Explore navigates Physical while it is shown. The results overlay is the map's, without the route view and export. **Show in Physical** is on the inspector header and rows and on every hop; **Conceptual** returns to the map exactly as it was.
+- **Sites** are a card grid (name, "N nodes · N racks · N equipment", network badges, a teal "on route" pill). **A site** shows only its node cards, dragged freely and saved on the server (once per drop), joined by cable lines with a count circle, a hover list of cable IDs and a click list of the cables whose ends open the equipment; "N cables inside" and "N cables to <site>" are on the card; Reset layout (inline confirm); the screen fits into the visible area once per site per session. **A node** shows 200 px rack previews with a mini elevation, a search above 12 racks, and drops in a plan.
+- **A rack** is the full elevation (a 420 px dark cabinet, U12…U1, "Available" for free units, one block per equipment spanning its height, teal route, an amber ring for the selected one, a dashed PROPOSED block, muted other networks). In a plan, free units accept library and existing-equipment drops.
+- **The equipment page** has a rack strip on the left, the face in the middle and the endpoint detail on the right. The face is a port bank (rows of 12), a panel's positions, or the HDF grid with a Front | Rear control. Endpoints are buttons named by state; fill follows the state (white free, the circuit network's color cabled, teal on the route, a dark ring when selected).
+
 ## 2. Workspace shell
 
 - Compact header and tool rail; the conceptual map takes the remaining page.
@@ -105,6 +111,8 @@ Reveal additional connected subpanels/positions, with search/filtering when need
 - The matching bridge connects only the opposite side of that position. No implicit cross-subpanel or sibling-position links.
 - An HDF block can contain Network A on position 5 and Network B on position 2. Do not assign one exclusive network to the entire block.
 - Fiber-pair display labels remain secondary to the local position identity.
+
+*Built (M4):* the HDF face shows columns A–D and every configured row in row-major order, each block labeled ("3C") with its six positions in a 3 × 2 layout and a 2 px teal border on a block that holds a route position. The Front | Rear control keeps the position and selects its other-side endpoint (through the per-snapshot bridge lookup, not a mirror of the letters). The endpoint detail shows the label, side, circuit network and the fiber pair as secondary text, the external cable (cable ID, far endpoint, far equipment and its "Site / Node / Rack", **Go to peer**), the internal peer (the other side and its cable, **Switch to front/rear**), **Find AGG / BB from here** and **Show on map**. Selecting an endpoint and switching sides replace the location; **Go to peer** adds a history entry, so Back restores the exact endpoint and side. Network A's 3C/5 and Network B's 3C/2 are separate positions of one block, both always drawn.
 
 ## 5. Editing and drag/drop
 

@@ -11,7 +11,7 @@ This directory is the durable handoff for Opus 5.5 or another implementation age
    Read [visual-brief.md](visual-brief.md) to reconstruct the approved screens without the removed screenshots.
 5. Read [acceptance-example.md](acceptance-example.md) and [acceptance-tests.md](acceptance-tests.md): these turn the approved workflow into exact inventory, cables, routes, and verification cases.
 6. Read [current-status.md](current-status.md) and [backend-contract-notes.md](backend-contract-notes.md): distinguish the existing prototype from the target product.
-7. Follow [implementation-plan.md](implementation-plan.md) (M1, M2, M3, and M3.1 are complete; continue with M4), and use [verification-guide.md](verification-guide.md).
+7. Follow [implementation-plan.md](implementation-plan.md) (M1, M2, M3, M3.1, and M4 are complete; continue with M5), and use [verification-guide.md](verification-guide.md).
 8. Consult [legacy-reference.md](legacy-reference.md) when interpreting legacy HDF/port behavior or the physical explorer.
 
 ## Document responsibilities

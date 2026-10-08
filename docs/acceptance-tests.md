@@ -92,17 +92,17 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 
 | ID | Scenario | Expected behavior |
 | --- | --- | --- |
-| F01 | Physical Sites | Names/locations/counts and relevant trace badges; no invented floor-plan coordinates |
-| F02 | Open Main Campus | Only its three nodes, freely arranged (saved positions or the default), with cable summary lines between them that count real cables (Building A ↔ North Sub-main 3, North Sub-main ↔ Main Distribution 4); no central site card |
-| F03 | Open Main Distribution | Only its three fixture racks; owned equipment counts; selected route marks actual involved racks |
-| F04 | Rack has a 3U HDF | One object spanning U4–U6, not three duplicate pieces of equipment |
-| F05 | Conceptual endpoint → Physical | Correct site/node/rack/chassis/subpanel/position/side is opened |
-| F06 | HDF-01 3C/5 rear → front | Same position; A02/PANEL-A rear versus A03/HDF-02 2B/3 front |
-| F07 | HDF-02 2B/3 front → rear | A03/HDF-01 front versus A04/AGG-03 port 1 |
-| F08 | Inspect peer equipment and return | Same route, equipment identities, context, and useful previous view |
-| F09 | Network B physical HDF grid | 3C/2 selected; 3C/5 remains visibly a separate A circuit |
-| F10 | Standard panels/device banks | Correct local positions, terminal ports, occupancy, cable peers, and sides |
-| F11 | Breadcrumb/back navigation | Restore context consistently; no nested modal stack |
+| F01 | Physical Sites | Names/locations/counts and relevant trace badges; no invented floor-plan coordinates. Covered by the browser spec "F01 Sites shows names, counts and the route, with no coordinates" (`physical`), `explorerModel` and `inventory` unit tests (counts, network mix, name sort) |
+| F02 | Open Main Campus | Only its three nodes, freely arranged (saved positions or the default), with cable summary lines between them that count real cables (Building A ↔ North Sub-main 3, North Sub-main ↔ Main Distribution 4); no central site card. Covered by "F02 a site shows only its nodes…" (`physical`), PHY-18 (dragging, saving once, reload, Reset layout, a failed save rolled back), PHY-19 (the line, its list, a row opens its endpoint), PHY-20 (the fit into the visible area), and the `connections` and `layout` unit tests (PHY-12, PHY-13) |
+| F03 | Open Main Distribution | Only its three fixture racks; owned equipment counts; selected route marks actual involved racks. Covered by "F03 a node shows only its own racks…" (`physical`) and the `inventory` and `explorerModel` unit tests |
+| F04 | Rack has a 3U HDF | One object spanning U4–U6, not three duplicate pieces of equipment. Covered by "F04 a 3U HDF is one object over U4–U6…" (`rack`) and the `elevation` unit tests |
+| F05 | Conceptual endpoint → Physical | Correct site/node/rack/chassis/subpanel/position/side is opened. Covered by "F05 a conceptual endpoint opens the exact place in Physical…" (`views`: the inspector header, a Positions row, a hop) and the inspector model unit tests |
+| F06 | HDF-01 3C/5 rear → front | Same position; A02/PANEL-A rear versus A03/HDF-02 2B/3 front. Covered by "F06 HDF-01 3C/5 rear…" (`equipment`), PHY-10 (`views`) and the `detail` and `equipmentModel` unit tests |
+| F07 | HDF-02 2B/3 front → rear | A03/HDF-01 front versus A04/AGG-03 port 1. Covered by "F07 HDF-02 2B/3 front…" (`equipment`) |
+| F08 | Inspect peer equipment and return | Same route, equipment identities, context, and useful previous view. Covered by "F08 Go to peer opens the far equipment…" (`equipment`: Back restores the exact endpoint and side) and PHY-10 and PHY-11 (`views`: back on the map with the same route, positions and viewport) |
+| F09 | Network B physical HDF grid | 3C/2 selected; 3C/5 remains visibly a separate A circuit. Covered by "PHY-08 / F09 the HDF-01 face has 16 blocks…" (`equipment`), PHY-11 (`views`), and the `equipmentModel` unit tests (state decides the color, never the network ID) |
+| F10 | Standard panels/device banks | Correct local positions, terminal ports, occupancy, cable peers, and sides. Covered by the two "F10" specs, a switch bank and a standard panel (`equipment`), and the `faces` unit tests |
+| F11 | Breadcrumb/back navigation | Restore context consistently; no nested modal stack. Covered by "F11 breadcrumbs and Back…" (`physical`), "F11 Installed/Plan keeps the physical location…" (`views`), and the `history`, `location` and `physicalSession` unit tests |
 
 ## M5–M7 — Editing, persistence, scale, and governance
 

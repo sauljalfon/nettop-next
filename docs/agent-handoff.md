@@ -55,13 +55,13 @@ Backend role values should preserve the prototype's `access`, `aggregation`, `pa
 
 **Missing:** Network entities/device membership; BB discovery; explicit HDF subpanel identities and large-capacity creation; final connected-map rendering; all AGG/BB result interaction; full physical site/node/HDF flow; persistent board layout and undo; measured large-network APIs/rendering; governance.
 
-**Replaced frontend behavior:** the nested site/node/rack whiteboard was a prototype and was replaced in M3 by the connected conceptual map in `frontend/src/features/map/`. The Physical tab still shows the old rack view until M4 replaces it.
+**Replaced frontend behavior:** the nested site/node/rack whiteboard was a prototype and was replaced in M3 by the connected conceptual map in `frontend/src/features/map/`. The Physical tab was replaced in M4 by the physical explorer in `frontend/src/features/physical/` (Sites → site → node → rack → equipment page).
 
 **Incomplete backend representation:** `Endpoint.Subpanel` is currently a string; it is not a full stable-ID HDF model. Generic panel creation is limited to 48 logical positions and is not sufficient for HDFs.
 
 ## Immediate next task
 
-**M1, M2, M3, and M3.1 are complete** (see [current-status.md](current-status.md)): network membership, the explicit BB role, stable HDF structure and atomic `add_hdf`, the acceptance seed, **Find AGG / BB** discovery, the connected conceptual map (layered layout, network filter, results overlay, automatic and pinned facets), and **M3.1** (node/site highlight, cable lines with network colors and split/join, the redesigned inspector, the hop list and searchable trace picker, the route view with node and rack outlines, and PNG/PDF export; location focus and boundary bundles were removed). Continue with **M4** (the approved physical explorer) in [implementation-plan.md](implementation-plan.md). M3 and M3.1 added no API; scoped fetch APIs were deferred to M6. The M1 input questions below were answered and recorded in the implementation plan; they are kept here as history.
+**M1, M2, M3, M3.1, and M4 are complete** (see [current-status.md](current-status.md)): network membership, the explicit BB role, stable HDF structure and atomic `add_hdf`, the acceptance seed, **Find AGG / BB** discovery, the connected conceptual map (layered layout, network filter, results overlay, automatic and pinned facets), and **M3.1** (node/site highlight, cable lines with network colors and split/join, the redesigned inspector, the hop list and searchable trace picker, the route view with node and rack outlines, and PNG/PDF export; location focus and boundary bundles were removed). **M4** added the physical explorer (Sites, a site with freely arranged node cards saved on the server and cable lines, a node with rack previews, the full rack elevation with drops in a plan, and the equipment page with port banks, panel sides, the HDF grid, Front/Rear, endpoint detail and Go to peer), breadcrumbs and an in-app Back, Show in Physical from the inspector and the hops, and network create/rename with a Manage networks drawer; its API is the layout endpoints and `POST`/`PATCH /api/networks` with migrations 005 and 006. **The next task is M5** (editing, recording installed changes, and inventory) in [implementation-plan.md](implementation-plan.md): planned editing (site/node/rack creation, HDF-aware equipment creation in the UI, delete/disconnect/move commands, drag-to-rack on the map), a **Record as installed** action that applies a whole plan to the installed topology in one transaction, an inventory list screen, and more equipment/port/cable details. Work one step at a time and stop for review after each. Scoped fetch APIs and conceptual-map layout persistence stay with M6. The M1 input questions below were answered and recorded in the implementation plan; they are kept here as history.
 
 Before schema changes, resolve only the necessary open inputs:
 
@@ -71,7 +71,7 @@ Before schema changes, resolve only the necessary open inputs:
 
 These are not answered by the mockups. Do not infer real network membership from equipment names or use a destructive reseed as migration. Independent code inspection and test planning can proceed while questions are being answered.
 
-M1, M2, M3, and M3.1 are done; M4 (physical) is next. This order avoids building UI against an incompatible temporary HDF/network model.
+M1, M2, M3, M3.1, and M4 are done; M4.1 (physical polish, in progress) is next, then M5. This order avoids building UI against an incompatible temporary HDF/network model.
 
 ## End-to-end acceptance to work toward
 
