@@ -266,7 +266,7 @@ func TestPlacementUpdateSurvivesReconnectWithoutMutatingInstalled(t *testing.T) 
 func TestHierarchyMigrationPreservesExistingLocations(t *testing.T) {
 	s, _ := testStore(t)
 	ctx := context.Background()
-	_, err := s.pool.Exec(ctx, `ALTER TABLE racks DROP COLUMN node_id; DROP TABLE location_nodes; DROP TABLE sites; DELETE FROM schema_migrations WHERE name='002_location_hierarchy.sql'; INSERT INTO installed_topology VALUES(true,'existing-revision','Original site','Original room'); INSERT INTO racks VALUES('existing-rack','Existing rack',12);`)
+	_, err := s.pool.Exec(ctx, `DROP TABLE node_layouts; ALTER TABLE racks DROP COLUMN node_id; DROP TABLE location_nodes; DROP TABLE sites; DELETE FROM schema_migrations WHERE name IN ('002_location_hierarchy.sql','005_site_layouts.sql'); INSERT INTO installed_topology VALUES(true,'existing-revision','Original site','Original room'); INSERT INTO racks VALUES('existing-rack','Existing rack',12);`)
 	if err != nil {
 		t.Fatal(err)
 	}

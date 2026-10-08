@@ -2,8 +2,8 @@ openapi: 3.1.0
 security: []
 info:
   title: Net-Top Next API
-  version: 0.4.0
-  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing. Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. BB discovery is pending implementation; HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/implementation-plan.md. No installed mutation or implementation endpoints yet.
+  version: 0.5.0
+  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing (point-to-point and Find AGG / BB). Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/implementation-plan.md. Networks can be created and renamed, and Physical site-screen node positions are saved and shared; both are presentation or reference data and never change a topology revision. No installed topology mutation endpoints yet.
 servers:
   - url: http://127.0.0.1:8080/api
 paths:
@@ -171,8 +171,114 @@ paths:
         '409': {$ref: '#/components/responses/Error'}
         '422': {$ref: '#/components/responses/Error'}
         '500': {$ref: '#/components/responses/Error'}
+  /sites/{siteId}/layout:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: getSiteLayout
+      summary: Read the saved node positions of a site
+      description: Presentation data for the Physical site screen, shared by everyone. Only nodes the user has moved have a position; the client places the others by default. Positions are an arrangement, never physical coordinates, and are not part of installed topology, plans, or revisions.
+      responses:
+        '200':
+          description: Saved positions of this site's nodes, ordered by node ID; empty when none were saved
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SiteLayout'}
+        '404': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+    delete:
+      operationId: resetSiteLayout
+      summary: Remove the saved node positions of a site
+      description: Removes only this site's positions. Succeeds when there are none.
+      responses:
+        '204': {description: Positions removed}
+        '404': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /sites/{siteId}/layout/nodes/{nodeId}:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - in: path
+        name: nodeId
+        required: true
+        schema: {type: string}
+    put:
+      operationId: saveNodePosition
+      summary: Save one node's position
+      description: Upserts the position. Concurrency is last write wins per node, with no revision check; two people moving different nodes never conflict, and the same node ends where it was last dropped. Saving a position never changes a topology revision or a plan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [x, y]
+              properties:
+                x: {type: number, minimum: -1000000, maximum: 1000000}
+                y: {type: number, minimum: -1000000, maximum: 1000000}
+      responses:
+        '200':
+          description: The saved position
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NodePosition'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /networks:
+    post:
+      operationId: createNetwork
+      summary: Create a network
+      description: Networks are reference data, not physical topology. The server generates a permanent ID and the network takes the next place in the creation order (snapshots list networks in that order). Creating a network never changes a topology revision, so it never makes a draft stale. There is no delete.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NetworkName'}
+      responses:
+        '201':
+          description: The new network
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Network'}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /networks/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string}
+    patch:
+      operationId: renameNetwork
+      summary: Rename a network
+      description: Changes only the display name. The ID, device membership, circuits, drafts, and creation order are unchanged, and no topology revision changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NetworkName'}
+      responses:
+        '200':
+          description: The renamed network
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Network'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
 components:
   parameters:
+    SitePathID:
+      in: path
+      name: siteId
+      required: true
+      schema: {type: string}
     Context:
       in: query
       name: context
@@ -189,7 +295,7 @@ components:
       schema: {type: string}
   responses:
     Error:
-      description: 400 malformed request; 404 missing plan; 409 stale revision; 422 invalid domain operation; 500 persistence failure; 503 unhealthy database.
+      description: 400 malformed request or unknown field; 404 missing plan, site, or network; 409 stale revision or duplicate network name; 422 invalid domain operation, node of another site, bad coordinates, or bad network name; 500 persistence failure; 503 unhealthy database.
       content:
         application/json:
           schema:
@@ -363,11 +469,32 @@ components:
         kind: {type: string, enum: [cable, internal]}
     Network:
       type: object
-      description: Read-only in this API; networks are created by seed/fixtures.
+      description: Created and renamed through /networks; snapshots list networks in creation order (existing ones in ID order).
       required: [id, name]
       properties:
         id: {type: string}
         name: {type: string}
+    NetworkName:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 64, description: 'Trimmed, 1–64 characters, unique ignoring case.'}
+    NodePosition:
+      type: object
+      required: [nodeId, x, y]
+      properties:
+        nodeId: {type: string}
+        x: {type: number}
+        y: {type: number}
+    SiteLayout:
+      type: object
+      required: [siteId, positions]
+      properties:
+        siteId: {type: string}
+        positions:
+          type: array
+          items: {$ref: '#/components/schemas/NodePosition'}
     Subpanel:
       type: object
       description: One row/column block of an HDF chassis. An N-row HDF has 4N subpanels with six positions each (24N positions, 48N side endpoints) and one internal bridge per position.

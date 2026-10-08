@@ -1,8 +1,11 @@
 import type {
   Context,
+  Network,
+  NodePosition,
   Plan,
   PlanCommand,
   Snapshot,
+  SiteLayout,
   TraceRequest,
   TraceResult,
 } from './types'
@@ -66,3 +69,45 @@ export const sendPlanCommand = (id: string, command: PlanCommand) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(command),
   })
+
+const json = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+})
+
+export const getSiteLayout = (siteID: string, signal?: AbortSignal) =>
+  request<SiteLayout>(`/sites/${encodeURIComponent(siteID)}/layout`, {
+    signal,
+  })
+/** Last write wins per node; the server validates the node belongs to the site. */
+export const saveNodePosition = (
+  siteID: string,
+  nodeID: string,
+  position: { x: number; y: number },
+) =>
+  request<NodePosition>(
+    `/sites/${encodeURIComponent(siteID)}/layout/nodes/${encodeURIComponent(nodeID)}`,
+    json('PUT', position),
+  )
+export const resetSiteLayout = async (siteID: string) => {
+  const response = await fetch(
+    `/api/sites/${encodeURIComponent(siteID)}/layout`,
+    { method: 'DELETE' },
+  )
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new APIError(
+      response.status,
+      body?.error ?? `API request failed (${response.status}).`,
+    )
+  }
+}
+
+export const createNetwork = (name: string) =>
+  request<Network>('/networks', json('POST', { name }))
+export const renameNetwork = (id: string, name: string) =>
+  request<Network>(
+    `/networks/${encodeURIComponent(id)}`,
+    json('PATCH', { name }),
+  )

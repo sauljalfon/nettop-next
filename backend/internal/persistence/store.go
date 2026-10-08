@@ -55,7 +55,7 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err != nil {
 		return s, err
 	}
-	rows, err := tx.Query(ctx, `SELECT id,name FROM networks ORDER BY id`)
+	rows, err := tx.Query(ctx, `SELECT id,name FROM networks ORDER BY seq`)
 	if err != nil {
 		return s, err
 	}

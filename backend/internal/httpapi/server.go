@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"nettop.local/backend/internal/pathfinding"
 	"nettop.local/backend/internal/planning"
@@ -20,6 +22,13 @@ type Repository interface {
 	Plan(context.Context, string) (planning.Plan, error)
 	CreatePlan(context.Context, string, string) (planning.Plan, error)
 	Command(context.Context, string, planning.Command) (planning.Plan, error)
+	// Presentation and reference data: none of these changes a topology
+	// revision or a saved plan.
+	SiteLayout(context.Context, string) (topology.SiteLayout, error)
+	SaveNodePosition(ctx context.Context, siteID, nodeID string, x, y float64) error
+	ResetSiteLayout(context.Context, string) error
+	CreateNetwork(context.Context, string) (topology.Network, error)
+	RenameNetwork(ctx context.Context, id, name string) (topology.Network, error)
 }
 
 func respond(w http.ResponseWriter, code int, value any) {
@@ -41,6 +50,14 @@ func repositoryError(w http.ResponseWriter, err error) {
 	case errors.Is(err, planning.ErrNotFound):
 		problem(w, 404, "Plan not found")
 	case errors.Is(err, planning.ErrInvalid):
+		problem(w, 422, err.Error())
+	case errors.Is(err, topology.ErrSiteNotFound):
+		problem(w, 404, "Site not found")
+	case errors.Is(err, topology.ErrNetworkNotFound):
+		problem(w, 404, "Network not found")
+	case errors.Is(err, topology.ErrDuplicateName):
+		problem(w, 409, err.Error())
+	case errors.Is(err, topology.ErrInvalidInput):
 		problem(w, 422, err.Error())
 	default:
 		slog.Error("repository operation failed", "error", err)
@@ -152,5 +169,81 @@ func New(repo Repository) http.Handler {
 		}
 		respond(w, 200, p)
 	})
+	mux.HandleFunc("GET /api/sites/{siteId}/layout", func(w http.ResponseWriter, r *http.Request) {
+		layout, err := repo.SiteLayout(r.Context(), r.PathValue("siteId"))
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, layout)
+	})
+	mux.HandleFunc("PUT /api/sites/{siteId}/layout/nodes/{nodeId}", func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			X *json.RawMessage `json:"x"`
+			Y *json.RawMessage `json:"y"`
+		}
+		if !decode(w, r, &input) {
+			return
+		}
+		x, xerr := coordinate(input.X)
+		y, yerr := coordinate(input.Y)
+		if err := errors.Join(xerr, yerr); err != nil {
+			repositoryError(w, fmt.Errorf("%w: x and y are required finite numbers", topology.ErrInvalidInput))
+			return
+		}
+		siteID, nodeID := r.PathValue("siteId"), r.PathValue("nodeId")
+		if err := repo.SaveNodePosition(r.Context(), siteID, nodeID, x, y); err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, topology.NodePosition{NodeID: nodeID, X: x, Y: y})
+	})
+	mux.HandleFunc("DELETE /api/sites/{siteId}/layout", func(w http.ResponseWriter, r *http.Request) {
+		if err := repo.ResetSiteLayout(r.Context(), r.PathValue("siteId")); err != nil {
+			repositoryError(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("POST /api/networks", func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			Name string `json:"name"`
+		}
+		if !decode(w, r, &input) {
+			return
+		}
+		n, err := repo.CreateNetwork(r.Context(), input.Name)
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 201, n)
+	})
+	mux.HandleFunc("PATCH /api/networks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			Name string `json:"name"`
+		}
+		if !decode(w, r, &input) {
+			return
+		}
+		n, err := repo.RenameNetwork(r.Context(), r.PathValue("id"), input.Name)
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, n)
+	})
 	return mux
+}
+
+// coordinate reads a JSON number only: a missing value, null, a string, or a
+// number too large for a float64 is an error (reported as 422, not 400).
+func coordinate(raw *json.RawMessage) (float64, error) {
+	if raw == nil || len(*raw) == 0 {
+		return 0, errors.New("missing")
+	}
+	if c := (*raw)[0]; c != '-' && (c < '0' || c > '9') {
+		return 0, errors.New("not a number")
+	}
+	return strconv.ParseFloat(string(*raw), 64)
 }

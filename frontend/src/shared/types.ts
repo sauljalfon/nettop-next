@@ -75,6 +75,17 @@ export interface Network {
   id: string
   name: string
 }
+/** Saved arrangement of a node card on its site's Physical screen. */
+export interface NodePosition {
+  nodeId: string
+  x: number
+  y: number
+}
+/** Only nodes the user has moved have a position. */
+export interface SiteLayout {
+  siteId: string
+  positions: NodePosition[]
+}
 export interface Rack {
   nodeId: string
   id: string
