@@ -22,6 +22,7 @@ import NodeLevel from './NodeLevel'
 import EquipmentPage from './EquipmentPage'
 import RackElevation from './RackElevation'
 import { faceFor, faceMarks } from './equipmentModel'
+import PrintSheet from './PrintSheet'
 import RouteTrail from './RouteTrail'
 import { currentStep, trailSteps } from './trail'
 import { switchSide } from './detail'
@@ -43,6 +44,8 @@ interface Props {
   selectedEquipmentId?: string
   /** Installed equipment IDs; any other equipment is proposed (marked in a plan). */
   installedIds: ReadonlySet<string>
+  /** The plan's name in a plan; sheets say Proposed with it. */
+  planName?: string
   /** In a plan: drops and drags are on. */
   canEdit: boolean
   onMoveEquipment: (equipmentId: string, rackId: string, unit?: number) => void
@@ -76,6 +79,7 @@ export default function PhysicalExplorer({
   installedLinkIDs,
   selectedEquipmentId,
   installedIds,
+  planName,
   canEdit,
   onMoveEquipment,
   onCreateEquipment,
@@ -104,6 +108,7 @@ export default function PhysicalExplorer({
   const [search, setSearch] = useState({ node: '', text: '' })
   const [positions, setPositions] = useState('')
   const [fittedSite, setFittedSite] = useState<string>()
+  const [sheet, setSheet] = useState<'rack' | 'equipment'>()
 
   const go = (target: Parameters<typeof openLocation>[1]) =>
     session.navigate(openLocation(index, target))
@@ -329,6 +334,7 @@ export default function PhysicalExplorer({
             colors={colors}
             canEdit={canEdit}
             onSelect={openEquipment}
+            onPrint={() => setSheet('rack')}
             onMoveEquipment={onMoveEquipment}
             onCreateEquipment={onCreateEquipment}
           />
@@ -352,6 +358,26 @@ export default function PhysicalExplorer({
             }}
             onFind={onFindFromEndpoint}
             onShowOnMap={onShowOnMap}
+            onPrint={() => setSheet('equipment')}
+            marks={marks}
+            routeName={
+              trailTitle.replace(/^Route ?/, '').replace(/:$/, '') || undefined
+            }
+          />
+        )}
+        {sheet && (
+          <PrintSheet
+            kind={sheet}
+            snapshot={snapshot}
+            index={index}
+            inv={inv}
+            rackId={rackId}
+            equipmentId={location.equipmentId}
+            colors={colors}
+            installedIds={installedIds}
+            planName={planName}
+            onDone={() => setSheet(undefined)}
+            onError={onError}
           />
         )}
       </div>

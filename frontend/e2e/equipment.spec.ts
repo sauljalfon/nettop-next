@@ -283,8 +283,8 @@ test('F10 a switch shows its port bank in rows of 12, with cabled and free ports
   await expect(port(1)).toHaveAttribute('data-state', 'cabled')
   await expect(port(1)).toHaveAttribute('data-network', 'net-a')
   await expect(port(4)).toHaveAttribute('data-state', 'free')
-  await expect(port(12)).toHaveAttribute('data-row', '0')
-  await expect(port(13)).toHaveAttribute('data-row', '1')
+  await expect(port(12)).toHaveAttribute('data-row', '1') // even ports are on the lower row
+  await expect(port(13)).toHaveAttribute('data-row', '0') // odd ports on the upper row
   await expect(port(1)).toHaveAccessibleName(
     'EDGE-17 port 1, cabled, Network A',
   )

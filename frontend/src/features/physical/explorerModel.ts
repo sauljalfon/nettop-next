@@ -6,7 +6,7 @@ import type {
   Snapshot,
 } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
-import { defaultNodeLayout, type Position } from './layout'
+import { defaultNodeLayout, type NodeGraph, type Position } from './layout'
 import { resolveLocation, type PhysicalLocation } from './location'
 import { rackElevation } from './elevation'
 import type { Inventory, RouteMarks } from './inventory'
@@ -66,6 +66,7 @@ export function positionMarks(positions: ReadonlyMap<string, Position>) {
 export function nodePositions(
   nodes: readonly { id: string; name: string }[],
   saved: readonly NodePosition[],
+  graph?: NodeGraph,
 ): Map<string, Position> {
   const own = new Set(nodes.map((n) => n.id))
   const kept = new Map(
@@ -73,7 +74,7 @@ export function nodePositions(
       .filter((p) => own.has(p.nodeId))
       .map((p) => [p.nodeId, { x: p.x, y: p.y }] as const),
   )
-  return new Map([...kept, ...defaultNodeLayout(nodes, kept)])
+  return new Map([...kept, ...defaultNodeLayout(nodes, kept, graph)])
 }
 
 /** The cached layout with one node's position replaced (the optimistic update). */
@@ -185,6 +186,7 @@ export function otherSiteGroups(
 export interface RackBlock {
   equipmentId: string
   name: string
+  kind: Equipment['kind']
   unit: number
   height: number
   /** The device's network; absent for passive equipment. */
@@ -229,6 +231,7 @@ export function rackPreviews(
           {
             equipmentId: e.id,
             name: e.name,
+            kind: e.kind,
             unit: row.unit,
             height: row.height,
             networkId,

@@ -3,7 +3,7 @@ import { agg03Route } from '../map/acceptanceFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import { physicalSnapshot } from './testFixture'
 import { routeMarks } from './inventory'
-import { nodeConnections } from './connections'
+import { nodeConnections, nodeGraph } from './connections'
 import {
   defaultNodeLayout,
   NODE_HEIGHT,
@@ -233,5 +233,159 @@ describe('PHY-13 default layout puts unsaved nodes on a ring, clear of saved one
     expect(segmentCrossesRect({ x: -5, y: -5 }, { x: -1, y: 20 }, r)).toBe(
       false,
     )
+  })
+})
+
+describe('PHY-13 more than 12 unsaved nodes are layered by cable distance', () => {
+  // The campus shape: 33 buildings with access switches, each cabled to one of
+  // six passive sub-main nodes, which are cabled to Main Distribution (AGG/BB).
+  const nodes = [
+    ...Array.from({ length: 33 }, (_, i) => ({
+      id: `b${i + 1}`,
+      name: `Building ${String(i + 1).padStart(2, '0')}`,
+    })),
+    ...Array.from({ length: 6 }, (_, i) => ({
+      id: `s${i + 1}`,
+      name: `Sub-main ${i + 1}`,
+    })),
+    { id: 'md', name: 'Main Distribution' },
+  ]
+  const roles = new Map(
+    nodes.map((n) => [
+      n.id,
+      {
+        access: n.id.startsWith('b'),
+        distribution: n.id === 'md',
+      },
+    ]),
+  )
+  const pairs: [string, string][] = [
+    ...Array.from(
+      { length: 33 },
+      (_, i) => [`b${i + 1}`, `s${(i % 6) + 1}`] as [string, string],
+    ),
+    ...Array.from(
+      { length: 6 },
+      (_, i) => [`s${i + 1}`, 'md'] as [string, string],
+    ),
+  ]
+  const graph = { roles, pairs }
+  const centerOf = (p: { x: number; y: number }) => ({
+    x: p.x + NODE_WIDTH / 2,
+    y: p.y + NODE_HEIGHT / 2,
+  })
+  const rectOf = (p: { x: number; y: number }) => ({
+    left: p.x,
+    top: p.y,
+    right: p.x + NODE_WIDTH,
+    bottom: p.y + NODE_HEIGHT,
+  })
+  /** Lines (center to center) that run across a third card. */
+  const crossings = (layout: Map<string, { x: number; y: number }>) => {
+    let n = 0
+    for (const [a, b] of pairs)
+      for (const [id, p] of layout)
+        if (
+          id !== a &&
+          id !== b &&
+          segmentCrossesRect(
+            centerOf(layout.get(a)!),
+            centerOf(layout.get(b)!),
+            rectOf(p),
+          )
+        )
+          n++
+    return n
+  }
+
+  it('puts access nodes on the left, passive corridors in the middle and AGG/BB on the right', () => {
+    const layout = defaultNodeLayout(nodes, new Map(), graph)
+    expect(layout.size).toBe(40)
+    const left = Math.max(
+      ...[...layout].filter(([id]) => id.startsWith('b')).map(([, p]) => p.x),
+    )
+    const middle = [...layout]
+      .filter(([id]) => id.startsWith('s'))
+      .map(([, p]) => p.x)
+    const right = layout.get('md')!.x
+    expect(Math.min(...middle)).toBeGreaterThan(left)
+    expect(new Set(middle).size).toBe(1)
+    expect(right).toBeGreaterThan(middle[0])
+  })
+
+  it('puts a deeper corridor one column further right, by distance', () => {
+    const extra = [...nodes, { id: 'p', name: 'Pull box' }]
+    const layout = defaultNodeLayout(extra, new Map(), {
+      roles: new Map([...roles, ['p', { access: false, distribution: false }]]),
+      // Pull box sits between Sub-main 1 and Main Distribution.
+      pairs: [
+        ...pairs.filter(([a, b]) => !(a === 's1' && b === 'md')),
+        ['s1', 'p'],
+        ['p', 'md'],
+      ],
+    })
+    expect(layout.get('p')!.x).toBeGreaterThan(layout.get('s1')!.x)
+    expect(layout.get('md')!.x).toBeGreaterThan(layout.get('p')!.x)
+  })
+
+  it('orders a column by the average position of its neighbors, then by name', () => {
+    const layout = defaultNodeLayout(nodes, new Map(), graph)
+    const row = (id: string) => layout.get(id)!.y
+    // Each sub-main sits beside the buildings it serves, not in name order by accident.
+    for (let k = 1; k <= 6; k++) {
+      const served = [...layout]
+        .filter(
+          ([id]) =>
+            id.startsWith('b') && (Number(id.slice(1)) - 1) % 6 === k - 1,
+        )
+        .map(([id]) => row(id))
+      const mean = served.reduce((x, y) => x + y, 0) / served.length
+      expect(Math.abs(row(`s${k}`) - mean)).toBeLessThan(2 * (NODE_HEIGHT + 40))
+    }
+  })
+
+  it('is deterministic, never overlaps, and leaves saved nodes where they are', () => {
+    const a = defaultNodeLayout(nodes, new Map(), graph)
+    expect(defaultNodeLayout([...nodes].reverse(), new Map(), graph)).toEqual(a)
+    const cells = [...a.values()]
+    for (let i = 0; i < cells.length; i++)
+      for (let j = i + 1; j < cells.length; j++)
+        expect(
+          Math.abs(cells[i].x - cells[j].x) < NODE_WIDTH &&
+            Math.abs(cells[i].y - cells[j].y) < NODE_HEIGHT,
+        ).toBe(false)
+    const saved = new Map([['md', { x: 5000, y: 5000 }]])
+    const later = defaultNodeLayout(nodes, saved, graph)
+    expect(later.has('md')).toBe(false)
+    expect(later.size).toBe(39)
+  })
+
+  it('falls back to the grid when nothing is cabled', () => {
+    const grid = defaultNodeLayout(nodes, new Map(), {
+      roles: new Map(),
+      pairs: [],
+    })
+    expect(new Set([...grid.values()].map((p) => p.x)).size).toBe(3)
+  })
+
+  it('no line runs across a third card in more than a few cases (grid: many)', () => {
+    const grid = crossings(defaultNodeLayout(nodes, new Map()))
+    const layered = crossings(defaultNodeLayout(nodes, new Map(), graph))
+    console.log(
+      `line-over-card crossings, 40-node campus: grid ${grid} -> layered ${layered}`,
+    )
+    expect(layered).toBeLessThanOrEqual(6)
+    expect(layered).toBeLessThan(grid)
+  })
+})
+
+describe('PHY-13 the layout graph is read from explicit roles and real cables', () => {
+  it('Main Campus: Building A holds access, Main Distribution holds AGG/BB, and the cabled pairs are the lines', () => {
+    const conn = nodeConnections(index, 'site-main')
+    const g = nodeGraph(index, 'site-main', conn)
+    expect(g.roles.get('node-a')).toMatchObject({ access: true })
+    expect(g.roles.get('node-core')).toMatchObject({ distribution: true })
+    expect(g.roles.get('node-sm')).not.toMatchObject({ access: true })
+    expect(g.pairs).toEqual(conn.pairs.map((p) => p.nodeIds))
   })
 })

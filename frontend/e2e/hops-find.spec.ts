@@ -147,8 +147,8 @@ test('Explore hides sites, nodes and racks without a match while the search has 
 }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
-  await expect(page.locator('.explorer-site')).toHaveCount(2)
-  await expect(page.locator('.tree-rack')).toHaveCount(7)
+  await expect(page.locator('.explorer-site')).toHaveCount(3)
+  await expect(page.locator('.tree-rack')).toHaveCount(8) // 7 acceptance racks and the Annex's empty 42U rack
 
   const search = page.getByLabel('Find equipment')
   await search.fill('edge-17')
@@ -172,6 +172,6 @@ test('Explore hides sites, nodes and racks without a match while the search has 
   await expect(page.getByText('No equipment matches.')).toBeVisible()
 
   await search.fill('')
-  await expect(page.locator('.explorer-site')).toHaveCount(2)
-  await expect(page.locator('.tree-rack')).toHaveCount(7)
+  await expect(page.locator('.explorer-site')).toHaveCount(3)
+  await expect(page.locator('.tree-rack')).toHaveCount(8)
 })

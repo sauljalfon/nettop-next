@@ -1,10 +1,17 @@
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Snapshot } from '../../shared/types'
 import { colorOf } from '../map/networkColors'
+import { visibleArea } from '../map/viewArea'
+import { blockDetail, labelEvery, rackMetrics, unitLabel } from './cabinet'
 import { DRAG_TYPE, dropInto, type DropHandlers } from './drops'
 import type { ElevationRow } from './elevation'
 import { elevationSubtitle } from './explorerModel'
 
 const NO_NETWORK_EDGE = '#7d8aa0'
+/** The cabinet's own padding above and below its units. */
+const CABINET_FRAME_PX = 28
+/** Air between the cabinet and the panel below it. */
+const BOTTOM_GAP_PX = 12
 
 interface Props extends DropHandlers {
   snapshot: Snapshot
@@ -13,16 +20,25 @@ interface Props extends DropHandlers {
   colors: ReadonlyMap<string, string>
   /** In a plan: free units are drop targets and equipment can be dragged. */
   canEdit: boolean
-  /** Selects the equipment (the workspace's selection); it does not open the inspector. */
+  /** Opens the equipment's page. */
   onSelect: (equipmentId: string) => void
+  /** A unit height to use instead of fitting the page (a printed sheet). */
+  fixedUnitPx?: number
+  /** For a printed sheet: no print button. */
+  printing?: boolean
+  /** The "Print sheet" button in the heading. */
+  onPrint?: () => void
 }
 
 /**
- * One rack, full height, top unit first: each equipment is one block spanning
- * its units, free units say Available. Route equipment is teal, the selected
- * one is ringed, proposed equipment is dashed and tagged, other networks'
- * devices are muted. In a plan the same drops as before apply, with the same
- * `rack-slot-<rack>-<unit>` test IDs.
+ * One rack as a dark cabinet with rails and screw holes, top unit first. The
+ * unit height is computed from the height the page leaves, so even a 42U rack
+ * fits without scrolling (every fifth unit is labeled when it is compact). Each
+ * equipment is one faceplate spanning its units: a switch with port dots, an
+ * HDF with a grid texture and its row count, a panel with a row of jacks. Route
+ * equipment is teal, the selected one has an amber ring, proposed equipment is
+ * dashed and tagged, other networks' devices are muted. In a plan the same drops
+ * as before apply, with the same `rack-slot-<rack>-<unit>` test IDs.
  */
 export default function RackElevation({
   snapshot,
@@ -31,33 +47,128 @@ export default function RackElevation({
   colors,
   canEdit,
   onSelect,
+  fixedUnitPx,
+  printing,
+  onPrint,
   onMoveEquipment,
   onCreateEquipment,
 }: Props) {
+  const level = useRef<HTMLDivElement>(null)
+  const [room, setRoom] = useState({ space: 600, cover: 0 })
+  // The room for the cabinet, measured in the viewport and never from the page's
+  // own height (which grows with the cabinet): from the cabinet's top edge down
+  // to the top of whatever covers the bottom of the canvas (the results panel,
+  // collapsed or expanded), or the canvas's bottom when nothing does. The same
+  // covers the map fits around. Measured again when the window, the panel, a
+  // drawer or the page above the cabinet changes size or appears.
+  useLayoutEffect(() => {
+    const el = level.current
+    if (!el || fixedUnitPx) return
+    const canvas = el.closest<HTMLElement>('.workspace-canvas')
+    const observed = new Set<Element>()
+    const resize = new ResizeObserver(() => measure())
+    function measure() {
+      const cabinet = el!.querySelector('.rack-cabinet')
+      const area = visibleArea(canvas)
+      if (!cabinet || !area) return
+      for (const watched of [
+        ...document.querySelectorAll('.map-results, .studio-drawer'),
+        ...(canvas?.querySelectorAll('.physical-top') ?? []),
+      ])
+        if (!observed.has(watched)) {
+          resize.observe(watched)
+          observed.add(watched)
+        }
+      const bottom = area.box.bottom - area.covers.bottom - BOTTOM_GAP_PX
+      const top = cabinet.getBoundingClientRect().top + el!.scrollTop
+      const space = Math.max(0, Math.round(bottom - top - CABINET_FRAME_PX))
+      const cover = area.covers.bottom
+      setRoom((r) =>
+        r.space === space && r.cover === cover ? r : { space, cover },
+      )
+    }
+    measure()
+    if (canvas) resize.observe(canvas)
+    window.addEventListener('resize', measure)
+    const watch = new MutationObserver(measure)
+    const studio = el.closest('.studio')
+    if (studio) watch.observe(studio, { childList: true, subtree: true })
+    return () => {
+      resize.disconnect()
+      watch.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [fixedUnitPx])
+  // Per-equipment facts for the faceplates, one pass over the snapshot.
+  const facts = useMemo(() => {
+    const endpoints = new Map<string, number>()
+    for (const p of snapshot.endpoints)
+      endpoints.set(p.equipmentId, (endpoints.get(p.equipmentId) ?? 0) + 1)
+    const hdfRows = new Map<string, number>()
+    for (const s of snapshot.subpanels)
+      hdfRows.set(
+        s.equipmentId,
+        Math.max(hdfRows.get(s.equipmentId) ?? 0, s.row),
+      )
+    return { endpoints, hdfRows }
+  }, [snapshot.endpoints, snapshot.subpanels])
+
   const rack = snapshot.racks.find((r) => r.id === rackId)
   if (!rack) return null
   const equipment = new Map(snapshot.equipment.map((e) => [e.id, e]))
   const handlers = { onMoveEquipment, onCreateEquipment }
+  const { unitPx, gap } = fixedUnitPx
+    ? { unitPx: fixedUnitPx, gap: 2 }
+    : rackMetrics(room.space, rack.units)
+  const every = labelEvery(unitPx)
   return (
-    <div className="rack-level">
+    <div
+      className="rack-level"
+      ref={level}
+      // Only a rack that does not fit (the minimum unit) scrolls, and then it
+      // scrolls clear of the panel; a rack that fits adds nothing to the page.
+      style={{
+        paddingBottom:
+          unitPx * rack.units + gap * (rack.units - 1) > room.space
+            ? room.cover + 25
+            : 25,
+      }}
+    >
       <section className="rack-figure">
         <header className="rack-heading">
           <strong>{rack.name}</strong>
           <small>{rack.units}U · front elevation</small>
+          {!printing && onPrint && (
+            <button className="outline-button print-button" onClick={onPrint}>
+              Print sheet
+            </button>
+          )}
         </header>
         <div
           className="rack-cabinet"
-          style={{ gridTemplateRows: `repeat(${rack.units}, 30px)` }}
+          data-unit-px={unitPx}
+          style={{
+            gridTemplateRows: `repeat(${rack.units}, ${unitPx}px)`,
+            ['--unit' as string]: `${unitPx}px`,
+            ['--gap' as string]: `${gap}px`,
+          }}
         >
-          {Array.from({ length: rack.units }, (_, i) => (
-            <span
-              key={i}
-              className="unit-label"
-              style={{ gridColumn: 1, gridRow: i + 1 }}
-            >
-              U{rack.units - i}
-            </span>
-          ))}
+          <i className="rail left" aria-hidden />
+          <i className="rail right" aria-hidden />
+          {Array.from({ length: rack.units }, (_, i) => rack.units - i).map(
+            (unit) => {
+              const label = unitLabel(unit, every)
+              return label.show ? (
+                <span
+                  key={unit}
+                  className={`unit-label ${label.strong ? 'strong' : ''}`}
+                  style={{ gridColumn: 1, gridRow: rack.units - unit + 1 }}
+                >
+                  U{unit}
+                </span>
+              ) : null
+            },
+          )}
           {rows.map((row) => {
             if (row.kind === 'free')
               return (
@@ -85,10 +196,14 @@ export default function RackElevation({
                       event.preventDefault()
                   }}
                 >
-                  Available
+                  {unitPx >= 18 && 'Available'}
                 </div>
               )
             const e = equipment.get(row.equipmentId)!
+            const blockPx = row.height * unitPx + (row.height - 1) * gap
+            const detail = blockDetail(blockPx)
+            const subtitle = elevationSubtitle(e, snapshot.networks)
+            const ports = facts.endpoints.get(e.id) ?? 0
             return (
               <div
                 key={row.equipmentId}
@@ -103,6 +218,7 @@ export default function RackElevation({
                   type="button"
                   className="rack-block"
                   data-equipment-id={e.id}
+                  data-kind={e.kind}
                   data-unit={row.unit}
                   data-height={row.height}
                   data-selected={row.selected}
@@ -110,7 +226,7 @@ export default function RackElevation({
                   data-muted={row.muted}
                   data-proposed={row.proposed}
                   draggable={canEdit}
-                  title={`${e.name} · ${row.height}U · U${row.unit}`}
+                  title={`${e.name} · ${subtitle}${row.proposed ? ' · PROPOSED' : ''}`}
                   style={{
                     borderLeftColor:
                       e.role !== 'passive' && e.networkId
@@ -123,11 +239,22 @@ export default function RackElevation({
                   }}
                   onClick={() => onSelect(e.id)}
                 >
-                  <span className="rack-block-name">
-                    {e.name}
-                    {row.proposed && <em className="proposed-tag">PROPOSED</em>}
-                  </span>
-                  <small>{elevationSubtitle(e, snapshot.networks)}</small>
+                  {detail !== 'none' && (
+                    <span className="block-text">
+                      <span className="rack-block-name">
+                        {e.name}
+                        {row.proposed && detail === 'full' && (
+                          <em className="proposed-tag">PROPOSED</em>
+                        )}
+                      </span>
+                      {detail === 'full' && <small>{subtitle}</small>}
+                    </span>
+                  )}
+                  <Plate
+                    kind={e.kind}
+                    count={e.kind === 'hdf' ? 0 : ports}
+                    rows={facts.hdfRows.get(e.id) ?? 0}
+                  />
                 </button>
               </div>
             )
@@ -145,5 +272,31 @@ export default function RackElevation({
         )}
       </aside>
     </div>
+  )
+}
+
+/** The face of the equipment: port dots, an HDF grid with its rows, or a row of jacks. */
+function Plate({
+  kind,
+  count,
+  rows,
+}: {
+  kind: 'switch' | 'panel' | 'hdf'
+  count: number
+  rows: number
+}) {
+  if (kind === 'hdf')
+    return (
+      <span className="plate" data-plate="hdf">
+        {rows} rows
+      </span>
+    )
+  return (
+    <span
+      className="plate"
+      data-plate={kind}
+      style={{ width: Math.min(count, 24) * 5 }}
+      aria-hidden
+    />
   )
 }

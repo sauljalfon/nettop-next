@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot } from '../map/acceptanceFixture'
-import { matchPicker, pickerItems } from './picker'
+import { matchPicker, pickerItems, type PickerItem } from './picker'
 
 const s = acceptanceSnapshot()
 const withDevices = pickerItems(s, { devices: true })
@@ -115,5 +115,27 @@ describe('POL-12 at most 50 matches, with a count of the rest', () => {
     const result = matchPicker(withDevices, 'agg', 2)
     expect(result.matches).toHaveLength(2)
     expect(result.more).toBeGreaterThan(0)
+  })
+})
+
+describe('SC-03 an empty query is cheap on a campus-size list', () => {
+  const big: PickerItem[] = Array.from({ length: 80_000 }, (_, i) => ({
+    value: `e${i}`,
+    label: `Item ${i}`,
+    search: `Item ${i} Port ${i % 48}`,
+  }))
+
+  it('lists the first 50 in order and counts the rest', () => {
+    const result = matchPicker(big, '')
+    expect(result.matches.map((m) => m.value)).toEqual(
+      big.slice(0, 50).map((m) => m.value),
+    )
+    expect(result.more).toBe(big.length - 50)
+  })
+
+  it('does not score every item', () => {
+    const start = performance.now()
+    for (let i = 0; i < 20; i++) matchPicker(big, '')
+    expect(performance.now() - start).toBeLessThan(100)
   })
 })

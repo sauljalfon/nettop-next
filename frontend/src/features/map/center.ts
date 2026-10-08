@@ -103,7 +103,18 @@ export function fitViewport(
   bounds: { x: number; y: number; width: number; height: number },
   size: { width: number; height: number },
   covers: Covers,
-  { padding = 48, minZoom = 0.25, maxZoom = 1 } = {},
+  {
+    padding = 48,
+    minZoom = 0.25,
+    maxZoom = 1,
+    anchor = 'center',
+  }: {
+    padding?: number
+    minZoom?: number
+    maxZoom?: number
+    /** When the zoom is floored and the bounds are taller than the room: 'top' starts at their top edge instead of their middle. */
+    anchor?: 'center' | 'top'
+  } = {},
 ) {
   const width = size.width - covers.left - covers.right - 2 * padding
   const height = size.height - covers.top - covers.bottom - 2 * padding
@@ -115,5 +126,13 @@ export function fitViewport(
         )
       : maxZoom
   const zoom = Math.min(maxZoom, Math.max(minZoom, wanted))
-  return viewportFor(centerTarget(bounds), visibleCenter(size, covers), zoom)
+  const target = centerTarget(bounds)
+  const at = visibleCenter(size, covers)
+  if (anchor === 'top' && wanted < minZoom && height > 0)
+    return viewportFor(
+      { x: target.x, y: bounds.y },
+      { x: at.x, y: covers.top + padding },
+      zoom,
+    )
+  return viewportFor(target, at, zoom)
 }

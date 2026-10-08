@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -28,6 +29,13 @@ import ConceptualMap, {
   type PendingEquipment,
 } from '../features/map/ConceptualMap'
 import { drawerSides } from '../features/map/drawers'
+import {
+  buildSearchItems,
+  inspectorQuery,
+  searchExplore,
+  type SearchItems,
+} from '../features/explore/portSearch'
+import { useDebounced, useIdleLazy, type Lazy } from '../shared/lazy'
 import NetworksDrawer from '../features/networks/NetworksDrawer'
 import PhysicalExplorer from '../features/physical/PhysicalExplorer'
 import { openLocation } from '../features/physical/explorerModel'
@@ -54,7 +62,10 @@ import { filterTree } from '../features/explore/tree'
 import { canFindFromDevice } from '../features/inspector/model'
 import { endpointLabel } from '../features/pathfinding/projection'
 import Inspector from '../features/inspector/Inspector'
-import { indexSnapshot } from '../features/map/snapshotIndex'
+import {
+  indexSnapshot,
+  type SnapshotIndex,
+} from '../features/map/snapshotIndex'
 import { searchEquipment } from '../features/map/search'
 import './styles.css'
 
@@ -479,18 +490,21 @@ function Workspace({
   const [mode, setMode] = useState<'distribution' | 'point_to_point'>(
     'distribution',
   )
-  const [start, setStart] = useState(
-    snapshot.equipment.find((e) => e.role === 'access')
-      ? `device:${snapshot.equipment.find((e) => e.role === 'access')!.id}`
-      : (snapshot.endpoints[0]?.id ?? ''),
-  )
-  const [end, setEnd] = useState(
-    snapshot.endpoints.find((p) =>
-      snapshot.equipment.some(
-        (e) => e.id === p.equipmentId && e.role === 'aggregation',
-      ),
-    )?.id ?? '',
-  )
+  // Lazy: these scans run once, not on every render.
+  const [start, setStart] = useState(() => {
+    const access = snapshot.equipment.find((e) => e.role === 'access')
+    return access ? `device:${access.id}` : (snapshot.endpoints[0]?.id ?? '')
+  })
+  const [end, setEnd] = useState(() => {
+    const aggregation = new Set(
+      snapshot.equipment
+        .filter((e) => e.role === 'aggregation')
+        .map((e) => e.id),
+    )
+    return (
+      snapshot.endpoints.find((p) => aggregation.has(p.equipmentId))?.id ?? ''
+    )
+  })
   const [routeIndex, setRouteIndex] = useState(0)
   const [routeFellBack, setRouteFellBack] = useState(false)
   const traceMutation = useMutation({
@@ -535,17 +549,19 @@ function Workspace({
   })
   const equipment =
     snapshot.equipment.find((e) => e.id === selected) ?? snapshot.equipment[0]
-  // The trace pickers' lists, built once per snapshot (and mode).
-  const startItems = useMemo(
+  // Snapshot-only work, shared by the map and the inspector.
+  const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
+  // The trace pickers' and Explore's search lists: built once per snapshot (and
+  // mode) when the browser is idle, never when a drawer opens.
+  const startItems = useIdleLazy(
     () => pickerItems(snapshot, { devices: mode === 'distribution' }),
     [snapshot, mode],
   )
-  const endItems = useMemo(
+  const endItems = useIdleLazy(
     () => pickerItems(snapshot, { devices: false }),
     [snapshot],
   )
-  // Snapshot-only work, shared by the map and the inspector.
-  const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
+  const searchItems = useIdleLazy(() => buildSearchItems(index), [index])
   const routeView = useSyncExternalStore(
     mapSession.subscribe,
     mapSession.routeView,
@@ -717,6 +733,29 @@ function Workspace({
     },
     [onViewChange],
   )
+  // A port or cable chosen in Explore's search. In Physical it opens that endpoint
+  // on its equipment page; in Conceptual it selects the equipment, centers its
+  // card and opens the inspector's Ports/Positions tab filtered to that label.
+  const [portSearch, setPortSearch] = useState<{
+    equipmentId: string
+    query: string
+    serial: number
+  }>()
+  const chooseSearchHit = useCallback(
+    (endpointId: string) => {
+      const owner = index.owner.get(endpointId)
+      if (!owner) return
+      if (view === 'physical') return openEndpointPhysical(endpointId)
+      setPortSearch((previous) => ({
+        equipmentId: owner,
+        query: inspectorQuery(index, endpointId),
+        serial: (previous?.serial ?? 0) + 1,
+      }))
+      showOnMap(owner)
+      onSelectEquipment()
+    },
+    [index, view, openEndpointPhysical, showOnMap, onSelectEquipment],
+  )
   // Equipment chosen in Explore (a click, or Enter in its search) also opens the inspector.
   const chooseEquipment = useCallback(
     (id: string) => {
@@ -739,6 +778,7 @@ function Workspace({
       onShowInPhysical={showInPhysical}
       onHighlight={highlightLocation}
       onOpenRack={openRack}
+      searchRequest={portSearch}
     >
       {plan && (
         <PlacementEditor
@@ -786,6 +826,7 @@ function Workspace({
           installedLinkIDs={installedLinkIDs}
           selectedEquipmentId={selected}
           installedIds={installedIDs}
+          planName={plan?.name}
           canEdit={canEdit}
           onMoveEquipment={move}
           onCreateEquipment={(kind, rackID, unit, role) =>
@@ -814,8 +855,11 @@ function Workspace({
         >
           <Explorer
             snapshot={snapshot}
+            index={index}
+            searchItems={searchItems}
             selected={selected}
             onChoose={chooseEquipment}
+            onChooseHit={chooseSearchHit}
             onOpenRack={openRack}
             onHighlight={highlightLocation}
             physical={view === 'physical'}
@@ -865,7 +909,7 @@ function Workspace({
               </label>
               <TracePicker
                 label="Start"
-                items={startItems}
+                items={startItems.get()}
                 value={start}
                 disabled={traceMutation.isPending}
                 onChange={(value) => {
@@ -876,7 +920,7 @@ function Workspace({
               {mode === 'point_to_point' && (
                 <TracePicker
                   label="Destination"
-                  items={endItems}
+                  items={endItems.get()}
                   value={end}
                   onChange={(value) => {
                     setEnd(value)
@@ -1064,8 +1108,11 @@ function EquipmentLibrary({
 
 function Explorer({
   snapshot,
+  index,
+  searchItems,
   selected,
   onChoose,
+  onChooseHit,
   onOpenRack,
   onHighlight,
   physical,
@@ -1073,9 +1120,14 @@ function Explorer({
   canEdit,
 }: {
   snapshot: Snapshot
+  index: SnapshotIndex
+  /** Ports and cables the search can find; built when the browser is idle. */
+  searchItems: Lazy<SearchItems>
   selected: string
   /** Select the equipment, open the inspector and center on its card. */
   onChoose: (id: string) => void
+  /** A port or cable found by the search: open that endpoint (Physical), or select its equipment and filter the inspector (Conceptual). */
+  onChooseHit: (endpointId: string) => void
   onOpenRack: (id: string) => void
   /** Highlight a site or node on the map. */
   onHighlight: (location: LocationRef) => void
@@ -1085,7 +1137,23 @@ function Explorer({
   canEdit: boolean
 }) {
   const [search, setSearch] = useState('')
-  const tree = useMemo(() => filterTree(snapshot, search), [snapshot, search])
+  // The lists follow the typing about 150 ms behind it.
+  const settled = useDebounced(search)
+  const hits = useMemo(
+    () =>
+      settled.trim()
+        ? searchExplore(searchItems.get(), settled)
+        : searchExplore({ ports: [], cables: [], firstEnd: new Map() }, ''),
+    [searchItems, settled],
+  )
+  const tree = useMemo(() => filterTree(snapshot, settled), [snapshot, settled])
+  const handlers = useRef<TreeHandlers>({
+    onChoose,
+    onOpenRack,
+    onHighlight,
+    onOpenPlace,
+  })
+  handlers.current = { onChoose, onOpenRack, onHighlight, onOpenPlace }
   return (
     <>
       <label className="search">
@@ -1104,96 +1172,185 @@ function Explorer({
         />
       </label>
       {/* With search text, sites, nodes and racks without a match are hidden. */}
-      {tree.map(({ site, nodes }) => (
-        <section key={site.id} className="explorer-site">
-          <h3>
-            <MapPin size={16} />
-            <button
-              className="location-name"
-              aria-label={
-                physical
-                  ? `Open ${site.name} in Physical`
-                  : `Highlight ${site.name} on the map`
-              }
-              title={physical ? 'Open in Physical' : 'Highlight on the map'}
-              onClick={() =>
-                physical
-                  ? onOpenPlace({ siteId: site.id })
-                  : onHighlight({ kind: 'site', id: site.id })
-              }
-            >
-              {site.name}
-              {!physical && (
-                <Highlighter size={13} className="location-icon" aria-hidden />
-              )}
-            </button>
-          </h3>
-          {nodes.map(({ node, racks }) => (
-            <section key={node.id} className="explorer-node">
-              <h4>
-                <Building2 size={15} />
+      <ExplorerTree
+        tree={tree}
+        selected={selected}
+        physical={physical}
+        canEdit={canEdit}
+        handlers={handlers}
+      />
+      {(
+        [
+          ['Ports', 'search-port', hits.ports],
+          ['Cables', 'search-cable', hits.cables],
+        ] as const
+      ).map(
+        ([title, testId, group]) =>
+          group.rows.length > 0 && (
+            <section key={title} className="explore-hits">
+              <h3 className="explore-heading">{title}</h3>
+              {group.rows.map((row) => (
                 <button
-                  className="location-name"
-                  aria-label={
-                    physical
-                      ? `Open ${node.name} in Physical`
-                      : `Highlight ${node.name} on the map`
-                  }
-                  title={physical ? 'Open in Physical' : 'Highlight on the map'}
-                  onClick={() =>
-                    physical
-                      ? onOpenPlace({ nodeId: node.id })
-                      : onHighlight({ kind: 'node', id: node.id })
-                  }
+                  key={row.id}
+                  className="search-hit"
+                  data-testid={testId}
+                  data-id={row.id}
+                  onClick={() => onChooseHit(row.openEndpointId)}
                 >
-                  {node.name}
-                  {!physical && (
-                    <Highlighter
-                      size={13}
-                      className="location-icon"
-                      aria-hidden
-                    />
-                  )}
+                  <span className="dot" />
+                  {row.label}
                 </button>
-              </h4>
-              {racks.map(({ rack, equipment }) => (
-                <section className="tree-rack" key={rack.id}>
-                  <button
-                    className="rack-link"
-                    onClick={() => onOpenRack(rack.id)}
-                  >
-                    <Server size={15} />
-                    {rack.name}
-                    <small>{rack.units}U ↗</small>
-                  </button>
-                  {equipment.map((e) => (
-                    <button
-                      className={`tree-equipment ${selected === e.id ? 'active' : ''}`}
-                      draggable={canEdit}
-                      onDragStart={(event) => {
-                        event.dataTransfer.setData(
-                          'application/x-nettop-item',
-                          `equipment:${e.id}`,
-                        )
-                        event.dataTransfer.effectAllowed = 'copyMove'
-                      }}
-                      key={e.id}
-                      onClick={() => onChoose(e.id)}
-                    >
-                      <span className="dot" />
-                      {e.name}
-                      <small>U{e.unit}</small>
-                    </button>
-                  ))}
-                </section>
               ))}
+              {group.more > 0 && (
+                <p className="muted">{group.more} more · refine the search.</p>
+              )}
             </section>
-          ))}
-        </section>
-      ))}
-      {search.trim() && tree.length === 0 && (
-        <p className="muted">No equipment matches.</p>
+          ),
       )}
+      {search.trim() &&
+        tree.length === 0 &&
+        hits.ports.rows.length === 0 &&
+        hits.cables.rows.length === 0 && (
+          <p className="muted">No equipment matches.</p>
+        )}
     </>
   )
 }
+
+interface TreeHandlers {
+  onChoose: (id: string) => void
+  onOpenRack: (id: string) => void
+  onHighlight: (location: LocationRef) => void
+  onOpenPlace: (target: { siteId?: string; nodeId?: string }) => void
+}
+
+/**
+ * Explorer's site → node → rack → equipment tree. Typing in the search box
+ * re-renders the Explorer, not this: a campus has 1,500 rows. The handlers are
+ * read when clicked, so they are never stale.
+ */
+const ExplorerTree = memo(
+  function ExplorerTree({
+    tree,
+    selected,
+    physical,
+    canEdit,
+    handlers,
+  }: {
+    tree: ReturnType<typeof filterTree>
+    selected: string
+    physical: boolean
+    canEdit: boolean
+    handlers: { current: TreeHandlers }
+  }) {
+    const { onChoose, onOpenRack, onHighlight, onOpenPlace } = {
+      onChoose: (id: string) => handlers.current.onChoose(id),
+      onOpenRack: (id: string) => handlers.current.onOpenRack(id),
+      onHighlight: (l: LocationRef) => handlers.current.onHighlight(l),
+      onOpenPlace: (t: { siteId?: string; nodeId?: string }) =>
+        handlers.current.onOpenPlace(t),
+    }
+    return (
+      <>
+        {tree.map(({ site, nodes }) => (
+          <section key={site.id} className="explorer-site">
+            <h3>
+              <MapPin size={16} />
+              <button
+                className="location-name"
+                aria-label={
+                  physical
+                    ? `Open ${site.name} in Physical`
+                    : `Highlight ${site.name} on the map`
+                }
+                title={physical ? 'Open in Physical' : 'Highlight on the map'}
+                onClick={() =>
+                  physical
+                    ? onOpenPlace({ siteId: site.id })
+                    : onHighlight({ kind: 'site', id: site.id })
+                }
+              >
+                {site.name}
+                {!physical && (
+                  <Highlighter
+                    size={13}
+                    className="location-icon"
+                    aria-hidden
+                  />
+                )}
+              </button>
+            </h3>
+            {nodes.map(({ node, racks }) => (
+              <section key={node.id} className="explorer-node">
+                <h4>
+                  <Building2 size={15} />
+                  <button
+                    className="location-name"
+                    aria-label={
+                      physical
+                        ? `Open ${node.name} in Physical`
+                        : `Highlight ${node.name} on the map`
+                    }
+                    title={
+                      physical ? 'Open in Physical' : 'Highlight on the map'
+                    }
+                    onClick={() =>
+                      physical
+                        ? onOpenPlace({ nodeId: node.id })
+                        : onHighlight({ kind: 'node', id: node.id })
+                    }
+                  >
+                    {node.name}
+                    {!physical && (
+                      <Highlighter
+                        size={13}
+                        className="location-icon"
+                        aria-hidden
+                      />
+                    )}
+                  </button>
+                </h4>
+                {racks.map(({ rack, equipment }) => (
+                  <section className="tree-rack" key={rack.id}>
+                    <button
+                      className="rack-link"
+                      onClick={() => onOpenRack(rack.id)}
+                    >
+                      <Server size={15} />
+                      {rack.name}
+                      <small>{rack.units}U ↗</small>
+                    </button>
+                    {equipment.map((e) => (
+                      <button
+                        className={`tree-equipment ${selected === e.id ? 'active' : ''}`}
+                        draggable={canEdit}
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData(
+                            'application/x-nettop-item',
+                            `equipment:${e.id}`,
+                          )
+                          event.dataTransfer.effectAllowed = 'copyMove'
+                        }}
+                        key={e.id}
+                        onClick={() => onChoose(e.id)}
+                      >
+                        <span className="dot" />
+                        {e.name}
+                        <small>U{e.unit}</small>
+                      </button>
+                    ))}
+                  </section>
+                ))}
+              </section>
+            ))}
+          </section>
+        ))}
+      </>
+    )
+  },
+  (a, b) =>
+    a.tree === b.tree &&
+    a.selected === b.selected &&
+    a.physical === b.physical &&
+    a.canEdit === b.canEdit,
+)

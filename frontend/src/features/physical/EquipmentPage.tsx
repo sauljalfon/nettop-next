@@ -3,10 +3,17 @@ import type { Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import EndpointDetail from './EndpointDetail'
 import type { ElevationRow } from './elevation'
-import { detailModel, faceMeta, type Face } from './equipmentModel'
+import {
+  connectionChain,
+  detailModel,
+  endpointTooltip,
+  faceMeta,
+  type Face,
+} from './equipmentModel'
 import FaceView from './FaceView'
 import type { Inventory } from './inventory'
 import type { PhysicalLocation } from './location'
+import type { RouteMarks } from './inventory'
 import RackStrip from './RackStrip'
 
 /**
@@ -27,6 +34,9 @@ export default function EquipmentPage({
   onGoToPeer,
   onFind,
   onShowOnMap,
+  onPrint,
+  marks,
+  routeName,
 }: {
   snapshot: Snapshot
   index: SnapshotIndex
@@ -41,6 +51,10 @@ export default function EquipmentPage({
   onGoToPeer: (endpointId: string) => void
   onFind: (endpointId: string) => void
   onShowOnMap: (equipmentId: string) => void
+  onPrint: () => void
+  /** The selected route's marks and its destination's name. */
+  marks: RouteMarks
+  routeName?: string
 }) {
   const equipment = index.equipment.get(location.equipmentId ?? '')
   const detail = useMemo(
@@ -49,6 +63,13 @@ export default function EquipmentPage({
         ? detailModel(index, snapshot.networks, location.endpointId)
         : undefined,
     [index, snapshot.networks, location.endpointId],
+  )
+  const chain = useMemo(
+    () =>
+      location.endpointId
+        ? connectionChain(index, snapshot.networks, location.endpointId, marks)
+        : [],
+    [index, snapshot.networks, location.endpointId, marks],
   )
   if (!equipment) return null
   const side = face.kind === 'switch' ? undefined : (location.side ?? 'front')
@@ -81,11 +102,20 @@ export default function EquipmentPage({
         meta={meta}
         networks={snapshot.networks}
         colors={colors}
+        tooltip={(cell, ordinal) =>
+          endpointTooltip(index, equipment, cell, ordinal, side)
+        }
         onSelect={onSelectEndpoint}
         onSide={onSide}
+        onPrint={onPrint}
       />
       <EndpointDetail
         model={detail}
+        chain={chain}
+        routeName={routeName}
+        networkColor={
+          detail?.networkId ? colors.get(detail.networkId) : undefined
+        }
         onGoToPeer={onGoToPeer}
         onSwitch={onSelectEndpoint}
         onFind={onFind}

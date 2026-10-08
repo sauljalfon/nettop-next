@@ -1,5 +1,6 @@
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import type { RouteMarks } from './inventory'
+import type { NodeGraph } from './layout'
 
 /** One line between two nodes of a site: the real cables whose ends are in them. */
 export interface NodePair {
@@ -87,4 +88,26 @@ export function nodeConnections(
     if (pair.perNetwork.size === 1 && only) pair.networkId = only
   }
   return { pairs: [...pairs.values()], byNode }
+}
+
+/**
+ * What the layered default arrangement reads about a site: which nodes hold
+ * active access equipment or AGG/BB (explicit roles, never names), and which
+ * node pairs are cabled. Built from the site's connection summary.
+ */
+export function nodeGraph(
+  index: SnapshotIndex,
+  siteId: string,
+  connections: SiteConnections,
+): NodeGraph {
+  const roles = new Map<string, { access: boolean; distribution: boolean }>()
+  for (const e of index.equipment.values()) {
+    const place = index.places.get(e.id)
+    if (!place?.nodeId || place.siteId !== siteId) continue
+    const r = roles.get(place.nodeId) ?? { access: false, distribution: false }
+    if (e.role === 'access') r.access = true
+    if (e.role === 'aggregation' || e.role === 'backbone') r.distribution = true
+    roles.set(place.nodeId, r)
+  }
+  return { roles, pairs: connections.pairs.map((p) => p.nodeIds) }
 }

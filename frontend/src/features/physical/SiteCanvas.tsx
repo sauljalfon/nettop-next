@@ -33,7 +33,7 @@ import { visibleArea } from '../map/viewArea'
 import { colorOf, networkColors } from '../map/networkColors'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import CableList from './CableList'
-import { nodeConnections } from './connections'
+import { nodeConnections, nodeGraph } from './connections'
 import {
   allProposed,
   cableRows,
@@ -55,6 +55,8 @@ import { plural } from './text'
 const TEAL = '#108b79'
 const MIXED = '#8a97ab'
 const FIT = { padding: 40, minZoom: 0.1, maxZoom: 1 }
+/** More than 12 nodes: cards stay readable (zoom 0.6 at least); the rest is panned or scrolled to. */
+const FIT_MANY = { ...FIT, minZoom: 0.6, anchor: 'top' as const }
 
 interface CardData extends Record<string, unknown> {
   name: string
@@ -331,9 +333,13 @@ function Canvas({
   )
   // Snapshot- and site-only work; the route is applied on top of it.
   const conn = useMemo(() => nodeConnections(index, siteId), [index, siteId])
+  const graph = useMemo(
+    () => nodeGraph(index, siteId, conn),
+    [index, siteId, conn],
+  )
   const target = useMemo(
-    () => nodePositions(nodesOfSite, saved),
-    [nodesOfSite, saved],
+    () => nodePositions(nodesOfSite, saved, graph),
+    [nodesOfSite, saved, graph],
   )
   const [list, setList] = useState<{
     label: string
@@ -553,7 +559,14 @@ function Canvas({
           height: Math.max(...ys) - Math.min(...ys),
         }
         void flow
-          .setViewport(fitViewport(bounds, where.box, where.covers, FIT))
+          .setViewport(
+            fitViewport(
+              bounds,
+              where.box,
+              where.covers,
+              cards.length > 12 ? FIT_MANY : FIT,
+            ),
+          )
           .then(() => {
             session.markFitted(siteId)
             record()

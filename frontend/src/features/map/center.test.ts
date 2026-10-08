@@ -215,6 +215,32 @@ describe('POL-14 fitting the view to some cards, in the visible area', () => {
   })
 })
 
+describe('PHY-13 a readable floor keeps the top of tall bounds in view', () => {
+  const size = { width: 1440, height: 900 }
+  const none = { left: 0, right: 0, top: 0, bottom: 0 }
+  const tall = { x: 100, y: 50, width: 1200, height: 9000 }
+
+  it('floors the zoom and, with anchor top, starts at the top of the bounds instead of their middle', () => {
+    const v = fitViewport(tall, size, none, {
+      padding: 40,
+      minZoom: 0.6,
+      anchor: 'top',
+    })
+    expect(v.zoom).toBe(0.6)
+    expect(v.y + 50 * v.zoom).toBeCloseTo(40) // the top edge sits at the padding
+    expect(v.x + (100 + 600) * v.zoom).toBeCloseTo(720) // still centered across
+  })
+
+  it('centers as before when the zoom is not floored, or with no anchor', () => {
+    const small = { x: 0, y: 0, width: 800, height: 400 }
+    const a = fitViewport(small, size, none, { anchor: 'top', minZoom: 0.6 })
+    const b = fitViewport(small, size, none, { minZoom: 0.6 })
+    expect(a).toEqual(b)
+    const c = fitViewport(tall, size, none, { minZoom: 0.6 })
+    expect(c.y + (50 + 4500) * 0.6).toBeCloseTo(450)
+  })
+})
+
 describe('POL-31 the tool rail covers the canvas edge too', () => {
   const rail = rect(17, 156, 82, 423) // the rail: short, at the far left
 

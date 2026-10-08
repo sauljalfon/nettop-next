@@ -35,6 +35,7 @@ import type { Route, Snapshot } from '../../shared/types'
 import { facetStart } from './facets'
 import NetworkBadge from './NetworkBadge'
 import { projectMap, type MapCardData, type MapFlowEdge } from './mapGraph'
+import { sameCardData, sameEdge } from './reuse'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession, type Viewport } from './mapSession'
 import { ClearHighlight, ResetLayout } from './MapControls'
@@ -68,9 +69,14 @@ const EquipmentCard = memo(function EquipmentCard({
   const { onPort } = useContext(Actions)
   // A route change can swap facets without changing the card's size, so the
   // size observer never fires; tell React Flow to re-read this card's handles.
+  // Not on mount: React Flow measures a new card itself, in one batch with the
+  // others. One call per card made a 1,500-card map re-render 1,500 times.
   const updateNodeInternals = useUpdateNodeInternals()
   const handles = data.facets.flatMap((f) => f.endpointIds).join('|')
+  const measuredHandles = useRef(handles)
   useEffect(() => {
+    if (measuredHandles.current === handles) return
+    measuredHandles.current = handles
     updateNodeInternals(id)
   }, [id, handles, updateNodeInternals])
   const { equipment: e, summary } = data
@@ -503,7 +509,25 @@ function Canvas({
       layoutVersion,
     ],
   )
-  const edges = useMemo(() => graph.edges.map(flowEdge), [graph.edges])
+  // A line the projection draws the same as before stays the same object, so a
+  // route change redraws only the lines it touches.
+  const edgeCache = useRef(
+    new Map<string, { source: MapFlowEdge; out: Edge }>(),
+  )
+  const edges = useMemo(() => {
+    const next = new Map<string, { source: MapFlowEdge; out: Edge }>()
+    const out = graph.edges.map((e) => {
+      const prior = edgeCache.current.get(e.id)
+      const entry =
+        prior && sameEdge(prior.source, e)
+          ? prior
+          : { source: e, out: flowEdge(e) }
+      next.set(e.id, entry)
+      return entry.out
+    })
+    edgeCache.current = next
+    return out
+  }, [graph.edges])
   const cableCount = useMemo(
     () => graph.edges.reduce((n, e) => n + e.data.linkIds.length, 0),
     [graph.edges],
@@ -532,11 +556,19 @@ function Canvas({
       const existing = new Map(previous.map((n) => [n.id, n]))
       return graph.nodes.map((n) => {
         const prior = existing.get(n.id)
-        return {
-          ...n,
-          position: reconciledPosition(prior?.position, n.position, reset),
-          measured: prior?.measured,
-        }
+        const position = reconciledPosition(prior?.position, n.position, reset)
+        // A card drawn the same as before stays the same object: a route change
+        // then re-renders only the cards it touches.
+        if (
+          prior &&
+          prior.position.x === position.x &&
+          prior.position.y === position.y &&
+          prior.type === 'equipment' &&
+          n.type === 'equipment' &&
+          sameCardData(prior.data, n.data)
+        )
+          return prior
+        return { ...n, position, measured: prior?.measured }
       })
     })
     if (switched && !active) {
@@ -580,18 +612,26 @@ function Canvas({
       }),
     [],
   )
+  const decorated = useRef(
+    new WeakMap<MapNode, { selected: boolean; out: MapNode }>(),
+  )
   const rendered = useMemo(() => {
-    const cards: MapNode[] = nodes.map((n) => ({
-      ...n,
-      selected: n.id === selected,
-      zIndex:
-        n.type === 'equipment'
-          ? stackIndex({
-              selected: n.id === selected,
-              facets: n.data.facets.length,
-            })
-          : undefined,
-    }))
+    // Selecting a card, or any change to one, leaves the other cards' objects alone.
+    const cards: MapNode[] = nodes.map((n) => {
+      const isSelected = n.id === selected
+      const kept = decorated.current.get(n)
+      if (kept && kept.selected === isSelected) return kept.out
+      const out: MapNode = {
+        ...n,
+        selected: isSelected,
+        zIndex:
+          n.type === 'equipment'
+            ? stackIndex({ selected: isSelected, facets: n.data.facets.length })
+            : undefined,
+      }
+      decorated.current.set(n, { selected: isSelected, out })
+      return out
+    })
     if (preview?.position && !preview.rackId)
       cards.push({
         id: 'unsaved-preview',

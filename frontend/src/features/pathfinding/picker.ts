@@ -63,6 +63,12 @@ export function matchPicker(
   limit = MAX_MATCHES,
 ): { matches: PickerItem[]; more: number } {
   const tokens = words(query)
+  // Nothing to match: the list's own order, without scoring every item.
+  if (tokens.length === 0)
+    return {
+      matches: items.slice(0, limit),
+      more: Math.max(0, items.length - limit),
+    }
   const scored: { item: PickerItem; score: number; at: number }[] = []
   items.forEach((item, at) => {
     const text = item.search.toLowerCase()

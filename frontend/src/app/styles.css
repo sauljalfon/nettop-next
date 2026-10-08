@@ -267,9 +267,12 @@ button:hover:not(:disabled) {
   color: #6d7b90;
   font-weight: 500;
 }
-.react-flow__controls {
+.react-flow__controls,
+.react-flow__controls.react-flow__panel {
+  /* React Flow's own panel rule sets left too; without this the box stretches across the canvas. */
   left: auto;
   right: 22px;
+  width: 33px;
   bottom: 17px;
   border: 1px solid #d9e1eb;
   box-shadow: 0 3px 13px #273b5b0b;
@@ -537,7 +540,8 @@ button:hover:not(:disabled) {
   font-size: 10px;
   color: #98a5b8;
 }
-.tree-equipment {
+.tree-equipment,
+.search-hit {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -549,7 +553,8 @@ button:hover:not(:disabled) {
   text-align: left;
   font-size: 13px;
 }
-.tree-equipment small {
+.tree-equipment small,
+.search-hit small {
   margin-left: auto;
   font-size: 10px;
   color: #92a0b4;
@@ -983,4 +988,19 @@ button:hover:not(:disabled) {
   text-decoration: underline;
   text-decoration-color: #e09a00;
   text-underline-offset: 3px;
+}
+.explore-hits {
+  margin-top: 14px;
+}
+.explore-heading {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 1.2px;
+  color: #8390a4;
+  text-transform: uppercase;
+}
+.search-hit {
+  align-items: flex-start;
+  text-align: left;
 }

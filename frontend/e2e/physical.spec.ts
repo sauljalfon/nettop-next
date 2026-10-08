@@ -602,3 +602,20 @@ test('the site canvas stays hidden until its fit is done, and says so on the roo
   await expect(note).toContainText('Lines are cables between nodes')
   await expect(page.locator('.site-caption')).toHaveCount(0)
 })
+
+test('the zoom controls are a compact box on the map and on a site screen, with no strip behind them', async ({
+  page,
+}) => {
+  const controls = page.locator('.react-flow__controls')
+  const compact = async () => {
+    const box = (await controls.boundingBox())!
+    expect(box.width).toBeLessThan(60)
+    expect(box.height).toBeLessThan(140)
+  }
+  await page.goto('/')
+  await fitted(page)
+  await compact()
+  await physical(page).click()
+  await openMainCampus(page)
+  await compact()
+})

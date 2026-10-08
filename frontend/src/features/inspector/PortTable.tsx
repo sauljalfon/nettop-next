@@ -6,7 +6,7 @@ import {
   PinOff,
   Server,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import NetworkBadge from '../map/NetworkBadge'
 import {
   defaultFilter,
@@ -30,6 +30,8 @@ interface Props {
   onFindFromHere: (endpointId: string) => void
   onShowInPhysical: (endpointId: string) => void
   onPin: (key: string) => void
+  /** A search from Explore: fills the search with a label (and shows every endpoint) each time `serial` changes. */
+  request?: { query: string; serial: number }
 }
 
 const FILTERS: { mode: EndpointFilter; label: string }[] = [
@@ -54,10 +56,20 @@ export default function PortTable({
   onFindFromHere,
   onShowInPhysical,
   onPin,
+  request,
 }: Props) {
   const total = unitCount(groups)
-  const [mode, setMode] = useState<EndpointFilter>(() => defaultFilter(total))
-  const [query, setQuery] = useState('')
+  const [mode, setMode] = useState<EndpointFilter>(() =>
+    request ? 'all' : defaultFilter(total),
+  )
+  const [query, setQuery] = useState(request?.query ?? '')
+  useEffect(() => {
+    if (!request) return
+    setQuery(request.query)
+    setMode('all')
+    // Only a new request changes the search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request?.serial])
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = useState<string>()
   const shown = filterGroups(groups, { mode, query })

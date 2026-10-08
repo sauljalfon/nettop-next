@@ -1,10 +1,9 @@
 import { Search } from 'lucide-react'
 import { colorOf } from '../map/networkColors'
 import { DRAG_TYPE, dropInto, type DropHandlers } from './drops'
+import { previewUnitPx } from './cabinet'
 import type { RackPreview } from './explorerModel'
 import { plural } from './text'
-
-const UNIT_PX = 11
 
 /** The Node level: only the node's own racks, each a scaled elevation. */
 export default function NodeLevel({
@@ -92,7 +91,7 @@ export default function NodeLevel({
               tabIndex={0}
               className="mini-rack"
               aria-label={`Open ${rack.name}`}
-              style={{ height: rack.units * UNIT_PX + 8 }}
+              style={{ height: rack.units * previewUnitPx(rack.units) + 8 }}
               onClick={() => onOpen(rack.rackId)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -106,6 +105,7 @@ export default function NodeLevel({
                   key={b.equipmentId}
                   className={`mini-block ${b.onRoute ? 'on-route' : ''} ${b.muted ? 'muted' : ''} ${b.proposed ? 'proposed' : ''}`}
                   data-equipment-id={b.equipmentId}
+                  data-kind={b.kind}
                   data-height={b.height}
                   data-muted={b.muted}
                   data-on-route={b.onRoute}
@@ -124,8 +124,10 @@ export default function NodeLevel({
                   }}
                   title={`${b.name} · ${b.height}U · U${b.unit}${b.proposed ? ' · PROPOSED' : ''}`}
                   style={{
-                    bottom: 4 + (b.unit - 1) * UNIT_PX,
-                    height: b.height * UNIT_PX - 1,
+                    bottom: 4 + (b.unit - 1) * previewUnitPx(rack.units),
+                    height: b.height * previewUnitPx(rack.units) - 1,
+                    // Too small to read: the tooltip has the name.
+                    fontSize: previewUnitPx(rack.units) < 9 ? 0 : undefined,
                     borderLeftColor: b.networkId
                       ? colorOf(colors, b.networkId)
                       : '#7d8aa0',

@@ -7,6 +7,8 @@ export const NODE_WIDTH = 250
 export const NODE_HEIGHT = 210
 const GAP = 40
 const COLUMNS = 3
+/** Space between the columns of the layered layout, where the lines run. */
+const COLUMN_GAP = 200
 /** Up to this many unsaved nodes go on a ring; more go in a grid. */
 const MAX_RING = 12
 
@@ -95,11 +97,130 @@ function ringRadius(n: number): number {
   return r
 }
 
+/** What the layered default arrangement needs to know about a site's nodes. */
+export interface NodeGraph {
+  /** Per node: active access equipment, or AGG/BB equipment (explicit roles, never names). */
+  roles: ReadonlyMap<string, { access: boolean; distribution: boolean }>
+  /** Pairs of nodes joined by at least one cable. */
+  pairs: readonly (readonly [string, string])[]
+}
+
+/**
+ * Columns by cable distance, left to right: nodes with access equipment (and no
+ * AGG/BB); nodes reached only through passive corridors, one column per step of
+ * distance from an access node; nodes holding AGG/BB last. Within a column the
+ * order follows the average position of the cabled neighbors in the adjacent
+ * columns (a few sweeps, like features/map/layout.ts), then the name. Returns
+ * undefined when no cable joins two of the nodes: there is nothing to layer.
+ * Positions are relative to the top-left of the first card.
+ */
+function layeredLayout(
+  unsaved: readonly { id: string; name: string }[],
+  graph: NodeGraph,
+): Map<string, Position> | undefined {
+  const ids = new Set(unsaved.map((n) => n.id))
+  const neighbors = new Map<string, Set<string>>(
+    unsaved.map((n) => [n.id, new Set()]),
+  )
+  let cabled = 0
+  for (const [a, b] of graph.pairs) {
+    if (!ids.has(a) || !ids.has(b) || a === b) continue
+    neighbors.get(a)!.add(b)
+    neighbors.get(b)!.add(a)
+    cabled++
+  }
+  if (cabled === 0) return undefined
+
+  const role = (id: string) => graph.roles.get(id)
+  const column = new Map<string, number>()
+  const others: string[] = []
+  for (const n of unsaved) {
+    const r = role(n.id)
+    if (r?.distribution) continue
+    if (r?.access) column.set(n.id, 0)
+    else others.push(n.id)
+  }
+  // Distance through passive corridors from the access nodes.
+  for (let frontier = [...column.keys()]; frontier.length;) {
+    const next: string[] = []
+    for (const id of frontier)
+      for (const m of neighbors.get(id)!)
+        if (!column.has(m) && !role(m)?.distribution && !role(m)?.access) {
+          column.set(m, column.get(id)! + 1)
+          next.push(m)
+        }
+    frontier = next
+  }
+  // Corridors no access node reaches sit in the first corridor column.
+  for (const id of others) if (!column.has(id)) column.set(id, 1)
+  const last = Math.max(0, ...column.values()) + 1
+  for (const n of unsaved) if (role(n.id)?.distribution) column.set(n.id, last)
+
+  const columns: string[][] = Array.from({ length: last + 1 }, () => [])
+  const byName = [...unsaved] // already sorted by name, then ID
+  for (const n of byName) columns[column.get(n.id)!].push(n.id)
+  const nameOrder = new Map(byName.map((n, i) => [n.id, i]))
+
+  const rowOf = new Map<string, number>()
+  const place = () =>
+    columns.forEach((c) => c.forEach((id, i) => rowOf.set(id, i)))
+  place()
+  const sweep = (c: number, from: number) => {
+    const key = (id: string) => {
+      const rows = [...neighbors.get(id)!]
+        .filter((m) => column.get(m) === from)
+        .map((m) => rowOf.get(m)!)
+      return rows.length
+        ? rows.reduce((x, y) => x + y, 0) / rows.length
+        : rowOf.get(id)!
+    }
+    columns[c].sort(
+      (a, b) => key(a) - key(b) || nameOrder.get(a)! - nameOrder.get(b)!,
+    )
+    columns[c].forEach((id, i) => rowOf.set(id, i))
+  }
+  for (let round = 0; round < 4; round++) {
+    for (let c = columns.length - 2; c >= 0; c--) sweep(c, c + 1)
+    for (let c = 1; c < columns.length; c++) sweep(c, c - 1)
+  }
+
+  // Column 0 in rows; the others beside the average height of their neighbors in the previous column.
+  const pitch = NODE_HEIGHT + GAP
+  const y = new Map<string, number>()
+  columns[0].forEach((id, i) => y.set(id, i * pitch))
+  for (let c = 1; c < columns.length; c++) {
+    let floor = -Infinity
+    for (const id of columns[c]) {
+      const ys = [...neighbors.get(id)!]
+        .filter((m) => column.get(m) === c - 1)
+        .map((m) => y.get(m)!)
+      const wanted = ys.length
+        ? ys.reduce((a, b) => a + b, 0) / ys.length
+        : Math.max(floor, 0)
+      const at = Math.max(wanted, floor)
+      y.set(id, at)
+      floor = at + pitch
+    }
+  }
+  // Drop the whole arrangement so its top is at 0.
+  const top = Math.min(...y.values())
+  return new Map(
+    unsaved.map((n) => [
+      n.id,
+      {
+        x: column.get(n.id)! * (NODE_WIDTH + COLUMN_GAP),
+        y: y.get(n.id)! - top,
+      },
+    ]),
+  )
+}
+
 /**
  * Deterministic default arrangement for nodes without a saved position. Up to
  * 12 go on a ring in name order, starting at the top and going clockwise, with
  * a radius large enough that cards never overlap and no line between two nodes
- * runs under a third; more than 12 go in a grid by name. Either way they sit
+ * runs under a third; more than 12 go in columns by cable distance (`graph`),
+ * or in a grid by name when no cable joins them. Either way they sit
  * clear of every saved node: below the lowest one, centered on the saved ones
  * (or on the origin when none is saved). Returns positions only for the unsaved
  * nodes; saved ones are never recomputed.
@@ -107,6 +228,7 @@ function ringRadius(n: number): number {
 export function defaultNodeLayout(
   nodes: readonly { id: string; name: string }[],
   saved: ReadonlyMap<string, Position>,
+  graph?: NodeGraph,
 ): Map<string, Position> {
   const unsaved = nodes
     .filter((n) => !saved.has(n.id))
@@ -129,6 +251,17 @@ export function defaultNodeLayout(
   }
 
   if (unsaved.length > MAX_RING) {
+    const layered = graph && layeredLayout(unsaved, graph)
+    if (layered) {
+      // Columns, centered on the saved nodes (or starting at the origin) and below them.
+      const width =
+        Math.max(...[...layered.values()].map((p) => p.x)) + NODE_WIDTH
+      const dx = saved.size > 0 ? centerX - width / 2 : 0
+      const dy = saved.size > 0 ? top : 0
+      return new Map(
+        [...layered].map(([id, p]) => [id, { x: p.x + dx, y: p.y + dy }]),
+      )
+    }
     const x0 =
       saved.size > 0 ? centerX - (COLUMNS * (NODE_WIDTH + GAP) - GAP) / 2 : 0
     const y0 = saved.size > 0 ? top : 0

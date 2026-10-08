@@ -6,6 +6,7 @@ import {
   useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
+  useEffect,
 } from 'react'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Equipment, Snapshot } from '../../shared/types'
@@ -42,6 +43,8 @@ interface Props {
   /** Highlight the site or node on the map. */
   onHighlight: (location: LocationRef) => void
   onOpenRack: (rackId: string) => void
+  /** A port chosen in Explore: opens the Ports/Positions tab with its search filled. */
+  searchRequest?: { equipmentId: string; query: string; serial: number }
   /** The plan placement form, shown on the Overview tab when a plan is open. */
   children?: ReactNode
 }
@@ -65,9 +68,17 @@ export default function Inspector({
   onShowInPhysical,
   onHighlight,
   onOpenRack,
+  searchRequest,
   children,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('overview')
+  const forMe =
+    searchRequest?.equipmentId === equipment.id ? searchRequest : undefined
+  const [tab, setTab] = useState<Tab>(forMe ? 'ports' : 'overview')
+  useEffect(() => {
+    if (forMe) setTab('ports')
+    // Only a new request switches the tab.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forMe?.serial])
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({})
   // WAI-ARIA tabs: only the selected tab is in the tab order; arrows move and select.
   const onTabKey = (event: KeyboardEvent) => {
@@ -250,6 +261,7 @@ export default function Inspector({
               onShowInPhysical(equipment.id, endpointId)
             }
             onPin={(key) => session.toggleManual(equipment.id, key)}
+            request={forMe}
           />
         )}
       </div>

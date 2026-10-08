@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from 'react'
+import { useDebounced } from '../../shared/lazy'
 import { matchPicker, type PickerItem } from './picker'
 import './picker.css'
 
@@ -33,10 +34,17 @@ export default function TracePicker({
     () => items.find((i) => i.value === value),
     [items, value],
   )
-  const { matches, more } = useMemo(
-    () => matchPicker(items, query ?? ''),
-    [items, query],
+  // The list follows the typing about 150 ms behind; a key pressed in between acts on the current text.
+  const settled = useDebounced(query)
+  const { matches: listed, more } = useMemo(
+    () => matchPicker(items, settled ?? ''),
+    [items, settled],
   )
+  // While the list is catching up with the typing it shows nothing, so a click never lands on a stale row.
+  const pending = settled !== query
+  const matches = pending ? [] : listed
+  const current = () =>
+    settled === query ? listed : matchPicker(items, query ?? '').matches
   const close = () => {
     setOpen(false)
     setQuery(null)
@@ -74,15 +82,15 @@ export default function TracePicker({
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
             setOpen(true)
-            const n = matches.length
+            const n = current().length
             setActive(
               n === 0
                 ? 0
                 : (active + (event.key === 'ArrowDown' ? 1 : -1) + n) % n,
             )
-          } else if (event.key === 'Enter' && open && matches[active]) {
+          } else if (event.key === 'Enter' && open && current()[active]) {
             event.preventDefault()
-            choose(matches[active])
+            choose(current()[active])
           } else if (event.key === 'Escape' && open) {
             event.preventDefault()
             close()
@@ -109,8 +117,10 @@ export default function TracePicker({
               </li>
             ))}
           </ul>
-          {matches.length === 0 && <p className="picker-note">No match.</p>}
-          {more > 0 && (
+          {!pending && matches.length === 0 && (
+            <p className="picker-note">No match.</p>
+          )}
+          {!pending && more > 0 && (
             <p className="picker-note">
               {more} more match{more === 1 ? '' : 'es'}: refine the search.
             </p>
