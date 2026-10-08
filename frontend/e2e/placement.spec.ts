@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { openRackInPhysical, expandResults } from './helpers'
 
 test('rack drops, persisted moves, collisions, and tracing through the rack view', async ({
   page,
@@ -13,7 +14,7 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   )
   const id = await page.getByLabel('Saved plan').inputValue()
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
-  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   await page
     .locator('.library-item')
@@ -30,24 +31,28 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   await expect(page.getByTestId('rack-slot-rack-a03-4')).toContainText(
     'DRAG-EDGE',
   )
-  await page
-    .getByTestId('rack-slot-rack-a03-4')
-    .locator('.rack-device-name')
-    .dragTo(page.getByTestId('rack-slot-rack-dr02-3'))
-  await expect(page.getByTestId('rack-slot-rack-dr02-3')).toContainText(
+  // A rack shows one rack at a time, so moves to other nodes use the placement
+  // form in the inspector (the same command a drag sends).
+  const moveWithForm = async (from: string, rack: string, unit: string) => {
+    await page.getByTestId(from).locator('.rack-block').click() // opens its page
+    if ((await page.locator('aside.studio-drawer').count()) === 0)
+      await page.getByRole('button', { name: 'Open inspector' }).click()
+    await page.getByLabel('Placement rack').selectOption(rack)
+    await page.getByLabel('Placement unit', { exact: true }).fill(unit)
+    await page
+      .getByRole('button', { name: 'Save planned placement', exact: true })
+      .click()
+    // Selecting opened the equipment page; Back returns to the rack.
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+  }
+  await moveWithForm('rack-slot-rack-a03-4', 'rack-dr02', '3')
+  await expect(page.getByTestId('rack-slot-rack-a03-4')).not.toContainText(
     'DRAG-EDGE',
   )
-  await page
-    .getByTestId('rack-slot-rack-a03-8')
-    .locator('.rack-device-name')
-    .dragTo(page.getByTestId('rack-slot-rack-core-02-4'))
-  await expect(page.getByTestId('rack-slot-rack-core-02-4')).toContainText(
+  await moveWithForm('rack-slot-rack-a03-8', 'rack-core-02', '4')
+  await expect(page.getByTestId('rack-slot-rack-a03-8')).not.toContainText(
     'EDGE-17',
   )
-  await page
-    .getByTestId('rack-slot-rack-core-02-4')
-    .locator('.rack-device-name')
-    .click()
   await page.getByLabel('Placement unit', { exact: true }).fill('8')
   await page
     .getByRole('button', { name: 'Save planned placement', exact: true })
@@ -56,15 +61,27 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   const draft = await (await request.get(`/api/plans/${id}`)).json()
   expect(draft.revision).toBe('4')
+  expect(draft.equipment[0]).toMatchObject({ rackId: 'rack-dr02', unit: 3 })
+  // The collision message is still on screen over the bottom of the page.
+  await page.getByRole('button', { name: 'Dismiss placement error' }).click()
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  await expect(page.getByText(/4 cables · 3 internal bridges/)).toBeVisible()
+  await expandResults(page)
+  await expect(
+    page.getByText(/4 cables · 3 internal bridges/).first(),
+  ).toBeVisible()
   await page.reload()
-  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  await openRackInPhysical(
+    page,
+    'Main Campus',
+    'Main Distribution',
+    'Rack Core 02',
+  )
   await expect(page.getByTestId('rack-slot-rack-core-02-4')).toContainText(
     'EDGE-17',
   )
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
+  await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await expect(page.getByTestId('rack-slot-rack-a03-8')).toContainText(
     'EDGE-17',
   )
@@ -121,7 +138,7 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
   await expect(
     page.locator('.equipment-card').filter({ hasText: 'BOARD-EDGE' }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await expect(page.getByTestId('rack-slot-rack-a03-1')).toContainText(
     'BOARD-EDGE',
   )

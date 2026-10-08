@@ -83,3 +83,39 @@ describe('F04 a 3U HDF is one object spanning U4-U6', () => {
     ).toBe(12)
   })
 })
+
+describe('PHY-07 proposed equipment is marked at rack level', () => {
+  it('marks equipment missing from the installed set, and only that', () => {
+    const installed = new Set(
+      s.equipment.map((e) => e.id).filter((id) => id !== 'AGG-15'),
+    )
+    const rows = rackElevation(inv, 'rack-core-02', { installedIds: installed })
+    const flags = Object.fromEntries(
+      rows.flatMap((r) =>
+        r.kind === 'equipment' ? [[r.equipmentId, r.proposed]] : [],
+      ),
+    )
+    expect(flags).toEqual({ 'AGG-08': false, 'AGG-15': true })
+  })
+
+  it('marks nothing without an installed set', () => {
+    const rows = rackElevation(inv, 'rack-core-02')
+    expect(rows.every((r) => r.kind === 'free' || !r.proposed)).toBe(true)
+  })
+})
+
+describe('PHY-05 other networks are muted, never hidden', () => {
+  it('mutes active devices of another network and keeps every row', () => {
+    const all = rackElevation(inv, 'rack-dr01')
+    const filtered = rackElevation(inv, 'rack-dr01', { networkId: 'A' })
+    expect(filtered).toHaveLength(all.length)
+    const byId = (rows: typeof all, id: string) =>
+      rows.find((r) => r.kind === 'equipment' && r.equipmentId === id)
+    expect(byId(filtered, 'EDGE-22')).toMatchObject({ muted: true })
+    expect(byId(filtered, 'PANEL-DR')).toMatchObject({ muted: false }) // shared, never muted
+    expect(
+      byId(rackElevation(inv, 'rack-dr01', { networkId: 'B' }), 'EDGE-22'),
+    ).toMatchObject({ muted: false })
+    expect(byId(all, 'EDGE-22')).toMatchObject({ muted: false })
+  })
+})

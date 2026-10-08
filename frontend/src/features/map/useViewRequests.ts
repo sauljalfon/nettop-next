@@ -1,16 +1,8 @@
 import { useEffect, useSyncExternalStore, type RefObject } from 'react'
 import { useReactFlow } from '@xyflow/react'
-import {
-  centerTarget,
-  coversFromRects,
-  fitViewport,
-  viewportFor,
-  visibleCenter,
-  withToolRail,
-} from './center'
+import { centerTarget, fitViewport, viewportFor, visibleCenter } from './center'
 import type { MapSession, Viewport } from './mapSession'
-
-const OVERLAYS = '.studio-drawer, .map-results'
+import { visibleArea } from './viewArea'
 
 /**
  * The one place that moves the view on request: center on a card (hop clicks,
@@ -33,22 +25,7 @@ export function useViewRequests(
   const center = useSyncExternalStore(session.subscribe, session.centerRequest)
   const fit = useSyncExternalStore(session.subscribe, session.fitRequest)
 
-  const area = () => {
-    const element = surface.current
-    if (!element) return undefined
-    const box = element.getBoundingClientRect()
-    const covers = withToolRail(
-      coversFromRects(
-        box,
-        [...document.querySelectorAll(OVERLAYS)].map((el) =>
-          el.getBoundingClientRect(),
-        ),
-      ),
-      box,
-      document.querySelector('.tool-rail')?.getBoundingClientRect(),
-    )
-    return { box, covers }
-  }
+  const area = () => visibleArea(surface.current)
   const measured = (id: string) => {
     const node = flow.getInternalNode(id)
     // A box with an explicit size (the route view's outlines) has it before it is drawn.

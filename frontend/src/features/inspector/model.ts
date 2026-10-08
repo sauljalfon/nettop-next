@@ -29,6 +29,11 @@ export interface InspectorUnit {
   networkId: string
   /** Where Find AGG / BB from here starts: the front side, else the rear, else the port. */
   startEndpointId: string
+  /**
+   * The endpoint "Show in Physical" opens: the row's first cabled side, else its
+   * front, else its only endpoint (a port).
+   */
+  physicalEndpointId: string
 }
 
 export interface InspectorGroup {
@@ -80,6 +85,7 @@ export function inspectorGroups(
         cabled: false,
         networkId: '',
         startEndpointId: p.id,
+        physicalEndpointId: p.id,
         subpanel: sub ? `${sub.row}${sub.column}` : undefined,
         position: p.position ?? 0,
       }
@@ -107,6 +113,11 @@ export function inspectorGroups(
   for (const unit of units.values()) {
     unit.sides.sort(bySide)
     unit.startEndpointId = unit.sides[0].endpointId
+    unit.physicalEndpointId = (
+      unit.sides.find((x) => x.cable) ??
+      unit.sides.find((x) => x.side === 'front') ??
+      unit.sides[0]
+    ).endpointId
   }
   const natural = (a: InspectorUnit, b: InspectorUnit) =>
     a.label.localeCompare(b.label, undefined, { numeric: true })

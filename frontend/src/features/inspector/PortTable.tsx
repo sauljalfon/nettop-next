@@ -1,4 +1,11 @@
-import { ChevronDown, ChevronRight, GitFork, Pin, PinOff } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  GitFork,
+  Pin,
+  PinOff,
+  Server,
+} from 'lucide-react'
 import { useState } from 'react'
 import NetworkBadge from '../map/NetworkBadge'
 import {
@@ -21,6 +28,7 @@ interface Props {
   /** Facet keys pinned on the map. */
   pinned: ReadonlySet<string>
   onFindFromHere: (endpointId: string) => void
+  onShowInPhysical: (endpointId: string) => void
   onPin: (key: string) => void
 }
 
@@ -44,6 +52,7 @@ export default function PortTable({
   networkColor,
   pinned,
   onFindFromHere,
+  onShowInPhysical,
   onPin,
 }: Props) {
   const total = unitCount(groups)
@@ -114,6 +123,7 @@ export default function PortTable({
                       selected={selected === unit.key}
                       onSelect={() => setSelected(unit.key)}
                       onFindFromHere={onFindFromHere}
+                      onShowInPhysical={onShowInPhysical}
                       onPin={onPin}
                     />
                   ))}
@@ -168,6 +178,7 @@ function Row({
   selected,
   onSelect,
   onFindFromHere,
+  onShowInPhysical,
   onPin,
 }: {
   unit: InspectorUnit
@@ -178,6 +189,7 @@ function Row({
   selected: boolean
   onSelect: () => void
   onFindFromHere: (endpointId: string) => void
+  onShowInPhysical: (endpointId: string) => void
   onPin: (key: string) => void
 }) {
   const name = `${equipmentName} ${unit.label}`
@@ -250,6 +262,17 @@ function Row({
           }}
         >
           <GitFork size={14} />
+        </button>
+        <button
+          className="row-action"
+          title="Show in Physical"
+          aria-label={`Show in Physical: ${name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            onShowInPhysical(unit.physicalEndpointId)
+          }}
+        >
+          <Server size={14} />
         </button>
         <button
           className={`row-action ${pinned ? 'active' : ''}`}

@@ -188,15 +188,19 @@ test('POL-15 equipment in Explore is selected, opens the inspector and is center
   await expectCenteredInVisibleArea(page, 'bb-01')
   await expectMarks(page, { highlightCards: [], dimmedCards: [] })
 
-  // From the Physical view it brings the map back.
+  // In Physical, Explore follows the view: equipment opens its rack there, and
+  // neither the map nor the inspector is touched.
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
   await expect(page.locator('.flow-surface')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await openExplore(page)
   await page.locator('.tree-equipment').filter({ hasText: 'EDGE-22' }).click()
-  await expect(page.locator('.flow-surface')).toBeVisible()
-  await expect(page.locator('.inspector-header h2')).toHaveText('EDGE-22')
-  await expectCenteredInVisibleArea(page, 'edge-22')
-  await expectMarks(page, { highlightCards: [] })
+  await expect(page.locator('.flow-surface')).toHaveCount(0)
+  await expect(page.locator('.physical-explorer')).toHaveAttribute(
+    'data-location',
+    /rack:rack-dr01/,
+  )
+  await expect(page.getByLabel('Equipment inspector')).toHaveCount(0)
 })
 
 test('POL-16 highlight, route and network filter combine and clear independently', async ({

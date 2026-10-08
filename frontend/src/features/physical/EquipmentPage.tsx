@@ -1,0 +1,96 @@
+import { useMemo } from 'react'
+import type { Snapshot } from '../../shared/types'
+import type { SnapshotIndex } from '../map/snapshotIndex'
+import EndpointDetail from './EndpointDetail'
+import type { ElevationRow } from './elevation'
+import { detailModel, faceMeta, type Face } from './equipmentModel'
+import FaceView from './FaceView'
+import type { Inventory } from './inventory'
+import type { PhysicalLocation } from './location'
+import RackStrip from './RackStrip'
+
+/**
+ * The equipment page: its rack on the left (this equipment marked), the face in
+ * the middle, and the selected endpoint's cable and peer on the right.
+ */
+export default function EquipmentPage({
+  snapshot,
+  index,
+  inv,
+  location,
+  face,
+  rackRows,
+  colors,
+  onOpenEquipment,
+  onSelectEndpoint,
+  onSide,
+  onGoToPeer,
+  onFind,
+  onShowOnMap,
+}: {
+  snapshot: Snapshot
+  index: SnapshotIndex
+  inv: Inventory
+  location: PhysicalLocation
+  face: Face
+  rackRows: ElevationRow[]
+  colors: ReadonlyMap<string, string>
+  onOpenEquipment: (equipmentId: string) => void
+  onSelectEndpoint: (endpointId: string) => void
+  onSide: (side: 'front' | 'rear') => void
+  onGoToPeer: (endpointId: string) => void
+  onFind: (endpointId: string) => void
+  onShowOnMap: (equipmentId: string) => void
+}) {
+  const equipment = index.equipment.get(location.equipmentId ?? '')
+  const detail = useMemo(
+    () =>
+      location.endpointId
+        ? detailModel(index, snapshot.networks, location.endpointId)
+        : undefined,
+    [index, snapshot.networks, location.endpointId],
+  )
+  if (!equipment) return null
+  const side = face.kind === 'switch' ? undefined : (location.side ?? 'front')
+  const meta = faceMeta(equipment, {
+    rows: face.kind === 'hdf' ? face.face.rows : undefined,
+    count:
+      face.kind === 'switch'
+        ? face.rows.reduce((n, r) => n + r.length, 0)
+        : face.kind === 'panel'
+          ? face.face.positions.length
+          : undefined,
+    side,
+    location: index.locations.get(equipment.id) ?? '',
+    networks: snapshot.networks,
+  })
+  return (
+    <div className="equipment-page">
+      <RackStrip
+        inv={inv}
+        rackId={location.rackId ?? ''}
+        name={index.racks.get(location.rackId ?? '')?.name ?? ''}
+        rows={rackRows}
+        colors={colors}
+        onOpen={onOpenEquipment}
+      />
+      <FaceView
+        equipment={equipment}
+        face={face}
+        side={side}
+        meta={meta}
+        networks={snapshot.networks}
+        colors={colors}
+        onSelect={onSelectEndpoint}
+        onSide={onSide}
+      />
+      <EndpointDetail
+        model={detail}
+        onGoToPeer={onGoToPeer}
+        onSwitch={onSelectEndpoint}
+        onFind={onFind}
+        onShowOnMap={() => onShowOnMap(equipment.id)}
+      />
+    </div>
+  )
+}

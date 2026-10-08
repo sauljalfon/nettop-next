@@ -223,3 +223,35 @@ export async function pinFromInspector(
     .click()
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
 }
+
+/**
+ * Opens a rack in Physical from wherever the explorer is: the Physical switch,
+ * the Sites breadcrumb, then site, node and rack. Names are the displayed ones.
+ */
+export async function openRackInPhysical(
+  page: Page,
+  site: string,
+  node: string,
+  rack: string,
+) {
+  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  const sites = page
+    .getByRole('navigation', { name: 'Breadcrumbs' })
+    .getByRole('button', { name: 'Sites', exact: true })
+  if (await sites.count()) await sites.click()
+  await page.getByRole('button', { name: `Open ${site}`, exact: true }).click()
+  await page
+    .getByRole('button', { name: `Open racks of ${node}`, exact: true })
+    .click()
+  await page.getByRole('button', { name: `Open ${rack}`, exact: true }).click()
+}
+
+/** In Physical the results panel opens as one line; open it. Does nothing when it is already open. */
+export async function expandResults(page: Page) {
+  const panel = page.getByLabel('Map trace results')
+  await expect(panel).toBeVisible()
+  // A save toast sits over the bottom of the page for a few seconds; let it go.
+  await expect(page.locator('.save-toast')).toHaveCount(0, { timeout: 10_000 })
+  const expand = panel.getByRole('button', { name: 'Expand results' })
+  if (await expand.count()) await expand.click()
+}

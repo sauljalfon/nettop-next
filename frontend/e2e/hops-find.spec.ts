@@ -5,6 +5,7 @@ import {
   layout,
   settledViewport,
   viewport,
+  expandResults,
 } from './helpers'
 
 const cards = (page: Page) => page.locator('.react-flow__node-equipment')
@@ -22,7 +23,17 @@ async function traceFromEdge17(page: Page) {
   await expect(rows(page)).toHaveCount(3)
 }
 
-test('POL-04 the map overlay lists the same hop rows as TracePanel, in order', async ({
+async function hopTexts(rows: import('@playwright/test').Locator) {
+  return rows.evaluateAll((els) =>
+    els.map((el) => ({
+      title: el.querySelector('small')!.textContent,
+      label: el.querySelector('span')!.textContent,
+      link: el.querySelector('em')?.textContent ?? null,
+    })),
+  )
+}
+
+test('POL-04 the map overlay lists the same hop rows in Physical, in order', async ({
   page,
 }) => {
   await page.goto('/')
@@ -66,30 +77,14 @@ test('POL-04 the map overlay lists the same hop rows as TracePanel, in order', a
   await expect(hops).toHaveCount(8)
   await expect(hops.nth(1)).toContainText('cable-a05')
 
-  // The Physical view's results drawer (TracePanel) shows the same rows.
+  // The Physical view uses the same overlay and shows the same rows.
   await rows(page).nth(0).click()
-  const mapRows = await hops.evaluateAll((els) =>
-    els.map((el) => ({
-      title: el.querySelector('small')!.textContent,
-      label: el.querySelector('span')!.textContent,
-      link: el.querySelector('em')?.textContent ?? null,
-    })),
-  )
+  const mapRows = await hopTexts(hops)
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
-  const traceRows = await page
-    .locator('.hop-list [data-testid="hop-row"]')
-    .evaluateAll((els) =>
-      els.map((el) => {
-        const link = el.querySelector('span')
-        const title = el.querySelector('small')!.textContent
-        const label = [...el.childNodes]
-          .filter((n) => n.nodeType === Node.TEXT_NODE)
-          .map((n) => n.textContent)
-          .join('')
-        return { title, label, link: link?.textContent ?? null }
-      }),
-    )
-  expect(traceRows).toEqual(mapRows)
+  await expandResults(page)
+  expect(await hopTexts(page.getByTestId('map-hop-row'))).toEqual(mapRows)
+  // Without the route view toggle or export, which belong to the map.
+  await expect(page.getByRole('button', { name: 'Route view' })).toHaveCount(0)
 })
 
 test('POL-05 clicking a hop selects its equipment and centers without changing zoom', async ({

@@ -4,7 +4,12 @@ import { indexSnapshot } from '../map/snapshotIndex'
 import { physicalSnapshot } from './testFixture'
 import { routeMarks } from './inventory'
 import { nodeConnections } from './connections'
-import { defaultNodeLayout, NODE_HEIGHT, NODE_WIDTH } from './layout'
+import {
+  defaultNodeLayout,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  segmentCrossesRect,
+} from './layout'
 
 const s = physicalSnapshot()
 const index = indexSnapshot(s)
@@ -80,7 +85,7 @@ describe('PHY-12 node connections are counted from real cables', () => {
   })
 })
 
-describe('PHY-13 default layout places unsaved nodes without overlapping saved ones', () => {
+describe('PHY-13 default layout puts unsaved nodes on a ring, clear of saved ones', () => {
   const nodes = [
     { id: 'n1', name: 'Charlie' },
     { id: 'n2', name: 'Alpha' },
@@ -88,16 +93,77 @@ describe('PHY-13 default layout places unsaved nodes without overlapping saved o
     { id: 'n4', name: 'Delta' },
     { id: 'n5', name: 'Echo' },
   ]
+  const rect = (p: { x: number; y: number }) => ({
+    left: p.x,
+    top: p.y,
+    right: p.x + NODE_WIDTH,
+    bottom: p.y + NODE_HEIGHT,
+  })
   const overlap = (a: { x: number; y: number }, b: { x: number; y: number }) =>
     Math.abs(a.x - b.x) < NODE_WIDTH && Math.abs(a.y - b.y) < NODE_HEIGHT
+  const center = (p: { x: number; y: number }) => ({
+    x: p.x + NODE_WIDTH / 2,
+    y: p.y + NODE_HEIGHT / 2,
+  })
+  const named = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `id${i}`,
+      name: `Node ${String(i).padStart(2, '0')}`,
+    }))
 
-  it('lays out every node deterministically by name when none is saved', () => {
+  it('lays out every node deterministically, whatever the input order', () => {
     const a = defaultNodeLayout(nodes, new Map())
     const b = defaultNodeLayout([...nodes].reverse(), new Map())
     expect(a.size).toBe(5)
     expect(b).toEqual(a)
-    expect(a.get('n2')).toEqual({ x: 0, y: 0 }) // Alpha first
-    expect(a.get('n3')!.x).toBeGreaterThan(a.get('n2')!.x) // Bravo next
+  })
+
+  it('centers the ring on the origin, every card the same distance from it', () => {
+    const a = defaultNodeLayout(nodes, new Map())
+    const cs = [...a.values()].map(center)
+    const cx = cs.reduce((n, c) => n + c.x, 0) / cs.length
+    const cy = cs.reduce((n, c) => n + c.y, 0) / cs.length
+    expect(Math.abs(cx)).toBeLessThan(0.5)
+    expect(Math.abs(cy)).toBeLessThan(0.5)
+    const radii = cs.map((c) => Math.hypot(c.x, c.y))
+    for (const r of radii) expect(Math.abs(r - radii[0])).toBeLessThan(0.5)
+  })
+
+  it('goes around in name order, starting at the top, clockwise', () => {
+    const a = defaultNodeLayout(nodes, new Map())
+    const order = ['n2', 'n3', 'n1', 'n4', 'n5'] // Alpha Bravo Charlie Delta Echo
+    const angles = order.map((id) => {
+      const c = center(a.get(id)!)
+      return (Math.atan2(c.y, c.x) * 180) / Math.PI // 0 = right, 90 = down
+    })
+    expect(angles[0]).toBeCloseTo(-90, 0) // Alpha at the top
+    // Clockwise on screen means increasing angle.
+    const unwound = angles.map((g) => (g < -90 ? g + 360 : g))
+    expect([...unwound].sort((x, y) => x - y)).toEqual(unwound)
+  })
+
+  it('never overlaps for 1 to 12 nodes, and a single node sits at the origin', () => {
+    for (let n = 1; n <= 12; n++) {
+      const cells = [...defaultNodeLayout(named(n), new Map()).values()]
+      for (let i = 0; i < cells.length; i++)
+        for (let j = i + 1; j < cells.length; j++)
+          expect(overlap(cells[i], cells[j]), `${n} nodes: ${i}/${j}`).toBe(
+            false,
+          )
+    }
+    const one = defaultNodeLayout(named(1), new Map()).get('id0')!
+    expect(center(one)).toEqual({ x: 0, y: 0 })
+  })
+
+  it('uses a grid for more than 12 nodes, in name order', () => {
+    const cells = defaultNodeLayout(named(13), new Map())
+    const xs = new Set([...cells.values()].map((p) => p.x))
+    const ys = new Set([...cells.values()].map((p) => p.y))
+    expect(xs.size).toBe(3)
+    expect(ys.size).toBe(5)
+    expect(cells.get('id0')).toEqual({ x: 0, y: 0 })
+    expect(cells.get('id1')!.y).toBe(0)
+    expect(cells.get('id3')!.y).toBeGreaterThan(0)
   })
 
   it('returns positions only for unsaved nodes', () => {
@@ -114,7 +180,7 @@ describe('PHY-13 default layout places unsaved nodes without overlapping saved o
       ['n3', { x: -900, y: 40 }],
     ])
     const r = defaultNodeLayout(nodes, saved)
-    const all = [...saved.values(), ...[...r.values()]]
+    const all = [...saved.values(), ...r.values()]
     for (let i = 0; i < all.length; i++)
       for (let j = i + 1; j < all.length; j++)
         expect(overlap(all[i], all[j])).toBe(false)
@@ -126,5 +192,46 @@ describe('PHY-13 default layout places unsaved nodes without overlapping saved o
     const saved = new Map(first)
     const later = defaultNodeLayout(nodes.slice(0, 3), saved)
     expect(later.size).toBe(1)
+  })
+
+  it('Main Campus: no line crosses the third card and no pill lands inside a card', () => {
+    const main = s.nodes.filter((n) => n.siteId === 'site-main')
+    const layout = defaultNodeLayout(main, new Map())
+    expect(layout.size).toBe(3)
+    const ids = [...layout.keys()]
+    for (const a of ids)
+      for (const b of ids) {
+        if (a >= b) continue
+        const from = center(layout.get(a)!)
+        const to = center(layout.get(b)!)
+        const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
+        for (const other of ids) {
+          const r = rect(layout.get(other)!)
+          if (other !== a && other !== b)
+            expect(
+              segmentCrossesRect(from, to, r),
+              `${a}-${b} vs ${other}`,
+            ).toBe(false)
+          expect(
+            mid.x > r.left &&
+              mid.x < r.right &&
+              mid.y > r.top &&
+              mid.y < r.bottom,
+            `pill of ${a}-${b} inside ${other}`,
+          ).toBe(false)
+        }
+      }
+  })
+
+  it('segmentCrossesRect sees a crossing, a miss and a touch from inside', () => {
+    const r = { left: 0, top: 0, right: 10, bottom: 10 }
+    expect(segmentCrossesRect({ x: -5, y: 5 }, { x: 15, y: 5 }, r)).toBe(true)
+    expect(segmentCrossesRect({ x: -5, y: 20 }, { x: 15, y: 20 }, r)).toBe(
+      false,
+    )
+    expect(segmentCrossesRect({ x: 5, y: 5 }, { x: 20, y: 5 }, r)).toBe(true)
+    expect(segmentCrossesRect({ x: -5, y: -5 }, { x: -1, y: 20 }, r)).toBe(
+      false,
+    )
   })
 })

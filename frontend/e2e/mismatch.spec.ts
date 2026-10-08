@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Plan } from '../src/shared/types'
-import { fitted } from './helpers'
+import { fitted, expandResults } from './helpers'
 
 // A cable from EDGE-17 (Network A) to AGG-12 (Network B) is physically valid. Find
 // AGG / BB reports the Network B destination apart from the routes.
@@ -47,10 +47,11 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
     overlay.getByTestId('route-row').filter({ hasText: 'AGG-12' }),
   ).toHaveCount(0)
 
-  // The Trace tool's results (the Physical view's drawer) say the same.
+  // The Physical view uses the same results overlay and says the same.
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
-  const panel = page.getByLabel('Trace results')
-  await expect(panel.locator('select option')).toHaveCount(3)
+  const panel = page.getByLabel('Map trace results')
+  await expandResults(page)
+  await expect(panel.getByTestId('route-row')).toHaveCount(3)
   const apart = panel.getByTestId('mismatches')
   await expect(apart).toContainText('On another network (not routes)')
   await expect(apart).toContainText('AGG-12')

@@ -1,6 +1,7 @@
-import { ChevronDown, ChevronUp, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Server, X } from 'lucide-react'
 import { useState } from 'react'
 import type { Snapshot, TraceResult } from '../../shared/types'
+import type { SnapshotIndex } from './snapshotIndex'
 import { hopRows } from '../pathfinding/hops'
 import { endpointLabel } from '../pathfinding/projection'
 import { exportHeader, exportRouteView } from './exportRoute'
@@ -9,17 +10,25 @@ import { resultsSummary, resultsTitle, routeRows } from './routeList'
 
 interface Props {
   snapshot: Snapshot
+  /** Per-snapshot lookups for the hop labels. */
+  index: SnapshotIndex
+  /** A muted line under the header, for example that the selected route is not in this context. */
+  note?: string
   result: TraceResult
   routeIndex: number
   onRoute: (index: number) => void
   /** A hop was clicked: select its equipment and center on it. */
   onHop: (endpointId: string) => void
+  /** Open this hop's endpoint in Physical, from either view. */
+  onShowInPhysical: (endpointId: string) => void
   onClear: () => void
   /** Show only this route, laid out for reading (session-only). */
   routeView: boolean
   onRouteView: (on: boolean) => void
   /** The plan's name when the routes are in a plan; absent for the installed topology. */
   planName?: string
+  /** In Physical: the routes and hops only, without the route view and export (they belong to the map). */
+  physical?: boolean
 }
 
 /**
@@ -28,16 +37,26 @@ interface Props {
  */
 export default function MapResults({
   snapshot,
+  index,
+  note,
   result,
   routeIndex,
   onRoute,
   onHop,
+  onShowInPhysical,
   onClear,
   routeView,
   onRouteView,
   planName,
+  physical = false,
 }: Props) {
-  const [open, setOpen] = useState(true)
+  // The map keeps the panel open; Physical opens it as one summary line.
+  const [openIn, setOpenIn] = useState({ map: true, physical: false })
+  const open = physical ? openIn.physical : openIn.map
+  const toggle = () =>
+    setOpenIn((o) =>
+      physical ? { ...o, physical: !o.physical } : { ...o, map: !o.map },
+    )
   const [exporting, setExporting] = useState<'png' | 'pdf'>()
   const [exportError, setExportError] = useState<string>()
   // One capture of the route view's React Flow viewport; nothing on the page changes.
@@ -78,7 +97,7 @@ export default function MapResults({
   const notice = truncationNotice(result)
   return (
     <section
-      className={`map-results ${open ? 'expanded' : 'collapsed'}`}
+      className={`map-results ${open ? 'expanded' : 'collapsed'} ${physical ? 'physical' : ''}`}
       aria-label="Map trace results"
     >
       <header>
@@ -91,7 +110,7 @@ export default function MapResults({
           className="icon-button"
           aria-expanded={open}
           aria-label={open ? 'Collapse results' : 'Expand results'}
-          onClick={() => setOpen((v) => !v)}
+          onClick={toggle}
         >
           {open ? <ChevronDown size={17} /> : <ChevronUp size={17} />}
         </button>
@@ -103,6 +122,11 @@ export default function MapResults({
           <X size={16} />
         </button>
       </header>
+      {note && (
+        <p className="results-note" data-testid="route-note">
+          {note}
+        </p>
+      )}
       {open && (
         <>
           {rows.length > 0 && (
@@ -111,7 +135,7 @@ export default function MapResults({
                 <li key={row.index}>
                   <button
                     data-testid="route-row"
-                    className={row.index === routeIndex ? 'active' : ''}
+                    className={`route-row ${row.index === routeIndex ? 'active' : ''}`}
                     aria-pressed={row.index === routeIndex}
                     onClick={() => onRoute(row.index)}
                   >
@@ -120,54 +144,62 @@ export default function MapResults({
                   </button>
                   {row.index === routeIndex && result.routes[row.index] && (
                     <>
-                      <div className="map-route-tools">
-                        <button
-                          className="route-view-toggle"
-                          aria-pressed={routeView}
-                          onClick={() => onRouteView(!routeView)}
-                        >
-                          Route view
-                        </button>
-                        {(['png', 'pdf'] as const).map((format) => (
+                      {!physical && (
+                        <div className="map-route-tools">
                           <button
-                            key={format}
                             className="route-view-toggle"
-                            aria-label={`Export ${format.toUpperCase()}`}
-                            disabled={!routeView || exporting !== undefined}
-                            title={
-                              routeView
-                                ? `Download the route as a ${format.toUpperCase()}`
-                                : 'Turn on Route view to export'
-                            }
-                            onClick={() => void exportRoute(format)}
+                            aria-pressed={routeView}
+                            onClick={() => onRouteView(!routeView)}
                           >
-                            {exporting === format
-                              ? 'Exporting…'
-                              : format.toUpperCase()}
+                            Route view
                           </button>
-                        ))}
-                        {exportError && (
-                          <span role="alert" className="inline-error">
-                            {exportError}
-                          </span>
-                        )}
-                      </div>
+                          {(['png', 'pdf'] as const).map((format) => (
+                            <button
+                              key={format}
+                              className="route-view-toggle"
+                              aria-label={`Export ${format.toUpperCase()}`}
+                              disabled={!routeView || exporting !== undefined}
+                              title={
+                                routeView
+                                  ? `Download the route as a ${format.toUpperCase()}`
+                                  : 'Turn on Route view to export'
+                              }
+                              onClick={() => void exportRoute(format)}
+                            >
+                              {exporting === format
+                                ? 'Exporting…'
+                                : format.toUpperCase()}
+                            </button>
+                          ))}
+                          {exportError && (
+                            <span role="alert" className="inline-error">
+                              {exportError}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <ol className="map-hops" aria-label="Route hops">
-                        {hopRows(snapshot, result.routes[row.index]).map(
-                          (hop) => (
-                            <li key={hop.key}>
-                              <button
-                                data-testid="map-hop-row"
-                                className={`map-hop ${hop.kind}`}
-                                onClick={() => onHop(hop.endpointId)}
-                              >
-                                <small>{hop.title}</small>
-                                <span>{hop.label}</span>
-                                {hop.linkId && <em>{hop.linkId}</em>}
-                              </button>
-                            </li>
-                          ),
-                        )}
+                        {hopRows(index, result.routes[row.index]).map((hop) => (
+                          <li key={hop.key} className="map-hop-item">
+                            <button
+                              data-testid="map-hop-row"
+                              className={`map-hop ${hop.kind}`}
+                              onClick={() => onHop(hop.endpointId)}
+                            >
+                              <small>{hop.title}</small>
+                              <span>{hop.label}</span>
+                              {hop.linkLabel && <em>{hop.linkLabel}</em>}
+                            </button>
+                            <button
+                              className="row-action"
+                              title="Show in Physical"
+                              aria-label={`Show in Physical: ${hop.label}`}
+                              onClick={() => onShowInPhysical(hop.endpointId)}
+                            >
+                              <Server size={13} />
+                            </button>
+                          </li>
+                        ))}
                       </ol>
                     </>
                   )}

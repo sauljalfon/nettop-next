@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Network } from '../../shared/types'
+import { MANAGE_NETWORKS } from '../networks/model'
 
 export type MapView = 'conceptual' | 'physical'
 
@@ -31,10 +32,13 @@ export function NetworkSelect({
   networks,
   value,
   onChange,
+  onManage,
 }: {
   networks: readonly Network[]
   value: string | undefined
   onChange: (networkId: string | undefined) => void
+  /** The last entry opens the networks drawer; the choice above is left as it is. */
+  onManage?: () => void
 }) {
   return (
     <label className="network-select">
@@ -42,7 +46,10 @@ export function NetworkSelect({
       <select
         aria-label="Show network"
         value={value ?? ''}
-        onChange={(e) => onChange(e.target.value || undefined)}
+        onChange={(e) => {
+          if (e.target.value === MANAGE_NETWORKS) onManage?.()
+          else onChange(e.target.value || undefined)
+        }}
       >
         <option value="">All networks</option>
         {networks.map((n) => (
@@ -50,6 +57,7 @@ export function NetworkSelect({
             {n.name}
           </option>
         ))}
+        {onManage && <option value={MANAGE_NETWORKS}>Manage networks…</option>}
       </select>
     </label>
   )

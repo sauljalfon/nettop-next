@@ -8,7 +8,6 @@ import {
 } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft,
   Building2,
   GitBranch,
   GitFork,
@@ -29,6 +28,15 @@ import ConceptualMap, {
   type PendingEquipment,
 } from '../features/map/ConceptualMap'
 import { drawerSides } from '../features/map/drawers'
+import NetworksDrawer from '../features/networks/NetworksDrawer'
+import PhysicalExplorer from '../features/physical/PhysicalExplorer'
+import { openLocation } from '../features/physical/explorerModel'
+import { physicalSession } from '../features/physical/physicalSession'
+import {
+  chooseRoute,
+  traceSession,
+  type RouteRef,
+} from '../features/pathfinding/traceSession'
 import { mapSession } from '../features/map/mapSession'
 import { highlightFor, type LocationRef } from '../features/map/highlight'
 import {
@@ -38,10 +46,8 @@ import {
 } from '../features/map/MapControls'
 import MapResults from '../features/map/MapResults'
 import MapTraceError from '../features/map/MapTraceError'
-import RackView from '../features/rack-builder/RackView'
 import PlanEditor from '../features/planning/PlanEditor'
 import PlacementEditor from '../features/planning/PlacementEditor'
-import TracePanel from '../features/pathfinding/TracePanel'
 import TracePicker from '../features/pathfinding/TracePicker'
 import { pickerItems } from '../features/pathfinding/picker'
 import { filterTree } from '../features/explore/tree'
@@ -52,7 +58,11 @@ import { indexSnapshot } from '../features/map/snapshotIndex'
 import { searchEquipment } from '../features/map/search'
 import './styles.css'
 
-type Drawer = 'library' | 'explorer' | 'plans' | 'inspector' | 'trace' | null
+const ROUTE_NOT_HERE =
+  'The selected route is not in this context; showing the first.'
+
+type Drawer =
+  'library' | 'explorer' | 'plans' | 'inspector' | 'trace' | 'networks' | null
 
 export default function App() {
   const client = useQueryClient()
@@ -192,7 +202,7 @@ export default function App() {
         </div>
         <span className="header-divider" />
         <div className="workspace-title">
-          <strong>{topology.data?.sites[0]?.name ?? 'Network Studio'}</strong>
+          <strong>Network Studio</strong>
           <small>Infrastructure workspace</small>
         </div>
         <ViewSwitch view={view} onChange={setView} />
@@ -200,6 +210,7 @@ export default function App() {
           networks={networks}
           value={networkId}
           onChange={setNetworkChoice}
+          onManage={() => setDrawer('networks')}
         />
         <div className="context-switch">
           <button
@@ -366,6 +377,22 @@ export default function App() {
           )}
         </DrawerPanel>
       )}
+      {drawer === 'networks' && topology.data && (
+        <DrawerPanel
+          title="Manage networks"
+          subtitle="Networks are shared by every view."
+          onClose={() => setDrawer(null)}
+          side="right"
+        >
+          <NetworksDrawer
+            snapshot={topology.data}
+            onChanged={async (message) => {
+              await refresh()
+              notify(message)
+            }}
+          />
+        </DrawerPanel>
+      )}
       {status && (
         <div className="save-toast" role="status">
           ✓ {status}
@@ -448,7 +475,7 @@ function Workspace({
   networkId,
 }: WorkspaceProps) {
   const [selected, setSelected] = useState(snapshot.equipment[0]?.id ?? '')
-  const [physicalRack, setPhysicalRack] = useState<string>()
+  const [physicalError, setPhysicalError] = useState('')
   const [mode, setMode] = useState<'distribution' | 'point_to_point'>(
     'distribution',
   )
@@ -465,15 +492,34 @@ function Workspace({
     )?.id ?? '',
   )
   const [routeIndex, setRouteIndex] = useState(0)
-  const [resultsOpen, setResultsOpen] = useState(true)
+  const [routeFellBack, setRouteFellBack] = useState(false)
   const traceMutation = useMutation({
-    mutationFn: (request: TraceRequest) =>
-      trace(snapshot.context, request, plan?.id, snapshot.revision),
-    onSuccess: () => {
-      setRouteIndex(0)
-      setResultsOpen(true)
+    mutationFn: (input: { request: TraceRequest; wanted?: RouteRef }) =>
+      trace(snapshot.context, input.request, plan?.id, snapshot.revision),
+    onSuccess: (data, input) => {
+      // The route with the same start and end as before, else the first.
+      const chosen = chooseRoute(data, input.wanted)
+      const route = data.routes[chosen.index]
+      setRouteIndex(chosen.index)
+      setRouteFellBack(chosen.fellBack)
+      traceSession.selectRoute(route && { start: route.start, end: route.end })
     },
   })
+  // A trace the user starts is remembered outside this Workspace, so an
+  // Installed/Plan switch (which remounts it) can run it again; clearing forgets it.
+  const startTrace = useCallback(
+    (request: TraceRequest) => {
+      traceSession.start(request)
+      setRouteFellBack(false)
+      traceMutation.mutate({ request })
+    },
+    [traceMutation.mutate],
+  )
+  const clearTrace = useCallback(() => {
+    traceSession.clear()
+    setRouteFellBack(false)
+    traceMutation.reset()
+  }, [traceMutation.reset])
   const placement = useMutation({
     mutationFn: (input: {
       equipmentId: string
@@ -516,10 +562,24 @@ function Workspace({
     traceMutation.data?.revision === snapshot.revision
       ? traceMutation.data.routes[routeIndex]
       : undefined
+  // On mount (a context switch) and whenever the topology revision changes, the
+  // remembered trace is run again against this snapshot.
   useEffect(() => {
-    traceMutation.reset()
     placement.reset()
+    const stored = traceSession.get()
+    if (!stored) return traceMutation.reset()
+    setRouteFellBack(false)
+    traceMutation.mutate({ request: stored.request, wanted: stored.route })
   }, [snapshot.revision])
+  const chooseRouteIndex = useCallback(
+    (i: number) => {
+      setRouteIndex(i)
+      setRouteFellBack(false)
+      const r = traceMutation.data?.routes[i]
+      traceSession.selectRoute(r && { start: r.start, end: r.end })
+    },
+    [traceMutation.data],
+  )
   const select = useCallback(
     (id: string) => {
       setSelected(id)
@@ -533,10 +593,10 @@ function Workspace({
       if (!port) return
       setSelected(port.equipmentId)
       setStart(id)
-      traceMutation.reset()
+      clearTrace()
       onSelectEquipment()
     },
-    [snapshot.endpoints, onSelectEquipment],
+    [snapshot.endpoints, onSelectEquipment, clearTrace],
   )
   const traceFromPort = useCallback(
     (id: string) => {
@@ -545,9 +605,9 @@ function Workspace({
       setSelected(port.equipmentId)
       setMode('distribution')
       setStart(id)
-      traceMutation.mutate({ mode: 'distribution', start: id })
+      startTrace({ mode: 'distribution', start: id })
     },
-    [snapshot.endpoints, traceMutation.mutate],
+    [snapshot.endpoints, startTrace],
   )
   // Choosing a site or node (in Explore, or from the inspector's location links):
   // highlight its equipment and cables on the map, and fit the view to them once.
@@ -560,16 +620,46 @@ function Workspace({
     },
     [index, onViewChange],
   )
-  const openRack = useCallback(
-    (id: string) => {
-      setPhysicalRack(id)
+  // In Physical, Explore navigates Physical: site and node open their screens.
+  const openPlace = useCallback(
+    (target: { siteId?: string; nodeId?: string }) =>
+      physicalSession.navigate(openLocation(index, target)),
+    [index],
+  )
+  // A hop or a cable end opened in Physical selects its equipment (without the
+  // inspector) and shows its rack; the equipment page comes with M4 step 6.
+  const openEquipmentPhysical = useCallback(
+    (equipmentId: string) => {
+      setSelected(equipmentId)
+      physicalSession.navigate(openLocation(index, { equipmentId }))
+    },
+    [index],
+  )
+  // From the inspector or a hop in either view: the equipment page, with an
+  // endpoint selected when given. Selection is shared, so the inspector keeps it.
+  const showInPhysical = useCallback(
+    (equipmentId: string, endpointId?: string) => {
+      setSelected(equipmentId)
+      physicalSession.navigate(openLocation(index, { equipmentId, endpointId }))
       onViewChange('physical')
     },
-    [onViewChange],
+    [index, onViewChange],
   )
-  useEffect(() => {
-    if (view === 'conceptual') setPhysicalRack(undefined)
-  }, [view])
+  const openEndpointPhysical = useCallback(
+    (endpointId: string) => {
+      const owner = index.owner.get(endpointId)
+      if (owner) setSelected(owner)
+      physicalSession.navigate(openLocation(index, { endpointId }))
+    },
+    [index],
+  )
+  const openRack = useCallback(
+    (id: string) => {
+      physicalSession.navigate(openLocation(index, { rackId: id }))
+      onViewChange('physical')
+    },
+    [index, onViewChange],
+  )
   const canEdit =
     !!plan &&
     snapshot.revision === `${plan.baseRevision}/${plan.id}@${plan.revision}` &&
@@ -602,18 +692,8 @@ function Workspace({
     },
     [plan, snapshot],
   )
-  const rackSnapshot = useMemo(
-    () =>
-      physicalRack
-        ? {
-            ...snapshot,
-            racks: snapshot.racks.filter((r) => r.id === physicalRack),
-          }
-        : snapshot,
-    [snapshot, physicalRack],
-  )
   function runTrace() {
-    traceMutation.mutate(
+    startTrace(
       mode === 'point_to_point'
         ? { mode, start, end }
         : start.startsWith('device:')
@@ -625,7 +705,7 @@ function Workspace({
     if (equipment) {
       setMode('distribution')
       setStart(`device:${equipment.id}`)
-      traceMutation.mutate({ mode: 'distribution', device: equipment.id })
+      startTrace({ mode: 'distribution', device: equipment.id })
     }
   }
   // Select the card, show the map and center on the card. No highlight.
@@ -640,10 +720,11 @@ function Workspace({
   // Equipment chosen in Explore (a click, or Enter in its search) also opens the inspector.
   const chooseEquipment = useCallback(
     (id: string) => {
+      if (view === 'physical') return openEquipmentPhysical(id)
       showOnMap(id)
       onSelectEquipment()
     },
-    [showOnMap, onSelectEquipment],
+    [view, openEquipmentPhysical, showOnMap, onSelectEquipment],
   )
   const drawerEquipment = equipment && (
     <Inspector
@@ -655,6 +736,7 @@ function Workspace({
       onFindFromDevice={traceSelectedDevice}
       onFindFromHere={traceFromPort}
       onShowOnMap={showOnMap}
+      onShowInPhysical={showInPhysical}
       onHighlight={highlightLocation}
       onOpenRack={openRack}
     >
@@ -671,19 +753,14 @@ function Workspace({
   )
   return (
     <main className="workspace-canvas">
-      <div className="canvas-topline">
-        <div>
-          <span className="eyebrow">
-            {view === 'conceptual' ? 'CONCEPTUAL MAP' : 'PHYSICAL ELEVATION'}
-          </span>
-          <h1>
-            {view === 'conceptual'
-              ? 'Connected infrastructure.'
-              : (snapshot.racks.find((r) => r.id === physicalRack)?.name ??
-                'Rack workshop')}
-          </h1>
+      {view === 'conceptual' && (
+        <div className="canvas-topline">
+          <div>
+            <span className="eyebrow">CONCEPTUAL MAP</span>
+            <h1>Connected infrastructure.</h1>
+          </div>
         </div>
-      </div>
+      )}
       {view === 'conceptual' ? (
         <ConceptualMap
           snapshot={snapshot}
@@ -701,34 +778,24 @@ function Workspace({
           onConfigurePreview={onConfigurePreview}
         />
       ) : (
-        <div className="elevation-surface">
-          <button
-            className="elevation-back button"
-            onClick={() => onViewChange('conceptual')}
-          >
-            <ArrowLeft size={15} />
-            Back to map
-          </button>
-          <RackView
-            snapshot={rackSnapshot}
-            installedIDs={installedIDs}
-            selected={selected}
-            route={route}
-            onSelect={select}
-            onPort={selectPort}
-            canEdit={canEdit}
-            onCreateEquipment={(kind, rackID, unit, role) =>
-              onCreateEquipment(
-                kind,
-                rackID,
-                unit,
-                undefined,
-                role === 'aggregation' ? 'aggregation' : undefined,
-              )
-            }
-            onMoveEquipment={move}
-          />
-        </div>
+        <PhysicalExplorer
+          snapshot={snapshot}
+          index={index}
+          route={route}
+          networkId={networkId}
+          installedLinkIDs={installedLinkIDs}
+          selectedEquipmentId={selected}
+          installedIds={installedIDs}
+          canEdit={canEdit}
+          onMoveEquipment={move}
+          onCreateEquipment={(kind, rackID, unit, role) =>
+            onCreateEquipment(kind, rackID, unit, undefined, role)
+          }
+          onSelectEquipment={setSelected}
+          onFindFromEndpoint={traceFromPort}
+          onShowOnMap={showOnMap}
+          onError={setPhysicalError}
+        />
       )}
       {drawer === 'library' && (
         <DrawerPanel
@@ -751,6 +818,8 @@ function Workspace({
             onChoose={chooseEquipment}
             onOpenRack={openRack}
             onHighlight={highlightLocation}
+            physical={view === 'physical'}
+            onOpenPlace={openPlace}
             canEdit={canEdit}
           />
         </DrawerPanel>
@@ -787,7 +856,7 @@ function Workspace({
                           (p) => p.equipmentId === start.slice(7),
                         )?.id ?? '',
                       )
-                    traceMutation.reset()
+                    clearTrace()
                   }}
                 >
                   <option value="distribution">Find AGG / BB</option>
@@ -801,7 +870,7 @@ function Workspace({
                 disabled={traceMutation.isPending}
                 onChange={(value) => {
                   setStart(value)
-                  traceMutation.reset()
+                  clearTrace()
                 }}
               />
               {mode === 'point_to_point' && (
@@ -811,7 +880,7 @@ function Workspace({
                   value={end}
                   onChange={(value) => {
                     setEnd(value)
-                    traceMutation.reset()
+                    clearTrace()
                   }}
                 />
               )}
@@ -870,62 +939,47 @@ function Workspace({
           <MapTraceError
             message={traceMutation.error.message}
             onRefresh={() => void onRefresh()}
-            onDismiss={() => traceMutation.reset()}
+            onDismiss={() => clearTrace()}
           />
         )}
-      {view === 'conceptual' &&
-        traceMutation.data?.revision === snapshot.revision && (
-          <MapResults
-            snapshot={snapshot}
-            result={traceMutation.data}
-            routeIndex={routeIndex}
-            onRoute={setRouteIndex}
-            onHop={(endpointId) => {
-              const port = snapshot.endpoints.find((p) => p.id === endpointId)
-              if (!port) return
-              select(port.equipmentId)
-              mapSession.requestCenter(port.equipmentId)
-            }}
-            onClear={() => traceMutation.reset()}
-            routeView={routeView}
-            onRouteView={mapSession.setRouteView}
-            planName={plan?.name}
-          />
-        )}
-      {view === 'physical' &&
-        traceMutation.data?.revision === snapshot.revision && (
-          <div
-            className={`results-drawer ${resultsOpen ? 'expanded' : 'collapsed'}`}
+      {traceMutation.data?.revision === snapshot.revision && (
+        <MapResults
+          snapshot={snapshot}
+          index={index}
+          note={routeFellBack ? ROUTE_NOT_HERE : undefined}
+          result={traceMutation.data}
+          routeIndex={routeIndex}
+          onRoute={chooseRouteIndex}
+          onHop={(endpointId) => {
+            const port = snapshot.endpoints.find((p) => p.id === endpointId)
+            if (!port) return
+            if (view === 'physical') return openEndpointPhysical(endpointId)
+            select(port.equipmentId)
+            mapSession.requestCenter(port.equipmentId)
+          }}
+          onShowInPhysical={(endpointId) => {
+            const owner = snapshot.endpoints.find((p) => p.id === endpointId)
+            if (owner) showInPhysical(owner.equipmentId, endpointId)
+          }}
+          onClear={() => clearTrace()}
+          routeView={routeView}
+          onRouteView={mapSession.setRouteView}
+          planName={plan?.name}
+          physical={view === 'physical'}
+        />
+      )}
+      {physicalError && (
+        <div role="alert" className="error-toast">
+          {physicalError}
+          <button
+            onClick={() => setPhysicalError('')}
+            className="icon-button"
+            aria-label="Dismiss error"
           >
-            <button
-              className="results-toggle"
-              onClick={() => setResultsOpen((v) => !v)}
-              aria-expanded={resultsOpen}
-            >
-              {resultsOpen ? 'Collapse' : 'Expand'} trace results
-            </button>
-            {resultsOpen ? (
-              <TracePanel
-                snapshot={snapshot}
-                result={traceMutation.data}
-                routeIndex={routeIndex}
-                onRoute={setRouteIndex}
-                onHop={(id) => {
-                  const port = snapshot.endpoints.find((p) => p.id === id)
-                  if (port) select(port.equipmentId)
-                }}
-                onClear={() => traceMutation.reset()}
-              />
-            ) : (
-              <span>
-                {traceMutation.data.status === 'reached'
-                  ? 'Physical path found'
-                  : 'No route'}{' '}
-                · {traceMutation.data.routes[routeIndex]?.hops.length ?? 0} hops
-              </span>
-            )}
-          </div>
-        )}
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </main>
   )
 }
@@ -1014,6 +1068,8 @@ function Explorer({
   onChoose,
   onOpenRack,
   onHighlight,
+  physical,
+  onOpenPlace,
   canEdit,
 }: {
   snapshot: Snapshot
@@ -1023,6 +1079,9 @@ function Explorer({
   onOpenRack: (id: string) => void
   /** Highlight a site or node on the map. */
   onHighlight: (location: LocationRef) => void
+  /** In Physical, a site or node opens its screen instead of highlighting on the map. */
+  physical: boolean
+  onOpenPlace: (target: { siteId?: string; nodeId?: string }) => void
   canEdit: boolean
 }) {
   const [search, setSearch] = useState('')
@@ -1051,12 +1110,22 @@ function Explorer({
             <MapPin size={16} />
             <button
               className="location-name"
-              aria-label={`Highlight ${site.name} on the map`}
-              title="Highlight on the map"
-              onClick={() => onHighlight({ kind: 'site', id: site.id })}
+              aria-label={
+                physical
+                  ? `Open ${site.name} in Physical`
+                  : `Highlight ${site.name} on the map`
+              }
+              title={physical ? 'Open in Physical' : 'Highlight on the map'}
+              onClick={() =>
+                physical
+                  ? onOpenPlace({ siteId: site.id })
+                  : onHighlight({ kind: 'site', id: site.id })
+              }
             >
               {site.name}
-              <Highlighter size={13} className="location-icon" aria-hidden />
+              {!physical && (
+                <Highlighter size={13} className="location-icon" aria-hidden />
+              )}
             </button>
           </h3>
           {nodes.map(({ node, racks }) => (
@@ -1065,16 +1134,26 @@ function Explorer({
                 <Building2 size={15} />
                 <button
                   className="location-name"
-                  aria-label={`Highlight ${node.name} on the map`}
-                  title="Highlight on the map"
-                  onClick={() => onHighlight({ kind: 'node', id: node.id })}
+                  aria-label={
+                    physical
+                      ? `Open ${node.name} in Physical`
+                      : `Highlight ${node.name} on the map`
+                  }
+                  title={physical ? 'Open in Physical' : 'Highlight on the map'}
+                  onClick={() =>
+                    physical
+                      ? onOpenPlace({ nodeId: node.id })
+                      : onHighlight({ kind: 'node', id: node.id })
+                  }
                 >
                   {node.name}
-                  <Highlighter
-                    size={13}
-                    className="location-icon"
-                    aria-hidden
-                  />
+                  {!physical && (
+                    <Highlighter
+                      size={13}
+                      className="location-icon"
+                      aria-hidden
+                    />
+                  )}
                 </button>
               </h4>
               {racks.map(({ rack, equipment }) => (

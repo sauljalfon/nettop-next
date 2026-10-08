@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { ROUTE_AGG_03, expectMarks, pick } from './helpers'
+import {
+  ROUTE_AGG_03,
+  expectMarks,
+  openRackInPhysical,
+  pick,
+  expandResults,
+} from './helpers'
 
 test('trace physical continuity on the map and in rack elevations', async ({
   page,
@@ -30,23 +36,33 @@ test('trace physical continuity on the map and in rack elevations', async ({
     fullPage: true,
   })
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
-  // EDGE-17, PANEL-A and AGG-03 take one unit each; HDF-01 and HDF-02 three each.
-  await expect(page.locator('.rack-device.traced')).toHaveCount(9)
+  // The explorer marks the route's equipment; the racks show them one at a time.
+  await expect(page.locator('.physical-explorer')).toHaveAttribute(
+    'data-route-equipment',
+    'agg-03 edge-17 hdf-01 hdf-02 panel-a',
+  )
+  await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
+  // EDGE-17 and PANEL-A are the route's equipment in this rack, one unit each.
+  for (const id of ['edge-17', 'panel-a'])
+    await expect(
+      page.locator(`.rack-block[data-equipment-id="${id}"]`),
+    ).toHaveAttribute('data-on-route', 'true')
   await page.screenshot({
     path: testInfo.outputPath('racks.png'),
     fullPage: true,
   })
-  await page
-    .getByRole('button', { name: 'EDGE-17 Port 2, set trace start' })
-    .click()
-  // The trace form lives in the trace tools only; the chosen start is kept.
+  // Choose EDGE-17 Port 2 as the trace start in the Trace tools.
   await page
     .getByRole('button', { name: 'Open trace tools', exact: true })
     .click()
+  await pick(page, 'Start', 'edge-17 port 2', 'EDGE-17 · Port 2')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  await expect(page.getByText(/4 cables · 3 internal bridges/)).toBeVisible()
-  await expect(page.getByTestId('route-destination')).toHaveText(
-    'AGG-08 · AGG · Network A',
+  await expandResults(page)
+  await expect(
+    page.getByText(/4 cables · 3 internal bridges/).first(),
+  ).toBeVisible()
+  await expect(page.getByTestId('route-row')).toContainText(
+    'AGG-08 · Port 1 · AGG · Network A',
   )
   await page
     .getByRole('combobox', { name: 'Trace mode', exact: true })
@@ -56,7 +72,10 @@ test('trace physical continuity on the map and in rack elevations', async ({
   await page
     .getByRole('button', { name: 'Trace physical path', exact: true })
     .click()
-  await expect(page.getByText(/4 cables · 3 internal bridges/)).toBeVisible()
+  await expandResults(page)
+  await expect(
+    page.getByText(/4 cables · 3 internal bridges/).first(),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await expect(page.locator('.results-drawer')).toHaveCount(0)
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
@@ -68,7 +87,10 @@ test('trace physical continuity on the map and in rack elevations', async ({
     .selectOption('distribution')
   await pick(page, 'Start', 'edge-18 all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  await expect(page.getByText(/1 cables · 0 internal bridges/)).toBeVisible()
+  await expandResults(page)
+  await expect(
+    page.getByText(/1 cables · 0 internal bridges/).first(),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await expect(page.locator('.results-drawer')).toHaveCount(0)
   expect(errors).toEqual([])

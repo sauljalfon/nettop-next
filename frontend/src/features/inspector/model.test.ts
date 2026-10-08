@@ -288,3 +288,37 @@ describe('POL-20 grouping flag and far-end text', () => {
     expect(shortFarLabel('EDGE-17 · Port 1')).toBe('EDGE-17 · Port 1')
   })
 })
+
+describe('F05 a row opens its endpoint in Physical', () => {
+  const unit = (id: string, key: string) =>
+    groups(id)
+      .flatMap((g) => g.units)
+      .find((u) => u.key === key)!
+
+  it('a position opens the first cabled side', () => {
+    // HDF-01 3C/5: front (A03) and rear (A02) are both cabled; front sorts first.
+    expect(unit('HDF-01', '3C/5').physicalEndpointId).toBe('HDF-01:3C/5:f')
+    // PANEL-A 1: front (A01) and rear (A02).
+    expect(unit('PANEL-A', '1').physicalEndpointId).toBe('PANEL-A:1:f')
+  })
+
+  it('the cabled side wins over the front when only the rear has a cable', () => {
+    const cut = {
+      ...s,
+      links: s.links.filter((l) => l.id !== 'A03'),
+    }
+    const u = inspectorGroups(cut, indexSnapshot(cut), 'HDF-01')
+      .flatMap((g) => g.units)
+      .find((x) => x.key === '3C/5')!
+    expect(u.physicalEndpointId).toBe('HDF-01:3C/5:r')
+  })
+
+  it('a free position opens its front', () => {
+    expect(unit('PANEL-A', '10').physicalEndpointId).toBe('PANEL-A:10:f')
+  })
+
+  it('a port opens itself', () => {
+    expect(unit('EDGE-17', 'EDGE-17:p1').physicalEndpointId).toBe('EDGE-17:p1')
+    expect(unit('EDGE-17', 'EDGE-17:p5').physicalEndpointId).toBe('EDGE-17:p5')
+  })
+})

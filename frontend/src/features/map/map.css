@@ -138,7 +138,7 @@
   gap: 4px;
 }
 
-.route-list button {
+.route-list .route-row {
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -151,7 +151,7 @@
   font-size: 12px;
 }
 
-.route-list button.active {
+.route-list .route-row.active {
   border-color: #58b294;
   background: #eaf6f0;
 }
@@ -452,4 +452,34 @@
 .map-trace-error .inline-error {
   margin: 0;
   flex: 1;
+}
+
+/* A hop: the row, and a small icon that shows its endpoint in Physical. */
+.map-hop-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.map-hop-item .map-hop {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The hop's icon action: compact, the size of the inspector's row actions, beside the label. */
+.map-hop-item .row-action {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+
+/* In Physical the expanded hop list is capped at about six rows and scrolls. */
+.map-results.physical .map-hops {
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.results-note {
+  margin: 2px 0 4px;
+  font-size: 11px;
+  color: #8390a4;
 }

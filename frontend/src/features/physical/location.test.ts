@@ -176,6 +176,22 @@ describe('PHY-01 Back restores the exact location, endpoint and side', () => {
     expect(s.back).toHaveLength(1)
   })
 
+  it('replace swaps the current location without a history entry; Back skips it', () => {
+    const rear = { ...hdf, endpointId: 'HDF-01:3C/5:f', side: 'front' as const }
+    let s = run(initialHistory(), { level: 'site', siteId: 'site-main' }, hdf)
+    const depth = s.back.length
+    s = historyReducer(s, { type: 'replace', to: rear })
+    expect(s.current).toEqual(rear)
+    expect(s.back).toHaveLength(depth)
+    s = historyReducer(s, { type: 'back' })
+    expect(s.current).toEqual({ level: 'site', siteId: 'site-main' })
+  })
+
+  it('replacing with the same location returns the same state', () => {
+    const s = run(initialHistory(), hdf)
+    expect(historyReducer(s, { type: 'replace', to: { ...hdf } })).toBe(s)
+  })
+
   it('a breadcrumb navigates (pushes) to an ancestor and Back returns', () => {
     const start = run(initialHistory(), hdf)
     const crumbs = breadcrumbs(index, start.current)

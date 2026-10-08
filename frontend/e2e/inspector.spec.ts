@@ -212,7 +212,10 @@ test('POL-11 the location links highlight the site or node on the map, and the r
   // The rack opens in Physical.
   await page.getByRole('button', { name: 'Open Rack A03 in Physical' }).click()
   await expect(page.locator('.flow-surface')).toHaveCount(0)
-  await expect(page.locator('h1')).toHaveText('Rack A03')
+  await expect(page.locator('.physical-explorer')).toHaveAttribute(
+    'data-location',
+    /rack:rack-a03/,
+  )
   await expect(page.getByTestId('rack-slot-rack-a03-8')).toContainText(
     'EDGE-17',
   )

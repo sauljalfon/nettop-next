@@ -13,7 +13,10 @@ export interface PhysicalHistory {
 }
 
 export type HistoryAction =
-  { type: 'navigate'; to: PhysicalLocation } | { type: 'back' }
+  | { type: 'navigate'; to: PhysicalLocation }
+  /** Swaps the current location without a history entry (selecting an endpoint, switching sides). */
+  | { type: 'replace'; to: PhysicalLocation }
+  | { type: 'back' }
 
 export function initialHistory(): PhysicalHistory {
   return { current: SITES, back: [] }
@@ -36,6 +39,7 @@ export function historyReducer(
     }
   }
   if (sameLocation(state.current, action.to)) return state
+  if (action.type === 'replace') return { current: action.to, back: state.back }
   return { current: action.to, back: [...state.back, state.current] }
 }
 

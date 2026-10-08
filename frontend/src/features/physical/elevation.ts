@@ -12,11 +12,19 @@ export type ElevationRow =
       topUnit: number
       onRoute: boolean
       selected: boolean
+      /** In a plan and not installed. */
+      proposed: boolean
+      /** An active device of a network other than the selected one: shown, quieter. */
+      muted: boolean
     }
 
 export interface ElevationOptions {
   marks?: RouteMarks
   selectedEquipmentId?: string
+  /** The chosen network; its devices stay normal, other active devices are muted. */
+  networkId?: string
+  /** Equipment that is installed; any other is proposed. Absent: nothing is marked proposed. */
+  installedIds?: ReadonlySet<string>
 }
 
 /**
@@ -66,6 +74,12 @@ export function rackElevation(
       topUnit: e.unit + e.height - 1,
       onRoute: options.marks?.equipment.has(e.id) ?? false,
       selected: options.selectedEquipmentId === e.id,
+      proposed: !!options.installedIds && !options.installedIds.has(e.id),
+      muted:
+        !!options.networkId &&
+        e.role !== 'passive' &&
+        e.networkId !== undefined &&
+        e.networkId !== options.networkId,
     })
     u = e.unit - 1
   }

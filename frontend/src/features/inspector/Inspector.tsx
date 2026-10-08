@@ -1,4 +1,4 @@
-import { Crosshair, GitFork, Network, PanelTop } from 'lucide-react'
+import { Crosshair, GitFork, Network, PanelTop, Server } from 'lucide-react'
 import {
   useMemo,
   useRef,
@@ -37,6 +37,8 @@ interface Props {
   onFindFromHere: (endpointId: string) => void
   /** Select the card and center on it (no highlight). */
   onShowOnMap: (equipmentId: string) => void
+  /** Open the equipment page in Physical, with an endpoint selected when given. */
+  onShowInPhysical: (equipmentId: string, endpointId?: string) => void
   /** Highlight the site or node on the map. */
   onHighlight: (location: LocationRef) => void
   onOpenRack: (rackId: string) => void
@@ -60,6 +62,7 @@ export default function Inspector({
   onFindFromDevice,
   onFindFromHere,
   onShowOnMap,
+  onShowInPhysical,
   onHighlight,
   onOpenRack,
   children,
@@ -178,6 +181,14 @@ export default function Inspector({
             <Crosshair size={14} />
             Show on map
           </button>
+          <button
+            className="button"
+            aria-label={`Show in Physical: ${equipment.name}`}
+            onClick={() => onShowInPhysical(equipment.id)}
+          >
+            <Server size={14} />
+            Show in Physical
+          </button>
           {canFindFromDevice(equipment) && (
             <button
               className="button primary"
@@ -235,6 +246,9 @@ export default function Inspector({
             networkColor={networkColor}
             pinned={pinned}
             onFindFromHere={onFindFromHere}
+            onShowInPhysical={(endpointId) =>
+              onShowInPhysical(equipment.id, endpointId)
+            }
             onPin={(key) => session.toggleManual(equipment.id, key)}
           />
         )}
