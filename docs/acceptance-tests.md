@@ -104,6 +104,28 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | F10 | Standard panels/device banks | Correct local positions, terminal ports, occupancy, cable peers, and sides. Covered by the two "F10" specs, a switch bank and a standard panel (`equipment`), and the `faces` unit tests |
 | F11 | Breadcrumb/back navigation | Restore context consistently; no nested modal stack. Covered by "F11 breadcrumbs and Back…" (`physical`), "F11 Installed/Plan keeps the physical location…" (`views`), and the `history`, `location` and `physicalSession` unit tests |
 
+## M4.1 — Physical polish and the campus check
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| TR-01 | Hop rows keep their label on one line with the icon beside it, in both views | `trail` |
+| TR-02 | Hop and link labels are readable (cable ID or "bridge") | `hops.test.ts` |
+| TR-03 | In Physical the results panel opens as one line and its expanded hop list scrolls | `trail` |
+| TR-04 | The trail shows the route's steps; chips, Prev and Next open the exact endpoint; Back returns | `trail`, `trail.test.ts` |
+| TR-05, TR-06 | The trace is rerun across Installed ↔ Plan; a missing route falls back to the first with a note | `trace-switch`, `traceSession.test.ts` |
+| RK-01, RK-02 | A 42U rack fits the visible height at 1440×900 and 1280×720 without scrolling; faceplates per kind and their states | `faceplates`, `cabinet.test.ts` |
+| PB-01 to PB-03 | Odd-over-even switch ports; one legend swatch per network; arrow keys, Home/End and Enter with one tab stop | `faceplates`, `equipmentModel.test.ts`, `faceNav.test.ts` |
+| PB-04, PB-05 | The HDF is one dark chassis with 16 modules; jack sizes (44 px switch and panel, 34 px HDF) | `hdfplate` |
+| PD-01, PD-02 | The port detail card draws the connection chain, each box opening its place; a switch port and a free side | `hdfplate`, `equipmentModel.test.ts` |
+| SR-01, SR-02 | Explore finds a cable by ID and a port by label, in Physical and in Conceptual | `search-sheets`, `portSearch.test.ts` |
+| PR-01, PR-02 | The rack and equipment sheets download as one-page PDFs with the header, table and text layer | `search-sheets`, `sheets.test.ts` |
+| SC-01 | The campus fixture validates, is deterministic, has the realistic shape, and every sampled access switch reaches one distribution device on its network | `internal/scalefixture` (Go) |
+| SC-02 | The opt-in campus run records the timings (topology load, first map render, site screen, node, rack, HDF, trace, Explore) and screenshots | `scale` (`SCALE=1`, skipped otherwise) |
+| SC-03 | Picker and Explore lists are built once per snapshot when idle; an empty picker query is cheap | `lazy.test.ts`, `picker.test.ts` |
+| SC-04 | A route change keeps untouched cards and lines as the same objects; a test fails if the projection gains a field the comparison does not read | `reuse.test.ts` |
+| PHY-13 | Above 12 unsaved nodes the layout is layered by cable distance; far fewer lines cross a third card than in the grid | `connections.test.ts`, `center.test.ts` |
+| — | The zoom controls are a compact box (under 60 px wide) in the map and on a site screen | `physical` |
+
 ## M5–M7 — Editing, persistence, scale, and governance
 
 - Empty-canvas preview is unsaved and not traceable; valid rack assignment is required to save equipment.

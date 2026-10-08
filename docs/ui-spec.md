@@ -47,6 +47,14 @@ Sites → selected site → physical node → rack elevation → equipment → e
 - **A rack** is the full elevation (a 420 px dark cabinet, U12…U1, "Available" for free units, one block per equipment spanning its height, teal route, an amber ring for the selected one, a dashed PROPOSED block, muted other networks). In a plan, free units accept library and existing-equipment drops.
 - **The equipment page** has a rack strip on the left, the face in the middle and the endpoint detail on the right. The face is a port bank (rows of 12), a panel's positions, or the HDF grid with a Front | Rear control. Endpoints are buttons named by state; fill follows the state (white free, the circuit network's color cabled, teal on the route, a dark ring when selected).
 
+*Built (M4.1):*
+- **Trace in Physical.** A route selected in either view shows as a one-line **trail** under the breadcrumbs (one chip per equipment visit with its exact port or position and side change, "step N of M", ‹ Prev / Next ›); each opens that endpoint on its equipment page and Back returns. In Physical the results panel opens as one summary line and its expanded hop list scrolls. Hop rows read "HDF-01 · 3C/5 front" with a cable ID or "bridge" for links. The trace is kept across Installed ↔ Plan (rerun in the new context, the same route reselected if it exists).
+- **Large sites.** Above 12 unsaved nodes the site screen is arranged in columns by cable distance (nodes with access equipment, passive corridors, then AGG/BB), cards keep a readable zoom (at least 0.6), and the view starts at the top. Saved positions win.
+- **Rack and faceplates.** The rack is a dark cabinet with rails and a faceplate per kind, fitted to the visible height (a 42U rack without page scrolling); switch ports are odd over even, jacks about 44 px (HDF about 34 px) on a dark chassis, one legend swatch per network present, and a 32-row HDF scrolls inside its card. Arrow keys, Home/End and Enter move and select on a face (one tab stop).
+- **Port detail card** (right, about 300 px): the connection drawn as a chain of clickable boxes (far end, cable, this endpoint, bridge, the other side, cable, far end) with route hops in teal.
+- **Search and sheets.** Explore also finds cables and ports (Ports and Cables lists, at most 50), opening the endpoint in Physical or selecting it in Conceptual. "Print sheet" on a rack or an equipment page downloads a one-page PDF; it changes nothing.
+- **Zoom controls** are a compact box in both views; nothing else spans the canvas bottom.
+
 ## 2. Workspace shell
 
 - Compact header and tool rail; the conceptual map takes the remaining page.

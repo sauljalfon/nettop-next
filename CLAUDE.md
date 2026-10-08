@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Read first
 
-`AGENTS.md` holds the binding project rules (domain invariants, test-first, no auto-commits). The docs in `docs/` are the implementation contract; start at `docs/README.md` → `docs/agent-handoff.md`, which lists the reading order and the **locked decisions that must not be reopened**. `docs/current-status.md` says what the code actually does today. **M1, M2, M3, M3.1, and M4 are complete**: networks, `backbone` role, HDF subpanel structure, `add_hdf`, the acceptance seed, **Find AGG / BB**, the connected conceptual map (`frontend/src/features/map/`), the M3.1 polish (node/site highlight, cable lines, the inspector, the route view, PNG/PDF export), and the M4 physical explorer (`frontend/src/features/physical/`), the saved node layout, and network create/rename (`frontend/src/features/networks/`). The next checkpoint is **M4.1** (physical polish, in progress), then **M5**, in `docs/implementation-plan.md`. Work one step at a time and stop for review after each.
+`AGENTS.md` holds the binding project rules (domain invariants, test-first, no auto-commits). The docs in `docs/` are the implementation contract; start at `docs/README.md` → `docs/agent-handoff.md`, which lists the reading order and the **locked decisions that must not be reopened**. `docs/current-status.md` says what the code actually does today. **M1, M2, M3, M3.1, M4, and M4.1 are complete**: networks, `backbone` role, HDF subpanel structure, `add_hdf`, the acceptance seed, **Find AGG / BB**, the connected conceptual map (`frontend/src/features/map/`), the M3.1 polish (node/site highlight, cable lines, the inspector, the route view, PNG/PDF export), and the M4 physical explorer (`frontend/src/features/physical/`), the saved node layout, and network create/rename (`frontend/src/features/networks/`). M4.1 added the physical polish (trail, cabinet, faceplates, search, sheets, the layered site layout) and the campus fixture. The next checkpoint is **M5a** (then M5b) in `docs/implementation-plan.md`. Work one step at a time and stop for review after each.
 
 ## Commands
 
@@ -36,7 +36,7 @@ npm run format:check         # prettier; `npm run format` to fix
 npm run test:e2e             # Playwright; `npx playwright test e2e/planning.spec.ts` for one file
 ```
 
-Playwright starts `backend/cmd/testserver` (isolated schema, migrate+acceptance seed plus an "Expansion" draft, cleaned on shutdown) on 18080 and Vite on 5175, so it can run alongside dev. Before handoff, run Go tests, frontend tests, typecheck, and build.
+`go run ./cmd/testserver -fixture campus` and `go run ./cmd/db seed -fixture campus` use the generated campus fixture (development only); `SCALE=1 npx playwright test -c playwright.scale.config.ts` runs the opt-in scale spec against it. Playwright starts `backend/cmd/testserver` (isolated schema, migrate+acceptance seed plus an "Expansion" draft, cleaned on shutdown) on 18080 and Vite on 5175, so it can run alongside dev. Before handoff, run Go tests, frontend tests, typecheck, and build.
 
 When `api/openapi.yaml` changes, lint it from `frontend/` with `npx --yes @redocly/cli lint ../api/openapi.yaml --extends minimal`.
 

@@ -22,9 +22,9 @@ Design review and mockup exploration are complete. The agreed behavior is now th
 - [Verification and checkpoint handoff guide](docs/verification-guide.md)
 - [Legacy behavior and source references](docs/legacy-reference.md)
 
-The code is a tested foundation plus the completed **M1** domain contract (network membership, the explicit backbone role, stable HDF subpanel structure with atomic `add_hdf` creation, the acceptance fixture as the development seed), **M2** discovery (**Find AGG / BB** returns every reachable AGG and BB route from an active device or any exact port, reports destinations on another network as mismatches), and **M3**, the connected conceptual map: a layered, freely arrangeable equipment-and-cable map with a network filter, Find AGG / BB results highlighted in place, automatic and pinned HDF positions, then **M3.1**, its polish: node and site highlight, cable lines with network colors and split/join, a redesigned inspector with a compact port table, the hop list, a searchable trace picker, a **route view** that shows one route in hop order inside node and rack outlines, and PNG/PDF export of it. **M4**, the physical explorer: Sites → site (node cards arranged by drag and saved on the server, joined by cable lines) → node (rack previews) → rack (the full elevation, with drops in a plan) → equipment page (port bank, panel sides or the HDF grid, Front/Rear, endpoint detail, Go to peer), with breadcrumbs, an in-app Back, **Show in Physical** from the inspector and the hops, and networks that can be created and renamed. Static mockup files have been removed. [current-status.md](docs/current-status.md) is the exact list of what runs.
+The code is a tested foundation plus the completed **M1** domain contract (network membership, the explicit backbone role, stable HDF subpanel structure with atomic `add_hdf` creation, the acceptance fixture as the development seed), **M2** discovery (**Find AGG / BB** returns every reachable AGG and BB route from an active device or any exact port, reports destinations on another network as mismatches), and **M3**, the connected conceptual map: a layered, freely arrangeable equipment-and-cable map with a network filter, Find AGG / BB results highlighted in place, automatic and pinned HDF positions, then **M3.1**, its polish: node and site highlight, cable lines with network colors and split/join, a redesigned inspector with a compact port table, the hop list, a searchable trace picker, a **route view** that shows one route in hop order inside node and rack outlines, and PNG/PDF export of it. **M4**, the physical explorer: Sites → site (node cards arranged by drag and saved on the server, joined by cable lines) → node (rack previews) → rack (the full elevation, with drops in a plan) → equipment page (port bank, panel sides or the HDF grid, Front/Rear, endpoint detail, Go to peer), with breadcrumbs, an in-app Back, **Show in Physical** from the inspector and the hops, and networks that can be created and renamed. **M4.1** polished the physical side: the trace trail and compact results panel in Physical, a rack cabinet that fits 42U, switch, panel and HDF faceplates with keyboard movement, a port detail card with the connection chain, Explore search by cable ID or port, printable rack and equipment sheets, and a layered layout for large sites. Static mockup files have been removed. [current-status.md](docs/current-status.md) is the exact list of what runs.
 
-**Next checkpoint: M5 — editing, recording installed changes, and inventory.**
+**Next checkpoint: M5a — editing, recording installed changes, and inventory (the production-critical half of M5).**
 
 The [pre-implementation checklist](docs/implementation-plan.md#decisions-to-confirm-before-coding) is answered: read/trace/inspect first slice, development fixtures only (dev database reset and reseeded), and user-assigned HDF row count (1–32) and rack height. Legacy data import is planned as a later, separate checkpoint. The agreed map, physical explorer, and tracing semantics remain the contract.
 
@@ -67,6 +67,20 @@ go run ./cmd/db seed
 ```
 
 Do not do this to a database that holds anything you need. Automated tests never need it; they use isolated schemas.
+
+### The campus fixture and the scale run (development only)
+
+`internal/scalefixture` generates a deterministic, clearly fictional campus (about 40 nodes in one site plus two small ones, about 330 racks of 42U, about 1,540 switches on 3 networks, eight 32-row HDFs and about 5,500 cables). It is **development data only**: never seed it into a database you care about.
+
+```sh
+cd backend
+go run ./cmd/db seed -fixture campus        # empty database only; the default seed stays the acceptance fixture
+go run ./cmd/testserver -fixture campus     # the browser-test API with the campus and no drafts (TEST_DATABASE_URL)
+cd ../frontend
+SCALE=1 npx playwright test -c playwright.scale.config.ts   # opt-in: records timings and screenshots in test-results-scale/
+```
+
+The default Playwright run skips the scale spec. The timings are development-machine measurements, not budgets (see [current-status.md](docs/current-status.md)).
 
 In another terminal:
 
@@ -136,7 +150,7 @@ Browser tests start a test-only Go API and Vite on **18080 / 5175**, using an is
 ```text
 backend/cmd/api/                HTTP server
 backend/cmd/db/                 Explicit migration/seed CLI
-backend/cmd/testserver/         Isolated API for browser tests (acceptance fixture + Expansion draft)
+backend/cmd/testserver/         Isolated API for browser tests (acceptance fixture + Expansion draft; -fixture campus for the scale run)
 backend/migrations/            Versioned, checksummed SQL migrations
 backend/internal/topology/     Domain types and invariants
 backend/internal/pathfinding/  Pure physical traversal
