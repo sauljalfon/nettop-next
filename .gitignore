@@ -9,3 +9,4 @@ playwright-report/
 test-results/
 backend/bin/
 *.log
+test-results-scale/

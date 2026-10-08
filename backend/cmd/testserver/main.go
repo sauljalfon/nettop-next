@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"nettop.local/backend/internal/httpapi"
 	"nettop.local/backend/internal/persistence"
 	"nettop.local/backend/internal/planning"
+	"nettop.local/backend/internal/scalefixture"
 	"nettop.local/backend/internal/topology"
 )
 
@@ -30,6 +32,12 @@ func main() {
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	fixture := flag.String("fixture", "acceptance", "acceptance (with the browser-test additions and the Expansion draft) or campus (the generated scale fixture, no drafts)")
+	addr := flag.String("addr", "127.0.0.1:18080", "listen address")
+	flag.Parse()
+	if *fixture != "acceptance" && *fixture != "campus" {
+		return fmt.Errorf("unknown fixture %q: use acceptance or campus", *fixture)
+	}
 	if _, err := dotenv.Load(); err != nil {
 		return err
 	}
@@ -37,7 +45,7 @@ func run() error {
 	if dsn == "" {
 		return fmt.Errorf("TEST_DATABASE_URL is required")
 	}
-	setup, cancel := context.WithTimeout(ctx, 30*time.Second)
+	setup, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	admin, err := pgxpool.New(setup, dsn)
 	if err != nil {
@@ -70,10 +78,15 @@ func run() error {
 	if err = store.Migrate(setup); err != nil {
 		return err
 	}
-	if err = store.Seed(setup, acceptance.Installed(), expansion()); err != nil {
+	if *fixture == "campus" {
+		err = store.Seed(setup, scalefixture.Campus())
+	} else {
+		err = store.Seed(setup, browserBase(), expansion())
+	}
+	if err != nil {
 		return err
 	}
-	server := &http.Server{Addr: "127.0.0.1:18080", Handler: httpapi.New(store), ReadHeaderTimeout: 5 * time.Second}
+	server := &http.Server{Addr: *addr, Handler: httpapi.New(store), ReadHeaderTimeout: 5 * time.Second}
 	finished := make(chan error, 1)
 	go func() { finished <- server.ListenAndServe() }()
 	select {
@@ -95,4 +108,15 @@ func expansion() planning.Plan {
 		Endpoints: []topology.Endpoint{{ID: "edge-18:p1", EquipmentID: "edge-18", Label: "Port 1"}},
 		Links:     []topology.Link{{ID: "planned-cable-18", A: "edge-18:p1", B: "agg-15:p1", Kind: "cable"}},
 	}
+}
+
+// browserBase is the acceptance fixture plus one empty 42U rack in its own
+// site and node ("Annex"), so browser tests can check a tall cabinet. It holds
+// no equipment, so every count and map in the acceptance example is unchanged.
+func browserBase() topology.Snapshot {
+	s := acceptance.Installed()
+	s.Sites = append(s.Sites, topology.Site{ID: "site-annex", Name: "Annex"})
+	s.Nodes = append(s.Nodes, topology.LocationNode{ID: "node-annex", SiteID: "site-annex", Name: "Annex Hall"})
+	s.Racks = append(s.Racks, topology.Rack{ID: "rack-t42", NodeID: "node-annex", Name: "Rack T42", Units: 42})
+	return s
 }
