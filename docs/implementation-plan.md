@@ -451,6 +451,22 @@ Same rules as M4: test-first, the whole repository green at the end of each step
 | 8b | **Scale fixes from the campus measurement** | SC-03 the trace picker and Explore search lists are built once per snapshot when the browser is idle (never on drawer open), an empty picker query does not score every item, and both search boxes are debounced about 150 ms; SC-04 a route change redraws only the cards and lines it touches (`features/map/reuse.ts`, with a test that fails when the projection gains a field the comparison does not read); PHY-13 above 12 unsaved nodes the site screen is arranged in columns by cable distance (access left, passive corridors by distance, AGG/BB right), cards keep a readable zoom (at least 0.6), and the layered default crosses far fewer cards than the grid (207 → 6 on a 40-node campus shape) |
 | 9 | **Status and handoff** | Full check run (Playwright three times); `current-status.md`, `ui-spec` notes, `CLAUDE.md` |
 
+## M4.2 — Conceptual map first layout at campus size
+
+Requested by the user on 2026-10-08, before M5. The campus measurement (M4.1 step 7) showed that the conceptual map's first layout puts every access switch of a large network in one column: about 1,500 tiny cards in one tall, thin strip, readable only after zooming in. Only the **first layout** changes; recorded positions, drag, reset, the trace, the highlight and every other behavior stay as they are. The 3.6 s first render remains M6 work.
+
+**Design.**
+1. **Wrapped layers.** The layered idea stays (access → passive by cable distance → AGG/BB). A layer with more cards than fit in a column is wrapped into several sub-columns, so the whole map is roughly as wide as it is tall (about the canvas's aspect ratio) instead of one strip. Sub-columns of one layer sit side by side, with a wider gap between layers than between sub-columns, so the left-to-right reading order is kept.
+2. **Grouped by location inside a layer.** Within a layer, cards are grouped by node (then site), and a group is not split across sub-columns when it fits in one; each group is ordered as today (by the average row of cabled neighbors, then by name). Small networks (the acceptance example) keep exactly today's layout: wrapping starts only above a threshold (about 40 cards in a layer).
+3. **Readable first view.** The first fit uses a minimum zoom of about 0.5 so card names stay readable; on a large network it shows the top-left part (access layer) and the user pans, instead of fitting everything at an unreadable size. Reset layout uses the same layout and fit.
+4. **Pure and tested** in `features/map/layout.ts`.
+
+**Step.**
+
+| Step | Work | Tests |
+| --- | --- | --- |
+| 1 | Wrapped, grouped first layout and the readable first fit | LY-01 the acceptance layout is unchanged (positions identical); LY-02 on a 1,500-access-switch network no layer is taller than about the map's width × the canvas's aspect ratio, and the map's bounding box is within 1:3 of the canvas's aspect; LY-03 cards of one node stay together in one sub-column when they fit; LY-04 layers keep their left-to-right order (every access card left of every passive card, every passive card left of every AGG/BB); LY-05 the first fit's zoom is at least 0.5 on the campus; campus screenshot in the review |
+
 ## M5 — Editing, recording installed changes, and inventory
 
 Planned 2026-10-08. Split into **M5a** (production-critical) and **M5b** (an update after production can start).
@@ -519,7 +535,7 @@ Invalid assignment, capacity, height, occupancy, or stale-revision operations do
 
 ### Scope
 
-Persist workspace references/coordinates/expansion preferences (the Physical site screen's node positions are already saved, since M4); separate layout and plan undo; scoped summary/bundle APIs; bounded neighborhoods; detailed-port virtualization. Add revision-keyed graph caching only when justified by measurements.
+**From the M4.2 review (2026-10-08):** on the campus the wrapped first layout still draws each building's cables across the other buildings' columns (a building's switches and its panel are in different layers far apart); lay large maps out in **bands per node** (each node's equipment left to right in one band) so cables stay local. Persist workspace references/coordinates/expansion preferences (the Physical site screen's node positions are already saved, since M4); separate layout and plan undo; scoped summary/bundle APIs; bounded neighborhoods; detailed-port virtualization. Add revision-keyed graph caching only when justified by measurements.
 
 ### Acceptance
 

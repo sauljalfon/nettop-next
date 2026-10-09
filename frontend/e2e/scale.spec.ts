@@ -55,6 +55,15 @@ test('SC-02 the campus at realistic size', async ({ page }) => {
       })
       .not.toBe('transform: translate(0px, 0px) scale(1);')
   })
+  // LY-05: the first fit is readable (zoom 0.5 or more) and shows the top-left of the map.
+  const mapZoom = await page
+    .locator('.react-flow__viewport')
+    .getAttribute('style')
+    .then((v) => Number(/scale\(([\d.]+)\)/.exec(v ?? '')?.[1]))
+  timings.push([`  (first map fit zoom: ${mapZoom.toFixed(2)})`, 0])
+  expect(mapZoom).toBeGreaterThanOrEqual(0.49)
+  await page.waitForTimeout(1500)
+  await shot(page, '0-campus-conceptual-map')
 
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
   await expect(root(page)).toBeVisible()

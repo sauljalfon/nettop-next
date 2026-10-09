@@ -35,7 +35,9 @@ import type { Route, Snapshot } from '../../shared/types'
 import { facetStart } from './facets'
 import NetworkBadge from './NetworkBadge'
 import { projectMap, type MapCardData, type MapFlowEdge } from './mapGraph'
+import { fitViewport } from './center'
 import { sameCardData, sameEdge } from './reuse'
+import { visibleArea } from './viewArea'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession, type Viewport } from './mapSession'
 import { ClearHighlight, ResetLayout } from './MapControls'
@@ -407,7 +409,20 @@ export default function ConceptualMap(props: Props) {
   )
 }
 
-const FIT = { padding: 0.18, maxZoom: 1 }
+/**
+ * The first fit and Reset layout's fit: the whole map when it is readable at
+ * zoom 0.5 or more, otherwise the top-left part (the access layer) at 0.5 and
+ * the user pans. Pixels of padding, inside the visible area.
+ */
+const FIT_MAP = {
+  padding: 48,
+  minZoom: 0.5,
+  maxZoom: 1,
+  anchor: 'top-left' as const,
+}
+/** A card's drawn size, for fitting before React Flow has measured every card. */
+const CARD_FIT_WIDTH = 240
+const CARD_FIT_HEIGHT = 124
 
 function flowEdge(e: MapFlowEdge): Edge {
   const lit = e.data.highlighted
@@ -582,11 +597,36 @@ function Canvas({
       session.requestFit(fitIds(graph.routeView))
     } else if (reset) setFitToken((t) => t + 1) // a layout reset: fit the full map once
   }, [graph.nodes, layoutVersion])
+  const surface = useRef<HTMLDivElement>(null)
+  const nodesRef = useRef(nodes)
+  nodesRef.current = nodes
+  /** Fits the whole map by its cards' positions (no measuring: off-screen cards are not drawn yet). */
+  const fitMap = useCallback(() => {
+    const where = visibleArea(surface.current)
+    const cards = nodesRef.current.filter((n) => n.type === 'equipment')
+    if (!where || cards.length === 0) return Promise.resolve(false)
+    const xs = cards.flatMap((n) => [
+      n.position.x,
+      n.position.x + CARD_FIT_WIDTH,
+    ])
+    const ys = cards.flatMap((n) => [
+      n.position.y,
+      n.position.y + CARD_FIT_HEIGHT,
+    ])
+    const bounds = {
+      x: Math.min(...xs),
+      y: Math.min(...ys),
+      width: Math.max(...xs) - Math.min(...xs),
+      height: Math.max(...ys) - Math.min(...ys),
+    }
+    return flow
+      .setViewport(fitViewport(bounds, where.box, where.covers, FIT_MAP))
+      .then(() => true)
+  }, [flow])
   useEffect(() => {
     if (fitToken === 0) return
-    void flow.fitView(FIT).then(() => record(flow.getViewport()))
+    void fitMap().then(() => record(flow.getViewport()))
   }, [fitToken])
-  const surface = useRef<HTMLDivElement>(null)
   useViewRequests(session, surface, nodes, record)
   // Esc clears the highlight without touching the trace.
   useEffect(() => {
@@ -712,7 +752,7 @@ function Canvas({
               return
             }
             if (!session.needsFit()) return
-            void flow.fitView(FIT).then(() => {
+            void fitMap().then(() => {
               if (session.needsFit()) record(flow.getViewport())
             })
           }}

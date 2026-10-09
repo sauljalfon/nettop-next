@@ -241,6 +241,34 @@ describe('PHY-13 a readable floor keeps the top of tall bounds in view', () => {
   })
 })
 
+describe('LY-05 the first fit keeps a readable zoom and shows the top-left of a large map', () => {
+  const size = { width: 1440, height: 900 }
+  const covers = { left: 461, right: 0, top: 0, bottom: 204 }
+  const campus = { x: 0, y: 0, width: 12560, height: 8400 }
+
+  it('floors the zoom at 0.5 and puts the map’s top-left corner in the visible area’s top-left, clear of covers', () => {
+    const v = fitViewport(campus, size, covers, {
+      padding: 48,
+      minZoom: 0.5,
+      anchor: 'top-left',
+    })
+    expect(v.zoom).toBe(0.5)
+    expect(v.x).toBeCloseTo(461 + 48)
+    expect(v.y).toBeCloseTo(48)
+  })
+
+  it('a small map is still fitted whole and centered (zoom above the floor)', () => {
+    const small = { x: 0, y: 0, width: 1600, height: 800 }
+    const a = fitViewport(small, size, covers, {
+      minZoom: 0.5,
+      anchor: 'top-left',
+    })
+    const b = fitViewport(small, size, covers, { minZoom: 0.5 })
+    expect(a).toEqual(b)
+    expect(a.zoom).toBeGreaterThan(0.5)
+  })
+})
+
 describe('POL-31 the tool rail covers the canvas edge too', () => {
   const rail = rect(17, 156, 82, 423) // the rail: short, at the far left
 
