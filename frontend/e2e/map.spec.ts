@@ -129,12 +129,14 @@ test('C12 saving and refetching reconcile by ID without remounting or resetting'
   const edge17 = await transform(page, 'edge-17')
   const agg03 = await transform(page, 'agg-03')
 
-  await page.getByRole('button', { name: 'Changes', exact: false }).click()
-  await page.getByRole('button', { name: 'Add equipment', exact: true }).click()
-  await page.getByLabel('Equipment name', { exact: true }).fill('EDGE-SAVED')
-  await page.getByRole('combobox', { name: /^Network/ }).selectOption('net-a')
-  await page.getByLabel('Starting unit', { exact: true }).fill('4')
-  await page.getByRole('button', { name: 'Save equipment to plan' }).click()
+  await page.getByRole('button', { name: 'Add equipment library' }).click()
+  await page.getByRole('button', { name: 'Add Access switch…' }).click()
+  const form = page.getByTestId('equipment-form')
+  await form.getByLabel('Name').fill('EDGE-SAVED')
+  await form.getByLabel('Network').selectOption('net-a')
+  await form.getByLabel('Rack', { exact: true }).selectOption('rack-a03')
+  await form.getByLabel('Unit', { exact: true }).fill('4')
+  await form.getByRole('button', { name: 'Add to plan' }).click()
   await expect(page.getByRole('status')).toContainText('revision 2')
 
   await expect(

@@ -71,38 +71,79 @@ func (s *Store) CreatePlan(ctx context.Context, name, expectedBase string) (plan
 }
 
 func (s *Store) Command(ctx context.Context, id string, command planning.Command) (planning.Plan, error) {
+	p, _, err := s.command(ctx, id, command)
+	return p, err
+}
+
+// Batch runs a batch command and also returns the IDs it allocated, in command
+// order ("" for a command that creates nothing).
+func (s *Store) Batch(ctx context.Context, id string, command planning.Command) (planning.Plan, []string, error) {
+	if command.Type != "batch" {
+		return planning.Plan{}, nil, fmt.Errorf("%w: Batch runs batch commands", planning.ErrInvalid)
+	}
+	return s.command(ctx, id, command)
+}
+
+// RemoveChange runs a remove_change command and also returns the keys removed.
+func (s *Store) RemoveChange(ctx context.Context, id string, command planning.Command) (planning.Plan, []string, error) {
+	if command.Type != "remove_change" {
+		return planning.Plan{}, nil, fmt.Errorf("%w: RemoveChange runs remove_change commands", planning.ErrInvalid)
+	}
+	return s.command(ctx, id, command)
+}
+
+func (s *Store) command(ctx context.Context, id string, command planning.Command) (planning.Plan, []string, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return planning.Plan{}, err
+		return planning.Plan{}, nil, err
 	}
 	defer tx.Rollback(ctx)
 	// Lock order is topology then draft. Future installed writes must acquire
 	// the topology row FOR UPDATE before changing any installed inventory.
 	if _, err = tx.Exec(ctx, `SELECT revision FROM installed_topology WHERE singleton=true FOR SHARE`); err != nil {
-		return planning.Plan{}, err
+		return planning.Plan{}, nil, err
 	}
 	p, err := loadPlan(ctx, tx, id, true)
 	if err != nil {
-		return p, err
+		return p, nil, err
 	}
 	base, err := loadInstalled(ctx, tx)
 	if err != nil {
-		return p, err
+		return p, nil, err
 	}
-	prefix := "equipment-"
-	if command.Type == "add_cable" {
-		prefix = "cable-"
+	var next planning.Plan
+	var removed []string // the keys remove_change removed, or the IDs a batch allocated
+	switch command.Type {
+	case "remove_change":
+		next, removed, err = planning.ExecuteRemoveChange(base, p, command)
+	case "batch":
+		// One ID per command that creates something, in command order ("" for the rest).
+		if command.Batch != nil {
+			for _, inner := range command.Batch.Commands {
+				id := ""
+				if prefix := planning.IDPrefix(inner.Type); prefix != "" {
+					id = prefix + rand.Text()
+				}
+				removed = append(removed, id)
+			}
+		}
+		next, err = planning.ExecuteBatch(base, p, command, removed)
+	default:
+		prefix := planning.IDPrefix(command.Type)
+		if prefix == "" {
+			prefix = "equipment-" // commands that create nothing ignore the ID
+		}
+		next, err = planning.Execute(base, p, command, prefix+rand.Text())
 	}
-	next, err := planning.Execute(base, p, command, prefix+rand.Text())
 	if err != nil {
-		return p, err
+		return p, nil, err
 	}
 	body, err := json.Marshal(next)
 	if err != nil {
-		return p, err
+		return p, nil, err
 	}
 	if _, err = tx.Exec(ctx, `UPDATE plans SET revision=$2,additions=$3,updated_at=now() WHERE id=$1`, id, next.Revision, body); err != nil {
-		return p, err
+		return p, nil, err
 	}
-	return next, tx.Commit(ctx)
+	return next, removed, tx.Commit(ctx)
 }

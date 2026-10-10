@@ -101,9 +101,11 @@ test('NET-04 adding a network shows it in the selector, the drawer and the plan 
   // The plan form's Network select offers it.
   await page.getByRole('button', { name: 'Close Manage networks' }).click()
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
-  await page.getByRole('button', { name: 'Add equipment', exact: true }).click()
+  await page.getByRole('button', { name: 'Close Changes & plans' }).click()
+  await page.getByRole('button', { name: 'Add equipment library' }).click()
+  await page.getByRole('button', { name: 'Add Access switch…' }).click()
   await expect(
-    page.getByRole('combobox', { name: /^Network/ }).locator('option'),
+    page.getByTestId('equipment-form').getByLabel('Network').locator('option'),
   ).toContainText(["Choose the device's network", ...names, name])
 })
 

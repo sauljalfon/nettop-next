@@ -1,6 +1,10 @@
 import { useMemo } from 'react'
 import type { Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
+import DeleteEquipment from '../planning/DeleteEquipment'
+import DuplicateEquipment from '../planning/DuplicateEquipment'
+import EndpointEdit from '../planning/EndpointEdit'
+import type { PlanEdit } from '../planning/editing'
 import EndpointDetail from './EndpointDetail'
 import type { ElevationRow } from './elevation'
 import {
@@ -37,7 +41,14 @@ export default function EquipmentPage({
   onPrint,
   marks,
   routeName,
+  edit,
+  installedIds,
+  installedLinkIds,
 }: {
+  /** Set in a current plan: Delete…, Connect… and Disconnect…. */
+  edit?: PlanEdit
+  installedIds: ReadonlySet<string>
+  installedLinkIds: ReadonlySet<string>
   snapshot: Snapshot
   index: SnapshotIndex
   inv: Inventory
@@ -108,6 +119,30 @@ export default function EquipmentPage({
         onSelect={onSelectEndpoint}
         onSide={onSide}
         onPrint={onPrint}
+        proposed={
+          snapshot.context === 'planned' && !installedIds.has(equipment.id)
+        }
+        editSlot={
+          edit && (
+            <>
+              <DuplicateEquipment
+                snapshot={snapshot}
+                index={index}
+                equipmentId={equipment.id}
+                edit={edit}
+                where="page"
+              />
+              <DeleteEquipment
+                snapshot={snapshot}
+                index={index}
+                equipmentId={equipment.id}
+                proposed={!installedIds.has(equipment.id)}
+                edit={edit}
+                where="page"
+              />
+            </>
+          )
+        }
       />
       <EndpointDetail
         model={detail}
@@ -120,7 +155,18 @@ export default function EquipmentPage({
         onSwitch={onSelectEndpoint}
         onFind={onFind}
         onShowOnMap={() => onShowOnMap(equipment.id)}
-      />
+      >
+        {detail && (
+          <EndpointEdit
+            key={detail.endpointId}
+            snapshot={snapshot}
+            index={index}
+            endpointId={detail.endpointId}
+            installedLinkIds={installedLinkIds}
+            edit={edit}
+          />
+        )}
+      </EndpointDetail>
     </div>
   )
 }

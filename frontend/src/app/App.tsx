@@ -16,15 +16,27 @@ import {
   Layers,
   MapPin,
   Network,
-  PanelTop,
   Plus,
   Search,
   Server,
   Settings2,
   X,
 } from 'lucide-react'
-import { getPlans, getSnapshot, sendPlanCommand, trace } from '../shared/api'
-import type { Context, Plan, Snapshot, TraceRequest } from '../shared/types'
+import {
+  APIError,
+  getPlans,
+  getSnapshot,
+  sendBatch,
+  sendPlanCommand,
+  trace,
+} from '../shared/api'
+import type {
+  Context,
+  Plan,
+  PlanCommand,
+  Snapshot,
+  TraceRequest,
+} from '../shared/types'
 import ConceptualMap, {
   type PendingEquipment,
 } from '../features/map/ConceptualMap'
@@ -54,7 +66,7 @@ import {
 } from '../features/map/MapControls'
 import MapResults from '../features/map/MapResults'
 import MapTraceError from '../features/map/MapTraceError'
-import PlanEditor from '../features/planning/PlanEditor'
+import LibraryItems from '../features/planning/LibraryItems'
 import PlacementEditor from '../features/planning/PlacementEditor'
 import TracePicker from '../features/pathfinding/TracePicker'
 import { pickerItems } from '../features/pathfinding/picker'
@@ -66,6 +78,21 @@ import {
   indexSnapshot,
   type SnapshotIndex,
 } from '../features/map/snapshotIndex'
+import { changeCount } from '../features/planning/changeCount'
+import ChangesDrawer from '../features/planning/ChangesDrawer'
+import {
+  draftsOf,
+  isStale,
+  recordedMessage,
+} from '../features/planning/changes'
+import { containerIds } from '../features/planning/containers'
+import { locationFor } from '../features/planning/goTo'
+import type { RecordedInfo } from '../features/planning/ReviewStep'
+import StaleCard from '../features/planning/StaleCard'
+import type { GoTarget } from '../features/planning/summary'
+import type { PlanEdit } from '../features/planning/editing'
+import HdfForm from '../features/planning/HdfForm'
+import { resolveLocation } from '../features/physical/location'
 import { searchEquipment } from '../features/map/search'
 import './styles.css'
 
@@ -99,9 +126,15 @@ export default function App() {
     queryKey: ['topology', 'installed'],
     queryFn: ({ signal }) => getSnapshot('installed', signal),
   })
+  // Recorded plans are history: only drafts can be opened in Plan view.
+  const drafts = useMemo(() => draftsOf(plans.data ?? []), [plans.data])
   const selectedPlan =
-    plans.data?.find((p) => p.id === planID) ??
-    (!planID ? plans.data?.[0] : undefined)
+    drafts.find((p) => p.id === planID) ?? (!planID ? drafts[0] : undefined)
+  // A draft on an older Installed cannot be drawn: it shows a card instead.
+  const stale =
+    !!selectedPlan &&
+    !!installed.data &&
+    isStale(selectedPlan, installed.data.revision)
   const selectedID = context === 'planned' ? selectedPlan?.id : undefined
   const topology = useQuery({
     queryKey:
@@ -109,7 +142,9 @@ export default function App() {
         ? ['topology', 'installed']
         : ['topology', 'planned', selectedID],
     queryFn: ({ signal }) => getSnapshot(context, signal, selectedID),
-    enabled: context === 'installed' || !!selectedID,
+    // Not before Installed is known: until then a stale draft cannot be told from a current one.
+    enabled:
+      context === 'installed' || (!!selectedID && !!installed.data && !stale),
   })
   useEffect(() => {
     const url = new URL(location.href)
@@ -180,11 +215,11 @@ export default function App() {
         unit: unit ?? first ?? 1,
         position: position ?? (!rackID ? { x: 70, y: 70 } : undefined),
       })
-      setDrawer('plans')
+      setDrawer('library')
     },
     [topology.data, context, selectedPlan],
   )
-  const configurePreview = useCallback(() => setDrawer('plans'), [])
+  const configurePreview = useCallback(() => setDrawer('library'), [])
   const openInspector = useCallback(() => setDrawer('inspector'), [])
   const toggleDrawer = (value: Drawer) =>
     setDrawer((previous) => (previous === value ? null : value))
@@ -194,7 +229,47 @@ export default function App() {
     setDrawer(next === 'planned' ? 'plans' : null)
     setStatus('')
   }
-  const error = topology.error ?? installed.error ?? plans.error
+  // Installed's drawer: open a draft in Plan view, or start a new one.
+  const openPlan = (id: string) => {
+    setPlanID(id)
+    setMode('planned')
+  }
+  const createdFromInstalled = async (plan: Plan) => {
+    setPlanID(plan.id)
+    setMode('planned')
+    await saved(plan)
+  }
+  // After a record (or a repeated one that found the plan already recorded):
+  // Installed, with the same physical location and trace (the Workspace reruns
+  // the remembered trace when its topology revision changes).
+  const recorded = async ({ plan, changes, already }: RecordedInfo) => {
+    setPending(undefined)
+    setPlanID('')
+    setContext('installed')
+    await refresh()
+    const others = draftsOf(
+      client.getQueryData<Plan[]>(['plans']) ?? [],
+    ).filter((p) => p.id !== plan.id).length
+    notify(
+      already
+        ? `“${plan.name}” was already recorded.`
+        : recordedMessage(plan.name, changes, others),
+    )
+  }
+  // A summary line or conflict link: open the object in Physical, on the
+  // proposed topology of the open draft or (for a stale draft) on Installed.
+  const goTo = (target: GoTarget, from: 'planned' | 'installed') => {
+    const snapshot = from === 'installed' ? installed.data : topology.data
+    if (!snapshot) return
+    if (from === 'installed') setContext('installed')
+    physicalSession.navigate(locationFor(indexSnapshot(snapshot), target))
+    setView('physical')
+  }
+  // A stale draft's planned topology is never asked for; an old failure of it is not an error.
+  const error =
+    (context === 'planned' && stale ? undefined : topology.error) ??
+    installed.error ??
+    plans.error
   const networks = topology.data?.networks ?? installed.data?.networks ?? []
   // A network that does not exist in this context falls back to All networks.
   const networkId = networks.some((n) => n.id === networkChoice)
@@ -248,12 +323,7 @@ export default function App() {
           <Layers size={16} />
           Changes
           {context === 'planned' && (
-            <span className="count-badge">
-              {(selectedPlan?.equipment.length ?? 0) +
-                (selectedPlan?.updates?.length ?? 0) +
-                (selectedPlan?.links.filter((l) => l.kind === 'cable').length ??
-                  0)}
-            </span>
+            <span className="count-badge">{changeCount(selectedPlan)}</span>
           )}
         </button>
         <span className="local-label">LOCAL DEV</span>
@@ -306,12 +376,21 @@ export default function App() {
         </div>
       ) : !installed.data ||
         !plans.data ||
-        ((context === 'installed' || selectedID) && !topology.data) ? (
+        ((context === 'installed' || (selectedID && !stale)) &&
+          !topology.data) ? (
         <div className="workspace-message">Loading infrastructure…</div>
       ) : context === 'planned' && !selectedPlan ? (
         <div className="workspace-message">
           Create or select a plan in Changes to begin.
         </div>
+      ) : context === 'planned' && selectedPlan && stale ? (
+        <StaleCard
+          plan={selectedPlan}
+          onSaved={saved}
+          notify={notify}
+          onOpenChanges={() => setDrawer('plans')}
+          onViewInstalled={() => setMode('installed')}
+        />
       ) : (
         topology.data && (
           <Workspace
@@ -323,6 +402,11 @@ export default function App() {
             closeDrawer={() => setDrawer(null)}
             pending={pending}
             onCreateEquipment={requestEquipment}
+            onCancelPreview={() => setPending(undefined)}
+            onEquipmentAdded={() => {
+              setPending(undefined)
+              setDrawer(null)
+            }}
             onConfigurePreview={configurePreview}
             onSelectEquipment={openInspector}
             onPlanSaved={saved}
@@ -340,52 +424,22 @@ export default function App() {
           onClose={() => setDrawer(null)}
           side="right"
         >
-          {context === 'installed' ? (
-            <div className="empty-state">
-              <GitBranch size={28} />
-              <h3>Plan a change</h3>
-              <p>
-                Installed infrastructure is read-only here. Create a draft to
-                add equipment, connect ports, or propose a new placement.
-              </p>
-              <button
-                className="button primary"
-                onClick={() => setMode('planned')}
-              >
-                Open planning workspace
-              </button>
-            </div>
-          ) : (
-            <>
-              {pending && !pending.rackId && (
-                <div className="notice">
-                  <strong>Unplaced equipment preview</strong>
-                  <p>
-                    Choose its rack before saving. This preview is not part of
-                    the network or trace graph.
-                  </p>
-                </div>
-              )}
-              <PlanEditor
-                plans={plans.data}
-                selected={selectedPlan}
-                installed={installed.data}
-                snapshot={topology.data}
-                onSelect={(id) => {
-                  setPending(undefined)
-                  setPlanID(id)
-                }}
-                onSaved={saved}
-                onRefresh={refresh}
-                createRequest={pending}
-                onCancelPreview={() => setPending(undefined)}
-                onEquipmentAdded={() => {
-                  setPending(undefined)
-                  setDrawer(null)
-                }}
-              />
-            </>
-          )}
+          <ChangesDrawer
+            context={context}
+            plans={plans.data}
+            installed={installed.data}
+            selected={selectedPlan}
+            onSelectPlan={(id) => {
+              setPending(undefined)
+              setPlanID(id)
+            }}
+            onOpenPlan={openPlan}
+            onCreated={createdFromInstalled}
+            onSaved={saved}
+            onRecorded={recorded}
+            onGo={goTo}
+            notify={notify}
+          />
         </DrawerPanel>
       )}
       {drawer === 'networks' && topology.data && (
@@ -461,6 +515,9 @@ interface WorkspaceProps {
     role?: 'aggregation',
   ) => void
   onConfigurePreview: () => void
+  onCancelPreview: () => void
+  /** Equipment was added through the library form: the drawer is done. */
+  onEquipmentAdded: () => void
   onSelectEquipment: () => void
   onPlanSaved: (plan: Plan) => Promise<void>
   onRefresh: () => Promise<void>
@@ -478,6 +535,8 @@ function Workspace({
   pending,
   onCreateEquipment,
   onConfigurePreview,
+  onCancelPreview,
+  onEquipmentAdded,
   onSelectEquipment,
   onPlanSaved,
   onRefresh,
@@ -680,6 +739,57 @@ function Workspace({
     !!plan &&
     snapshot.revision === `${plan.baseRevision}/${plan.id}@${plan.revision}` &&
     !placement.isPending
+  // One command to the open draft, then the plan and the planned topology are
+  // refreshed (the saved toast included); location and selection are kept. It
+  // rejects with the server's own error for the form or confirm that asked.
+  const edit = useMemo<PlanEdit | undefined>(
+    () =>
+      canEdit && plan
+        ? async (command) => {
+            let saved: Plan
+            try {
+              // A batch is the same edit: one revision, all or nothing.
+              saved =
+                command.type === 'batch'
+                  ? (
+                      await sendBatch(
+                        plan.id,
+                        plan.revision,
+                        command.batch.commands,
+                      )
+                    ).plan
+                  : await sendPlanCommand(plan.id, {
+                      ...command,
+                      expectedRevision: plan.revision,
+                    } as PlanCommand)
+            } catch (e) {
+              // Another window changed the draft: reload it, and say so in the
+              // server's words; the user's edit is not retried.
+              if (e instanceof APIError && e.status === 409) await onRefresh()
+              throw e
+            }
+            await onPlanSaved(saved)
+            return saved
+          }
+        : undefined,
+    [canEdit, plan, onPlanSaved],
+  )
+  const installedContainerIds = useMemo(
+    () => containerIds(installed),
+    [installed],
+  )
+  // A new HDF is opened in Physical once the refreshed topology has it.
+  const [openAfterCreate, setOpenAfterCreate] = useState<string>()
+  useEffect(() => {
+    if (openAfterCreate && index.equipment.has(openAfterCreate)) {
+      showInPhysical(openAfterCreate)
+      setOpenAfterCreate(undefined)
+    }
+  }, [openAfterCreate, index, showInPhysical])
+  const currentRackId = resolveLocation(
+    index,
+    physicalSession.history().current,
+  ).rackId
   const move = useCallback(
     (id: string, rackID: string, unit?: number) => {
       if (!plan) return
@@ -779,6 +889,8 @@ function Workspace({
       onHighlight={highlightLocation}
       onOpenRack={openRack}
       searchRequest={portSearch}
+      edit={edit}
+      installedLinkIDs={installedLinkIDs}
     >
       {plan && (
         <PlacementEditor
@@ -828,6 +940,8 @@ function Workspace({
           installedIds={installedIDs}
           planName={plan?.name}
           canEdit={canEdit}
+          edit={edit}
+          installedContainerIds={installedContainerIds}
           onMoveEquipment={move}
           onCreateEquipment={(kind, rackID, unit, role) =>
             onCreateEquipment(kind, rackID, unit, undefined, role)
@@ -841,10 +955,26 @@ function Workspace({
       {drawer === 'library' && (
         <DrawerPanel
           title="Equipment library"
-          subtitle="Drag onto a rack, or start an unplaced preview"
+          subtitle="Drag onto a rack, or add an HDF with its form"
           onClose={closeDrawer}
         >
-          <EquipmentLibrary canEdit={canEdit} onCreate={onCreateEquipment} />
+          <LibraryItems
+            canEdit={canEdit}
+            edit={edit}
+            racks={snapshot.racks}
+            networks={snapshot.networks}
+            defaultRackId={currentRackId}
+            pending={pending}
+            onCancelPending={onCancelPreview}
+            onAdded={onEquipmentAdded}
+            onHdfCreated={(saved, name) => {
+              const created = saved.equipment.find(
+                (e) => e.kind === 'hdf' && e.name === name,
+              )
+              if (created) setOpenAfterCreate(created.id)
+              closeDrawer()
+            }}
+          />
         </DrawerPanel>
       )}
       {drawer === 'explorer' && (
@@ -1025,84 +1155,6 @@ function Workspace({
         </div>
       )}
     </main>
-  )
-}
-
-function EquipmentLibrary({
-  canEdit,
-  onCreate,
-}: {
-  canEdit: boolean
-  onCreate: WorkspaceProps['onCreateEquipment']
-}) {
-  return (
-    <>
-      <div className="notice">
-        <strong>
-          {canEdit ? 'Build your planned network' : 'Installed view'}
-        </strong>
-        <p>
-          {canEdit
-            ? 'Drop inside a rack to assign it. Drop on empty canvas to preview without saving.'
-            : 'Switch to a plan in the top bar to add or move equipment.'}
-        </p>
-      </div>
-      {(
-        [
-          {
-            name: 'Access switch',
-            kind: 'switch',
-            role: undefined,
-            Icon: Network,
-            description: 'Connect endpoints at the edge',
-          },
-          {
-            name: 'Aggregation',
-            kind: 'switch',
-            role: 'aggregation',
-            Icon: GitFork,
-            description: 'An AGG destination for Find AGG / BB',
-          },
-          {
-            name: 'Patch panel',
-            kind: 'panel',
-            role: undefined,
-            Icon: PanelTop,
-            description: 'Front / rear continuity per position',
-          },
-        ] as const
-      ).map((item) => (
-        <button
-          key={item.name}
-          className="library-item"
-          draggable={canEdit}
-          disabled={!canEdit}
-          onDragStart={(e) => {
-            e.dataTransfer.setData(
-              'application/x-nettop-item',
-              `new:${item.kind}:::${item.role ?? ''}`,
-            )
-            e.dataTransfer.effectAllowed = 'copy'
-          }}
-          onClick={() =>
-            onCreate(item.kind, undefined, undefined, undefined, item.role)
-          }
-        >
-          <span className="equipment-icon">
-            <item.Icon size={22} />
-          </span>
-          <div>
-            <strong>{item.name}</strong>
-            <small>{item.description}</small>
-          </div>
-          <span className="drag-grip">⠿</span>
-        </button>
-      ))}
-      <p className="muted">
-        Site, node, and rack creation will be added through the same validated
-        planning model.
-      </p>
-    </>
   )
 }
 

@@ -1,33 +1,38 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type APIRequestContext } from '@playwright/test'
 import { openRackInPhysical, expandResults } from './helpers'
+
+/** A fresh draft on the current Installed. */
+async function newPlan(request: APIRequestContext, name: string) {
+  const base = (
+    await (await request.get('/api/topology?context=installed')).json()
+  ).revision
+  const response = await request.post('/api/plans', {
+    data: { name, expectedBaseRevision: base },
+  })
+  expect(response.status()).toBe(201)
+  return (await response.json()).id as string
+}
 
 test('rack drops, persisted moves, collisions, and tracing through the rack view', async ({
   page,
   request,
 }) => {
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Plan: Expansion' }).click()
-  await page.getByLabel('New plan name').fill('Drag placement check')
-  await page.getByRole('button', { name: 'Create plan', exact: true }).click()
-  await expect(page.getByLabel('Saved plan')).toContainText(
-    'Drag placement check',
-  )
-  const id = await page.getByLabel('Saved plan').inputValue()
-  await page.getByRole('button', { name: 'Close Changes & plans' }).click()
+  const id = await newPlan(request, 'Drag placement check')
+  await page.goto(`/?plan=${id}`)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   await page
     .locator('.library-item')
     .filter({ hasText: 'Access switch' })
     .dragTo(page.getByTestId('rack-slot-rack-a03-4'))
-  await expect(page.getByLabel('Starting unit', { exact: true })).toHaveValue(
-    '4',
-  )
-  await expect(page.getByRole('combobox', { name: /^Network/ })).toHaveValue('')
-  await page.getByLabel('Equipment name', { exact: true }).fill('DRAG-EDGE')
-  await page.getByRole('combobox', { name: /^Network/ }).selectOption('net-a')
-  await page.getByLabel('Port count', { exact: true }).fill('2')
-  await page.getByRole('button', { name: 'Save equipment to plan' }).click()
+  const form = page.getByTestId('equipment-form')
+  await expect(form.getByLabel('Unit', { exact: true })).toHaveValue('4')
+  await expect(form.getByLabel('Rack', { exact: true })).toHaveValue('rack-a03')
+  await expect(form.getByLabel('Network')).toHaveValue('')
+  await form.getByLabel('Name').fill('DRAG-EDGE')
+  await form.getByLabel('Network').selectOption('net-a')
+  await form.getByLabel('Ports').fill('2')
+  await form.getByRole('button', { name: 'Add to plan' }).click()
   await expect(page.getByTestId('rack-slot-rack-a03-4')).toContainText(
     'DRAG-EDGE',
   )
@@ -57,7 +62,9 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   await page
     .getByRole('button', { name: 'Save planned placement', exact: true })
     .click()
-  await expect(page.getByRole('alert')).toContainText('rack collision')
+  await expect(page.getByRole('alert')).toContainText(
+    'U8 in Rack Core 02 is taken by AGG-08',
+  )
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   const draft = await (await request.get(`/api/plans/${id}`)).json()
   expect(draft.revision).toBe('4')
@@ -100,24 +107,19 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
     .dragTo(page.locator('.react-flow__pane'), {
       targetPosition: { x: 1300, y: 850 },
     })
-  await expect(
-    page.getByRole('combobox', { name: 'Equipment role', exact: true }),
-  ).toHaveValue('aggregation')
-  await expect(
-    page.getByRole('combobox', { name: 'Target rack', exact: true }),
-  ).toHaveValue('')
+  const form = page.getByTestId('equipment-form')
+  await expect(form).toHaveAccessibleName('Add Aggregation')
+  await expect(form.getByLabel('Rack', { exact: true })).toHaveValue('')
   await expect(
     page.getByText('Unplaced equipment preview', { exact: true }),
   ).toBeVisible()
   const after = await (await request.get('/api/plans/expansion')).json()
   expect(after.revision).toBe(before.revision)
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await form.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(page.locator('.unplaced-card')).toHaveCount(0)
-  await page.getByLabel('New plan name').fill('Map creation check')
-  await page.getByRole('button', { name: 'Create plan', exact: true }).click()
-  await expect(page.getByLabel('Saved plan')).toContainText(
-    'Map creation check',
-  )
+  // A fresh draft takes the next one, which is saved after its rack is chosen.
+  const id = await newPlan(request, 'Map creation check')
+  await page.goto(`/?plan=${id}`)
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   await page
     .locator('.library-item')
@@ -125,15 +127,12 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
     .dragTo(page.locator('.react-flow__pane'), {
       targetPosition: { x: 1300, y: 850 },
     })
-  await page.getByLabel('Equipment name', { exact: true }).fill('BOARD-EDGE')
-  await page.getByRole('combobox', { name: /^Network/ }).selectOption('net-a')
-  await page
-    .getByRole('combobox', { name: 'Target rack', exact: true })
-    .selectOption('rack-a03')
-  await page.getByLabel('Port count', { exact: true }).fill('2')
-  await page
-    .getByRole('button', { name: 'Save equipment to plan', exact: true })
-    .click()
+  const next = page.getByTestId('equipment-form')
+  await next.getByLabel('Name').fill('BOARD-EDGE')
+  await next.getByLabel('Network').selectOption('net-a')
+  await next.getByLabel('Rack', { exact: true }).selectOption('rack-a03')
+  await next.getByLabel('Ports').fill('2')
+  await next.getByRole('button', { name: 'Add to plan' }).click()
   await expect(page.locator('.unplaced-card')).toHaveCount(0)
   await expect(
     page.locator('.equipment-card').filter({ hasText: 'BOARD-EDGE' }),

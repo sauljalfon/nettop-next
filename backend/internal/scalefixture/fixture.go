@@ -195,3 +195,28 @@ func hdfSide(hdf string, m int, side string) string {
 	row, column, position := m/24+1, "ABCD"[(m%24)/6], m%6+1
 	return fmt.Sprintf("%s:sp-%d%c:%d:%s", hdf, row, column, position, side)
 }
+
+// Empty is the installed root of the data-entry rehearsal (M5c step 10): the
+// campus's three networks and nothing else, so a node can be entered by hand
+// with the bulk tools. Seed it with `cmd/db seed -fixture empty` into a
+// database that holds no real data.
+func Empty() topology.Snapshot {
+	return topology.Snapshot{
+		Context:  "installed",
+		Revision: "empty-1",
+		Site:     "Rehearsal",
+		Room:     "",
+		Networks: []topology.Network{
+			{ID: "net-a", Name: "Network A"},
+			{ID: "net-b", Name: "Network B"},
+			{ID: "net-c", Name: "Network C"},
+		},
+		Sites:     []topology.Site{},
+		Nodes:     []topology.LocationNode{},
+		Racks:     []topology.Rack{},
+		Subpanels: []topology.Subpanel{},
+		Equipment: []topology.Equipment{},
+		Endpoints: []topology.Endpoint{},
+		Links:     []topology.Link{},
+	}
+}

@@ -1,0 +1,347 @@
+/* Inline confirms and forms for plan editing: the inspector's compact controls. */
+.inline-confirm,
+.inline-form {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  font-size: 12px;
+  color: #26344b;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #e3c7c4;
+  border-radius: 8px;
+  outline: none;
+}
+.inline-confirm {
+  background: #fdf3f2;
+}
+.connect-box {
+  background: #fff;
+  border-color: #cfd8e4;
+}
+.inline-form {
+  border-color: #e3cf9c;
+  background: #fffdf8;
+}
+.inline-confirm:focus-visible,
+.inline-form:focus-visible {
+  box-shadow: 0 0 0 2px #cdbff5;
+}
+.inline-confirm ul {
+  margin: 0;
+  padding-left: 16px;
+  color: #4b5a72;
+}
+.inline-confirm .cut,
+.inline-confirm .quiet {
+  font-size: 11px;
+  color: #6b7a90;
+}
+.inline-form .eyebrow {
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 1.2px;
+  color: #8390a4;
+}
+.inline-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: #4b5a72;
+}
+.inline-form input,
+.inline-form select,
+.count-input {
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 7px;
+  font: inherit;
+  font-size: 12px;
+  color: #26344b;
+  background: #fff;
+  border: 1px solid #c9d2e0;
+  border-radius: 6px;
+}
+.inline-form .two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.inline-form .hint {
+  font-size: 11px;
+  color: #8390a4;
+}
+.inline-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.button.danger {
+  color: #fff;
+  background: #b3261e;
+  border-color: #b3261e;
+}
+.button.ghost-danger {
+  color: #b3261e;
+  background: #fff;
+  border-color: #e3c7c4;
+}
+.edit-error {
+  font-size: 11px;
+  color: #b3261e;
+}
+.container-foot {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+.container-foot .quiet,
+.installed-hint {
+  font-size: 11px;
+  color: #8390a4;
+}
+.installed-hint {
+  grid-column: 1 / -1;
+  margin: 12px 0 0;
+}
+.site-item {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+/* The item is the card (so its foot sits inside it); the button is its face. */
+.site-item {
+  padding-bottom: 12px;
+  background: #fff;
+  border: 1px solid #dfe6ee;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px #2e4a6710;
+}
+.site-item:hover {
+  border-color: #c7d2e0;
+}
+.site-item:has(> .site-card.on-route) {
+  border: 2px solid #108b79;
+}
+.site-item:has(> .site-card.proposed-container) {
+  background: #fffdf8;
+  border: 1px dashed #d9a441;
+}
+.site-item .site-card,
+.site-item .site-card.on-route,
+.site-item .site-card.proposed-container {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none;
+}
+.site-item .container-foot {
+  padding: 0 16px;
+}
+.site-card.proposed-container .proposed-tag,
+.node-card.proposed-container .proposed-tag,
+.rack-preview.proposed-container .proposed-tag {
+  align-self: flex-start;
+}
+.delete-equipment {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 2px;
+  justify-items: start;
+}
+.delete-equipment[data-testid='delete-equipment-page'] {
+  justify-items: end;
+}
+.delete-equipment .inline-confirm {
+  justify-self: stretch;
+}
+.add-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 190px;
+}
+.add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 56px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: #4b5a72;
+  background: transparent;
+  border: 1px dashed #b7c3d4;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.add-button:hover,
+.add-button:focus-visible {
+  color: #5645b6;
+  border-color: #8f7fe0;
+}
+.proposed-container {
+  border-style: dashed !important;
+  border-color: #d9a441 !important;
+  background: #fffdf8 !important;
+}
+.endpoint-edit {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #eef1f6;
+}
+.endpoint-edit .section-label {
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 1.2px;
+  color: #8390a4;
+}
+.port-confirm-row td {
+  padding: 4px 6px 8px;
+}
+.library-form {
+  margin-top: 10px;
+}
+.library-hdf .plan-row {
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+  padding: 13px 12px;
+  margin: 10px 0;
+  background: #fff;
+  border: 1px solid #e2e5ec;
+  border-radius: 9px;
+}
+.library-hdf .plan-row small {
+  font-size: 11px;
+  color: #8c98ac;
+}
+
+/* Compact controls: the global .button is sized for drawers, and .primary is full width. */
+:is(
+    .inline-confirm,
+    .inline-form,
+    .endpoint-edit,
+    .library-hdf,
+    .delete-equipment,
+    .container-foot,
+    .add-card
+  )
+  .button,
+:is(
+    .inline-confirm,
+    .inline-form,
+    .endpoint-edit,
+    .library-hdf,
+    .delete-equipment,
+    .container-foot,
+    .add-card
+  )
+  .button.primary {
+  width: auto;
+  margin-top: 0;
+  padding: 4px 11px;
+  line-height: 1.4;
+}
+.endpoint-edit .button,
+.library-hdf .plan-row .button {
+  justify-self: start;
+}
+.connect-box .trace-picker {
+  display: grid;
+  gap: 7px;
+  font-size: 11px;
+  color: #4b5a72;
+}
+.connect-box .trace-picker input {
+  padding: 5px 8px;
+}
+.site-edit .add-card {
+  width: 260px;
+}
+
+/* A container's Delete is a small button, not a full-width bar. */
+.container-foot .button {
+  align-self: flex-start;
+  justify-self: start;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+.container-foot {
+  justify-items: start;
+}
+.library-entry {
+  display: grid;
+  gap: 6px;
+}
+.library-entry .library-item {
+  margin: 10px 0 0;
+  padding: 12px;
+  cursor: grab;
+}
+.library-entry .library-item[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.7;
+}
+.library-entry .library-item .button {
+  margin-left: auto;
+  width: auto;
+  padding: 4px 11px;
+  line-height: 1.4;
+}
+
+.connect-range label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.count-input {
+  width: 56px;
+}
+.range-pairs {
+  list-style: none;
+  margin: 0;
+  padding: 4px 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #e3e8f0;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.range-pairs li.blocked {
+  color: #b3261e;
+}
+.range-pairs li {
+  padding: 1px 0;
+}
+.range-pairs li em {
+  display: block;
+  padding-left: 14px;
+  font-style: normal;
+}
+.range-skip {
+  font-size: 11px;
+}
+
+/* Preview lines never break inside a name; a long reason scrolls instead. */
+.copy-preview {
+  overflow-x: auto;
+}
+.copy-preview li {
+  white-space: nowrap;
+}
+/* Copy rack layout floats over the neighbouring cards, like a popover. */
+.copy-popover {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  width: 360px;
+  max-width: calc(100vw - 16px);
+  overflow-y: auto;
+  box-shadow: 0 8px 28px rgba(31, 41, 74, 0.18);
+}

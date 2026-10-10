@@ -1,49 +1,66 @@
-import { expect, test } from '@playwright/test'
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from '@playwright/test'
 import { pick } from './helpers'
 
-test('save a plan, reconnect a proposed port, reload, and reject stale edits', async ({
+const getPlan = async (request: APIRequestContext, id: string) =>
+  (await request.get(`/api/plans/${id}`)).json()
+
+/** Opens the library's Access switch form. */
+async function openSwitchForm(page: Page) {
+  await page.getByRole('button', { name: 'Add equipment library' }).click()
+  await page.getByRole('button', { name: 'Add Access switch…' }).click()
+  return page.getByTestId('equipment-form')
+}
+
+test('save a plan, add equipment through the library form, reload, and reject stale edits', async ({
   page,
   request,
 }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
-  await page.getByLabel('New plan name').fill('Browser persistence check')
-  await page.getByRole('button', { name: 'Create plan', exact: true }).click()
-  await expect(page.getByLabel('Saved plan')).toContainText(
+  await page.getByRole('button', { name: 'New draft', exact: true }).click()
+  await page.getByLabel('Draft name').fill('Browser persistence check')
+  await page.getByRole('button', { name: 'Create draft', exact: true }).click()
+  await expect(page.getByLabel('Draft', { exact: true })).toContainText(
     'Browser persistence check',
   )
-  const planID = await page.getByLabel('Saved plan').inputValue()
-  await page.getByRole('button', { name: 'Add equipment', exact: true }).click()
-  await page.getByLabel('Equipment name', { exact: true }).fill('EDGE-BROWSER')
-  await page.getByLabel('Equipment role').selectOption('backbone')
-  const network = page.getByRole('combobox', { name: /^Network/ })
-  await expect(network).toHaveValue('')
-  await expect(
-    page.getByRole('button', { name: 'Save equipment to plan' }),
-  ).toBeDisabled()
-  await network.selectOption('net-a')
-  await page.getByLabel('Starting unit', { exact: true }).fill('4')
-  await page.getByLabel('Port count', { exact: true }).fill('2')
-  await page.getByRole('button', { name: 'Save equipment to plan' }).click()
-  await expect(page.getByRole('status')).toContainText('revision 2')
-  const saved = await (await request.get(`/api/plans/${planID}`)).json()
-  expect(saved.equipment[0]).toMatchObject({
-    role: 'backbone',
-    networkId: 'net-a',
-  })
-  await page.reload()
-  await page.getByRole('button', { name: 'Changes', exact: false }).click()
-  await expect(page.getByLabel('Saved plan')).toHaveValue(planID)
-  await page.getByRole('button', { name: 'Add cable', exact: true }).click()
-  await page
-    .getByRole('combobox', { name: 'Cable endpoint A' })
-    .selectOption({ label: 'EDGE-BROWSER · Port 1' })
-  await page
-    .getByRole('combobox', { name: 'Cable endpoint B' })
-    .selectOption({ label: 'AGG-15 · Port 1' })
-  await page.getByRole('button', { name: 'Save cable to plan' }).click()
-  await expect(page.getByRole('status')).toContainText('revision 3')
+  const planID = await page.getByLabel('Draft', { exact: true }).inputValue()
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
+
+  const form = await openSwitchForm(page)
+  await form.getByLabel('Name').fill('EDGE-BROWSER')
+  // A switch needs its network: the form says so and sends nothing.
+  await form.getByRole('button', { name: 'Add to plan' }).click()
+  await expect(form.getByTestId('edit-error')).toContainText('network')
+  expect((await getPlan(request, planID)).revision).toBe('1')
+  await form.getByLabel('Network').selectOption('net-a')
+  await form.getByLabel('Rack', { exact: true }).selectOption('rack-a03')
+  await form.getByLabel('Unit', { exact: true }).fill('4')
+  await form.getByLabel('Ports').fill('2')
+  await form.getByRole('button', { name: 'Add to plan' }).click()
+  await expect(page.getByRole('status')).toContainText('revision 2')
+  const saved = await getPlan(request, planID)
+  expect(saved.equipment[0]).toMatchObject({
+    name: 'EDGE-BROWSER',
+    role: 'access',
+    networkId: 'net-a',
+    rackId: 'rack-a03',
+    unit: 4,
+  })
+  // A cable (the endpoint detail's Connect… is covered by ED-09).
+  const cabled = await request.post(`/api/plans/${planID}/commands`, {
+    data: {
+      type: 'add_cable',
+      expectedRevision: '2',
+      cable: { a: `${saved.equipment[0].id}:p1`, b: 'agg-15:p1' },
+    },
+  })
+  expect(cabled.status()).toBe(200)
+  await page.reload()
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await pick(page, 'Start', 'edge-browser all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
@@ -67,14 +84,15 @@ test('save a plan, reconnect a proposed port, reload, and reject stale edits', a
     },
   })
   expect(response.status()).toBe(200)
-  await page.getByRole('button', { name: 'Changes', exact: false }).click()
-  await page.getByRole('button', { name: 'Add equipment', exact: true }).click()
-  await page.getByLabel('Equipment name', { exact: true }).fill('STALE-EDIT')
-  await page.getByRole('combobox', { name: /^Network/ }).selectOption('net-a')
-  await page.getByLabel('Starting unit', { exact: true }).fill('5')
-  await page.getByRole('button', { name: 'Save equipment to plan' }).click()
-  await expect(page.getByRole('alert')).toContainText('draft changed')
-  await page.getByRole('button', { name: 'Refresh draft', exact: true }).click()
+  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  const stale = await openSwitchForm(page)
+  await stale.getByLabel('Name').fill('STALE-EDIT')
+  await stale.getByLabel('Network').selectOption('net-a')
+  await stale.getByLabel('Rack', { exact: true }).selectOption('rack-a03')
+  await stale.getByLabel('Unit', { exact: true }).fill('5')
+  await stale.getByRole('button', { name: 'Add to plan' }).click()
+  // The server says the draft changed (in its own words); the edit is not retried.
+  await expect(stale.getByTestId('edit-error')).toContainText('draft changed')
   const current = await (await request.get(`/api/plans/${planID}`)).json()
   expect(
     current.equipment.some((e: { name: string }) => e.name === 'STALE-EDIT'),

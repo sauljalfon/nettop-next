@@ -1,12 +1,14 @@
 import {
   ChevronDown,
+  Cable,
   ChevronRight,
   GitFork,
   Pin,
   PinOff,
   Server,
+  Unlink,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import NetworkBadge from '../map/NetworkBadge'
 import {
   defaultFilter,
@@ -30,6 +32,24 @@ interface Props {
   onFindFromHere: (endpointId: string) => void
   onShowInPhysical: (endpointId: string) => void
   onPin: (key: string) => void
+  /**
+   * In a current plan: the inline confirm for removing one cable. When given,
+   * every cabled side gets a Disconnect action.
+   */
+  renderDisconnect?: (
+    linkId: string,
+    onClose: () => void,
+    openerKey: string,
+  ) => ReactNode
+  /**
+   * In a current plan: the Connect a range box for a free side. When given,
+   * every free side gets a Connect a range… action.
+   */
+  renderRange?: (
+    endpointId: string,
+    onClose: () => void,
+    openerKey: string,
+  ) => ReactNode
   /** A search from Explore: fills the search with a label (and shows every endpoint) each time `serial` changes. */
   request?: { query: string; serial: number }
 }
@@ -56,6 +76,8 @@ export default function PortTable({
   onFindFromHere,
   onShowInPhysical,
   onPin,
+  renderDisconnect,
+  renderRange,
   request,
 }: Props) {
   const total = unitCount(groups)
@@ -72,6 +94,8 @@ export default function PortTable({
   }, [request?.serial])
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = useState<string>()
+  const [disconnecting, setDisconnecting] = useState<string>()
+  const [ranging, setRanging] = useState<string>()
   const shown = filterGroups(groups, { mode, query })
   const ports = groups[0]?.id === 'ports'
   return (
@@ -137,6 +161,13 @@ export default function PortTable({
                       onFindFromHere={onFindFromHere}
                       onShowInPhysical={onShowInPhysical}
                       onPin={onPin}
+                      canDisconnect={!!renderDisconnect}
+                      disconnecting={disconnecting}
+                      onDisconnect={setDisconnecting}
+                      renderDisconnect={renderDisconnect}
+                      ranging={ranging}
+                      onRange={setRanging}
+                      renderRange={renderRange}
                     />
                   ))}
                 </GroupRows>
@@ -192,7 +223,23 @@ function Row({
   onFindFromHere,
   onShowInPhysical,
   onPin,
+  canDisconnect,
+  disconnecting,
+  onDisconnect,
+  renderDisconnect,
+  ranging,
+  onRange,
+  renderRange,
 }: {
+  /** The free endpoint whose range box is open, if any. */
+  ranging?: string
+  onRange: (endpointId?: string) => void
+  renderRange?: Props['renderRange']
+  canDisconnect: boolean
+  /** The cable whose confirm is open, if any. */
+  disconnecting?: string
+  onDisconnect: (linkId?: string) => void
+  renderDisconnect?: Props['renderDisconnect']
   unit: InspectorUnit
   equipmentName: string
   networkName: (id: string) => string
@@ -206,99 +253,167 @@ function Row({
 }) {
   const name = `${equipmentName} ${unit.label}`
   const pinLabel = pinned ? 'Unpin on map' : 'Pin on map'
+  const open = unit.sides.find(
+    (side) => side.cable && side.cable.linkId === disconnecting,
+  )
+  const openRange = unit.sides.find(
+    (side) => !side.cable && side.endpointId === ranging,
+  )
   return (
-    <tr
-      className={`port-row ${unit.cabled ? 'cabled' : 'free'} ${selected ? 'selected' : ''}`}
-      data-testid="inspector-unit"
-      data-unit={unit.key}
-      data-selected={selected}
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.target === event.currentTarget && event.key === 'Enter')
-          onSelect()
-      }}
-    >
-      <th scope="row" className="col-label">
-        {unit.label}
-      </th>
-      <td className="col-far">
-        {unit.sides.map((side) => (
-          <div
-            key={side.endpointId}
-            data-side={side.side}
-            title={
-              side.cable ? `${side.side} → ${side.cable.farLabel}` : undefined
-            }
+    <>
+      <tr
+        className={`port-row ${unit.cabled ? 'cabled' : 'free'} ${selected ? 'selected' : ''}`}
+        data-testid="inspector-unit"
+        data-unit={unit.key}
+        data-selected={selected}
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={(event) => {
+          if (event.target === event.currentTarget && event.key === 'Enter')
+            onSelect()
+        }}
+      >
+        <th scope="row" className="col-label">
+          {unit.label}
+        </th>
+        <td className="col-far">
+          {unit.sides.map((side) => (
+            <div
+              key={side.endpointId}
+              data-side={side.side}
+              title={
+                side.cable ? `${side.side} → ${side.cable.farLabel}` : undefined
+              }
+            >
+              {side.side !== 'port' && (
+                <abbr className="side-name" title={side.side}>
+                  {side.side === 'front' ? 'F' : 'R'}
+                </abbr>
+              )}
+              {side.cable ? (
+                `→ ${side.side === 'port' ? side.cable.farLabel : shortFarLabel(side.cable.farLabel)}`
+              ) : (
+                <span className="free-side">free</span>
+              )}
+            </div>
+          ))}
+        </td>
+        <td className="col-cable">
+          {unit.sides.map((side) => (
+            <div key={side.endpointId} data-side={side.side}>
+              {side.cable?.linkId}
+            </div>
+          ))}
+        </td>
+        <td className="col-network">
+          {unit.sides.map((side) => (
+            <div key={side.endpointId} data-side={side.side}>
+              {side.cable?.networkId && (
+                <NetworkBadge
+                  name={networkName(side.cable.networkId)}
+                  color={networkColor(side.cable.networkId)}
+                />
+              )}
+            </div>
+          ))}
+        </td>
+        <td className="col-actions">
+          <button
+            className="row-action"
+            title="Find AGG / BB from here"
+            aria-label={`Find AGG / BB from here: ${name}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              onFindFromHere(unit.startEndpointId)
+            }}
           >
-            {side.side !== 'port' && (
-              <abbr className="side-name" title={side.side}>
-                {side.side === 'front' ? 'F' : 'R'}
-              </abbr>
+            <GitFork size={14} />
+          </button>
+          <button
+            className="row-action"
+            title="Show in Physical"
+            aria-label={`Show in Physical: ${name}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              onShowInPhysical(unit.physicalEndpointId)
+            }}
+          >
+            <Server size={14} />
+          </button>
+          <button
+            className={`row-action ${pinned ? 'active' : ''}`}
+            title={pinLabel}
+            aria-label={`${pinLabel}: ${name}`}
+            aria-pressed={pinned}
+            onClick={(event) => {
+              event.stopPropagation()
+              onPin(unit.key)
+            }}
+          >
+            {pinned ? <PinOff size={14} /> : <Pin size={14} />}
+          </button>
+          {renderRange &&
+            unit.sides.map(
+              (side) =>
+                !side.cable && (
+                  <button
+                    key={side.endpointId}
+                    className="row-action"
+                    title="Connect a range…"
+                    aria-label={`Connect a range: ${name}${side.side === 'port' ? '' : ` ${side.side}`}`}
+                    data-opener={`port:range:${side.endpointId}`}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onRange(side.endpointId)
+                    }}
+                  >
+                    <Cable size={14} />
+                  </button>
+                ),
             )}
-            {side.cable ? (
-              `→ ${side.side === 'port' ? side.cable.farLabel : shortFarLabel(side.cable.farLabel)}`
-            ) : (
-              <span className="free-side">free</span>
+          {canDisconnect &&
+            unit.sides.map(
+              (side) =>
+                side.cable && (
+                  <button
+                    key={side.endpointId}
+                    className="row-action danger"
+                    title={`Disconnect ${side.cable.linkId}`}
+                    aria-label={`Disconnect ${side.cable.linkId}: ${name}${side.side === 'port' ? '' : ` ${side.side}`}`}
+                    data-opener={`port:disconnect:${side.cable.linkId}`}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onDisconnect(side.cable!.linkId)
+                    }}
+                  >
+                    <Unlink size={14} />
+                  </button>
+                ),
             )}
-          </div>
-        ))}
-      </td>
-      <td className="col-cable">
-        {unit.sides.map((side) => (
-          <div key={side.endpointId} data-side={side.side}>
-            {side.cable?.linkId}
-          </div>
-        ))}
-      </td>
-      <td className="col-network">
-        {unit.sides.map((side) => (
-          <div key={side.endpointId} data-side={side.side}>
-            {side.cable?.networkId && (
-              <NetworkBadge
-                name={networkName(side.cable.networkId)}
-                color={networkColor(side.cable.networkId)}
-              />
+        </td>
+      </tr>
+      {renderRange && openRange && (
+        <tr className="port-confirm-row">
+          <td colSpan={COLUMNS}>
+            {renderRange(
+              openRange.endpointId,
+              () => onRange(undefined),
+              `port:range:${openRange.endpointId}`,
             )}
-          </div>
-        ))}
-      </td>
-      <td className="col-actions">
-        <button
-          className="row-action"
-          title="Find AGG / BB from here"
-          aria-label={`Find AGG / BB from here: ${name}`}
-          onClick={(event) => {
-            event.stopPropagation()
-            onFindFromHere(unit.startEndpointId)
-          }}
-        >
-          <GitFork size={14} />
-        </button>
-        <button
-          className="row-action"
-          title="Show in Physical"
-          aria-label={`Show in Physical: ${name}`}
-          onClick={(event) => {
-            event.stopPropagation()
-            onShowInPhysical(unit.physicalEndpointId)
-          }}
-        >
-          <Server size={14} />
-        </button>
-        <button
-          className={`row-action ${pinned ? 'active' : ''}`}
-          title={pinLabel}
-          aria-label={`${pinLabel}: ${name}`}
-          aria-pressed={pinned}
-          onClick={(event) => {
-            event.stopPropagation()
-            onPin(unit.key)
-          }}
-        >
-          {pinned ? <PinOff size={14} /> : <Pin size={14} />}
-        </button>
-      </td>
-    </tr>
+          </td>
+        </tr>
+      )}
+      {open?.cable && renderDisconnect && (
+        <tr className="port-confirm-row">
+          <td colSpan={COLUMNS}>
+            {renderDisconnect(
+              open.cable.linkId,
+              () => onDisconnect(undefined),
+              `port:disconnect:${open.cable.linkId}`,
+            )}
+          </td>
+        </tr>
+      )}
+    </>
   )
 }

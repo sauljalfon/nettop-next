@@ -211,43 +211,37 @@ func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plans ...plann
 		}
 	}
 	for _, site := range base.Sites {
-		if _, err = tx.Exec(ctx, `INSERT INTO sites(id,name) VALUES($1,$2)`, site.ID, site.Name); err != nil {
+		if err = insertSite(ctx, tx, site); err != nil {
 			return err
 		}
 	}
 	for _, node := range base.Nodes {
-		if _, err = tx.Exec(ctx, `INSERT INTO location_nodes(id,name,site_id) VALUES($1,$2,$3)`, node.ID, node.Name, node.SiteID); err != nil {
+		if err = insertNode(ctx, tx, node); err != nil {
 			return err
 		}
 	}
 	for _, r := range base.Racks {
-		if _, err = tx.Exec(ctx, `INSERT INTO racks(id,name,units,node_id) VALUES ($1,$2,$3,$4)`, r.ID, r.Name, r.Units, r.NodeID); err != nil {
+		if err = insertRack(ctx, tx, r); err != nil {
 			return err
 		}
 	}
 	for _, e := range base.Equipment {
-		if _, err = tx.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,rack_id,unit,height,network_id) VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''))`, e.ID, e.Name, e.Kind, e.Role, e.RackID, e.Unit, e.Height, e.NetworkID); err != nil {
-			return err
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO rack_occupancy SELECT $1,$2,generate_series($3::integer,$4::integer)`, e.ID, e.RackID, e.Unit, e.Unit+e.Height-1); err != nil {
+		if err = insertEquipment(ctx, tx, e); err != nil {
 			return err
 		}
 	}
 	for _, sp := range base.Subpanels {
-		if _, err = tx.Exec(ctx, `INSERT INTO subpanels(id,equipment_id,row_number,column_letter) VALUES($1,$2,$3,$4)`, sp.ID, sp.EquipmentID, sp.Row, sp.Column); err != nil {
+		if err = insertSubpanel(ctx, tx, sp); err != nil {
 			return err
 		}
 	}
 	for _, p := range base.Endpoints {
-		if _, err = tx.Exec(ctx, `INSERT INTO endpoints(id,equipment_id,equipment_kind,label,position,side,subpanel_id) SELECT $1,$2,kind,$3,$4,$5,NULLIF($6,'') FROM equipment WHERE id=$2`, p.ID, p.EquipmentID, p.Label, p.Position, p.Side, p.SubpanelID); err != nil {
+		if err = insertEndpoint(ctx, tx, p); err != nil {
 			return err
 		}
 	}
 	for _, l := range base.Links {
-		if _, err = tx.Exec(ctx, `INSERT INTO links VALUES ($1,$2)`, l.ID, l.Kind); err != nil {
-			return err
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO link_endpoints(link_id,endpoint_id,kind,slot) VALUES ($1,$2,$4,1),($1,$3,$4,2)`, l.ID, l.A, l.B, l.Kind); err != nil {
+		if err = insertLink(ctx, tx, l); err != nil {
 			return err
 		}
 	}
@@ -277,11 +271,12 @@ func insertPlan(ctx context.Context, tx pgx.Tx, p planning.Plan) error {
 func loadPlan(ctx context.Context, tx pgx.Tx, id string, lock bool) (planning.Plan, error) {
 	p := planning.Plan{}
 	var body []byte
-	query := `SELECT id,name,base_revision,revision::text,additions FROM plans WHERE id=$1`
+	query := `SELECT id,name,base_revision,revision::text,additions,status,recorded_at,record_note,recorded_by FROM plans WHERE id=$1`
 	if lock {
 		query += " FOR UPDATE"
 	}
-	err := tx.QueryRow(ctx, query, id).Scan(&p.ID, &p.Name, &p.BaseRevision, &p.Revision, &body)
+	var note, by *string
+	err := tx.QueryRow(ctx, query, id).Scan(&p.ID, &p.Name, &p.BaseRevision, &p.Revision, &body, &p.Status, &p.RecordedAt, &note, &by)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, planning.ErrNotFound
 	}
@@ -292,6 +287,18 @@ func loadPlan(ctx context.Context, tx pgx.Tx, id string, lock bool) (planning.Pl
 	if err = json.Unmarshal(body, &additions); err != nil {
 		return p, err
 	}
+	if note != nil {
+		p.RecordNote = *note
+	}
+	if by != nil {
+		p.RecordedBy = *by
+	}
+	p.Labels = additions.Labels
+	if p.Labels == nil {
+		p.Labels = map[string]string{} // plans saved before labels have none
+	}
+	p.Sites, p.Nodes, p.Racks = additions.Sites, additions.Nodes, additions.Racks
+	p.Placements, p.Removals = additions.Placements, additions.Removals
 	p.Equipment = additions.Equipment
 	p.Updates = additions.Updates
 	if p.Updates == nil {
@@ -342,4 +349,46 @@ func (s *Store) Snapshot(ctx context.Context, planID string) (topology.Snapshot,
 		}
 	}
 	return base, tx.Commit(ctx)
+}
+
+// The insert helpers are shared by Seed and Record, so both write installed
+// rows the same way.
+func insertSite(ctx context.Context, tx pgx.Tx, site topology.Site) error {
+	_, err := tx.Exec(ctx, `INSERT INTO sites(id,name) VALUES($1,$2)`, site.ID, site.Name)
+	return err
+}
+func insertNode(ctx context.Context, tx pgx.Tx, node topology.LocationNode) error {
+	_, err := tx.Exec(ctx, `INSERT INTO location_nodes(id,name,site_id) VALUES($1,$2,$3)`, node.ID, node.Name, node.SiteID)
+	return err
+}
+func insertRack(ctx context.Context, tx pgx.Tx, r topology.Rack) error {
+	_, err := tx.Exec(ctx, `INSERT INTO racks(id,name,units,node_id) VALUES ($1,$2,$3,$4)`, r.ID, r.Name, r.Units, r.NodeID)
+	return err
+}
+
+// insertEquipment writes the equipment row and its rack occupancy.
+func insertEquipment(ctx context.Context, tx pgx.Tx, e topology.Equipment) error {
+	if _, err := tx.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,rack_id,unit,height,network_id) VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''))`, e.ID, e.Name, e.Kind, e.Role, e.RackID, e.Unit, e.Height, e.NetworkID); err != nil {
+		return err
+	}
+	return insertOccupancy(ctx, tx, e)
+}
+func insertOccupancy(ctx context.Context, tx pgx.Tx, e topology.Equipment) error {
+	_, err := tx.Exec(ctx, `INSERT INTO rack_occupancy SELECT $1,$2,generate_series($3::integer,$4::integer)`, e.ID, e.RackID, e.Unit, e.Unit+e.Height-1)
+	return err
+}
+func insertSubpanel(ctx context.Context, tx pgx.Tx, sp topology.Subpanel) error {
+	_, err := tx.Exec(ctx, `INSERT INTO subpanels(id,equipment_id,row_number,column_letter) VALUES($1,$2,$3,$4)`, sp.ID, sp.EquipmentID, sp.Row, sp.Column)
+	return err
+}
+func insertEndpoint(ctx context.Context, tx pgx.Tx, p topology.Endpoint) error {
+	_, err := tx.Exec(ctx, `INSERT INTO endpoints(id,equipment_id,equipment_kind,label,position,side,subpanel_id) SELECT $1,$2,kind,$3,$4,$5,NULLIF($6,'') FROM equipment WHERE id=$2`, p.ID, p.EquipmentID, p.Label, p.Position, p.Side, p.SubpanelID)
+	return err
+}
+func insertLink(ctx context.Context, tx pgx.Tx, l topology.Link) error {
+	if _, err := tx.Exec(ctx, `INSERT INTO links VALUES ($1,$2)`, l.ID, l.Kind); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO link_endpoints(link_id,endpoint_id,kind,slot) VALUES ($1,$2,$4,1),($1,$3,$4,2)`, l.ID, l.A, l.B, l.Kind)
+	return err
 }

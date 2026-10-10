@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { Equipment, Network } from '../../shared/types'
 import { colorOf } from '../map/networkColors'
 import {
@@ -39,6 +39,10 @@ interface Props {
   onPrint?: () => void
   /** For a printed sheet: no controls, no tab stop. */
   printing?: boolean
+  /** Proposed equipment (only in this plan): the title carries the PROPOSED tag. */
+  proposed?: boolean
+  /** Plan editing under the title (Delete… and its confirm); absent when not editing. */
+  editSlot?: ReactNode
 }
 
 /**
@@ -62,6 +66,8 @@ export default function FaceView({
   onSide,
   onPrint,
   printing,
+  proposed,
+  editSlot,
 }: Props) {
   const networkName = (id?: string) => networks.find((n) => n.id === id)?.name
   const cells = navCells(face)
@@ -154,6 +160,11 @@ export default function FaceView({
         <div>
           <h2>
             {equipment.name}
+            {proposed && (
+              <em className="proposed-tag" data-testid="proposed-tag">
+                PROPOSED
+              </em>
+            )}
             {onPrint && !printing && (
               <button className="outline-button print-button" onClick={onPrint}>
                 Print sheet
@@ -178,6 +189,7 @@ export default function FaceView({
           </div>
         )}
       </header>
+      {editSlot}
 
       <div ref={container} onKeyDown={onKeyDown}>
         {face.kind === 'switch' && (

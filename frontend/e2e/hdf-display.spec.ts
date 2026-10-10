@@ -29,10 +29,7 @@ test('a proposed HDF renders as passive equipment, not an active switch', async 
   plan = (await saved.json()) as Plan
   const hdf = plan.equipment[0].id
 
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Plan: Expansion' }).click()
-  await page.getByLabel('Saved plan').selectOption(plan.id)
-  await page.getByRole('button', { name: 'Close Changes & plans' }).click()
+  await page.goto(`/?plan=${plan.id}`)
   // The map shows the new card (the projection says so)…
   await expect.poll(async () => (await marks(page)).cards).toContain(hdf)
   // …but it is a proposed, unconnected card, parked below the rest. React Flow

@@ -10,6 +10,11 @@ import {
 } from 'react'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Equipment, Snapshot } from '../../shared/types'
+import DeleteEquipment from '../planning/DeleteEquipment'
+import DuplicateEquipment from '../planning/DuplicateEquipment'
+import ConnectRange from '../planning/ConnectRange'
+import { DisconnectConfirm } from '../planning/EditConfirms'
+import type { PlanEdit } from '../planning/editing'
 import type { LocationRef } from '../map/highlight'
 import type { MapSession } from '../map/mapSession'
 import NetworkBadge from '../map/NetworkBadge'
@@ -45,6 +50,9 @@ interface Props {
   onOpenRack: (rackId: string) => void
   /** A port chosen in Explore: opens the Ports/Positions tab with its search filled. */
   searchRequest?: { equipmentId: string; query: string; serial: number }
+  /** Set in a current plan: Delete… in the header and Disconnect on cabled rows. */
+  edit?: PlanEdit
+  installedLinkIDs?: ReadonlySet<string>
   /** The plan placement form, shown on the Overview tab when a plan is open. */
   children?: ReactNode
 }
@@ -69,6 +77,8 @@ export default function Inspector({
   onHighlight,
   onOpenRack,
   searchRequest,
+  edit,
+  installedLinkIDs,
   children,
 }: Props) {
   const forMe =
@@ -211,6 +221,25 @@ export default function Inspector({
             </button>
           )}
         </div>
+        {edit && (
+          <DuplicateEquipment
+            snapshot={snapshot}
+            index={index}
+            equipmentId={equipment.id}
+            edit={edit}
+            where="inspector"
+          />
+        )}
+        {edit && (
+          <DeleteEquipment
+            snapshot={snapshot}
+            index={index}
+            equipmentId={equipment.id}
+            proposed={header.proposed}
+            edit={edit}
+            where="inspector"
+          />
+        )}
         <div className="inspector-tabs" role="tablist" onKeyDown={onTabKey}>
           {TABS.map((id) => (
             <button
@@ -261,6 +290,34 @@ export default function Inspector({
               onShowInPhysical(equipment.id, endpointId)
             }
             onPin={(key) => session.toggleManual(equipment.id, key)}
+            renderDisconnect={
+              edit &&
+              ((linkId, onClose, openerKey) => (
+                <DisconnectConfirm
+                  snapshot={snapshot}
+                  index={index}
+                  linkId={linkId}
+                  proposed={!installedLinkIDs?.has(linkId)}
+                  edit={edit}
+                  openerKey={openerKey}
+                  onClose={onClose}
+                />
+              ))
+            }
+            renderRange={
+              edit &&
+              ((endpointId, onClose, openerKey) => (
+                <ConnectRange
+                  key={endpointId}
+                  snapshot={snapshot}
+                  index={index}
+                  endpointId={endpointId}
+                  edit={edit}
+                  openerKey={openerKey}
+                  onClose={onClose}
+                />
+              ))
+            }
             request={forMe}
           />
         )}

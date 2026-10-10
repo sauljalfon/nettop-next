@@ -106,8 +106,8 @@ func TestMoveEquipmentCreatesPlanOverlayWithoutChangingInstalled(t *testing.T) {
 	if !moved {
 		t.Fatal("planned location was not applied to the overlay")
 	}
-	if len(next.Updates) != 1 || next.Updates[0].ID != "edge-01" {
-		t.Fatal("move is not represented as an explicit update")
+	if len(next.Updates) != 0 || len(next.Placements) != 1 || next.Placements[0] != (planning.PlacementInput{EquipmentID: "edge-01", RackID: "rack-04", Unit: 4}) {
+		t.Fatal("move is not represented as an explicit placement")
 	}
 	if next.Revision != "2" {
 		t.Fatal("move did not advance draft revision")

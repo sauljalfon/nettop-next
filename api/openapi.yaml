@@ -3,7 +3,7 @@ security: []
 info:
   title: Net-Top Next API
   version: 0.5.0
-  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing (point-to-point and Find AGG / BB). Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/implementation-plan.md. Networks can be created and renamed, and Physical site-screen node positions are saved and shared; both are presentation or reference data and never change a topology revision. No installed topology mutation endpoints yet.
+  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing (point-to-point and Find AGG / BB). Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/implementation-plan.md. Networks can be created and renamed, and Physical site-screen node positions are saved and shared; both are presentation or reference data and never change a topology revision. The only way installed topology changes is recording a draft (POST /plans/{id}/record); there are no direct edit endpoints yet.
 servers:
   - url: http://127.0.0.1:8080/api
 paths:
@@ -100,10 +100,16 @@ paths:
   /plans:
     get:
       operationId: listPlans
-      summary: List saved plan drafts
+      summary: List saved plans, or the recorded plans that changed one object
+      description: Without parameters, every plan (drafts and recorded) ordered by creation. With objectId, only the recorded plans that added, moved or removed that site, node, rack, equipment or cable, newest first (the object's history). An empty objectId is 400.
+      parameters:
+        - name: objectId
+          in: query
+          required: false
+          schema: {type: string, minLength: 1}
       responses:
         '200':
-          description: Saved additive drafts ordered by creation
+          description: Saved plans ordered by creation, or recorded plans newest first
           content:
             application/json:
               schema:
@@ -154,7 +160,7 @@ paths:
     post:
       operationId: applyPlanCommand
       summary: Validate and atomically save a draft command
-      description: Locks the draft, checks both draft and base revisions, validates the complete overlay, and saves additions atomically. Failed commands leave the draft revision unchanged. This does not change installed infrastructure.
+      description: Locks the draft, checks both draft and base revisions, validates the complete overlay, and saves additions atomically. Failed commands leave the draft revision unchanged. This does not change installed infrastructure. The body may be up to 1 MB so that a batch of 500 commands fits (other endpoints take 16 KB).
       requestBody:
         required: true
         content:
@@ -162,14 +168,114 @@ paths:
             schema: {$ref: '#/components/schemas/PlanCommand'}
       responses:
         '200':
-          description: Saved draft with incremented revision
+          description: Saved draft with incremented revision. For remove_change the body is {plan, removed} and for batch {plan, ids} instead.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Plan'
+                  - $ref: '#/components/schemas/RemoveChangeResult'
+                  - $ref: '#/components/schemas/BatchResult'
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /plans/{id}/record:
+    parameters:
+      - $ref: '#/components/parameters/PlanPathID'
+    post:
+      operationId: recordPlan
+      summary: Record a draft as installed
+      description: In one transaction, locks the installed topology and then the draft, requires a draft (not recorded) whose revision equals expectedRevision and whose base is the current installed revision, applies the overlay, and writes the difference (by ID) to the installed tables. The installed revision changes once, to a new opaque value. The plan becomes read-only with its time and note kept as the record. Any failure leaves installed and the draft unchanged. A recorded plan refuses commands, record and rebase with 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedRevision, note, recordedBy]
+              properties:
+                expectedRevision: {type: string, minLength: 1}
+                note: {type: string, minLength: 1, maxLength: 500, description: Trimmed; says what was physically done.}
+                recordedBy: {type: string, minLength: 1, maxLength: 100, description: "Trimmed free-text name until identities exist (M7). Stored with the plan."}
+      responses:
+        '200':
+          description: The recorded plan and the new installed revision
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [plan, installedRevision]
+                properties:
+                  plan: {$ref: '#/components/schemas/Plan'}
+                  installedRevision: {type: string}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /plans/{id}/check:
+    parameters:
+      - $ref: '#/components/parameters/PlanPathID'
+    post:
+      operationId: checkPlan
+      summary: Check a draft against the current installed topology (read-only)
+      description: Takes no body and changes nothing. Returns whether the draft's base is stale and every change that cannot apply to the current installed topology, as Update draft and record would find them. Used by the review step before the note is written.
+      responses:
+        '200':
+          description: The check result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [stale, conflicts]
+                properties:
+                  stale: {type: boolean}
+                  conflicts:
+                    type: array
+                    items: {$ref: '#/components/schemas/PlanConflict'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /plans/{id}/rebase:
+    parameters:
+      - $ref: '#/components/parameters/PlanPathID'
+    post:
+      operationId: rebasePlan
+      summary: Update draft to the current installed topology
+      description: Locks the installed topology (shared) and the draft, then re-checks every change of the draft against the current installed topology. With no conflicts the draft's base becomes the current installed revision and its revision increases by one; a draft that is already current is returned unchanged. Otherwise 409 lists every conflicting change and nothing changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedRevision]
+              properties:
+                expectedRevision: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: The draft on the current base
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Plan'}
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-        '422': {$ref: '#/components/responses/Error'}
+        '409':
+          description: The draft changed or is recorded (error only), or some changes conflict (error and conflicts)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error: {type: string}
+                  conflicts:
+                    type: array
+                    items: {$ref: '#/components/schemas/PlanConflict'}
         '500': {$ref: '#/components/responses/Error'}
   /sites/{siteId}/layout:
     parameters:
@@ -320,18 +426,48 @@ components:
         siteId: {type: string}
     Plan:
       type: object
-      required: [id, name, baseRevision, revision, equipment, subpanels, endpoints, links]
+      required: [id, name, baseRevision, revision, status, equipment, subpanels, endpoints, links]
       properties:
         id: {type: string}
         name: {type: string}
         baseRevision: {type: string}
         revision: {type: string, pattern: '^[1-9][0-9]*$'}
+        status:
+          type: string
+          enum: [draft, recorded]
+          description: A recorded plan is read-only; it stays listed as the record of the change.
+        recordedAt: {type: string, format: date-time, description: Present only when recorded.}
+        recordNote: {type: string, description: Present only when recorded.}
+        recordedBy: {type: string, description: Present only when recorded.}
+        labels:
+          type: object
+          additionalProperties: {type: string}
+          description: "Names of the objects the plan touches, by ID: equipment, racks, nodes and sites by name, an endpoint as \"Equipment · label\", a removed cable as \"A ↔ B\". Commands fill it; a record adds what Installed lost. It lets a draft or a recorded plan read in names after its objects are gone from Installed. Absent (empty) on plans saved before labels."
         equipment:
           type: array
           items: {$ref: '#/components/schemas/Equipment'}
+        sites:
+          type: array
+          description: Proposed sites. Omitted when empty. Containers are added before equipment.
+          items: {$ref: '#/components/schemas/Site'}
+        nodes:
+          type: array
+          description: Proposed physical nodes. Omitted when empty.
+          items: {$ref: '#/components/schemas/LocationNode'}
+        racks:
+          type: array
+          description: Proposed racks. Omitted when empty.
+          items: {$ref: '#/components/schemas/Rack'}
+        placements:
+          type: array
+          description: Moves of installed equipment, by IDs only (a later rename of the equipment cannot invalidate the draft). Proposed equipment is moved in the equipment additions array. Omitted when empty.
+          items: {$ref: '#/components/schemas/Placement'}
+        removals:
+          $ref: '#/components/schemas/Removals'
         updates:
           type: array
-          description: Explicit placement updates for installed equipment. Proposed equipment is moved in the equipment additions array.
+          deprecated: true
+          description: Legacy, read-only. Plans saved before placements carry full equipment entries here; each is read as a placement (only rackId and unit count). The API never writes new entries; the next command folds them into placements and returns an empty list.
           items: {$ref: '#/components/schemas/Equipment'}
         subpanels:
           type: array
@@ -379,7 +515,93 @@ components:
           minimum: 1
           maximum: 48
           description: Switch ports or panel positions. Each panel position creates front/rear endpoints and one internal bridge.
+    BatchItem:
+      type: object
+      additionalProperties: false
+      required: [type]
+      description: One command inside a batch, with exactly the payload its type needs (the same payloads as the single commands) and no expectedRevision.
+      properties:
+        type: {enum: [add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site]}
+        equipment: {$ref: '#/components/schemas/EquipmentInput'}
+        hdf: {$ref: '#/components/schemas/HDFInput'}
+        cable:
+          type: object
+          additionalProperties: false
+          required: [a, b]
+          properties:
+            a: {type: string}
+            b: {type: string}
+        placement: {$ref: '#/components/schemas/Placement'}
+        site:
+          type: object
+          additionalProperties: false
+          required: [name]
+          properties:
+            name: {type: string, minLength: 1, maxLength: 100}
+        node:
+          type: object
+          additionalProperties: false
+          required: [siteId, name]
+          properties:
+            siteId: {type: string}
+            name: {type: string, minLength: 1, maxLength: 100}
+        rack:
+          type: object
+          additionalProperties: false
+          required: [nodeId, name, units]
+          properties:
+            nodeId: {type: string}
+            name: {type: string, minLength: 1, maxLength: 100}
+            units: {type: integer, minimum: 1, maximum: 60}
+        target:
+          type: object
+          additionalProperties: false
+          required: [id]
+          properties:
+            id: {type: string}
+    BatchResult:
+      type: object
+      required: [plan, ids]
+      properties:
+        plan: {$ref: '#/components/schemas/Plan'}
+        ids:
+          type: array
+          description: One entry per command, in command order - the ID the server allocated for a command that creates something (add_equipment, add_hdf, add_cable, add_site, add_node, add_rack), and "" for the others.
+          items: {type: string}
+    RemoveChangeResult:
+      type: object
+      required: [plan, removed]
+      properties:
+        plan: {$ref: '#/components/schemas/Plan'}
+        removed:
+          type: array
+          description: Keys removed, the requested one first, then what depended on it.
+          items: {type: string}
+    PlanConflict:
+      type: object
+      required: [change, reason]
+      properties:
+        change: {type: string, description: '"<kind>:<id>" of the change, e.g. place_equipment:panel-a, add_cable:cable-7, remove_rack:rack-a03, add_equipment:edge-18.'}
+        reason: {type: string}
+    Placement:
+      type: object
+      additionalProperties: false
+      required: [equipmentId, rackId, unit]
+      properties:
+        equipmentId: {type: string}
+        rackId: {type: string}
+        unit: {type: integer, minimum: 1, maximum: 100}
+    Removals:
+      type: object
+      description: Installed objects the plan removes. Removing equipment also removes its endpoints, bridges, subpanels and every cable on them. A rack, node or site is removed only when empty after the plan. Removing something the plan itself added deletes the addition and records nothing here.
+      properties:
+        equipment: {type: array, items: {type: string}}
+        links: {type: array, description: "Cable IDs. Bridges go only with their equipment.", items: {type: string}}
+        racks: {type: array, items: {type: string}}
+        nodes: {type: array, items: {type: string}}
+        sites: {type: array, items: {type: string}}
     PlanCommand:
+      description: Exactly one payload per command, the one its type names. Every command needs expectedRevision (the draft revision). Malformed bodies and unknown fields are 400, a stale revision is 409, an invalid change is 422 and persists nothing.
       oneOf:
         - type: object
           additionalProperties: false
@@ -397,6 +619,7 @@ components:
             hdf: {$ref: '#/components/schemas/HDFInput'}
         - type: object
           additionalProperties: false
+          description: "422 when an endpoint does not exist, when both ends are the same endpoint, when both ends are on the same equipment (\"PANEL-A · 5 · Front and PANEL-A · 5 · Rear are on the same equipment\"), or when an end is already cabled (\"AGG-03 · Port 1 is already cabled (cable-a04)\"); the reason is in names, and inside a batch it follows \"command N (add_cable): \"."
           required: [type, expectedRevision, cable]
           properties:
             type: {const: add_cable}
@@ -422,6 +645,90 @@ components:
                 equipmentId: {type: string}
                 rackId: {type: string}
                 unit: {type: integer, minimum: 1, maximum: 100}
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, site]
+          properties:
+            type: {const: add_site}
+            expectedRevision: {type: string, minLength: 1}
+            site:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 100, description: "Trimmed; unique among sites ignoring case."}
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, node]
+          properties:
+            type: {const: add_node}
+            expectedRevision: {type: string, minLength: 1}
+            node:
+              type: object
+              additionalProperties: false
+              required: [siteId, name]
+              properties:
+                siteId: {type: string, description: An existing or proposed site.}
+                name: {type: string, minLength: 1, maxLength: 100, description: "Trimmed; unique within the site ignoring case."}
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, rack]
+          properties:
+            type: {const: add_rack}
+            expectedRevision: {type: string, minLength: 1}
+            rack:
+              type: object
+              additionalProperties: false
+              required: [nodeId, name, units]
+              properties:
+                nodeId: {type: string, description: An existing or proposed node.}
+                name: {type: string, minLength: 1, maxLength: 100, description: "Trimmed; unique within the node ignoring case."}
+                units: {type: integer, minimum: 1, maximum: 60}
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, batch]
+          description: "Applies 1–500 commands in order, all or nothing, with one revision bump, one expectedRevision and nothing persisted on failure. Each inner command is one of add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site, without its own expectedRevision; batch itself (no nesting) and remove_change are refused. Each command is checked against the draft as the earlier commands left it, so later commands see their effect (a unit freed by a delete can be used). A command cannot refer to an object created earlier in the same batch: the IDs are allocated by the server and are only known from the response. 422 names the failing command by its 1-based position and the reason in names, for example: command 7 (add_cable): HDF-02 · 2B/3 rear is already cabled (cable-a04). Empty or more than 500 commands is 422; a stale revision or a recorded plan is 409. The response is {plan, ids}."
+          properties:
+            type: {const: batch}
+            expectedRevision: {type: string, minLength: 1}
+            batch:
+              type: object
+              additionalProperties: false
+              required: [commands]
+              properties:
+                commands:
+                  type: array
+                  minItems: 1
+                  maxItems: 500
+                  items: {$ref: '#/components/schemas/BatchItem'}
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, change]
+          description: Removes one change of the draft and the changes that depend on it. The one command a stale draft accepts (it can only shrink the draft); on a current draft the result must still apply (422 otherwise). An unknown key is 404. The response is {plan, removed}, not a bare plan.
+          properties:
+            type: {const: remove_change}
+            expectedRevision: {type: string, minLength: 1}
+            change:
+              type: object
+              additionalProperties: false
+              required: [key]
+              properties:
+                key:
+                  type: string
+                  description: "The \"<kind>:<id>\" key a conflict or the summary names: add_site, add_node, add_rack, add_equipment, place_equipment, add_cable, remove_equipment, remove_cable, remove_rack, remove_node, remove_site. Dependents removed with it - add_equipment:X also its cables (add_cable) and placement; add_rack:R also the plan's equipment in R and placements into R; add_node:N its racks; add_site:S its nodes. Every other key removes only itself (undoing a removal restores the object)."
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, target]
+          description: delete_equipment removes the equipment with its endpoints, bridges, subpanels and every cable on them (the draft's own cables on it are dropped). disconnect_cable removes one cable; bridges (internal links) are refused. delete_rack, delete_node and delete_site are refused unless the object is empty after the draft, with the reason in the error. Deleting something the draft itself added deletes the addition.
+          properties:
+            type: {enum: [delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site]}
+            expectedRevision: {type: string, minLength: 1}
+            target:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id: {type: string, description: "Equipment ID, cable ID, or rack, node or site ID according to type."}
     Rack:
       type: object
       required: [id, name, units, nodeId]

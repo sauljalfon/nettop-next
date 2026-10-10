@@ -7,6 +7,12 @@ import {
   useSyncExternalStore,
 } from 'react'
 import type { Route, Snapshot } from '../../shared/types'
+import {
+  childCounts as countChildren,
+  isProposed,
+} from '../planning/containers'
+import CopyRackLayout from '../planning/CopyRackLayout'
+import type { PlanEdit } from '../planning/editing'
 import { networkColors } from '../map/networkColors'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import {
@@ -48,6 +54,10 @@ interface Props {
   planName?: string
   /** In a plan: drops and drags are on. */
   canEdit: boolean
+  /** Set in a current plan: add and delete containers, delete equipment, connect and disconnect. */
+  edit?: PlanEdit
+  /** Installed sites, nodes and racks; any other container is proposed (marked in a plan). */
+  installedContainerIds: ReadonlySet<string>
   onMoveEquipment: (equipmentId: string, rackId: string, unit?: number) => void
   onCreateEquipment: (
     kind: 'switch' | 'panel',
@@ -81,6 +91,8 @@ export default function PhysicalExplorer({
   installedIds,
   planName,
   canEdit,
+  edit,
+  installedContainerIds,
   onMoveEquipment,
   onCreateEquipment,
   onSelectEquipment,
@@ -96,6 +108,17 @@ export default function PhysicalExplorer({
   )
   const inv = useMemo(() => buildInventory(snapshot, index), [snapshot, index])
   const marks = useMemo(() => routeMarks(index, route), [index, route])
+  // Containers only in this plan, and what each container holds (for Delete).
+  const proposedIds = useMemo(
+    () =>
+      new Set(
+        [...snapshot.sites, ...snapshot.nodes, ...snapshot.racks]
+          .map((x) => x.id)
+          .filter((id) => isProposed(snapshot, installedContainerIds, id)),
+      ),
+    [snapshot, installedContainerIds],
+  )
+  const childCounts = useMemo(() => countChildren(snapshot), [snapshot])
   const colors = useMemo(
     () => networkColors(snapshot.networks),
     [snapshot.networks],
@@ -225,6 +248,21 @@ export default function PhysicalExplorer({
         .flatMap((r) => (r.kind === 'free' ? [r.unit] : []))
         .join(' ')}
       data-selected-equipment={selectedEquipmentId ?? ''}
+      data-can-edit={!!edit}
+      data-site-ids={
+        location.level === 'sites'
+          ? snapshot.sites.map((x) => x.id).join(' ')
+          : ''
+      }
+      data-site-nodes={
+        location.level === 'site'
+          ? snapshot.nodes
+              .filter((n) => n.siteId === location.siteId)
+              .map((n) => n.id)
+              .join(' ')
+          : ''
+      }
+      data-proposed-containers={[...proposedIds].sort().join(' ')}
       data-route-steps={trail.length || ''}
       data-route-step={trailAt === undefined ? '' : trailAt + 1}
       data-selected-endpoint={onPage ? (location.endpointId ?? '') : ''}
@@ -290,6 +328,9 @@ export default function PhysicalExplorer({
             inv={inv}
             marks={marks}
             networkId={selectedNetwork}
+            edit={edit}
+            proposedIds={proposedIds}
+            childCounts={childCounts}
             onOpen={(siteId) => go({ siteId })}
           />
         )}
@@ -303,6 +344,9 @@ export default function PhysicalExplorer({
             marks={marks}
             networkId={selectedNetwork}
             installedLinkIDs={installedLinkIDs}
+            edit={edit}
+            proposedIds={proposedIds}
+            childCounts={childCounts}
             session={session}
             onOpenRacks={(id) => go({ nodeId: id })}
             onOpenEndpoint={openEndpoint}
@@ -313,6 +357,17 @@ export default function PhysicalExplorer({
         )}
         {location.level === 'node' && (
           <NodeLevel
+            nodeId={nodeId}
+            edit={edit}
+            proposedIds={proposedIds}
+            childCounts={childCounts}
+            renderCopyLayout={
+              edit &&
+              ((id) => (
+                <CopyRackLayout snapshot={snapshot} rackId={id} edit={edit} />
+              ))
+            }
+            installed={snapshot.context === 'installed'}
             canEdit={canEdit}
             onMoveEquipment={onMoveEquipment}
             onCreateEquipment={onCreateEquipment}
@@ -360,6 +415,9 @@ export default function PhysicalExplorer({
             onShowOnMap={onShowOnMap}
             onPrint={() => setSheet('equipment')}
             marks={marks}
+            edit={edit}
+            installedIds={installedIds}
+            installedLinkIds={installedLinkIDs}
             routeName={
               trailTitle.replace(/^Route ?/, '').replace(/:$/, '') || undefined
             }

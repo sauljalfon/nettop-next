@@ -80,15 +80,15 @@ func TestAddHDFCommandContractOverHTTP(t *testing.T) {
 	good := `{"type":"add_hdf","expectedRevision":"1","hdf":{"name":"HDF-NEW","rackId":"rack-03","unit":3,"height":3,"rows":4}}`
 	// A05: malformed JSON, unknown fields, wrong types, extra JSON values → 400.
 	for name, body := range map[string]string{
-		"malformed":              `{"type":"add_hdf",`,
-		"unknown top-level":      `{"type":"add_hdf","expectedRevision":"1","extra":1}`,
-		"unknown payload field":  `{"type":"add_hdf","expectedRevision":"1","hdf":{"name":"H","rackId":"rack-03","unit":3,"height":3,"rows":4,"ports":24}}`,
-		"rows as string":         `{"type":"add_hdf","expectedRevision":"1","hdf":{"name":"H","rackId":"rack-03","unit":3,"height":3,"rows":"4"}}`,
-		"fractional rows":        `{"type":"add_hdf","expectedRevision":"1","hdf":{"name":"H","rackId":"rack-03","unit":3,"height":3,"rows":1.5}}`,
-		"second JSON object":     good + `{"type":"add_cable"}`,
-		"trailing garbage":       good + ` x`,
-		"payload is not object":  `{"type":"add_hdf","expectedRevision":"1","hdf":[1]}`,
-		"oversized request body": `{"type":"add_hdf","expectedRevision":"1","hdf":{"name":"` + strings.Repeat("x", 20000) + `"}}`,
+		"malformed":             `{"type":"add_hdf",`,
+		"unknown top-level":     `{"type":"add_hdf","expectedRevision":"1","extra":1}`,
+		"unknown payload field": `{"type":"add_hdf","expectedRevision":"1","hdf":{"name":"H","rackId":"rack-03","unit":3,"height":3,"rows":4,"ports":24}}`,
+		"rows as string":        `{"type":"add_hdf","expectedRevision":"1","hdf":{"name":"H","rackId":"rack-03","unit":3,"height":3,"rows":"4"}}`,
+		"fractional rows":       `{"type":"add_hdf","expectedRevision":"1","hdf":{"name":"H","rackId":"rack-03","unit":3,"height":3,"rows":1.5}}`,
+		"second JSON object":    good + `{"type":"add_cable"}`,
+		"trailing garbage":      good + ` x`,
+		"payload is not object": `{"type":"add_hdf","expectedRevision":"1","hdf":[1]}`,
+		"oversized request body (over 1 MB, the limit for commands so a batch fits)": `{"type":"add_hdf","expectedRevision":"1","hdf":{"name":"` + strings.Repeat("x", 1<<20+1) + `"}}`,
 	} {
 		t.Run(name, func(t *testing.T) { call("POST", path, body, 400) })
 	}

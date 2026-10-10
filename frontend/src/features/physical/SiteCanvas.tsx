@@ -20,6 +20,11 @@ import {
   type NodeProps,
 } from '@xyflow/react'
 import { GripVertical } from 'lucide-react'
+import AddContainer from '../planning/AddContainer'
+import ContainerFoot from '../planning/ContainerFoot'
+import { installedHint } from '../planning/containers'
+import type { PlanEdit } from '../planning/editing'
+import '../planning/editing.css'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   getSiteLayout,
@@ -28,6 +33,7 @@ import {
 } from '../../shared/api'
 import type { NodePosition, SiteLayout, Snapshot } from '../../shared/types'
 import { fitViewport } from '../map/center'
+import { defaultNodeLayout } from './layout'
 import { ResetLayout } from '../map/MapControls'
 import { visibleArea } from '../map/viewArea'
 import { colorOf, networkColors } from '../map/networkColors'
@@ -59,7 +65,12 @@ const FIT = { padding: 40, minZoom: 0.1, maxZoom: 1 }
 const FIT_MANY = { ...FIT, minZoom: 0.6, anchor: 'top' as const }
 
 interface CardData extends Record<string, unknown> {
+  id: string
   name: string
+  proposed: boolean
+  /** Set in a current plan: the card offers Delete (empty) or the hint. */
+  edit?: PlanEdit
+  empty: boolean
   racks: number
   equipment: number
   mix: NetworkMix[]
@@ -88,7 +99,12 @@ interface LineData extends Record<string, unknown> {
  */
 const SiteNodeCard = memo(function SiteNodeCard({ data }: NodeProps<CardNode>) {
   return (
-    <div className={`node-card ${data.routeEquipment ? 'on-route' : ''}`}>
+    <div
+      className={`node-card ${data.routeEquipment ? 'on-route' : ''} ${data.proposed ? 'proposed-container' : ''}`}
+      data-testid="node-card"
+      data-node-id={data.id}
+      data-proposed={data.proposed}
+    >
       <Handle
         type="target"
         position={Position.Top}
@@ -102,7 +118,9 @@ const SiteNodeCard = memo(function SiteNodeCard({ data }: NodeProps<CardNode>) {
         isConnectable={false}
       />
       <div className="node-card-top">
-        <span className="phys-label">NODE</span>
+        <span className="phys-label">
+          NODE {data.proposed && <em className="proposed-tag">PROPOSED</em>}
+        </span>
         <GripVertical size={14} className="grip" aria-hidden />
       </div>
       <strong className="node-name">{data.name}</strong>
@@ -141,6 +159,16 @@ const SiteNodeCard = memo(function SiteNodeCard({ data }: NodeProps<CardNode>) {
       >
         Open racks →
       </button>
+      {data.edit && (
+        <ContainerFoot
+          kind="node"
+          id={data.id}
+          name={data.name}
+          empty={data.empty}
+          proposed={data.proposed}
+          edit={data.edit}
+        />
+      )}
     </div>
   )
 })
@@ -216,6 +244,11 @@ interface Props {
   marks: RouteMarks
   networkId?: string
   installedLinkIDs: ReadonlySet<string>
+  /** Set in a current plan: Add node, and Delete on empty nodes. */
+  edit?: PlanEdit
+  /** Nodes that are only in this plan. */
+  proposedIds: ReadonlySet<string>
+  childCounts: ReadonlyMap<string, number>
   session: PhysicalSession
   onOpenRacks: (nodeId: string) => void
   onOpenEndpoint: (endpointId: string) => void
@@ -236,9 +269,12 @@ export default function SiteCanvas(props: Props) {
   const { siteId, onError } = props
   const client = useQueryClient()
   const key = useMemo(() => ['site-layout', siteId], [siteId])
+  // A site that is only in a plan has no saved layout (the server does not know it).
+  const planOnly = props.proposedIds.has(siteId)
   const layout = useQuery({
     queryKey: key,
     queryFn: ({ signal }) => getSiteLayout(siteId, signal),
+    enabled: !planOnly,
   })
 
   const save = useMutation({
@@ -284,7 +320,7 @@ export default function SiteCanvas(props: Props) {
     },
   })
 
-  if (layout.isPending)
+  if (!planOnly && layout.isPending)
     return <p className="physical-loading">Loading the saved arrangement…</p>
   return (
     <ReactFlowProvider>
@@ -307,6 +343,9 @@ function Canvas({
   marks,
   networkId,
   installedLinkIDs,
+  edit,
+  proposedIds,
+  childCounts,
   session,
   onOpenRacks,
   onOpenEndpoint,
@@ -323,6 +362,7 @@ function Canvas({
   onReset: () => void
 }) {
   const flow = useReactFlow()
+  const snapshotIsInstalled = snapshot.context === 'installed'
   const nodesOfSite = useMemo(
     () => snapshot.nodes.filter((n) => n.siteId === siteId),
     [snapshot.nodes, siteId],
@@ -368,7 +408,11 @@ function Canvas({
         siteId,
       )
       result.set(node.id, {
+        id: node.id,
         name: node.name,
+        proposed: proposedIds.has(node.id),
+        edit,
+        empty: (childCounts.get(node.id) ?? 0) === 0,
         racks: c.racks,
         equipment: c.equipment,
         mix: mixOf(c.active, snapshot.networks),
@@ -405,6 +449,9 @@ function Canvas({
     marks,
     onOpenRacks,
     openList,
+    edit,
+    proposedIds,
+    childCounts,
   ])
 
   const edges = useMemo<Edge[]>(
@@ -494,13 +541,28 @@ function Canvas({
   useEffect(() => {
     const prior = new Map(nodesRef.current.map((n) => [n.id, n]))
     const savedNow = new Map(saved.map((p) => [p.nodeId, p]))
+    // A node added after the cards were drawn (a new node in a plan) goes to a
+    // free place clear of where the others are drawn now, so nothing jumps.
+    const drawn = new Map(
+      nodesOfSite.flatMap((n) => {
+        const was = prior.get(n.id)
+        return was ? [[n.id, was.position] as const] : []
+      }),
+    )
+    const placed =
+      drawn.size > 0 && drawn.size < nodesOfSite.length
+        ? defaultNodeLayout(nodesOfSite, drawn, graph)
+        : undefined
+    const reset = lastSaved.current.size > 0 && savedNow.size === 0
     const next: CardNode[] = nodesOfSite.map((n) => {
       const was = prior.get(n.id)
-      const now = target.get(n.id)!
+      const now = was
+        ? target.get(n.id)!
+        : (placed?.get(n.id) ?? target.get(n.id)!)
       const before = lastSaved.current.get(n.id)
       const after = savedNow.get(n.id)
       const savedChanged = before?.x !== after?.x || before?.y !== after?.y
-      const moved = !was || savedChanged || savedNow.size === 0
+      const moved = !was || savedChanged || reset
       return {
         id: n.id,
         type: 'siteNode',
@@ -521,6 +583,7 @@ function Canvas({
   }, [
     nodesOfSite,
     target,
+    graph,
     saved,
     cards,
     siteId,
@@ -604,7 +667,10 @@ function Canvas({
           onNodesChange={onNodesChange}
           onEdgeClick={(_, edge) => (edge.data as LineData).onOpen()}
           onNodeDragStop={(_, node) => {
-            onDrop(node.id, node.position.x, node.position.y)
+            // A node only in a plan has no saved layout row: it stays where it
+            // was dropped for this session, and gets one once it is recorded.
+            if (!proposedIds.has(node.id))
+              onDrop(node.id, node.position.x, node.position.y)
             onPositions(
               positionMarks(
                 new Map(
@@ -628,7 +694,10 @@ function Canvas({
           nodesConnectable={false}
           deleteKeyCode={null}
           elevateNodesOnSelect={false}
-          className={fitted ? undefined : 'site-hidden'}
+          // An empty site has nothing to fit (and React Flow never initializes it).
+          className={
+            fitted || nodesOfSite.length === 0 ? undefined : 'site-hidden'
+          }
         >
           <Background
             variant={BackgroundVariant.Dots}
@@ -647,6 +716,21 @@ function Canvas({
             {loadFailed &&
               ' Saved positions could not be loaded; defaults are shown.'}
           </Panel>
+          {(edit || snapshotIsInstalled) && (
+            <Panel
+              position="bottom-right"
+              className="site-edit nodrag nopan"
+              data-testid="site-edit"
+            >
+              {edit ? (
+                <AddContainer kind="node" parentId={siteId} edit={edit} />
+              ) : (
+                <p className="installed-hint" data-testid="installed-hint">
+                  {installedHint('add a node')}
+                </p>
+              )}
+            </Panel>
+          )}
           <Panel position="top-right" className="map-tools">
             <ResetLayout
               onReset={() => {

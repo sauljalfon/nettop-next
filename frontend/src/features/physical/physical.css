@@ -1088,6 +1088,30 @@
   min-height: 160px;
   overflow: auto;
 }
+/* Always-visible scrollbars: C–D are reached by scrolling when the area is narrow.
+   (Where ::-webkit-scrollbar is unsupported, the standard properties do the same.) */
+@supports not selector(::-webkit-scrollbar) {
+  .hdf-scroll {
+    scrollbar-color: #7d8aa0 #2a3446;
+    scrollbar-width: auto;
+  }
+}
+.hdf-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+.hdf-scroll::-webkit-scrollbar-track {
+  background: #2a3446;
+  border-radius: 6px;
+}
+.hdf-scroll::-webkit-scrollbar-thumb {
+  background: #7d8aa0;
+  border: 2px solid #2a3446;
+  border-radius: 6px;
+}
+.faceplate[data-kind='hdf'] {
+  overflow: hidden; /* the grid inside scrolls, not the plate around it */
+}
 .hdf-grid {
   display: grid;
   grid-template-columns: 22px repeat(4, max-content);

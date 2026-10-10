@@ -154,8 +154,8 @@ test('PHY-06 a library drop and a move between two racks of Main Distribution pr
   await expect(inPreview('rack-core-03', 'agg-15')).toHaveCount(1)
   await expect(inPreview('rack-core-02', 'agg-15')).toHaveCount(0)
   const plan = await (await request.get(`/api/plans/${id}`)).json()
-  expect(plan.updates).toEqual([
-    expect.objectContaining({ id: 'agg-15', rackId: 'rack-core-03' }),
+  expect(plan.placements).toEqual([
+    expect.objectContaining({ equipmentId: 'agg-15', rackId: 'rack-core-03' }),
   ])
 
   // A library item dropped on a preview starts a new item in that rack.
@@ -164,10 +164,11 @@ test('PHY-06 a library drop and a move between two racks of Main Distribution pr
     .locator('.library-item')
     .filter({ hasText: 'Access switch' })
     .dragTo(preview('rack-core-01'))
-  await expect(page.getByRole('combobox', { name: 'Target rack' })).toHaveValue(
+  const form = page.getByTestId('equipment-form')
+  await expect(form.getByLabel('Rack', { exact: true })).toHaveValue(
     'rack-core-01',
   )
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await form.getByRole('button', { name: 'Cancel', exact: true }).click()
 
   // Installed is unchanged: by the API, and in the explorer after switching.
   const installed = await (
@@ -200,8 +201,12 @@ test('PHY-06 at rack level a drop on a free unit moves equipment inside the rack
   await expect(slot(page, 'rack-core-02', 6)).toContainText('Available')
   await expectMark(page, 'data-rack-equipment', 'agg-08 agg-15')
   const plan = await (await request.get(`/api/plans/${id}`)).json()
-  expect(plan.updates).toEqual([
-    expect.objectContaining({ id: 'agg-15', rackId: 'rack-core-02', unit: 3 }),
+  expect(plan.placements).toEqual([
+    expect.objectContaining({
+      equipmentId: 'agg-15',
+      rackId: 'rack-core-02',
+      unit: 3,
+    }),
   ])
   // Installed: the same rack, same equipment, nothing moved and no drop targets.
   await page.getByRole('button', { name: 'Installed', exact: true }).click()

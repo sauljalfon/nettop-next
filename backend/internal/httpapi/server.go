@@ -22,6 +22,22 @@ type Repository interface {
 	Plan(context.Context, string) (planning.Plan, error)
 	CreatePlan(context.Context, string, string) (planning.Plan, error)
 	Command(context.Context, string, planning.Command) (planning.Plan, error)
+	// Record installs a draft and returns it, recorded, with the new installed
+	// revision. Rebase ("Update draft") moves a draft to the current installed
+	// revision or fails with a *planning.ConflictsError.
+	Record(ctx context.Context, id, expectedRevision, note, recordedBy string) (planning.Plan, string, error)
+	// RemoveChange runs a remove_change command (the one command a stale draft
+	// accepts) and returns the plan with the keys removed.
+	RemoveChange(ctx context.Context, id string, command planning.Command) (planning.Plan, []string, error)
+	// Batch runs a batch command (many commands, all or nothing, one revision
+	// bump) and returns the plan with the IDs it allocated, in command order.
+	Batch(ctx context.Context, id string, command planning.Command) (planning.Plan, []string, error)
+	// CheckPlan is read-only: whether the draft's base is stale, and every
+	// change that cannot apply to the current installed topology.
+	CheckPlan(ctx context.Context, id string) (stale bool, conflicts []planning.Conflict, err error)
+	// RecordedPlansChanging lists recorded plans that changed an object, newest first.
+	RecordedPlansChanging(ctx context.Context, objectID string) ([]planning.Plan, error)
+	Rebase(ctx context.Context, id, expectedRevision string) (planning.Plan, error)
 	// Presentation and reference data: none of these changes a topology
 	// revision or a saved plan.
 	SiteLayout(context.Context, string) (topology.SiteLayout, error)
@@ -45,6 +61,10 @@ func repositoryError(w http.ResponseWriter, err error) {
 	case errors.Is(err, context.Canceled):
 		// Navigation aborts obsolete reads; the client has already disconnected.
 		return
+	case errors.As(err, new(*planning.ConflictsError)):
+		var c *planning.ConflictsError
+		errors.As(err, &c)
+		respond(w, 409, map[string]any{"error": c.Error(), "conflicts": c.Conflicts})
 	case errors.Is(err, planning.ErrConflict):
 		problem(w, 409, err.Error())
 	case errors.Is(err, planning.ErrNotFound):
@@ -65,7 +85,14 @@ func repositoryError(w http.ResponseWriter, err error) {
 	}
 }
 func decode(w http.ResponseWriter, r *http.Request, value any) bool {
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16384))
+	return decodeUpTo(w, r, value, 16384)
+}
+
+// maxCommandBody leaves room for a batch of 500 commands.
+const maxCommandBody = 1 << 20
+
+func decodeUpTo(w http.ResponseWriter, r *http.Request, value any, limit int64) bool {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(value); err != nil {
 		problem(w, 400, "Invalid request JSON")
@@ -127,7 +154,18 @@ func New(repo Repository) http.Handler {
 		respond(w, 200, result)
 	})
 	mux.HandleFunc("GET /api/plans", func(w http.ResponseWriter, r *http.Request) {
-		plans, err := repo.Plans(r.Context())
+		var plans []planning.Plan
+		var err error
+		if r.URL.Query().Has("objectId") {
+			objectID := r.URL.Query().Get("objectId")
+			if objectID == "" {
+				problem(w, 400, "objectId must not be empty")
+				return
+			}
+			plans, err = repo.RecordedPlansChanging(r.Context(), objectID)
+		} else {
+			plans, err = repo.Plans(r.Context())
+		}
 		if err != nil {
 			repositoryError(w, err)
 			return
@@ -159,10 +197,66 @@ func New(repo Repository) http.Handler {
 	})
 	mux.HandleFunc("POST /api/plans/{id}/commands", func(w http.ResponseWriter, r *http.Request) {
 		var command planning.Command
-		if !decode(w, r, &command) {
+		if !decodeUpTo(w, r, &command, maxCommandBody) {
+			return
+		}
+		if command.Type == "batch" {
+			p, ids, err := repo.Batch(r.Context(), r.PathValue("id"), command)
+			if err != nil {
+				repositoryError(w, err)
+				return
+			}
+			respond(w, 200, map[string]any{"plan": p, "ids": ids})
+			return
+		}
+		if command.Type == "remove_change" {
+			p, removed, err := repo.RemoveChange(r.Context(), r.PathValue("id"), command)
+			if err != nil {
+				repositoryError(w, err)
+				return
+			}
+			respond(w, 200, map[string]any{"plan": p, "removed": removed})
 			return
 		}
 		p, err := repo.Command(r.Context(), r.PathValue("id"), command)
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, p)
+	})
+	mux.HandleFunc("POST /api/plans/{id}/record", func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			ExpectedRevision string `json:"expectedRevision"`
+			Note             string `json:"note"`
+			RecordedBy       string `json:"recordedBy"`
+		}
+		if !decode(w, r, &input) {
+			return
+		}
+		p, revision, err := repo.Record(r.Context(), r.PathValue("id"), input.ExpectedRevision, input.Note, input.RecordedBy)
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, map[string]any{"plan": p, "installedRevision": revision})
+	})
+	mux.HandleFunc("POST /api/plans/{id}/check", func(w http.ResponseWriter, r *http.Request) {
+		stale, conflicts, err := repo.CheckPlan(r.Context(), r.PathValue("id"))
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, map[string]any{"stale": stale, "conflicts": conflicts})
+	})
+	mux.HandleFunc("POST /api/plans/{id}/rebase", func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			ExpectedRevision string `json:"expectedRevision"`
+		}
+		if !decode(w, r, &input) {
+			return
+		}
+		p, err := repo.Rebase(r.Context(), r.PathValue("id"), input.ExpectedRevision)
 		if err != nil {
 			repositoryError(w, err)
 			return

@@ -1,4 +1,9 @@
 import type { Snapshot } from '../../shared/types'
+import AddContainer from '../planning/AddContainer'
+import ContainerFoot from '../planning/ContainerFoot'
+import { installedHint } from '../planning/containers'
+import type { PlanEdit } from '../planning/editing'
+import '../planning/editing.css'
 import { colorOf, networkColors } from '../map/networkColors'
 import type { Inventory, RouteMarks } from './inventory'
 import { mixOf, sortedByName } from './explorerModel'
@@ -10,12 +15,20 @@ export default function SitesGrid({
   inv,
   marks,
   networkId,
+  edit,
+  proposedIds,
+  childCounts,
   onOpen,
 }: {
   snapshot: Snapshot
   inv: Inventory
   marks: RouteMarks
   networkId?: string
+  /** Set in a current plan: Add site, and Delete on empty sites. */
+  edit?: PlanEdit
+  /** Sites (and the rest) that are only in this plan. */
+  proposedIds: ReadonlySet<string>
+  childCounts: ReadonlyMap<string, number>
   onOpen: (siteId: string) => void
 }) {
   const colors = networkColors(snapshot.networks)
@@ -24,39 +37,62 @@ export default function SitesGrid({
       {sortedByName(snapshot.sites).map((site) => {
         const c = inv.sites.get(site.id)!
         const onRoute = marks.equipmentBySite.get(site.id) ?? 0
+        const proposed = proposedIds.has(site.id)
         return (
-          <button
-            key={site.id}
-            type="button"
-            className={`site-card ${onRoute ? 'on-route' : ''}`}
-            data-testid="site-card"
-            data-site-id={site.id}
-            data-on-route={onRoute > 0}
-            aria-label={`Open ${site.name}`}
-            onClick={() => onOpen(site.id)}
-          >
-            <span className="phys-label">SITE</span>
-            <strong className="site-name">{site.name}</strong>
-            <span className="phys-counts">
-              {plural(c.nodes, 'node')} · {plural(c.racks, 'rack')} ·{' '}
-              {c.equipment} equipment
-            </span>
-            <span className="phys-badges">
-              {mixOf(c.active, snapshot.networks).map((m) => (
-                <NetworkChip
-                  key={m.networkId}
-                  text={`${m.name} · ${m.count} active`}
-                  color={colorOf(colors, m.networkId)}
-                  muted={!!networkId && networkId !== m.networkId}
-                />
-              ))}
-            </span>
-            {onRoute > 0 && (
-              <span className="route-pill">on route · {onRoute} equipment</span>
+          <div key={site.id} className="site-item">
+            <button
+              type="button"
+              className={`site-card ${onRoute ? 'on-route' : ''} ${proposed ? 'proposed-container' : ''}`}
+              data-testid="site-card"
+              data-site-id={site.id}
+              data-on-route={onRoute > 0}
+              data-proposed={proposed}
+              aria-label={`Open ${site.name}`}
+              onClick={() => onOpen(site.id)}
+            >
+              <span className="phys-label">
+                SITE {proposed && <em className="proposed-tag">PROPOSED</em>}
+              </span>
+              <strong className="site-name">{site.name}</strong>
+              <span className="phys-counts">
+                {plural(c.nodes, 'node')} · {plural(c.racks, 'rack')} ·{' '}
+                {c.equipment} equipment
+              </span>
+              <span className="phys-badges">
+                {mixOf(c.active, snapshot.networks).map((m) => (
+                  <NetworkChip
+                    key={m.networkId}
+                    text={`${m.name} · ${m.count} active`}
+                    color={colorOf(colors, m.networkId)}
+                    muted={!!networkId && networkId !== m.networkId}
+                  />
+                ))}
+              </span>
+              {onRoute > 0 && (
+                <span className="route-pill">
+                  on route · {onRoute} equipment
+                </span>
+              )}
+            </button>
+            {edit && (
+              <ContainerFoot
+                kind="site"
+                id={site.id}
+                name={site.name}
+                empty={(childCounts.get(site.id) ?? 0) === 0}
+                proposed={proposed}
+                edit={edit}
+              />
             )}
-          </button>
+          </div>
         )
       })}
+      {edit && <AddContainer kind="site" edit={edit} />}
+      {snapshot.context === 'installed' && (
+        <p className="installed-hint" data-testid="installed-hint">
+          {installedHint('add a site, node or rack')}
+        </p>
+      )}
     </div>
   )
 }

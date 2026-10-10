@@ -1,4 +1,10 @@
 import { Search } from 'lucide-react'
+import type { ReactNode } from 'react'
+import AddContainer from '../planning/AddContainer'
+import ContainerFoot from '../planning/ContainerFoot'
+import { installedHint } from '../planning/containers'
+import type { PlanEdit } from '../planning/editing'
+import '../planning/editing.css'
 import { colorOf } from '../map/networkColors'
 import { DRAG_TYPE, dropInto, type DropHandlers } from './drops'
 import { previewUnitPx } from './cabinet'
@@ -18,7 +24,23 @@ export default function NodeLevel({
   onSearch,
   onOpen,
   onOpenEquipment,
+  nodeId,
+  edit,
+  proposedIds,
+  childCounts,
+  installed,
+  renderCopyLayout,
 }: DropHandlers & {
+  nodeId: string
+  /** Set in a current plan: Add rack, and Delete on empty racks. */
+  edit?: PlanEdit
+  /** Racks that are only in this plan. */
+  proposedIds: ReadonlySet<string>
+  childCounts: ReadonlyMap<string, number>
+  /** In a plan: "Copy rack layout…" for an empty rack, shown next to its Delete. */
+  renderCopyLayout?: (rackId: string) => ReactNode
+  /** Installed context: shows the read-only hint. */
+  installed: boolean
   /** In a plan, a preview accepts the drops a free unit accepts, so equipment moves between racks of this node. */
   canEdit: boolean
   nodeName: string
@@ -53,9 +75,10 @@ export default function NodeLevel({
         {previews.map((rack) => (
           <article
             key={rack.rackId}
-            className={`rack-preview ${rack.onRoute ? 'on-route' : ''}`}
+            className={`rack-preview ${rack.onRoute ? 'on-route' : ''} ${proposedIds.has(rack.rackId) ? 'proposed-container' : ''}`}
             data-testid="rack-preview"
             data-rack-id={rack.rackId}
+            data-proposed-rack={proposedIds.has(rack.rackId)}
             data-on-route={rack.onRoute}
             data-drop-target={canEdit}
             onDragOver={(event) => {
@@ -78,6 +101,9 @@ export default function NodeLevel({
           >
             <header>
               <strong>{rack.name}</strong>
+              {proposedIds.has(rack.rackId) && (
+                <em className="proposed-tag">PROPOSED</em>
+              )}
               {rack.onRoute && <span className="route-pill">on route</span>}
               <small>
                 {rack.equipmentCount} equipment · {rack.usedUnits} of{' '}
@@ -137,10 +163,28 @@ export default function NodeLevel({
                 </span>
               ))}
             </div>
+            {edit && (
+              <ContainerFoot
+                kind="rack"
+                id={rack.rackId}
+                name={rack.name}
+                empty={(childCounts.get(rack.rackId) ?? 0) === 0}
+                proposed={proposedIds.has(rack.rackId)}
+                edit={edit}
+              >
+                {renderCopyLayout?.(rack.rackId)}
+              </ContainerFoot>
+            )}
           </article>
         ))}
+        {edit && <AddContainer kind="rack" parentId={nodeId} edit={edit} />}
         {previews.length === 0 && <p className="muted">No racks match.</p>}
       </div>
+      {installed && (
+        <p className="installed-hint" data-testid="installed-hint">
+          {installedHint('add a rack')}
+        </p>
+      )}
     </div>
   )
 }

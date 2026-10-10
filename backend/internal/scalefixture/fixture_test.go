@@ -134,3 +134,18 @@ func TestEveryAccessSwitchReachesADistributionDevice(t *testing.T) {
 		t.Fatalf("only %d access switches sampled", checked)
 	}
 }
+
+// The data-entry rehearsal starts from an installed root that holds only the
+// campus's three networks.
+func TestEmptyIsValidAndHoldsOnlyTheNetworks(t *testing.T) {
+	s := Empty()
+	if err := topology.Validate(s); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Networks) != 3 {
+		t.Errorf("networks: %d, want 3", len(s.Networks))
+	}
+	if n := len(s.Sites) + len(s.Nodes) + len(s.Racks) + len(s.Equipment) + len(s.Endpoints) + len(s.Links) + len(s.Subpanels); n != 0 {
+		t.Errorf("%d objects, want none", n)
+	}
+}

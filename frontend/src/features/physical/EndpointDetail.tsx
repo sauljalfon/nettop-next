@@ -1,4 +1,5 @@
 import { Crosshair, GitFork } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { ChainItem, DetailModel } from './equipmentModel'
 
 /**
@@ -17,7 +18,10 @@ export default function EndpointDetail({
   onSwitch,
   onFind,
   onShowOnMap,
+  children,
 }: {
+  /** Plan editing for the selected endpoint (Connect / Disconnect), below the chain. */
+  children?: ReactNode
   model?: DetailModel
   chain: ChainItem[]
   /** The selected route's destination, when this endpoint is on the route. */
@@ -136,6 +140,7 @@ export default function EndpointDetail({
           )
         })()}
       </div>
+      {children}
     </aside>
   )
 }

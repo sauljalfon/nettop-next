@@ -32,11 +32,11 @@ func main() {
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	fixture := flag.String("fixture", "acceptance", "acceptance (with the browser-test additions and the Expansion draft) or campus (the generated scale fixture, no drafts)")
+	fixture := flag.String("fixture", "acceptance", "acceptance (with the browser-test additions and the Expansion draft), campus (the generated scale fixture, no drafts) or empty (the three campus networks only, no drafts)")
 	addr := flag.String("addr", "127.0.0.1:18080", "listen address")
 	flag.Parse()
-	if *fixture != "acceptance" && *fixture != "campus" {
-		return fmt.Errorf("unknown fixture %q: use acceptance or campus", *fixture)
+	if *fixture != "acceptance" && *fixture != "campus" && *fixture != "empty" {
+		return fmt.Errorf("unknown fixture %q: use acceptance, campus or empty", *fixture)
 	}
 	if _, err := dotenv.Load(); err != nil {
 		return err
@@ -80,6 +80,8 @@ func run() error {
 	}
 	if *fixture == "campus" {
 		err = store.Seed(setup, scalefixture.Campus())
+	} else if *fixture == "empty" {
+		err = store.Seed(setup, scalefixture.Empty())
 	} else {
 		err = store.Seed(setup, browserBase(), expansion())
 	}

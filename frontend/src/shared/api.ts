@@ -1,9 +1,15 @@
 import type {
+  BatchCommand,
+  BatchResult,
   Context,
   Network,
   NodePosition,
   Plan,
   PlanCommand,
+  CheckResult,
+  PlanConflict,
+  RecordResult,
+  RemoveChangeResult,
   Snapshot,
   SiteLayout,
   TraceRequest,
@@ -14,6 +20,8 @@ export class APIError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** Set by Update draft (409): every change that cannot move. */
+    public conflicts?: PlanConflict[],
   ) {
     super(message)
   }
@@ -27,6 +35,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       response.status,
       body?.error ??
         `API request failed (${response.status}). Check the Go server is running.`,
+      Array.isArray(body?.conflicts) ? body.conflicts : undefined,
     )
   }
   return response.json() as Promise<T>
@@ -68,6 +77,74 @@ export const sendPlanCommand = (id: string, command: PlanCommand) =>
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(command),
+  })
+/**
+ * Record a draft as installed. `note` (1–500 characters) and `recordedBy`
+ * (1–100 characters, free text until identities exist) are required.
+ */
+export const recordPlan = (
+  id: string,
+  expectedRevision: string,
+  note: string,
+  recordedBy: string,
+) =>
+  request<RecordResult>(`/plans/${encodeURIComponent(id)}/record`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expectedRevision, note, recordedBy }),
+  })
+/**
+ * Undo or drop one change of a draft, named by a conflict's `change` key or a
+ * summary line's key. Allowed on a stale draft.
+ */
+export const removeChange = (
+  id: string,
+  expectedRevision: string,
+  key: string,
+) =>
+  request<RemoveChangeResult>(`/plans/${encodeURIComponent(id)}/commands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'remove_change',
+      expectedRevision,
+      change: { key },
+    }),
+  })
+/**
+ * Applies 1–500 commands in order, all or nothing, with one revision bump. The
+ * answer lists the IDs the server allocated, one per command ("" for commands
+ * that create nothing). A failing command is a 422 that names its 1-based
+ * position and why; nothing is saved then.
+ */
+export const sendBatch = (
+  id: string,
+  expectedRevision: string,
+  commands: BatchCommand[],
+) =>
+  request<BatchResult>(`/plans/${encodeURIComponent(id)}/commands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'batch',
+      expectedRevision,
+      batch: { commands },
+    }),
+  })
+/** Read-only check of a draft against the current installed topology. */
+export const checkPlan = (id: string) =>
+  request<CheckResult>(`/plans/${encodeURIComponent(id)}/check`, {
+    method: 'POST',
+  })
+/** Recorded plans that added, moved or removed an object, newest first. */
+export const recordedPlansFor = (objectId: string, signal?: AbortSignal) =>
+  request<Plan[]>(`/plans?objectId=${encodeURIComponent(objectId)}`, { signal })
+/** Update draft: move a draft to the current installed revision. */
+export const rebasePlan = (id: string, expectedRevision: string) =>
+  request<Plan>(`/plans/${encodeURIComponent(id)}/rebase`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expectedRevision }),
   })
 
 const json = (method: string, body: unknown): RequestInit => ({
