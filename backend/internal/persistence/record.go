@@ -19,11 +19,14 @@ const MaxRecordNote = 500
 // MaxRecordedBy is the longest "recorded by" name, in characters.
 const MaxRecordedBy = 100
 
-// newInstalledRevision makes a unique installed revision: "rec-" + UTC time +
-// a random suffix, e.g. rec-20261009T142530Z-K3QF7A. It is opaque to clients.
-func newInstalledRevision() string {
-	return "rec-" + time.Now().UTC().Format("20060102T150405Z") + "-" + rand.Text()[:6]
+// newRevision makes a unique installed revision: a prefix ("rec-" for Record,
+// "init-" for Init) + UTC time + a random suffix, e.g.
+// rec-20261009T142530Z-K3QF7A. It is opaque to clients.
+func newRevision(prefix string) string {
+	return prefix + time.Now().UTC().Format("20060102T150405Z") + "-" + rand.Text()[:6]
 }
+
+func newInstalledRevision() string { return newRevision("rec-") }
 
 // Record writes a draft into the installed tables in one transaction, marks the
 // plan recorded and returns it with the new installed revision. Lock order is

@@ -19,6 +19,11 @@ func main() {
 		slog.Error("reading .env failed", "error", err)
 		os.Exit(1)
 	}
+	env, err := environment(os.Getenv("APP_ENV"))
+	if err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
+	}
 	addr := os.Getenv("HTTP_ADDR")
 	if addr == "" {
 		addr = "127.0.0.1:8080"
@@ -37,10 +42,10 @@ func main() {
 	_, err = store.Installed(check)
 	done()
 	if err != nil {
-		slog.Error("database is not initialized; run cmd/db migrate and cmd/db seed explicitly", "error", err)
+		slog.Error("database is not initialized; run `go run ./cmd/db migrate` and then `go run ./cmd/db init`", "error", err)
 		os.Exit(1)
 	}
-	server := &http.Server{Addr: addr, Handler: httpapi.New(store), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: addr, Handler: httpapi.New(store, env), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -49,7 +54,7 @@ func main() {
 			slog.Error("shutdown failed", "error", err)
 		}
 	}()
-	slog.Info("Net-Top API", "address", addr, "storage", "postgresql")
+	slog.Info("Net-Top API", "address", addr, "storage", "postgresql", "environment", env)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)

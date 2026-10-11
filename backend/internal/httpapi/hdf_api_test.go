@@ -51,7 +51,7 @@ func TestTopologyExposesHDFSubpanelsAndEndpointIdentity(t *testing.T) {
 	if err = store.Seed(ctx, base, sample.Expansion()); err != nil {
 		t.Fatal(err)
 	}
-	h := New(store)
+	h := New(store, "dev")
 	for _, path := range []string{"/api/topology", "/api/topology?context=planned&planId=expansion"} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))

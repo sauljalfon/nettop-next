@@ -13,15 +13,19 @@ paths:
       summary: Check API and database health
       responses:
         '200':
-          description: Process health and storage mode
+          description: Process health, storage mode and the environment the API was started with (APP_ENV)
           content:
             application/json:
               schema:
                 type: object
-                required: [status, storage]
+                required: [status, storage, environment]
                 properties:
                   status: {type: string}
                   storage: {type: string}
+                  environment:
+                    type: string
+                    enum: [dev, test, prod]
+                    description: The header shows DEV or TEST for these and nothing for prod.
         '503': {$ref: '#/components/responses/Error'}
   /topology:
     get:

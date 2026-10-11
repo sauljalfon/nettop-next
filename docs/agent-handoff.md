@@ -72,7 +72,7 @@ Before schema changes, resolve only the necessary open inputs:
 
 These are not answered by the mockups. Do not infer real network membership from equipment names or use a destructive reseed as migration. Independent code inspection and test planning can proceed while questions are being answered.
 
-M1, M2, M3, M3.1, M4, M4.1, M5a and M5c are done; next is M5b (starting at step 11, detail fields and migration 008, which must be reviewed before it runs on the development database). This order avoids building UI against an incompatible temporary HDF/network model.
+M1, M2, M3, M3.1, M4, M4.1, M5a and M5c are done; the production-readiness step P1 (`db init` and the environment label) is done; next is M5b (starting at step 11, see "Step 11 design" in the plan; detail fields and migration 008, which must be reviewed before it runs on the development database). This order avoids building UI against an incompatible temporary HDF/network model.
 
 ## End-to-end acceptance to work toward
 

@@ -64,7 +64,7 @@ func (m *memoryRepo) Command(_ context.Context, id string, c planning.Command) (
 // command leaves the draft exactly as it was.
 func TestED06NewCommandContractOverHTTP(t *testing.T) {
 	repo := &memoryRepo{plan: planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1"}}
-	call := newCaller(t, New(repo))
+	call := newCaller(t, New(repo, "dev"))
 	path := "/api/plans/p/commands"
 	revision := func() string { return repo.plan.Revision }
 
@@ -119,7 +119,7 @@ func TestED06NewCommandContractOverHTTP(t *testing.T) {
 // installed trace keeps it.
 func TestED07DisconnectA03CutsTheTraceInThePlanContextOnly(t *testing.T) {
 	repo := &memoryRepo{plan: planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1"}}
-	call := newCaller(t, New(repo))
+	call := newCaller(t, New(repo, "dev"))
 	trace := func(path string) pathfinding.Result {
 		return decodeResult(t, call("POST", path, `{"mode":"point_to_point","start":"edge-17:p1","end":"agg-03:p1"}`, 200))
 	}
@@ -180,7 +180,7 @@ func (m *memoryRepo) Rebase(_ context.Context, id, expectedRevision string) (pla
 func TestRecordEndpointContractOverHTTP(t *testing.T) {
 	repo := &memoryRepo{plan: planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1",
 		Sites: []topology.Site{{ID: "site-new", Name: "New"}}}}
-	call := newCaller(t, New(repo))
+	call := newCaller(t, New(repo, "dev"))
 	path := "/api/plans/p/record"
 	call("POST", path, `{"expectedRevision":"1"}`, 422)
 	call("POST", path, `{"expectedRevision":"1","note":"  ","recordedBy":"Dana"}`, 422)
@@ -224,7 +224,7 @@ func TestRebaseEndpointContractOverHTTP(t *testing.T) {
 	t.Run("a clean draft moves to the new base", func(t *testing.T) {
 		repo := stale()
 		repo.plan = planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1", Sites: []topology.Site{{ID: "site-new", Name: "New"}}}
-		call := newCaller(t, New(repo))
+		call := newCaller(t, New(repo, "dev"))
 		call("POST", "/api/plans/p/rebase", `{"expectedRevision":"9"}`, 409)
 		call("POST", "/api/plans/p/rebase", `{"expectedRevision":"1","x":1}`, 400)
 		var p planning.Plan
@@ -242,7 +242,7 @@ func TestRebaseEndpointContractOverHTTP(t *testing.T) {
 		repo.plan = planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1",
 			Placements: []planning.PlacementInput{{EquipmentID: "gone-equipment", RackID: "rack-a03", Unit: 3}}}
 		before, _ := json.Marshal(repo.plan)
-		w := newCaller(t, New(repo))("POST", "/api/plans/p/rebase", `{"expectedRevision":"1"}`, 409)
+		w := newCaller(t, New(repo, "dev"))("POST", "/api/plans/p/rebase", `{"expectedRevision":"1"}`, 409)
 		var body struct {
 			Error     string              `json:"error"`
 			Conflicts []planning.Conflict `json:"conflicts"`
@@ -301,7 +301,7 @@ func TestED12RemoveChangeEndpointContractOverHTTP(t *testing.T) {
 		Endpoints: []topology.Endpoint{{ID: "edge-18:p1", EquipmentID: "edge-18", Label: "Port 1"}},
 		Links:     []topology.Link{{ID: "planned-cable-18", A: "edge-18:p1", B: "agg-15:p1", Kind: "cable"}},
 	}}
-	call := newCaller(t, New(repo))
+	call := newCaller(t, New(repo, "dev"))
 	path := "/api/plans/p/commands"
 	call("POST", path, `{"type":"add_site","expectedRevision":"1","site":{"name":"X"}}`, 409) // other commands still refuse a stale draft
 	call("POST", path, `{"type":"remove_change","expectedRevision":"1"}`, 422)
@@ -328,7 +328,7 @@ func TestRC06CheckEndpointContractOverHTTP(t *testing.T) {
 	s.Revision = "rec-9"
 	repo := &memoryRepo{installed: &s, plan: planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1",
 		Placements: []planning.PlacementInput{{EquipmentID: "gone", RackID: "rack-a03", Unit: 3}}}}
-	call := newCaller(t, New(repo))
+	call := newCaller(t, New(repo, "dev"))
 	before, _ := json.Marshal(repo.plan)
 	var out struct {
 		Stale     bool                `json:"stale"`
@@ -343,11 +343,11 @@ func TestRC06CheckEndpointContractOverHTTP(t *testing.T) {
 	}
 	call("POST", "/api/plans/nope/check", "", 404)
 	clean := &memoryRepo{plan: planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1"}}
-	if body := newCaller(t, New(clean))("POST", "/api/plans/p/check", "", 200).Body.String(); !strings.Contains(body, `"conflicts":[]`) || !strings.Contains(body, `"stale":false`) {
+	if body := newCaller(t, New(clean, "dev"))("POST", "/api/plans/p/check", "", 200).Body.String(); !strings.Contains(body, `"conflicts":[]`) || !strings.Contains(body, `"stale":false`) {
 		t.Fatalf("a clean draft: %s", body)
 	}
 	clean.plan.Status = "recorded"
-	newCaller(t, New(clean))("POST", "/api/plans/p/check", "", 409)
+	newCaller(t, New(clean, "dev"))("POST", "/api/plans/p/check", "", 409)
 }
 
 // RC-08 over HTTP: ?objectId= lists the recorded plans for the object; the
@@ -355,7 +355,7 @@ func TestRC06CheckEndpointContractOverHTTP(t *testing.T) {
 func TestRC08PlansByObjectOverHTTP(t *testing.T) {
 	repo := &memoryRepo{plan: planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1",
 		Sites: []topology.Site{{ID: "site-new", Name: "New"}}}}
-	call := newCaller(t, New(repo))
+	call := newCaller(t, New(repo, "dev"))
 	call("GET", "/api/plans?objectId=", "", 400)
 	if body := call("GET", "/api/plans?objectId=site-new", "", 200).Body.String(); strings.TrimSpace(body) != "[]" {
 		t.Fatalf("a draft is not history: %s", body)
@@ -401,7 +401,7 @@ func (m *memoryRepo) Batch(_ context.Context, id string, c planning.Command) (pl
 // names its position and changes nothing; the size and kind limits, 400 and 409.
 func TestBK01BatchEndpointContractOverHTTP(t *testing.T) {
 	repo := &memoryRepo{plan: planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1"}}
-	call := newCaller(t, New(repo))
+	call := newCaller(t, New(repo, "dev"))
 	path := "/api/plans/p/commands"
 	good := `{"type":"batch","expectedRevision":"1","batch":{"commands":[
 		{"type":"add_site","site":{"name":"Depot"}},

@@ -90,6 +90,7 @@ import { locationFor } from '../features/planning/goTo'
 import type { RecordedInfo } from '../features/planning/ReviewStep'
 import StaleCard from '../features/planning/StaleCard'
 import type { GoTarget } from '../features/planning/summary'
+import EnvironmentBadge from '../features/environment/EnvironmentBadge'
 import type { PlanEdit } from '../features/planning/editing'
 import HdfForm from '../features/planning/HdfForm'
 import { resolveLocation } from '../features/physical/location'
@@ -326,7 +327,7 @@ export default function App() {
             <span className="count-badge">{changeCount(selectedPlan)}</span>
           )}
         </button>
-        <span className="local-label">LOCAL DEV</span>
+        <EnvironmentBadge />
       </header>
       <nav className="tool-rail" aria-label="Workspace tools">
         <button

@@ -13,7 +13,7 @@ Build the approved pathfinding-centered infrastructure manager. Start at `docs/R
 - Keep changes in small working checkpoints. Run Go tests, frontend tests, type checking, and production build before handoff.
 - Never present sample data, an in-memory preview, or a local layout edit as a persisted installation.
 - Do not introduce backend persistence or authentication implicitly; use the architecture roadmap and explicit migrations.
-- Keep API contracts, migrations, and status docs synchronized with completed checkpoints. Implement only the next checkpoint in docs/implementation-plan.md (currently M5a, then M5b); later items are not implicit scope.
+- Keep API contracts, migrations, and status docs synchronized with completed checkpoints. Implement only the next checkpoint in docs/implementation-plan.md (currently M5b step 11, with the production-readiness step P2 planned from the data-entry rehearsal); later items are not implicit scope.
 - Mockup exploration is complete. Do not add generated demos/screenshots as substitutes for implementing and testing the agreed workflow.
 - Preserve the distinction between locked user decisions, fictional test data, and unresolved implementation inputs. Consult `docs/design-decisions.md` before reviving a superseded approach and `docs/backend-contract-notes.md` before assuming the current API already supports the target model.
 - No automatic commits or remote publishing.

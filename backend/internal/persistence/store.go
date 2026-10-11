@@ -50,7 +50,7 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	s := topology.Snapshot{Context: "installed", Networks: []topology.Network{}, Subpanels: []topology.Subpanel{}, Sites: []topology.Site{}, Nodes: []topology.LocationNode{}, Racks: []topology.Rack{}, Equipment: []topology.Equipment{}, Endpoints: []topology.Endpoint{}, Links: []topology.Link{}}
 	err := tx.QueryRow(ctx, `SELECT revision,site,room FROM installed_topology WHERE singleton=true`).Scan(&s.Revision, &s.Site, &s.Room)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return s, fmt.Errorf("installed topology is not initialized; run the explicit seed command")
+		return s, fmt.Errorf("installed topology is not initialized; run `go run ./cmd/db init`")
 	}
 	if err != nil {
 		return s, err
@@ -391,4 +391,22 @@ func insertLink(ctx context.Context, tx pgx.Tx, l topology.Link) error {
 	}
 	_, err := tx.Exec(ctx, `INSERT INTO link_endpoints(link_id,endpoint_id,kind,slot) VALUES ($1,$2,$4,1),($1,$3,$4,2)`, l.ID, l.A, l.B, l.Kind)
 	return err
+}
+
+// Init creates the empty installed root (no networks, sites or anything else)
+// when the database has none, in one transaction, and reports whether it did.
+// On an initialized database it changes nothing. It is the production start
+// (`cmd/db migrate`, then `cmd/db init`); Seed stays development-only and is
+// refused by an initialized database.
+func (s *Store) Init(ctx context.Context) (bool, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+	tag, err := tx.Exec(ctx, `INSERT INTO installed_topology(singleton,revision,site,room) VALUES (true,$1,'','') ON CONFLICT (singleton) DO NOTHING`, newRevision("init-"))
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, tx.Commit(ctx)
 }

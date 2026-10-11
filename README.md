@@ -52,7 +52,7 @@ go run ./cmd/db seed
 go run ./cmd/api
 ```
 
-`migrate` is repeatable. **Run `seed` only on an empty database:** it refuses to overwrite initialized data. The seed loads the fictional [acceptance fixture](docs/acceptance-example.md) (Networks A/B, 11 equipment, HDF-01 and HDF-02, cables A01–B04) and creates no draft plans. The development database binds to loopback on port 55432 and uses a named volume.
+`migrate` is repeatable. A new database for real data is started with `go run ./cmd/db migrate` then `go run ./cmd/db init` (an empty installed root; safe to repeat), never `seed`. The API needs `APP_ENV=dev|test|prod` (`.env.example` has `APP_ENV=dev`; add it to an existing `.env`). **Run `seed` only on an empty database:** it refuses to overwrite initialized data. The seed loads the fictional [acceptance fixture](docs/acceptance-example.md) (Networks A/B, 11 equipment, HDF-01 and HDF-02, cables A01–B04) and creates no draft plans. The development database binds to loopback on port 55432 and uses a named volume.
 
 ### Upgrading a database seeded before M1
 

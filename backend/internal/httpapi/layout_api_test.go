@@ -223,7 +223,7 @@ func (f *layoutFake) RenameNetwork(_ context.Context, id, name string) (topology
 
 func TestLayoutAndNetworkHandlersMapRepositoryErrorsWithoutADatabase(t *testing.T) {
 	f := &layoutFake{}
-	call := newCaller(t, New(f))
+	call := newCaller(t, New(f, "dev"))
 	call("PUT", "/api/sites/s1/layout/nodes/n1", `{"x":1.5,"y":-2}`, 200)
 	if f.siteID != "s1" || f.nodeID != "n1" || f.x != 1.5 || f.y != -2 {
 		t.Fatalf("handler passed %+v", f)
@@ -246,5 +246,5 @@ func TestLayoutAndNetworkHandlersMapRepositoryErrorsWithoutADatabase(t *testing.
 		call("PUT", "/api/sites/s1/layout/nodes/n1", `{"x":1,"y":1}`, c.status)
 		call("POST", "/api/networks", `{"name":"N"}`, c.status)
 	}
-	var _ http.Handler = New(f)
+	var _ http.Handler = New(f, "dev")
 }

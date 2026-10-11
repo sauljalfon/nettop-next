@@ -48,7 +48,7 @@ func TestSavedPlanAPI(t *testing.T) {
 	if err = store.Seed(ctx, sample.Installed(), sample.Expansion()); err != nil {
 		t.Fatal(err)
 	}
-	h := New(store)
+	h := New(store, "dev")
 	call := func(method, path, body string, status int) *httptest.ResponseRecorder {
 		t.Helper()
 		w := httptest.NewRecorder()

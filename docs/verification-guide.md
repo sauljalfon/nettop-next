@@ -38,6 +38,8 @@ go run ./cmd/db seed
 go run ./cmd/api
 ```
 
+**How a new database is started.** `go run ./cmd/db migrate` creates the tables, then `go run ./cmd/db init` creates the empty installed root (no networks, sites or equipment; networks are created in the app). `init` is safe to repeat: on an initialized database it prints "already initialized" and changes nothing. This is the production start. `seed` is for development data only: it loads the fictional fixture, and it is refused by an initialized database (so `init` then `seed` is refused, and `init` after `seed` leaves the seeded data alone). `cmd/api` also needs `APP_ENV` (`dev`, `test` or `prod`); `.env.example` has `APP_ENV=dev`, so add that line to an existing `.env`.
+
 **Run `seed` only on an empty development database.** It refuses to overwrite existing data. An initialized database only needs applicable explicit migrations and the API start. The Go commands, Go database tests, and Playwright read `.env` at the repository root (a variable already set in the environment wins); keep `.env` out of commits. The example password belongs to local Compose development, not production credentials.
 
 From `frontend/`, in another terminal:

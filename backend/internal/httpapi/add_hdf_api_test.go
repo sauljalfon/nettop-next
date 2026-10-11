@@ -57,7 +57,7 @@ func handlerFor(t *testing.T, base topology.Snapshot, plans ...planning.Plan) ht
 	if err = store.Seed(ctx, base, plans...); err != nil {
 		t.Fatal(err)
 	}
-	return New(store)
+	return New(store, "dev")
 }
 
 // A05 plus the end-to-end add_hdf contract.

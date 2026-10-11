@@ -119,14 +119,16 @@ func snapshot(w http.ResponseWriter, r *http.Request, repo Repository) (topology
 	return s, true
 }
 
-func New(repo Repository) http.Handler {
+// New serves the API. `environment` (dev, test or prod) is reported by
+// GET /api/health so the UI can label a non-production deployment.
+func New(repo Repository, environment string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		if err := repo.Ping(r.Context()); err != nil {
 			problem(w, 503, "Database unavailable")
 			return
 		}
-		respond(w, 200, map[string]string{"status": "ok", "storage": "postgresql"})
+		respond(w, 200, map[string]string{"status": "ok", "storage": "postgresql", "environment": environment})
 	})
 	mux.HandleFunc("GET /api/topology", func(w http.ResponseWriter, r *http.Request) {
 		if s, ok := snapshot(w, r, repo); ok {

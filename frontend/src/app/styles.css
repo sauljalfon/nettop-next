@@ -171,6 +171,16 @@ button:hover:not(:disabled) {
   border-radius: 5px;
   color: #8b96a8;
 }
+.local-label.env-dev {
+  color: #8a5a00;
+  border-color: #e3cf9c;
+  background: #fff7e0;
+}
+.local-label.env-test {
+  color: #0b6b8a;
+  border-color: #a9d6e6;
+  background: #e6f6fc;
+}
 .tool-rail {
   position: absolute;
   left: 17px;

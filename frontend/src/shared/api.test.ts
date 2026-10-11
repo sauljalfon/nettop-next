@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import {
+  getHealth,
   getSnapshot,
   trace,
   sendPlanCommand,
@@ -338,4 +339,22 @@ it('BK-01 client: a failing command is a 422 APIError that names its position', 
     status: 422,
     message: expect.stringContaining('command 7 (add_cable)'),
   })
+})
+
+it('reads the health answer, with the environment the API reports', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      status: 'ok',
+      storage: 'postgresql',
+      environment: 'test',
+    }),
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  expect(await getHealth()).toEqual({
+    status: 'ok',
+    storage: 'postgresql',
+    environment: 'test',
+  })
+  expect(fetchMock.mock.calls[0][0]).toBe('/api/health')
 })

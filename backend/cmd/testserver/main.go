@@ -88,7 +88,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	server := &http.Server{Addr: *addr, Handler: httpapi.New(store), ReadHeaderTimeout: 5 * time.Second}
+	server := &http.Server{Addr: *addr, Handler: httpapi.New(store, "dev"), ReadHeaderTimeout: 5 * time.Second}
 	finished := make(chan error, 1)
 	go func() { finished <- server.ListenAndServe() }()
 	select {

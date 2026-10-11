@@ -7,6 +7,7 @@ import type {
   Plan,
   PlanCommand,
   CheckResult,
+  Health,
   PlanConflict,
   RecordResult,
   RemoveChangeResult,
@@ -47,6 +48,9 @@ function contextQuery(context: Context, planID?: string, revision?: string) {
   if (revision) query.set('expectedRevision', revision)
   return query.toString()
 }
+/** The API's health and environment; the header reads the environment once. */
+export const getHealth = (signal?: AbortSignal) =>
+  request<Health>('/health', { signal })
 export const getSnapshot = (
   context: Context,
   signal?: AbortSignal,

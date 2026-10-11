@@ -1,6 +1,16 @@
 // Mirrors api/openapi.yaml. Generate these when the write contract stabilizes.
 export type Context = 'installed' | 'planned'
 
+/** The environment the API was started with (APP_ENV). */
+export type AppEnvironment = 'dev' | 'test' | 'prod'
+
+/** GET /api/health. */
+export interface Health {
+  status: string
+  storage: string
+  environment: AppEnvironment
+}
+
 export interface Placement {
   equipmentId: string
   rackId: string
