@@ -1,13 +1,21 @@
 package topology
 
+// The detail fields on the types below are flat, optional strings (empty
+// means not set). They are descriptive data, never topology: nothing traverses
+// them, and keeping the structs comparable lets Diff compare with ==. See
+// details.go for the value sets and limits.
 type Site struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Location    string `json:"location,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 type LocationNode struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	SiteID string `json:"siteId"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	SiteID      string `json:"siteId"`
+	Location    string `json:"location,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 type Network struct {
@@ -24,13 +32,23 @@ type Equipment struct {
 	RackID    string `json:"rackId"`
 	Unit      int    `json:"unit"`
 	Height    int    `json:"height"`
+
+	Manufacturer string `json:"manufacturer,omitempty"`
+	Model        string `json:"model,omitempty"`
+	SerialNumber string `json:"serialNumber,omitempty"`
+	IPAddress    string `json:"ipAddress,omitempty"`
+	Status       string `json:"status,omitempty"`
+	Description  string `json:"description,omitempty"`
 }
 
 type Rack struct {
-	NodeID string `json:"nodeId"`
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Units  int    `json:"units"`
+	NodeID      string `json:"nodeId"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Units       int    `json:"units"`
+	Location    string `json:"location,omitempty"`
+	RackType    string `json:"rackType,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 type Endpoint struct {
@@ -40,6 +58,12 @@ type Endpoint struct {
 	SubpanelID  string `json:"subpanelId,omitempty"`
 	Position    int    `json:"position,omitempty"`
 	Side        string `json:"side,omitempty"`
+
+	PortType    string `json:"portType,omitempty"`
+	Connector   string `json:"connector,omitempty"`
+	Speed       string `json:"speed,omitempty"`
+	State       string `json:"state,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // Subpanel is one row/column block of an HDF chassis. Row and Column are
@@ -56,6 +80,11 @@ type Link struct {
 	A    string `json:"a"`
 	B    string `json:"b"`
 	Kind string `json:"kind"` // cable or internal
+
+	// Cables only; a bridge carries none.
+	Label  string `json:"label,omitempty"`
+	Status string `json:"status,omitempty"`
+	Notes  string `json:"notes,omitempty"`
 }
 
 type Snapshot struct {

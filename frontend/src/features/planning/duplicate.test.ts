@@ -198,3 +198,36 @@ describe('BK-04a copy rack layout', () => {
     expect(result.lines.map((l) => l.name)).toEqual(['AGG-16', 'AGG-09'])
   })
 })
+
+describe('step 11: copies carry no details', () => {
+  it('Duplicate and Copy rack layout copy no detail field, the serial number least of all', () => {
+    const s = snap()
+    s.equipment = s.equipment.map((e) =>
+      e.id === 'EDGE-17'
+        ? {
+            ...e,
+            manufacturer: 'Acme',
+            serialNumber: 'SN-0001',
+            ipAddress: '10.0.0.1',
+            status: 'active' as const,
+            description: 'core',
+          }
+        : e,
+    )
+    s.endpoints = s.endpoints.map((p) =>
+      p.equipmentId === 'EDGE-17'
+        ? { ...p, portType: 'fiber' as const, state: 'faulty' as const }
+        : p,
+    )
+    const commands = [
+      ...duplicateLines(s, 'EDGE-17', 1, 'rack-a03', 9).map((l) => l.command),
+      ...copyLayout(s, 'rack-a03', 'rack-new').lines.map((l) => l.command),
+    ]
+    expect(commands.length).toBeGreaterThan(1)
+    for (const c of commands) {
+      expect(JSON.stringify(c)).not.toMatch(
+        /SN-0001|Acme|10\.0\.0\.1|serialNumber|manufacturer|details|portType|"state"/,
+      )
+    }
+  })
+})

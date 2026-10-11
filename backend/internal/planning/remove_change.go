@@ -46,6 +46,10 @@ func RemoveChange(p Plan, key string) (Plan, []string, error) {
 				own[e.ID] = true
 			}
 		}
+		dropped := map[string]bool{id: true}
+		for ep := range own {
+			dropped[ep] = true
+		}
 		next.Equipment = slices.DeleteFunc(next.Equipment, func(e topology.Equipment) bool { return e.ID == id })
 		next.Endpoints = slices.DeleteFunc(next.Endpoints, func(e topology.Endpoint) bool { return e.EquipmentID == id })
 		next.Subpanels = slices.DeleteFunc(next.Subpanels, func(s topology.Subpanel) bool { return s.EquipmentID == id })
@@ -53,17 +57,20 @@ func RemoveChange(p Plan, key string) (Plan, []string, error) {
 			if own[l.A] || own[l.B] {
 				if l.Kind != "internal" { // bridges belong to the equipment
 					drop("add_cable:" + l.ID)
+					dropped[l.ID] = true
 				}
 				return true
 			}
 			return false
 		})
 		dropPlacement(&next, id, drop)
+		dropDetails(&next, dropped, drop)
 	}
 	var dropRack func(id string)
 	dropRack = func(id string) {
 		drop("add_rack:" + id)
 		next.Racks = slices.DeleteFunc(next.Racks, func(r topology.Rack) bool { return r.ID == id })
+		dropDetails(&next, map[string]bool{id: true}, drop)
 		for _, e := range slices.Clone(next.Equipment) {
 			if e.RackID == id {
 				dropEquipment(e.ID)
@@ -78,6 +85,7 @@ func RemoveChange(p Plan, key string) (Plan, []string, error) {
 	dropNode := func(id string) {
 		drop("add_node:" + id)
 		next.Nodes = slices.DeleteFunc(next.Nodes, func(n topology.LocationNode) bool { return n.ID == id })
+		dropDetails(&next, map[string]bool{id: true}, drop)
 		for _, r := range slices.Clone(next.Racks) {
 			if r.NodeID == id {
 				dropRack(r.ID)
@@ -107,6 +115,7 @@ func RemoveChange(p Plan, key string) (Plan, []string, error) {
 		}
 		drop("add_site:" + id)
 		next.Sites = slices.DeleteFunc(next.Sites, func(s topology.Site) bool { return s.ID == id })
+		dropDetails(&next, map[string]bool{id: true}, drop)
 		for _, n := range slices.Clone(next.Nodes) {
 			if n.SiteID == id {
 				dropNode(n.ID)
@@ -122,6 +131,12 @@ func RemoveChange(p Plan, key string) (Plan, []string, error) {
 		}
 		drop(key)
 		next.Links = slices.DeleteFunc(next.Links, func(l topology.Link) bool { return l.ID == id })
+		dropDetails(&next, map[string]bool{id: true}, drop)
+	case "update_details":
+		if !slices.ContainsFunc(next.Details, func(u DetailUpdate) bool { return u.ID == id }) {
+			return unknown()
+		}
+		dropDetails(&next, map[string]bool{id: true}, drop)
 	case "remove_equipment", "remove_cable", "remove_rack", "remove_node", "remove_site":
 		list := map[string]*[]string{"remove_equipment": &next.Removals.Equipment, "remove_cable": &next.Removals.Links, "remove_rack": &next.Removals.Racks, "remove_node": &next.Removals.Nodes, "remove_site": &next.Removals.Sites}[kind]
 		if !slices.Contains(*list, id) {

@@ -414,12 +414,40 @@ components:
             properties:
               error: {type: string}
   schemas:
+    Details:
+      type: object
+      additionalProperties: false
+      description: "The `details` payload of a command: any subset of the optional detail fields, trimmed. An empty string clears a field. An unknown field name is 400; a field that does not apply to the object (rackType on equipment, portType on a rack, cable fields on a port) is 422 in names, as are invalid values: 'EDGE-30: status must be active, inactive or maintenance, not \"broken\"', 'sn-0042 is already the serial number of AGG-03'. The fields are descriptive data: a port's state never changes a trace."
+      properties:
+        manufacturer: {type: string, maxLength: 200, description: Equipment.}
+        model: {type: string, maxLength: 200, description: Equipment.}
+        serialNumber: {type: string, maxLength: 200, description: "Equipment. Unique among filled values, ignoring case, in Installed and in a plan's proposed topology."}
+        ipAddress: {type: string, maxLength: 200, description: "Equipment. IPv4 or IPv6; not unique."}
+        status: {type: string, enum: [active, inactive, maintenance, testing, ''], description: "Equipment (active, inactive, maintenance) or cable (active, inactive, testing)."}
+        description: {type: string, maxLength: 1000, description: "Equipment, port, site, node or rack."}
+        portType: {type: string, enum: [copper, fiber, ''], description: Port.}
+        connector: {type: string, maxLength: 200, description: "Port. Free text; RJ45, LC, SC, ST, SFP, SFP+ and QSFP are suggestions."}
+        speed: {type: string, maxLength: 200, description: "Port. Free text such as 10G."}
+        state: {type: string, enum: [available, reserved, disabled, faulty, ''], description: Port.}
+        label: {type: string, maxLength: 200, description: Cable.}
+        notes: {type: string, maxLength: 1000, description: Cable.}
+        location: {type: string, maxLength: 200, description: "Site, node or rack."}
+        rackType: {type: string, enum: [standard, wall-mount, open-frame, ''], description: Rack.}
+    DetailUpdate:
+      type: object
+      required: [id, details]
+      description: One update_details change of a draft (several updates to one object are one change, update_details:<id>).
+      properties:
+        id: {type: string}
+        details: {$ref: '#/components/schemas/Details'}
     Site:
       type: object
       required: [id, name]
       properties:
         id: {type: string}
         name: {type: string}
+        location: {type: string, maxLength: 200}
+        description: {type: string, maxLength: 1000}
     LocationNode:
       type: object
       description: Physical room or network location, not a canvas node.
@@ -428,6 +456,8 @@ components:
         id: {type: string}
         name: {type: string}
         siteId: {type: string}
+        location: {type: string, maxLength: 200}
+        description: {type: string, maxLength: 1000}
     Plan:
       type: object
       required: [id, name, baseRevision, revision, status, equipment, subpanels, endpoints, links]
@@ -483,6 +513,10 @@ components:
         links:
           type: array
           items: {$ref: '#/components/schemas/Link'}
+        details:
+          type: array
+          description: update_details changes on objects the plan adds, one entry per object, layered over the additions (undo with remove_change update_details:<id>). The additions' own details are inside the equipment, cable, site, node and rack entries. Omitted when empty.
+          items: {$ref: '#/components/schemas/DetailUpdate'}
     HDFInput:
       type: object
       additionalProperties: false
@@ -497,6 +531,7 @@ components:
           minimum: 1
           maximum: 32
           description: Grid rows (columns A-D in each). Creates the chassis, 4N subpanels, 24N positions as 48N side endpoints, and 24N internal bridges in one atomic revision (at most 128 / 768 / 1,536).
+        details: {$ref: '#/components/schemas/Details', description: Details of the HDF itself.}
     EquipmentInput:
       type: object
       additionalProperties: false
@@ -519,13 +554,15 @@ components:
           minimum: 1
           maximum: 48
           description: Switch ports or panel positions. Each panel position creates front/rear endpoints and one internal bridge.
+        details: {$ref: '#/components/schemas/Details'}
     BatchItem:
       type: object
       additionalProperties: false
       required: [type]
       description: One command inside a batch, with exactly the payload its type needs (the same payloads as the single commands) and no expectedRevision.
       properties:
-        type: {enum: [add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site]}
+        type: {enum: [add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, update_details, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site]}
+        details: {$ref: '#/components/schemas/Details', description: With target, for update_details only.}
         equipment: {$ref: '#/components/schemas/EquipmentInput'}
         hdf: {$ref: '#/components/schemas/HDFInput'}
         cable:
@@ -535,6 +572,7 @@ components:
           properties:
             a: {type: string}
             b: {type: string}
+            details: {$ref: '#/components/schemas/Details'}
         placement: {$ref: '#/components/schemas/Placement'}
         site:
           type: object
@@ -542,6 +580,7 @@ components:
           required: [name]
           properties:
             name: {type: string, minLength: 1, maxLength: 100}
+            details: {$ref: '#/components/schemas/Details'}
         node:
           type: object
           additionalProperties: false
@@ -549,6 +588,7 @@ components:
           properties:
             siteId: {type: string}
             name: {type: string, minLength: 1, maxLength: 100}
+            details: {$ref: '#/components/schemas/Details'}
         rack:
           type: object
           additionalProperties: false
@@ -557,6 +597,7 @@ components:
             nodeId: {type: string}
             name: {type: string, minLength: 1, maxLength: 100}
             units: {type: integer, minimum: 1, maximum: 60}
+            details: {$ref: '#/components/schemas/Details'}
         target:
           type: object
           additionalProperties: false
@@ -635,6 +676,7 @@ components:
               properties:
                 a: {type: string}
                 b: {type: string}
+                details: {$ref: '#/components/schemas/Details'}
         - type: object
           additionalProperties: false
           required: [type, expectedRevision, placement]
@@ -661,6 +703,7 @@ components:
               required: [name]
               properties:
                 name: {type: string, minLength: 1, maxLength: 100, description: "Trimmed; unique among sites ignoring case."}
+                details: {$ref: '#/components/schemas/Details'}
         - type: object
           additionalProperties: false
           required: [type, expectedRevision, node]
@@ -674,6 +717,7 @@ components:
               properties:
                 siteId: {type: string, description: An existing or proposed site.}
                 name: {type: string, minLength: 1, maxLength: 100, description: "Trimmed; unique within the site ignoring case."}
+                details: {$ref: '#/components/schemas/Details'}
         - type: object
           additionalProperties: false
           required: [type, expectedRevision, rack]
@@ -688,6 +732,21 @@ components:
                 nodeId: {type: string, description: An existing or proposed node.}
                 name: {type: string, minLength: 1, maxLength: 100, description: "Trimmed; unique within the node ignoring case."}
                 units: {type: integer, minimum: 1, maximum: 60}
+                details: {$ref: '#/components/schemas/Details'}
+        - type: object
+          additionalProperties: false
+          required: [type, expectedRevision, target, details]
+          description: "Sets or clears details of an object the plan adds (equipment, a proposed equipment's ports, cables, sites, nodes, racks); an empty string clears a field. An installed object is 422 'Installed details are changed with a direct fix (M5b step 12), not in a plan'; a bridge carries none; an unknown ID is 422. Its change key is update_details:<id>; remove_change undoes it, removing the object drops it, and it is allowed in a batch (on an object created before the batch). Every other command carries its details inside its own payload; a top-level details on them is 422."
+          properties:
+            type: {const: update_details}
+            expectedRevision: {type: string, minLength: 1}
+            target:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id: {type: string}
+            details: {$ref: '#/components/schemas/Details'}
         - type: object
           additionalProperties: false
           required: [type, expectedRevision, batch]
@@ -719,7 +778,7 @@ components:
               properties:
                 key:
                   type: string
-                  description: "The \"<kind>:<id>\" key a conflict or the summary names: add_site, add_node, add_rack, add_equipment, place_equipment, add_cable, remove_equipment, remove_cable, remove_rack, remove_node, remove_site. Dependents removed with it - add_equipment:X also its cables (add_cable) and placement; add_rack:R also the plan's equipment in R and placements into R; add_node:N its racks; add_site:S its nodes. Every other key removes only itself (undoing a removal restores the object)."
+                  description: "The \"<kind>:<id>\" key a conflict or the summary names: add_site, add_node, add_rack, add_equipment, place_equipment, add_cable, update_details, remove_equipment, remove_cable, remove_rack, remove_node, remove_site. Dependents removed with it - add_equipment:X also its cables (add_cable) and placement; add_rack:R also the plan's equipment in R and placements into R; add_node:N its racks; add_site:S its nodes. Every other key removes only itself (undoing a removal restores the object)."
         - type: object
           additionalProperties: false
           required: [type, expectedRevision, target]
@@ -741,6 +800,9 @@ components:
         name: {type: string}
         units: {type: integer, minimum: 1}
         nodeId: {type: string}
+        location: {type: string, maxLength: 200}
+        rackType: {type: string, enum: [standard, wall-mount, open-frame]}
+        description: {type: string, maxLength: 1000}
     Equipment:
       type: object
       required: [id, name, kind, role, rackId, unit, height]
@@ -755,6 +817,12 @@ components:
         rackId: {type: string}
         unit: {type: integer, minimum: 1}
         height: {type: integer, minimum: 1}
+        manufacturer: {type: string, maxLength: 200}
+        model: {type: string, maxLength: 200}
+        serialNumber: {type: string, maxLength: 200}
+        ipAddress: {type: string, maxLength: 200}
+        status: {type: string, enum: [active, inactive, maintenance]}
+        description: {type: string, maxLength: 1000}
     Endpoint:
       type: object
       required: [id, equipmentId, label]
@@ -770,6 +838,11 @@ components:
           minimum: 1
           description: Local position. Numbering restarts in every HDF subpanel (1-6); standard panels number positions on the chassis.
         side: {type: string, enum: [front, rear]}
+        portType: {type: string, enum: [copper, fiber]}
+        connector: {type: string, maxLength: 200}
+        speed: {type: string, maxLength: 200}
+        state: {type: string, enum: [available, reserved, disabled, faulty], description: "Data only: a faulty or disabled port still carries continuity, and no trace changes."}
+        description: {type: string, maxLength: 1000}
     Link:
       type: object
       required: [id, a, b, kind]
@@ -778,6 +851,9 @@ components:
         a: {type: string}
         b: {type: string}
         kind: {type: string, enum: [cable, internal]}
+        label: {type: string, maxLength: 200, description: Cables only; a bridge carries none.}
+        status: {type: string, enum: [active, inactive, testing], description: Cables only.}
+        notes: {type: string, maxLength: 1000, description: Cables only.}
     Network:
       type: object
       description: Created and renamed through /networks; snapshots list networks in creation order (existing ones in ID order).

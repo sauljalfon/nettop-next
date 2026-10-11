@@ -71,13 +71,13 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT id,name FROM sites ORDER BY id`)
+	rows, err = tx.Query(ctx, `SELECT id,name,COALESCE(location,''),COALESCE(description,'') FROM sites ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var site topology.Site
-		if err = rows.Scan(&site.ID, &site.Name); err != nil {
+		if err = rows.Scan(&site.ID, &site.Name, &site.Location, &site.Description); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -87,13 +87,13 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT id,name,site_id FROM location_nodes ORDER BY id`)
+	rows, err = tx.Query(ctx, `SELECT id,name,site_id,COALESCE(location,''),COALESCE(description,'') FROM location_nodes ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var node topology.LocationNode
-		if err = rows.Scan(&node.ID, &node.Name, &node.SiteID); err != nil {
+		if err = rows.Scan(&node.ID, &node.Name, &node.SiteID, &node.Location, &node.Description); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -103,13 +103,13 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT id,name,units,node_id FROM racks ORDER BY id`)
+	rows, err = tx.Query(ctx, `SELECT id,name,units,node_id,COALESCE(location,''),COALESCE(rack_type,''),COALESCE(description,'') FROM racks ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var r topology.Rack
-		if err = rows.Scan(&r.ID, &r.Name, &r.Units, &r.NodeID); err != nil {
+		if err = rows.Scan(&r.ID, &r.Name, &r.Units, &r.NodeID, &r.Location, &r.RackType, &r.Description); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -119,13 +119,13 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT id,name,kind,role,COALESCE(network_id,''),rack_id,unit,height FROM equipment ORDER BY id`)
+	rows, err = tx.Query(ctx, `SELECT id,name,kind,role,COALESCE(network_id,''),rack_id,unit,height,COALESCE(manufacturer,''),COALESCE(model,''),COALESCE(serial_number,''),COALESCE(ip_address,''),COALESCE(status,''),COALESCE(description,'') FROM equipment ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var e topology.Equipment
-		if err = rows.Scan(&e.ID, &e.Name, &e.Kind, &e.Role, &e.NetworkID, &e.RackID, &e.Unit, &e.Height); err != nil {
+		if err = rows.Scan(&e.ID, &e.Name, &e.Kind, &e.Role, &e.NetworkID, &e.RackID, &e.Unit, &e.Height, &e.Manufacturer, &e.Model, &e.SerialNumber, &e.IPAddress, &e.Status, &e.Description); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -151,13 +151,13 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT id,equipment_id,label,COALESCE(subpanel_id,''),position,side FROM endpoints ORDER BY id`)
+	rows, err = tx.Query(ctx, `SELECT id,equipment_id,label,COALESCE(subpanel_id,''),position,side,COALESCE(port_type,''),COALESCE(connector,''),COALESCE(speed,''),COALESCE(state,''),COALESCE(description,'') FROM endpoints ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var p topology.Endpoint
-		if err = rows.Scan(&p.ID, &p.EquipmentID, &p.Label, &p.SubpanelID, &p.Position, &p.Side); err != nil {
+		if err = rows.Scan(&p.ID, &p.EquipmentID, &p.Label, &p.SubpanelID, &p.Position, &p.Side, &p.PortType, &p.Connector, &p.Speed, &p.State, &p.Description); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -167,13 +167,13 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT l.id,l.kind,a.endpoint_id,b.endpoint_id FROM links l JOIN link_endpoints a ON a.link_id=l.id AND a.slot=1 JOIN link_endpoints b ON b.link_id=l.id AND b.slot=2 ORDER BY l.id`)
+	rows, err = tx.Query(ctx, `SELECT l.id,l.kind,a.endpoint_id,b.endpoint_id,COALESCE(l.label,''),COALESCE(l.status,''),COALESCE(l.notes,'') FROM links l JOIN link_endpoints a ON a.link_id=l.id AND a.slot=1 JOIN link_endpoints b ON b.link_id=l.id AND b.slot=2 ORDER BY l.id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var l topology.Link
-		if err = rows.Scan(&l.ID, &l.Kind, &l.A, &l.B); err != nil {
+		if err = rows.Scan(&l.ID, &l.Kind, &l.A, &l.B, &l.Label, &l.Status, &l.Notes); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -312,6 +312,7 @@ func loadPlan(ctx context.Context, tx pgx.Tx, id string, lock bool) (planning.Pl
 	}
 	p.Endpoints = additions.Endpoints
 	p.Links = additions.Links
+	p.Details = additions.Details
 	return p, nil
 }
 
@@ -354,21 +355,21 @@ func (s *Store) Snapshot(ctx context.Context, planID string) (topology.Snapshot,
 // The insert helpers are shared by Seed and Record, so both write installed
 // rows the same way.
 func insertSite(ctx context.Context, tx pgx.Tx, site topology.Site) error {
-	_, err := tx.Exec(ctx, `INSERT INTO sites(id,name) VALUES($1,$2)`, site.ID, site.Name)
+	_, err := tx.Exec(ctx, `INSERT INTO sites(id,name,location,description) VALUES($1,$2,NULLIF($3,''),NULLIF($4,''))`, site.ID, site.Name, site.Location, site.Description)
 	return err
 }
 func insertNode(ctx context.Context, tx pgx.Tx, node topology.LocationNode) error {
-	_, err := tx.Exec(ctx, `INSERT INTO location_nodes(id,name,site_id) VALUES($1,$2,$3)`, node.ID, node.Name, node.SiteID)
+	_, err := tx.Exec(ctx, `INSERT INTO location_nodes(id,name,site_id,location,description) VALUES($1,$2,$3,NULLIF($4,''),NULLIF($5,''))`, node.ID, node.Name, node.SiteID, node.Location, node.Description)
 	return err
 }
 func insertRack(ctx context.Context, tx pgx.Tx, r topology.Rack) error {
-	_, err := tx.Exec(ctx, `INSERT INTO racks(id,name,units,node_id) VALUES ($1,$2,$3,$4)`, r.ID, r.Name, r.Units, r.NodeID)
+	_, err := tx.Exec(ctx, `INSERT INTO racks(id,name,units,node_id,location,rack_type,description) VALUES ($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),NULLIF($7,''))`, r.ID, r.Name, r.Units, r.NodeID, r.Location, r.RackType, r.Description)
 	return err
 }
 
 // insertEquipment writes the equipment row and its rack occupancy.
 func insertEquipment(ctx context.Context, tx pgx.Tx, e topology.Equipment) error {
-	if _, err := tx.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,rack_id,unit,height,network_id) VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''))`, e.ID, e.Name, e.Kind, e.Role, e.RackID, e.Unit, e.Height, e.NetworkID); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,rack_id,unit,height,network_id,manufacturer,model,serial_number,ip_address,status,description) VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,''),NULLIF($12,''),NULLIF($13,''),NULLIF($14,''))`, e.ID, e.Name, e.Kind, e.Role, e.RackID, e.Unit, e.Height, e.NetworkID, e.Manufacturer, e.Model, e.SerialNumber, e.IPAddress, e.Status, e.Description); err != nil {
 		return err
 	}
 	return insertOccupancy(ctx, tx, e)
@@ -382,11 +383,11 @@ func insertSubpanel(ctx context.Context, tx pgx.Tx, sp topology.Subpanel) error 
 	return err
 }
 func insertEndpoint(ctx context.Context, tx pgx.Tx, p topology.Endpoint) error {
-	_, err := tx.Exec(ctx, `INSERT INTO endpoints(id,equipment_id,equipment_kind,label,position,side,subpanel_id) SELECT $1,$2,kind,$3,$4,$5,NULLIF($6,'') FROM equipment WHERE id=$2`, p.ID, p.EquipmentID, p.Label, p.Position, p.Side, p.SubpanelID)
+	_, err := tx.Exec(ctx, `INSERT INTO endpoints(id,equipment_id,equipment_kind,label,position,side,subpanel_id,port_type,connector,speed,state,description) SELECT $1,$2,kind,$3,$4,$5,NULLIF($6,''),NULLIF($7,''),NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,'') FROM equipment WHERE id=$2`, p.ID, p.EquipmentID, p.Label, p.Position, p.Side, p.SubpanelID, p.PortType, p.Connector, p.Speed, p.State, p.Description)
 	return err
 }
 func insertLink(ctx context.Context, tx pgx.Tx, l topology.Link) error {
-	if _, err := tx.Exec(ctx, `INSERT INTO links VALUES ($1,$2)`, l.ID, l.Kind); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO links(id,kind,label,status,notes) VALUES ($1,$2,NULLIF($3,''),NULLIF($4,''),NULLIF($5,''))`, l.ID, l.Kind, l.Label, l.Status, l.Notes); err != nil {
 		return err
 	}
 	_, err := tx.Exec(ctx, `INSERT INTO link_endpoints(link_id,endpoint_id,kind,slot) VALUES ($1,$2,$4,1),($1,$3,$4,2)`, l.ID, l.A, l.B, l.Kind)

@@ -48,6 +48,8 @@ type Plan struct {
 	Subpanels  []topology.Subpanel  `json:"subpanels"`
 	Endpoints  []topology.Endpoint  `json:"endpoints"`
 	Links      []topology.Link      `json:"links"`
+	// Details are update_details changes on objects the plan adds.
+	Details []DetailUpdate `json:"details,omitempty"`
 }
 
 // ErrRecorded is the reason a recorded plan refuses commands, record and rebase.
@@ -228,6 +230,16 @@ func (p Plan) remove(base, current topology.Snapshot, kind RemovalKind, id strin
 			next.Equipment = slices.DeleteFunc(next.Equipment, func(e topology.Equipment) bool { return e.ID == id })
 			next.Endpoints = slices.DeleteFunc(next.Endpoints, func(e topology.Endpoint) bool { return e.EquipmentID == id })
 			next.Subpanels = slices.DeleteFunc(next.Subpanels, func(s topology.Subpanel) bool { return s.EquipmentID == id })
+			dropped := map[string]bool{id: true}
+			for ep := range own {
+				dropped[ep] = true
+			}
+			for _, l := range next.Links {
+				if own[l.A] || own[l.B] {
+					dropped[l.ID] = true
+				}
+			}
+			dropDetails(&next, dropped, func(string) {})
 			next.Links = slices.DeleteFunc(next.Links, func(l topology.Link) bool { return own[l.A] || own[l.B] })
 			return next, nil
 		}
@@ -254,6 +266,7 @@ func (p Plan) remove(base, current topology.Snapshot, kind RemovalKind, id strin
 		}
 		if slices.ContainsFunc(next.Links, func(l topology.Link) bool { return l.ID == id }) {
 			next.Links = slices.DeleteFunc(next.Links, func(l topology.Link) bool { return l.ID == id })
+			dropDetails(&next, map[string]bool{id: true}, func(string) {})
 			return next, nil
 		}
 		next.Removals.Links = addOnce(next.Removals.Links, id)
@@ -265,18 +278,21 @@ func (p Plan) remove(base, current topology.Snapshot, kind RemovalKind, id strin
 		case RemoveRack:
 			if slices.ContainsFunc(next.Racks, func(r topology.Rack) bool { return r.ID == id }) {
 				next.Racks = slices.DeleteFunc(next.Racks, func(r topology.Rack) bool { return r.ID == id })
+				dropDetails(&next, map[string]bool{id: true}, func(string) {})
 				return next, nil
 			}
 			next.Removals.Racks = addOnce(next.Removals.Racks, id)
 		case RemoveNode:
 			if slices.ContainsFunc(next.Nodes, func(n topology.LocationNode) bool { return n.ID == id }) {
 				next.Nodes = slices.DeleteFunc(next.Nodes, func(n topology.LocationNode) bool { return n.ID == id })
+				dropDetails(&next, map[string]bool{id: true}, func(string) {})
 				return next, nil
 			}
 			next.Removals.Nodes = addOnce(next.Removals.Nodes, id)
 		case RemoveSite:
 			if slices.ContainsFunc(next.Sites, func(s topology.Site) bool { return s.ID == id }) {
 				next.Sites = slices.DeleteFunc(next.Sites, func(s topology.Site) bool { return s.ID == id })
+				dropDetails(&next, map[string]bool{id: true}, func(string) {})
 				return next, nil
 			}
 			next.Removals.Sites = addOnce(next.Removals.Sites, id)
@@ -337,6 +353,7 @@ func (p Plan) clone() Plan {
 	p.Subpanels = slices.Clone(p.Subpanels)
 	p.Endpoints = slices.Clone(p.Endpoints)
 	p.Links = slices.Clone(p.Links)
+	p.Details = slices.Clone(p.Details)
 	return p
 }
 
@@ -515,6 +532,9 @@ func steps(plan Plan) []step {
 			s.Links = append(s.Links, l)
 			return nil
 		})
+	}
+	for _, u := range plan.Details {
+		add("update_details:"+u.ID, detailsStep(plan, u).run)
 	}
 	return out
 }

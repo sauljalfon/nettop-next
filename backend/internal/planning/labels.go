@@ -55,6 +55,11 @@ func planRefs(p Plan) refs {
 			r.endpoints[l.A], r.endpoints[l.B] = true, true
 		}
 	}
+	// An update names its object, whatever kind it is; the sets are matched
+	// against real objects of the right kind, so naming all of them is harmless.
+	for _, u := range p.Details {
+		r.equipment[u.ID], r.racks[u.ID], r.nodes[u.ID], r.sites[u.ID], r.endpoints[u.ID], r.links[u.ID] = true, true, true, true, true, true
+	}
 	return r
 }
 

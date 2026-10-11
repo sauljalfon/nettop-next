@@ -1,6 +1,7 @@
 package topology
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -217,6 +218,9 @@ func Validate(s Snapshot) error {
 		default:
 			return fmt.Errorf("unknown link kind %s", l.Kind)
 		}
+	}
+	if problem := detailsProblem(s); problem != "" {
+		return errors.New(problem)
 	}
 	for _, p := range s.Endpoints {
 		if equipment[p.EquipmentID].Kind == "hdf" && !bridges[p.ID] {

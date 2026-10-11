@@ -24,6 +24,61 @@ export interface Removals {
   nodes?: string[]
   sites?: string[]
 }
+/**
+ * Optional details of an object (step 11). Flat optional strings; absent means
+ * not set. Descriptive data only: nothing that follows continuity reads them.
+ * Value sets: equipment status active/inactive/maintenance; port type
+ * copper/fiber; port state available/reserved/disabled/faulty; cable status
+ * active/inactive/testing; rack type standard/wall-mount/open-frame. Text is at
+ * most 200 characters (1,000 for description and notes); ipAddress is IPv4 or
+ * IPv6; serialNumber is unique among filled values, ignoring case.
+ */
+export interface EquipmentDetails {
+  manufacturer?: string
+  model?: string
+  serialNumber?: string
+  ipAddress?: string
+  status?: 'active' | 'inactive' | 'maintenance'
+  description?: string
+}
+export interface PortDetails {
+  portType?: 'copper' | 'fiber'
+  /** Free text; RJ45, LC, SC, ST, SFP, SFP+ and QSFP are suggestions. */
+  connector?: string
+  /** Free text such as "10G". */
+  speed?: string
+  state?: 'available' | 'reserved' | 'disabled' | 'faulty'
+  description?: string
+}
+/** Cables only; a bridge carries none. */
+export interface CableDetails {
+  label?: string
+  status?: 'active' | 'inactive' | 'testing'
+  notes?: string
+}
+export interface PlaceDetails {
+  location?: string
+  description?: string
+}
+export interface RackDetails extends PlaceDetails {
+  rackType?: 'standard' | 'wall-mount' | 'open-frame'
+}
+/**
+ * The `details` payload of a command: any subset of the detail fields. An empty
+ * string clears a field; an unknown name is a 400, a field that does not apply
+ * to the object a 422.
+ */
+export type Details = EquipmentDetails &
+  PortDetails &
+  CableDetails &
+  RackDetails
+
+/** update_details changes on objects the plan adds, one entry per object. */
+export interface DetailUpdate {
+  id: string
+  details: Details
+}
+
 export interface Plan {
   id: string
   name: string
@@ -42,8 +97,8 @@ export interface Plan {
    */
   labels?: Record<string, string>
   /** Proposed containers, applied before equipment. */
-  sites?: { id: string; name: string }[]
-  nodes?: { id: string; name: string; siteId: string }[]
+  sites?: Site[]
+  nodes?: LocationNode[]
   racks?: Rack[]
   equipment: Equipment[]
   /** Moves of installed equipment, by ID only. */
@@ -54,6 +109,8 @@ export interface Plan {
   subpanels: Subpanel[]
   endpoints: Endpoint[]
   links: Link[]
+  /** update_details entries (undo with remove_change key update_details:<id>). */
+  details?: DetailUpdate[]
 }
 
 export interface EquipmentInput {
@@ -65,6 +122,7 @@ export interface EquipmentInput {
   unit: number
   height: number
   portCount: number
+  details?: EquipmentDetails
 }
 
 export interface HDFInput {
@@ -75,6 +133,8 @@ export interface HDFInput {
   height: number
   /** Grid rows, 1–32; creates 4 subpanels, 24 positions per row. */
   rows: number
+  /** Details of the HDF itself. */
+  details?: EquipmentDetails
 }
 
 export type PlanCommand =
@@ -91,24 +151,45 @@ export type PlanCommand =
   | {
       type: 'add_cable'
       expectedRevision: string
-      cable: { a: string; b: string }
+      cable: { a: string; b: string; details?: CableDetails }
     }
   | {
       type: 'move_equipment'
       expectedRevision: string
       placement: Placement
     }
-  | { type: 'add_site'; expectedRevision: string; site: { name: string } }
+  | {
+      type: 'add_site'
+      expectedRevision: string
+      site: { name: string; details?: PlaceDetails }
+    }
   | {
       type: 'add_node'
       expectedRevision: string
-      node: { siteId: string; name: string }
+      node: { siteId: string; name: string; details?: PlaceDetails }
     }
   | {
       type: 'add_rack'
       expectedRevision: string
       /** units 1–60 */
-      rack: { nodeId: string; name: string; units: number }
+      rack: {
+        nodeId: string
+        name: string
+        units: number
+        details?: RackDetails
+      }
+    }
+  /**
+   * Sets or clears details of an object the plan adds (including a proposed
+   * equipment's ports); undone by remove_change with update_details:<id>. An
+   * installed object is refused (422): installed details are changed by a
+   * direct fix.
+   */
+  | {
+      type: 'update_details'
+      expectedRevision: string
+      target: { id: string }
+      details: Details
     }
   /**
    * Removes one change of a draft by the key Check reports, with the changes
@@ -141,7 +222,7 @@ export type PlanCommand =
       expectedRevision: string
       target: { id: string }
     }
-export interface Equipment {
+export interface Equipment extends EquipmentDetails {
   id: string
   name: string
   kind: 'switch' | 'panel' | 'hdf'
@@ -172,13 +253,22 @@ export interface SiteLayout {
   siteId: string
   positions: NodePosition[]
 }
-export interface Rack {
+export interface Rack extends RackDetails {
   nodeId: string
   id: string
   name: string
   units: number
 }
-export interface Endpoint {
+export interface Site extends PlaceDetails {
+  id: string
+  name: string
+}
+export interface LocationNode extends PlaceDetails {
+  id: string
+  name: string
+  siteId: string
+}
+export interface Endpoint extends PortDetails {
   id: string
   equipmentId: string
   label: string
@@ -186,7 +276,7 @@ export interface Endpoint {
   position?: number
   side?: 'front' | 'rear'
 }
-export interface Link {
+export interface Link extends CableDetails {
   id: string
   a: string
   b: string
@@ -195,8 +285,8 @@ export interface Link {
 export interface Snapshot {
   networks: Network[]
   subpanels: Subpanel[]
-  sites: { id: string; name: string }[]
-  nodes: { id: string; name: string; siteId: string }[]
+  sites: Site[]
+  nodes: LocationNode[]
   context: Context
   revision: string
   site: string
@@ -283,11 +373,26 @@ export interface CheckResult {
 export type BatchCommand =
   | { type: 'add_equipment'; equipment: EquipmentInput }
   | { type: 'add_hdf'; hdf: HDFInput }
-  | { type: 'add_cable'; cable: { a: string; b: string } }
+  | {
+      type: 'add_cable'
+      cable: { a: string; b: string; details?: CableDetails }
+    }
   | { type: 'move_equipment'; placement: Placement }
-  | { type: 'add_site'; site: { name: string } }
-  | { type: 'add_node'; node: { siteId: string; name: string } }
-  | { type: 'add_rack'; rack: { nodeId: string; name: string; units: number } }
+  | { type: 'add_site'; site: { name: string; details?: PlaceDetails } }
+  | {
+      type: 'add_node'
+      node: { siteId: string; name: string; details?: PlaceDetails }
+    }
+  | {
+      type: 'add_rack'
+      rack: {
+        nodeId: string
+        name: string
+        units: number
+        details?: RackDetails
+      }
+    }
+  | { type: 'update_details'; target: { id: string }; details: Details }
   | {
       type:
         | 'delete_equipment'

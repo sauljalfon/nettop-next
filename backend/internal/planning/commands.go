@@ -21,6 +21,8 @@ type EquipmentInput struct {
 	Unit      int    `json:"unit"`
 	Height    int    `json:"height"`
 	PortCount int    `json:"portCount"`
+	// Details are the optional detail fields of the equipment (never of its ports).
+	Details *topology.Details `json:"details,omitempty"`
 }
 
 // HDFInput creates one HDF chassis with its complete grid atomically. Rows and
@@ -32,10 +34,13 @@ type HDFInput struct {
 	Unit   int    `json:"unit"`
 	Height int    `json:"height"`
 	Rows   int    `json:"rows"`
+	// Details apply to the HDF itself.
+	Details *topology.Details `json:"details,omitempty"`
 }
 type CableInput struct {
-	A string `json:"a"`
-	B string `json:"b"`
+	A       string            `json:"a"`
+	B       string            `json:"b"`
+	Details *topology.Details `json:"details,omitempty"`
 }
 type PlacementInput struct {
 	EquipmentID string `json:"equipmentId"`
@@ -43,16 +48,19 @@ type PlacementInput struct {
 	Unit        int    `json:"unit"`
 }
 type SiteInput struct {
-	Name string `json:"name"`
+	Name    string            `json:"name"`
+	Details *topology.Details `json:"details,omitempty"`
 }
 type NodeInput struct {
-	SiteID string `json:"siteId"`
-	Name   string `json:"name"`
+	SiteID  string            `json:"siteId"`
+	Name    string            `json:"name"`
+	Details *topology.Details `json:"details,omitempty"`
 }
 type RackInput struct {
-	NodeID string `json:"nodeId"`
-	Name   string `json:"name"`
-	Units  int    `json:"units"`
+	NodeID  string            `json:"nodeId"`
+	Name    string            `json:"name"`
+	Units   int               `json:"units"`
+	Details *topology.Details `json:"details,omitempty"`
 }
 
 // TargetInput names the object a delete_* or disconnect_cable command acts on:
@@ -75,6 +83,9 @@ type Command struct {
 	Target           *TargetInput    `json:"target,omitempty"`
 	Change           *ChangeInput    `json:"change,omitempty"`
 	Batch            *BatchInput     `json:"batch,omitempty"`
+	// Details go with a target in update_details; every other command carries
+	// its details inside its own payload.
+	Details *topology.Details `json:"details,omitempty"`
 }
 
 // ChangeInput names one change of a draft by the key Check reports for it:
@@ -152,6 +163,9 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 	if next.Subpanels == nil {
 		next.Subpanels = []topology.Subpanel{}
 	}
+	if c.Details != nil && c.Type != "update_details" {
+		return invalid(c.Type + " takes its details inside its payload")
+	}
 	switch c.Type {
 	case "add_equipment":
 		if c.Equipment == nil || c.payloads() != 1 {
@@ -185,7 +199,11 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		if problem := placementProblem(current, e.RackID, e.Unit, e.Height, nil, p.Labels); problem != "" {
 			return invalid(problem)
 		}
-		next.Equipment = append(next.Equipment, topology.Equipment{ID: id, Name: e.Name, Kind: e.Kind, Role: e.Role, NetworkID: e.NetworkID, RackID: e.RackID, Unit: e.Unit, Height: e.Height})
+		added := topology.Equipment{ID: id, Name: e.Name, Kind: e.Kind, Role: e.Role, NetworkID: e.NetworkID, RackID: e.RackID, Unit: e.Unit, Height: e.Height}
+		if err := setDetails(c.Equipment.Details, "equipment "+e.Name, added.SetDetail); err != nil {
+			return Plan{}, Plan{}, err
+		}
+		next.Equipment = append(next.Equipment, added)
 		for n := 1; n <= e.PortCount; n++ {
 			portID := fmt.Sprintf("%s:p%d", id, n)
 			if e.Kind == "switch" {
@@ -224,6 +242,9 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 			return invalid(problem)
 		}
 		built := topology.NewHDF(id, h.Name, h.RackID, h.Unit, h.Height, h.Rows)
+		if err := setDetails(c.HDF.Details, "equipment "+h.Name, built.Equipment.SetDetail); err != nil {
+			return Plan{}, Plan{}, err
+		}
 		next.Equipment = append(next.Equipment, built.Equipment)
 		next.Subpanels = append(next.Subpanels, built.Subpanels...)
 		next.Endpoints = append(next.Endpoints, built.Endpoints...)
@@ -239,7 +260,11 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		if a > b {
 			a, b = b, a
 		}
-		next.Links = append(next.Links, topology.Link{ID: id, A: a, B: b, Kind: "cable"})
+		added := topology.Link{ID: id, A: a, B: b, Kind: "cable"}
+		if err := setDetails(c.Cable.Details, "a cable", added.SetDetail); err != nil {
+			return Plan{}, Plan{}, err
+		}
+		next.Links = append(next.Links, added)
 	case "move_equipment":
 		if c.Placement == nil || c.payloads() != 1 {
 			return invalid("move_equipment requires only a placement payload")
@@ -266,7 +291,7 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		updated.RackID, updated.Unit = input.RackID, input.Unit
 		delta.Placements = []PlacementInput{*input}
 		if i := slices.IndexFunc(next.Equipment, func(e topology.Equipment) bool { return e.ID == input.EquipmentID }); i >= 0 {
-			next.Equipment[i] = updated // proposed equipment is moved in its addition
+			next.Equipment[i].RackID, next.Equipment[i].Unit = input.RackID, input.Unit // proposed equipment is moved in its addition
 		} else if i := slices.IndexFunc(next.Placements, func(pl PlacementInput) bool { return pl.EquipmentID == input.EquipmentID }); i >= 0 {
 			next.Placements[i] = *input
 		} else {
@@ -283,7 +308,11 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		if slices.ContainsFunc(current.Sites, func(x topology.Site) bool { return strings.EqualFold(x.Name, name) }) {
 			return invalid("site name already exists")
 		}
-		next.Sites = append(next.Sites, topology.Site{ID: id, Name: name})
+		added := topology.Site{ID: id, Name: name}
+		if err := setDetails(c.Site.Details, "site "+name, added.SetDetail); err != nil {
+			return Plan{}, Plan{}, err
+		}
+		next.Sites = append(next.Sites, added)
 	case "add_node":
 		if c.Node == nil || c.payloads() != 1 {
 			return invalid("add_node requires only a node payload")
@@ -300,7 +329,11 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		}) {
 			return invalid("node name already exists in this site")
 		}
-		next.Nodes = append(next.Nodes, topology.LocationNode{ID: id, SiteID: c.Node.SiteID, Name: name})
+		added := topology.LocationNode{ID: id, SiteID: c.Node.SiteID, Name: name}
+		if err := setDetails(c.Node.Details, "node "+name, added.SetDetail); err != nil {
+			return Plan{}, Plan{}, err
+		}
+		next.Nodes = append(next.Nodes, added)
 	case "add_rack":
 		if c.Rack == nil || c.payloads() != 1 {
 			return invalid("add_rack requires only a rack payload")
@@ -320,7 +353,21 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		}) {
 			return invalid("rack name already exists in this node")
 		}
-		next.Racks = append(next.Racks, topology.Rack{ID: id, NodeID: c.Rack.NodeID, Name: name, Units: c.Rack.Units})
+		added := topology.Rack{ID: id, NodeID: c.Rack.NodeID, Name: name, Units: c.Rack.Units}
+		if err := setDetails(c.Rack.Details, "rack "+name, added.SetDetail); err != nil {
+			return Plan{}, Plan{}, err
+		}
+		next.Racks = append(next.Racks, added)
+	case "update_details":
+		if c.Target == nil || c.Details == nil || c.payloads() != 1 {
+			return invalid("update_details requires a target and details")
+		}
+		if len(c.Details.Fields()) == 0 {
+			return invalid("update_details needs at least one field")
+		}
+		if err := updateDetails(&next, current, *c.Target, *c.Details, &delta); err != nil {
+			return Plan{}, Plan{}, err
+		}
 	case "delete_equipment", "disconnect_cable", "delete_rack", "delete_node", "delete_site":
 		if c.Target == nil || c.payloads() != 1 {
 			return invalid(c.Type + " requires only a target payload")
@@ -333,12 +380,15 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		next = removed
 		delta.Removals = removal(kind, c.Target.ID)
 	default:
-		return invalid("supported commands are add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site, remove_change, and batch")
+		return invalid("supported commands are add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, update_details, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site, remove_change, and batch")
 	}
 	// What was appended is what the command added.
 	delta.Sites, delta.Nodes, delta.Racks = next.Sites[min(was.sites, len(next.Sites)):], next.Nodes[min(was.nodes, len(next.Nodes)):], next.Racks[min(was.racks, len(next.Racks)):]
 	delta.Equipment, delta.Subpanels = next.Equipment[min(was.equipment, len(next.Equipment)):], next.Subpanels[min(was.subpanels, len(next.Subpanels)):]
 	delta.Endpoints, delta.Links = next.Endpoints[min(was.endpoints, len(next.Endpoints)):], next.Links[min(was.links, len(next.Links)):]
+	if problem := addedDetailsProblem(current, delta); problem != "" {
+		return invalid(problem)
+	}
 	return next, delta, nil
 }
 
