@@ -10,3 +10,7 @@ test-results/
 backend/bin/
 *.log
 test-results-scale/
+
+# infra/compose on a server: secrets and backups never go to git
+infra/compose/secrets/
+infra/compose/backups/

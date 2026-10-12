@@ -1,0 +1,9 @@
+# Kept out of the image build: secrets, local binaries, test output.
+.env
+.env.*
+bin/
+*.test
+coverage*
+.DS_Store
+Dockerfile
+.dockerignore

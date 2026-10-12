@@ -1,0 +1,30 @@
+# Traefik routing (file provider). /api goes to the API, everything else to
+# the web server; both ask for the password in /etc/traefik/htpasswd.
+http:
+  routers:
+    api:
+      entryPoints: [web]
+      rule: PathPrefix(`/api`)
+      service: api
+      middlewares: [auth]
+    web:
+      entryPoints: [web]
+      rule: PathPrefix(`/`)
+      service: web
+      middlewares: [auth]
+
+  middlewares:
+    auth:
+      basicAuth:
+        usersFile: /etc/traefik/htpasswd
+        realm: Net-Top
+
+  services:
+    api:
+      loadBalancer:
+        servers:
+          - url: http://api:8080
+    web:
+      loadBalancer:
+        servers:
+          - url: http://web:8080

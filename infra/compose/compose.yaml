@@ -1,0 +1,92 @@
+# Net-Top on one server with Docker Compose (the test server; later replaced
+# by the k3s cluster). Settings come from .env beside this file (copy
+# .env.example). Start:  docker compose up -d --build
+#
+# Order on every start: postgres healthy → migrate → init → api. `init` is
+# safe to repeat; `seed` (fictional data) is never run here.
+name: nettop
+
+x-api-env: &api-env
+  DATABASE_URL: postgres://nettop:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/nettop?sslmode=disable
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nettop
+      POSTGRES_USER: nettop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nettop -d nettop"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    # No published port: only the containers below reach the database.
+
+  # One-shot: create or update the tables (repeatable).
+  migrate:
+    image: nettop-api:${NETTOP_TAG:-dev}
+    pull_policy: never
+    entrypoint: ["/app/db"]
+    command: ["migrate"]
+    environment: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # One-shot: create the empty installed root if there is none (repeatable).
+  init:
+    image: nettop-api:${NETTOP_TAG:-dev}
+    pull_policy: never
+    entrypoint: ["/app/db"]
+    command: ["init"]
+    environment: *api-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    image: nettop-api:${NETTOP_TAG:-dev}
+    build:
+      context: ../../backend
+      platforms: [linux/amd64]
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+      APP_ENV: ${APP_ENV:?set APP_ENV (dev, test or prod) in .env}
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  web:
+    image: nettop-web:${NETTOP_TAG:-dev}
+    build:
+      context: ../../frontend
+      platforms: [linux/amd64]
+    restart: unless-stopped
+
+  # The only published port: sends /api to the API and the rest to the web
+  # server, behind a password (secrets/htpasswd).
+  traefik:
+    image: traefik:v3.5.6
+    restart: unless-stopped
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.file.filename=/etc/traefik/dynamic.yaml
+      - --accesslog=true
+    ports:
+      - "${HTTP_PORT:-8088}:80"
+    volumes:
+      - ./traefik.yaml:/etc/traefik/dynamic.yaml:ro
+      - ./secrets/htpasswd:/etc/traefik/htpasswd:ro
+    depends_on:
+      - api
+      - web
+
+volumes:
+  pgdata:

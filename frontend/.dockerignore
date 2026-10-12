@@ -1,0 +1,12 @@
+# Kept out of the image build: the Mac's node_modules, build and test output, secrets.
+node_modules/
+dist/
+test-results/
+playwright-report/
+blob-report/
+coverage/
+.env
+.env.*
+.DS_Store
+Dockerfile
+.dockerignore
