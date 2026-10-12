@@ -279,6 +279,14 @@ describe('port banks lie side by side and wrap (step 11b fixup)', () => {
     expect(rows[1][0].cells[0].label).toBe('Gi1/0/25')
   })
 
+  it('numbers a jack by its place in the bank, so the second block of a 48-port bank starts at 25', () => {
+    const rows = plate([
+      { count: 48, prefix: 'Gi1/0/' },
+      { count: 4, prefix: 'Te1/1/' },
+    ])
+    expect(rows.flat().map((u) => u.start)).toEqual([0, 24, 0])
+  })
+
   it('a switch with one group, or saved before groups, is one strip as before', () => {
     const one = plate([{ count: 48, prefix: 'E' }])
     expect(shape(one)).toEqual([['48*']])

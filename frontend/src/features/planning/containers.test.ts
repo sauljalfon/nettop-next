@@ -3,7 +3,6 @@ import { acceptanceSnapshot } from '../map/acceptanceFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import {
   childCounts,
-  connectItems,
   containerIds,
   hdfPositions,
   installedHint,
@@ -35,21 +34,6 @@ it('the Installed hint names what a plan would allow', () => {
   expect(installedHint('add a site, node or rack')).toBe(
     'Installed is read-only. Open a plan to add a site, node or rack.',
   )
-})
-
-it('ED-09 connect offers free endpoints only, never a sibling port or its own', () => {
-  const index = indexSnapshot(snapshot)
-  const items = connectItems(snapshot, index, 'AGG-15:p2')
-  const values = new Set(items.map((i) => i.value))
-  expect(values.has('AGG-15:p2')).toBe(false)
-  expect(values.has('AGG-15:p3')).toBe(false) // a sibling port on the same equipment
-  expect(values.has('AGG-12:p1')).toBe(false) // cabled
-  expect(values.has('AGG-12:p2')).toBe(true) // free, on another equipment
-  expect(items.find((i) => i.value === 'AGG-12:p2')!.label).toBe('AGG-12 · 2')
-  // A panel position: its other side is a sibling too.
-  const panel = connectItems(snapshot, index, 'PANEL-A:5:f').map((i) => i.value)
-  expect(panel).not.toContain('PANEL-A:5:r')
-  expect(panel).toContain('AGG-15:p2')
 })
 
 it('ED-11 checks the HDF form before sending and reports positions per side', () => {

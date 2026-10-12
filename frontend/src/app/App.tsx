@@ -26,6 +26,7 @@ import {
   APIError,
   getPlans,
   getSnapshot,
+  removeChange,
   sendBatch,
   sendPlanCommand,
   trace,
@@ -92,6 +93,7 @@ import StaleCard from '../features/planning/StaleCard'
 import type { GoTarget } from '../features/planning/summary'
 import EnvironmentBadge from '../features/environment/EnvironmentBadge'
 import type { PlanEdit } from '../features/planning/editing'
+import PatchingHost from '../features/patching/PatchingHost'
 import HdfForm from '../features/planning/HdfForm'
 import { resolveLocation } from '../features/physical/location'
 import { searchEquipment } from '../features/map/search'
@@ -750,6 +752,7 @@ function Workspace({
             let saved: Plan
             try {
               // A batch is the same edit: one revision, all or nothing.
+              // remove_change (Undo) answers with the plan and the keys it removed.
               saved =
                 command.type === 'batch'
                   ? (
@@ -759,10 +762,18 @@ function Workspace({
                         command.batch.commands,
                       )
                     ).plan
-                  : await sendPlanCommand(plan.id, {
-                      ...command,
-                      expectedRevision: plan.revision,
-                    } as PlanCommand)
+                  : command.type === 'remove_change'
+                    ? (
+                        await removeChange(
+                          plan.id,
+                          plan.revision,
+                          command.change.key,
+                        )
+                      ).plan
+                    : await sendPlanCommand(plan.id, {
+                        ...command,
+                        expectedRevision: plan.revision,
+                      } as PlanCommand)
             } catch (e) {
               // Another window changed the draft: reload it, and say so in the
               // server's words; the user's edit is not retried.
@@ -906,6 +917,7 @@ function Workspace({
   )
   return (
     <main className="workspace-canvas">
+      <PatchingHost snapshot={snapshot} index={index} edit={edit} />
       {view === 'conceptual' && (
         <div className="canvas-topline">
           <div>

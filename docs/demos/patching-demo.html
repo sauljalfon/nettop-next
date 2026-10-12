@@ -1,0 +1,887 @@
+<title>Net-Top Patching Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: the app's header, one equipment page, and the patching screen as a large panel
+   over the page with the near faceplate left and the far faceplate right. Single light theme,
+   matching Net-Top. */
+:root {
+  --bg: #f2f5f8;
+  --surface: #ffffff;
+  --ink: #26344b;
+  --muted: #6b7a90;
+  --line: #e1e7ee;
+  --purple: #6454c6;
+  --purple-soft: #f0edfa;
+  --teal: #108b79;
+  --teal-soft: #e3f4f1;
+  --amber: #b97a0b;
+  --amber-soft: #fdf3dc;
+  --red: #c4473a;
+  --red-soft: #fdf3f2;
+  --plate: #1f2735;
+  --plate-edge: #2a3446;
+  --net-a: #4a86d8;
+  --net-b: #c35f9b;
+  --scrim: rgba(24, 33, 48, 0.42);
+  --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #a99bed; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Header */
+.app-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; font-size: 16px; letter-spacing: -0.2px; }
+.brand span { color: var(--purple); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 6px 11px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.seg button.on { background: var(--purple-soft); color: var(--purple); font-weight: 600; }
+.chip-env { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #8a5a00; background: var(--amber-soft); padding: 3px 8px; border-radius: 5px; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; display: grid; gap: 16px; }
+.banner { display: grid; gap: 6px; padding: 12px 14px; background: var(--purple-soft); border: 1px solid #ddd6f6; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+.banner strong { color: var(--purple); }
+.banner ol { margin: 0; padding-left: 20px; }
+
+/* Equipment page */
+.eq-page { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
+.crumbs { font-size: 12px; color: var(--muted); }
+.crumbs b { color: var(--ink); font-weight: 600; }
+.eq-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.eq-head h1 { margin: 0; font-size: 20px; letter-spacing: -0.3px; }
+.role { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: #eef2f7; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; color: var(--muted); }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid #c9d2df; }
+.face-scroll { overflow-x: auto; min-width: 0; }
+
+/* Faceplates */
+.plate { display: inline-flex; flex-wrap: wrap; gap: 14px 22px; padding: 14px 18px; background: var(--plate); border-radius: 8px; box-shadow: inset 0 0 0 2px var(--plate-edge); max-width: 100%; }
+.bank { display: grid; gap: 6px; }
+.bank-cap { font-size: 10px; color: #aab6c8; font-family: var(--mono); white-space: nowrap; }
+.bank-blocks { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+.ports { display: grid; grid-template-rows: repeat(2, 30px); grid-auto-flow: column; grid-auto-columns: 25px; gap: 5px; }
+.strip { display: grid; grid-template-columns: repeat(12, 25px); grid-auto-rows: 30px; gap: 5px; }
+.hdf-grid { display: grid; gap: 10px; }
+.hdf-row { display: flex; gap: 10px; align-items: start; }
+.hdf-rownum { width: 14px; color: #8d9ab0; font-size: 10px; padding-top: 18px; text-align: right; }
+.hdf-block { display: grid; gap: 4px; padding: 5px; background: #171d28; border-radius: 6px; }
+.hdf-block span { font-size: 10px; color: #aab6c8; font-family: var(--mono); }
+.hdf-jacks { display: grid; grid-template-columns: repeat(3, 22px); grid-template-rows: repeat(2, 24px); gap: 4px; }
+
+.jack { position: relative; display: grid; place-items: end center; padding: 0 0 2px; border: 0; border-radius: 3px 3px 7px 7px; font-size: 9px; font-weight: 600; background: #fff; color: #3a475c; transition: transform 0.08s; }
+.jack::before { content: ""; position: absolute; top: 3px; left: 50%; width: 10px; height: 4px; transform: translateX(-50%); background: var(--plate); opacity: 0.4; border-radius: 1px; }
+.jack:hover:not(:disabled) { transform: translateY(-1px); }
+.jack:disabled { cursor: not-allowed; }
+.jack.cabled { background: var(--net-a); color: #fff; }
+.jack.cabled.net-b { background: var(--net-b); }
+.jack.cabled.dim { opacity: 0.38; }
+.jack.made { background: var(--teal); color: #fff; }
+.jack.selected { box-shadow: 0 0 0 2px var(--plate), 0 0 0 4px #fff; }
+.jack.next { box-shadow: 0 0 0 2px var(--plate), 0 0 0 4px #b9aef5; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 2px var(--plate), 0 0 0 5px #8f80e8; } }
+.jack.preview { background: #ffd98a; color: #4d3500; }
+.jack.blocked { background: #f2a59c; color: #5a1710; }
+.jack .badge { position: absolute; top: -7px; right: -6px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: var(--amber); color: #fff; font-size: 9px; line-height: 15px; text-align: center; z-index: 1; }
+.jack.blocked .badge { background: var(--red); }
+
+/* Popup at a jack */
+.popup { position: absolute; z-index: 30; width: 290px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid #d5dce7; border-radius: 10px; box-shadow: 0 14px 34px rgba(40, 56, 84, 0.22); padding: 12px; display: grid; gap: 10px; font-size: 13px; }
+.popup h3 { margin: 0; font-size: 14px; }
+.popup .quiet, .quiet { color: var(--muted); font-size: 12px; }
+.recent { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn { border: 1px solid #d5dce7; background: var(--surface); padding: 7px 11px; border-radius: 7px; font-size: 12px; font-weight: 500; }
+.btn:hover:not(:disabled) { border-color: #b8c3d4; }
+.btn.primary { background: var(--purple); border-color: var(--purple); color: #fff; font-weight: 600; }
+.btn.primary:hover:not(:disabled) { background: #5544b8; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.chip { border-radius: 16px; padding: 5px 10px; background: var(--purple-soft); border-color: #ddd6f6; color: var(--purple); }
+.radio-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 12px; }
+.radio-row label { display: inline-flex; align-items: center; gap: 5px; }
+.count { width: 56px; padding: 4px 6px; border: 1px solid #d5dce7; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* Patching screen */
+.scrim { position: fixed; inset: 0; z-index: 50; background: var(--scrim); display: grid; place-items: center; padding: 16px; }
+.patch { width: min(1180px, 100%); max-height: 100%; overflow: auto; background: var(--bg); border-radius: 14px; box-shadow: 0 24px 60px rgba(20, 30, 48, 0.35); display: grid; grid-template-rows: auto auto 1fr auto; }
+.patch-head { display: flex; align-items: start; gap: 12px; padding: 14px 18px; background: var(--surface); border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; }
+.patch-head h2 { margin: 0 0 3px; font-size: 17px; letter-spacing: -0.2px; }
+.x { margin-left: auto; border: 0; background: transparent; font-size: 20px; line-height: 1; color: var(--muted); padding: 4px 8px; border-radius: 6px; }
+.x:hover { background: #eef2f7; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 18px; border-bottom: 1px solid var(--line); background: #f8fafc; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; padding: 14px 18px; min-height: 0; }
+@media (max-width: 880px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.col { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.col-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; color: var(--muted); }
+.col-head strong { font-size: 15px; }
+.loc { font-size: 12px; color: var(--muted); }
+.cascade { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 560px) { .cascade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cascade label { display: grid; gap: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.6px; color: var(--muted); min-width: 0; }
+.cascade select { width: 100%; min-width: 0; padding: 6px 7px; border: 1px solid #d5dce7; border-radius: 7px; background: var(--surface); font-size: 12px; font-weight: 500; color: var(--ink); letter-spacing: 0; }
+.foot { display: grid; gap: 10px; padding: 12px 18px 16px; background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 14px 14px; }
+.next-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 9px 12px; border-radius: 9px; background: var(--purple-soft); font-size: 13px; }
+.next-line b { font-weight: 600; }
+.kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border: 1px solid #cfc6f3; border-radius: 4px; background: #fff; }
+.pairs { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 14px; max-height: 150px; overflow: auto; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pairs li { display: grid; grid-template-columns: auto 1fr; gap: 0 6px; }
+.pairs li em { grid-column: 2; }
+.pairs .ok { color: var(--teal); font-weight: 700; }
+.pairs .bad { color: var(--red); font-weight: 700; }
+.pairs em { color: var(--red); font-style: normal; }
+.made-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; }
+.made-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.made-list span { padding: 3px 8px; border-radius: 5px; background: var(--teal-soft); color: #0b5c50; font-variant-numeric: tabular-nums; }
+.warn { color: var(--red); font-size: 12px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 90; background: #173d37; color: #fff; padding: 9px 14px; border-radius: 8px; font-size: 13px; box-shadow: 0 8px 22px rgba(0,0,0,0.2); max-width: calc(100vw - 32px); }
+.notes { display: grid; gap: 8px; font-size: 13px; line-height: 1.5; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.notes h2 { margin: 0; font-size: 14px; }
+.notes ul { margin: 0; padding-left: 18px; }
+</style>
+
+<header class="app-head">
+  <div class="brand">net<span>top</span></div>
+  <div class="seg" aria-label="View"><button class="on" type="button">Physical</button><button type="button" disabled>Conceptual</button></div>
+  <div class="seg" aria-label="Context"><button type="button" disabled>Installed</button><button class="on" type="button">Plan: Building 01</button></div>
+  <span class="chip-env">DEMO</span>
+</header>
+
+<main class="wrap">
+  <section class="banner" aria-label="About this demo">
+    <div><strong>Proposed Connect flow.</strong> Fictional data that lives only in this page; nothing is saved, and a reload resets it.</div>
+    <ol>
+      <li>Click a <b>white (free) jack</b> on the faceplate below. A small popup asks where the cable goes.</li>
+      <li>Pick a recent target, or <b>Choose far end…</b>, to open the patching screen.</li>
+      <li>Click a free jack on the right: the cable is made and both sides move to the next free jack. Press <span class="kbd">Enter</span> to keep going.</li>
+      <li>Switch to <b>Range</b>, set a count (or Shift-click the last near jack), click the far start, then <b>Connect N</b>.</li>
+    </ol>
+  </section>
+
+  <section class="eq-page" id="eqPage" aria-label="Equipment page"></section>
+
+  <section class="notes" aria-label="What changes from today">
+    <h2>What changes from today</h2>
+    <ul>
+      <li>No more one search box over every free port in the network: the far end is chosen by Site › Node › Rack › Equipment, starting at the near end's node.</li>
+      <li>You click real jacks on both faceplates, so you see exactly which position you use.</li>
+      <li>Each cable is saved at once and both sides advance; a range shows its numbered pairs on both faceplates before you confirm.</li>
+      <li>Port numbers continue past 24 inside a bank (Gi1/0/25 … Gi1/0/48), instead of starting again at 1.</li>
+      <li>The same Site › Node › Rack dropdowns would replace the long rack list in Add, Move and Duplicate.</li>
+    </ul>
+  </section>
+</main>
+
+<div id="popupHost"></div>
+<div id="patchHost"></div>
+<div id="toastHost"></div>
+
+<script>
+(() => {
+  // ---------- Fictional inventory ----------
+  const SITES = [
+    { id: 'main', name: 'Main Campus', nodes: [
+      { id: 'bldA', name: 'Building A', racks: [ { id: 'A03', name: 'Rack A03' }, { id: 'A04', name: 'Rack A04' } ] },
+      { id: 'nsm', name: 'North Sub-main', racks: [ { id: 'SM01', name: 'Rack SM01' } ] },
+      { id: 'md', name: 'Main Distribution', racks: [ { id: 'C01', name: 'Rack Core 01' }, { id: 'C02', name: 'Rack Core 02' } ] },
+    ] },
+    { id: 'dr', name: 'DR Site', nodes: [
+      { id: 'dra', name: 'DR Access', racks: [ { id: 'DR01', name: 'Rack DR01' } ] },
+    ] },
+  ];
+  const EQUIP = [
+    { id: 'edge17', name: 'EDGE-17', kind: 'switch', role: 'Access', net: 'A', rack: 'A03', unit: 8,
+      groups: [ { pat: 'Gi1/0/{n}', count: 48, type: 'copper · 1G' }, { pat: 'Te1/1/{n}', count: 4, type: 'SFP+ · 10G' } ] },
+    { id: 'panelA', name: 'PANEL-A', kind: 'panel', rack: 'A03', unit: 11, positions: 24 },
+    { id: 'edge18', name: 'EDGE-18', kind: 'switch', role: 'Access', net: 'A', rack: 'A04', unit: 8,
+      groups: [ { pat: 'Gi1/0/{n}', count: 24, type: 'copper · 1G' } ] },
+    { id: 'panelA2', name: 'PANEL-A2', kind: 'panel', rack: 'A04', unit: 11, positions: 24 },
+    { id: 'hdf01', name: 'HDF-01', kind: 'hdf', rack: 'SM01', unit: 4, rows: 4 },
+    { id: 'hdf02', name: 'HDF-02', kind: 'hdf', rack: 'C01', unit: 4, rows: 3 },
+    { id: 'agg03', name: 'AGG-03', kind: 'switch', role: 'AGG', net: 'A', rack: 'C01', unit: 8,
+      groups: [ { pat: 'Port {n}', count: 24, type: 'SFP · 10G' } ] },
+    { id: 'agg08', name: 'AGG-08', kind: 'switch', role: 'AGG', net: 'A', rack: 'C02', unit: 8,
+      groups: [ { pat: 'Port {n}', count: 24, type: 'SFP · 10G' } ] },
+    { id: 'edge22', name: 'EDGE-22', kind: 'switch', role: 'Access', net: 'B', rack: 'DR01', unit: 8,
+      groups: [ { pat: 'Port {n}', count: 24, type: 'copper · 1G' } ] },
+    { id: 'panelDR', name: 'PANEL-DR', kind: 'panel', rack: 'DR01', unit: 11, positions: 24 },
+  ];
+  const COLS = 'ABCD';
+  const EQ = new Map(EQUIP.map((e) => [e.id, e]));
+  const EP = new Map();
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
+
+  for (const e of EQUIP) {
+    e.endpoints = [];
+    const add = (ep) => { ep.eq = e.id; e.endpoints.push(ep); EP.set(ep.id, ep); };
+    if (e.kind === 'switch') {
+      let ord = 0;
+      e.groups.forEach((g, gi) => {
+        for (let n = 1; n <= g.count; n++) {
+          ord++;
+          add({ id: `${e.id}:p${ord}`, label: g.pat.replace('{n}', n), side: '', ord, group: gi, n });
+        }
+      });
+    } else if (e.kind === 'panel') {
+      for (const side of ['front', 'rear'])
+        for (let p = 1; p <= e.positions; p++)
+          add({ id: `${e.id}:${p}:${side}`, label: `${p} · ${cap(side)}`, side, ord: p, n: p });
+    } else {
+      for (let r = 1; r <= e.rows; r++)
+        for (let c = 0; c < 4; c++)
+          for (let p = 1; p <= 6; p++)
+            for (const side of ['front', 'rear'])
+              add({ id: `${e.id}:${r}${COLS[c]}/${p}:${side}`, label: `${r}${COLS[c]}/${p} ${side}`, side,
+                    ord: ((r - 1) * 4 + c) * 6 + p, n: p, block: `${r}${COLS[c]}`, row: r, col: c });
+    }
+  }
+
+  const RACKS = new Map();
+  for (const s of SITES) for (const n of s.nodes) for (const r of n.racks) RACKS.set(r.id, { ...r, node: n, site: s });
+  const locOf = (eqId) => RACKS.get(EQ.get(eqId).rack);
+  const locText = (eqId) => { const l = locOf(eqId); return `${l.site.name} / ${l.node.name} / ${l.name}`; };
+  const epName = (id) => { const ep = EP.get(id); return `${EQ.get(ep.eq).name} · ${ep.label}`; };
+  const isPassive = (eqId) => EQ.get(eqId).kind !== 'switch';
+
+  // ---------- Cables ----------
+  const cables = new Map(); // endpoint id -> { id, other, net }
+  let seq = 0;
+  const connect = (a, b, id) => {
+    const cid = id || `cable-${String(++seq).padStart(3, '0')}`;
+    const net = netOf(a) || netOf(b) || 'A';
+    cables.set(a, { id: cid, other: b, net });
+    cables.set(b, { id: cid, other: a, net });
+    return cid;
+  };
+  const disconnect = (a) => { const c = cables.get(a); if (!c) return; cables.delete(a); cables.delete(c.other); };
+  function netOf(id) { const e = EQ.get(EP.get(id).eq); return e.net || ''; }
+
+  [
+    ['edge17:p1', 'panelA:1:front', 'cable-a01'], ['edge17:p2', 'panelA:2:front', 'cable-a05'], ['edge17:p3', 'panelA:3:front', 'cable-a09'],
+    ['panelA:1:rear', 'hdf01:3C/5:rear', 'cable-a02'], ['panelA:2:rear', 'hdf01:1A/2:rear', 'cable-a06'], ['panelA:3:rear', 'hdf01:2D/4:rear', 'cable-a10'],
+    ['hdf01:3C/5:front', 'hdf02:2B/3:front', 'cable-a03'], ['hdf02:2B/3:rear', 'agg03:p1', 'cable-a04'],
+    ['edge22:p1', 'panelDR:1:front', 'cable-b01'], ['panelDR:1:rear', 'hdf01:3C/2:rear', 'cable-b02'],
+    ['edge17:p49', 'panelA:12:front', 'cable-a20'],
+  ].forEach(([a, b, id]) => connect(a, b, id));
+
+  // ---------- Runs and order ----------
+  const run = (eqId, side) => EQ.get(eqId).endpoints.filter((e) => e.side === (isPassive(eqId) ? side : '')).sort((x, y) => x.ord - y.ord);
+  const nextFree = (eqId, side, afterId) => {
+    const r = run(eqId, side);
+    let i = afterId ? r.findIndex((e) => e.id === afterId) + 1 : 0;
+    for (; i < r.length; i++) if (!cables.has(r[i].id)) return r[i].id;
+    return null;
+  };
+  const freeCount = (eqId) => EQ.get(eqId).endpoints.filter((e) => !cables.has(e.id)).length;
+
+  // ---------- Faceplate drawing ----------
+  // state(ep) -> { cls, badge, disabled, title }
+  function drawFace(eqId, side, state, onClick) {
+    const e = EQ.get(eqId);
+    const plate = document.createElement('div');
+    plate.className = 'plate';
+    const jack = (ep, text) => {
+      const s = state(ep);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `jack ${s.cls || ''}`;
+      b.textContent = text;
+      b.disabled = !!s.disabled;
+      b.title = s.title || epName(ep.id);
+      b.setAttribute('aria-label', `${epName(ep.id)}${s.title ? ', ' + s.title : ''}`);
+      b.dataset.ep = ep.id;
+      if (s.badge) { const g = document.createElement('span'); g.className = 'badge'; g.textContent = s.badge; b.appendChild(g); }
+      b.addEventListener('click', (ev) => onClick(ep, ev, b));
+      return b;
+    };
+    if (e.kind === 'switch') {
+      e.groups.forEach((g, gi) => {
+        const ports = e.endpoints.filter((p) => p.group === gi);
+        const bank = document.createElement('div');
+        bank.className = 'bank';
+        const capEl = document.createElement('div');
+        capEl.className = 'bank-cap';
+        capEl.textContent = `${ports[0].label}–${ports[ports.length - 1].label} · ${g.type}`;
+        bank.appendChild(capEl);
+        const blocks = document.createElement('div');
+        blocks.className = 'bank-blocks';
+        for (let i = 0; i < ports.length; i += 24) {
+          const grid = document.createElement('div');
+          grid.className = 'ports';
+          // The number is the port's own number in its group: it keeps counting past 24.
+          ports.slice(i, i + 24).forEach((p) => grid.appendChild(jack(p, p.n)));
+          blocks.appendChild(grid);
+        }
+        bank.appendChild(blocks);
+        plate.appendChild(bank);
+      });
+    } else if (e.kind === 'panel') {
+      const bank = document.createElement('div');
+      bank.className = 'bank';
+      const capEl = document.createElement('div');
+      capEl.className = 'bank-cap';
+      capEl.textContent = `Positions 1–${e.positions} · ${cap(side)}`;
+      const strip = document.createElement('div');
+      strip.className = 'strip';
+      run(eqId, side).forEach((p) => strip.appendChild(jack(p, p.n)));
+      bank.append(capEl, strip);
+      plate.appendChild(bank);
+    } else {
+      const grid = document.createElement('div');
+      grid.className = 'hdf-grid';
+      const capEl = document.createElement('div');
+      capEl.className = 'bank-cap';
+      capEl.textContent = `${e.rows} rows × A–D · 6 positions each · ${cap(side)}`;
+      grid.appendChild(capEl);
+      for (let r = 1; r <= e.rows; r++) {
+        const row = document.createElement('div');
+        row.className = 'hdf-row';
+        const num = document.createElement('div');
+        num.className = 'hdf-rownum';
+        num.textContent = r;
+        row.appendChild(num);
+        for (let c = 0; c < 4; c++) {
+          const blk = document.createElement('div');
+          blk.className = 'hdf-block';
+          const lab = document.createElement('span');
+          lab.textContent = `${r}${COLS[c]}`;
+          const jacks = document.createElement('div');
+          jacks.className = 'hdf-jacks';
+          e.endpoints.filter((p) => p.row === r && p.col === c && p.side === side).sort((x, y) => x.n - y.n)
+            .forEach((p) => jacks.appendChild(jack(p, p.n)));
+          blk.append(lab, jacks);
+          row.appendChild(blk);
+        }
+        grid.appendChild(row);
+      }
+      plate.appendChild(grid);
+    }
+    return plate;
+  }
+
+  const sideSeg = (value, onChange) => {
+    const seg = document.createElement('div');
+    seg.className = 'seg';
+    seg.setAttribute('aria-label', 'Side');
+    for (const s of ['front', 'rear']) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = cap(s);
+      b.className = s === value ? 'on' : '';
+      b.setAttribute('aria-pressed', s === value);
+      b.addEventListener('click', () => onChange(s));
+      seg.appendChild(b);
+    }
+    return seg;
+  };
+
+  const baseState = (ep) => {
+    const c = cables.get(ep.id);
+    if (!c) return { cls: '', title: 'free' };
+    return { cls: `cabled ${c.net === 'B' ? 'net-b' : ''}`, title: `${c.id} → ${epName(c.other)}` };
+  };
+
+  // ---------- Toast ----------
+  let toastTimer;
+  function toast(text) {
+    const host = document.getElementById('toastHost');
+    host.innerHTML = '';
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.setAttribute('role', 'status');
+    t.textContent = `✓ ${text}`;
+    host.appendChild(t);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (host.innerHTML = ''), 2600);
+  }
+
+  // ---------- Equipment page ----------
+  const page = { eqId: 'edge17', side: 'front' };
+  const recent = [ { eq: 'panelA', side: 'front' }, { eq: 'hdf01', side: 'rear' } ];
+
+  function renderPage() {
+    const el = document.getElementById('eqPage');
+    el.innerHTML = '';
+    const e = EQ.get(page.eqId);
+    const l = locOf(page.eqId);
+    const crumbs = document.createElement('div');
+    crumbs.className = 'crumbs';
+    crumbs.innerHTML = `Sites › ${l.site.name} › ${l.node.name} › ${l.name} › <b>${e.name}</b>`;
+    const head = document.createElement('div');
+    head.className = 'eq-head';
+    const h = document.createElement('h1');
+    h.textContent = e.name;
+    const role = document.createElement('span');
+    role.className = 'role';
+    role.textContent = e.kind === 'switch' ? `${e.role} · Network ${e.net}` : (e.kind === 'hdf' ? 'HDF · passive' : 'Patch panel · passive');
+    const pick = document.createElement('div');
+    pick.className = 'seg';
+    pick.setAttribute('aria-label', 'Open equipment');
+    for (const id of ['edge17', 'panelA', 'hdf01']) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = EQ.get(id).name;
+      b.className = id === page.eqId ? 'on' : '';
+      b.addEventListener('click', () => { page.eqId = id; closePopup(); renderPage(); });
+      pick.appendChild(b);
+    }
+    const free = document.createElement('span');
+    free.className = 'quiet';
+    free.textContent = `${freeCount(page.eqId)} of ${e.endpoints.length} endpoints free`;
+    head.append(h, role, free, pick);
+    if (isPassive(page.eqId)) head.appendChild(sideSeg(page.side, (s) => { page.side = s; closePopup(); renderPage(); }));
+    const legend = document.createElement('div');
+    legend.className = 'legend';
+    legend.innerHTML = '<span><i style="background:#fff"></i>free: click to connect</span><span><i style="background:var(--net-a)"></i>Network A cable</span><span><i style="background:var(--net-b)"></i>Network B cable</span><span><i style="background:var(--teal)"></i>made in this demo</span>';
+    const scroll = document.createElement('div');
+    scroll.className = 'face-scroll';
+    scroll.appendChild(drawFace(page.eqId, page.side, (ep) => {
+      const s = baseState(ep);
+      if (madeIds.has(ep.id)) s.cls = 'made';
+      return s;
+    }, (ep, ev, btn) => openPopup(ep, btn)));
+    el.append(crumbs, head, legend, scroll);
+  }
+  const madeIds = new Set();
+
+  // ---------- Popup at a jack ----------
+  let popupFor = null;
+  function closePopup() { document.getElementById('popupHost').innerHTML = ''; popupFor = null; }
+  function openPopup(ep, btn) {
+    closePopup();
+    popupFor = ep.id;
+    const host = document.getElementById('popupHost');
+    const p = document.createElement('div');
+    p.className = 'popup';
+    p.setAttribute('role', 'dialog');
+    p.setAttribute('aria-label', `Connect ${epName(ep.id)}`);
+    const c = cables.get(ep.id);
+    const title = document.createElement('h3');
+    title.textContent = epName(ep.id);
+    p.appendChild(title);
+    if (c) {
+      const info = document.createElement('div');
+      info.className = 'quiet';
+      info.textContent = `Cabled: ${c.id} → ${epName(c.other)}. Disconnect it first to reuse this jack.`;
+      const close = document.createElement('button');
+      close.type = 'button'; close.className = 'btn'; close.textContent = 'Close';
+      close.addEventListener('click', closePopup);
+      p.append(info, close);
+    } else {
+      let mode = 'one';
+      let count = 6;
+      const q = document.createElement('div');
+      q.className = 'quiet';
+      q.textContent = 'Free. Where does the cable go?';
+      const modes = document.createElement('div');
+      modes.className = 'radio-row';
+      modes.innerHTML = `<label><input type="radio" name="pm" id="pm-one" checked> One cable</label>
+        <label><input type="radio" name="pm" id="pm-range"> Range of</label>
+        <input class="count" id="pm-count" inputmode="numeric" value="6" aria-label="Range count">`;
+      const recentLabel = document.createElement('div');
+      recentLabel.className = 'eyebrow';
+      recentLabel.textContent = 'RECENT';
+      const rec = document.createElement('div');
+      rec.className = 'recent';
+      for (const r of recent.filter((r) => r.eq !== ep.eq).slice(0, 3)) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn chip';
+        b.textContent = `${EQ.get(r.eq).name}${isPassive(r.eq) ? ' · ' + cap(r.side) : ''}`;
+        b.addEventListener('click', () => go(r));
+        rec.appendChild(b);
+      }
+      const choose = document.createElement('button');
+      choose.type = 'button'; choose.className = 'btn primary'; choose.textContent = 'Choose far end…';
+      choose.addEventListener('click', () => go(null));
+      const cancel = document.createElement('button');
+      cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = 'Cancel';
+      cancel.addEventListener('click', closePopup);
+      const actions = document.createElement('div');
+      actions.className = 'row';
+      actions.append(choose, cancel);
+      p.append(q, modes);
+      if (rec.children.length) p.append(recentLabel, rec);
+      p.append(actions);
+      function go(target) {
+        mode = p.querySelector('#pm-range').checked ? 'range' : 'one';
+        const n = parseInt(p.querySelector('#pm-count').value, 10);
+        count = Number.isFinite(n) && n > 0 ? Math.min(n, 500) : 6;
+        closePopup();
+        openPatch(ep, target, mode, count);
+      }
+    }
+    host.appendChild(p);
+    const r = btn.getBoundingClientRect();
+    const w = Math.min(290, window.innerWidth - 32);
+    let left = r.left + window.scrollX - 12;
+    left = Math.max(16, Math.min(left, window.scrollX + window.innerWidth - w - 16));
+    p.style.left = `${left}px`;
+    p.style.top = `${r.bottom + window.scrollY + 10}px`;
+    (p.querySelector('.btn.primary') || p.querySelector('.btn')).focus();
+  }
+
+  // ---------- Patching screen ----------
+  let patch = null;
+  function defaultFar(nearEq) {
+    const node = locOf(nearEq).node;
+    const same = EQUIP.filter((e) => e.id !== nearEq && locOf(e.id).node === node && freeCount(e.id) > 0);
+    const pick = same.find((e) => e.kind !== 'switch') || same[0] || EQUIP.find((e) => e.id !== nearEq);
+    return { eq: pick.id, side: 'front' };
+  }
+  function openPatch(nearEp, target, mode, count) {
+    const far = target ? { ...target } : defaultFar(nearEp.eq);
+    patch = {
+      near: { eq: nearEp.eq, side: nearEp.side || 'front' },
+      far,
+      mode, count,
+      nearSel: nearEp.id,
+      farNext: nextFree(far.eq, far.side, null),
+      farStart: null,
+      skip: false,
+      made: [],
+    };
+    renderPatch();
+    document.addEventListener('keydown', onKey);
+  }
+  function closePatch() {
+    patch = null;
+    document.getElementById('patchHost').innerHTML = '';
+    document.removeEventListener('keydown', onKey);
+    renderPage();
+  }
+  function onKey(ev) {
+    if (!patch) return;
+    if (ev.key === 'Escape') { ev.preventDefault(); closePatch(); }
+    else if (ev.key === 'Enter' && patch.mode === 'one' && !/^(SELECT|INPUT|BUTTON)$/.test(ev.target.tagName)) {
+      ev.preventDefault(); connectNext();
+    }
+  }
+  function rememberRecent() {
+    const r = { eq: patch.far.eq, side: patch.far.side };
+    const i = recent.findIndex((x) => x.eq === r.eq && x.side === r.side);
+    if (i >= 0) recent.splice(i, 1);
+    recent.unshift(r);
+    recent.length = Math.min(recent.length, 4);
+  }
+  function makeCable(a, b) {
+    const id = connect(a, b);
+    madeIds.add(a); madeIds.add(b);
+    patch.made.push({ id, a, b });
+    return id;
+  }
+  function connectNext() {
+    if (!patch.nearSel || !patch.farNext) return;
+    const a = patch.nearSel, b = patch.farNext;
+    const id = makeCable(a, b);
+    rememberRecent();
+    toast(`${id}: ${epName(a)} ↔ ${epName(b)}`);
+    patch.nearSel = nextFree(patch.near.eq, patch.near.side, a);
+    patch.farNext = nextFree(patch.far.eq, patch.far.side, b);
+    renderPatch();
+  }
+  function pairs() {
+    if (patch.mode !== 'range' || !patch.nearSel || !patch.farStart) return [];
+    const nr = run(patch.near.eq, patch.near.side), fr = run(patch.far.eq, patch.far.side);
+    const ni = nr.findIndex((e) => e.id === patch.nearSel), fi = fr.findIndex((e) => e.id === patch.farStart);
+    const out = [];
+    for (let i = 0; i < patch.count; i++) {
+      const n = nr[ni + i], f = fr[fi + i];
+      let problem = '';
+      if (!n) problem = `past the last port of ${EQ.get(patch.near.eq).name}`;
+      else if (!f) problem = `past the last position of ${EQ.get(patch.far.eq).name}`;
+      else if (cables.has(n.id)) problem = `${epName(n.id)} is already cabled (${cables.get(n.id).id})`;
+      else if (cables.has(f.id)) problem = `${epName(f.id)} is already cabled (${cables.get(f.id).id})`;
+      out.push({ k: i + 1, near: n, far: f, problem });
+    }
+    return out;
+  }
+  function connectRange() {
+    const ps = pairs();
+    const ok = ps.filter((p) => !p.problem);
+    ok.forEach((p) => makeCable(p.near.id, p.far.id));
+    rememberRecent();
+    toast(`${ok.length} cable${ok.length === 1 ? '' : 's'} made as one change set`);
+    const last = ok[ok.length - 1];
+    patch.nearSel = last ? nextFree(patch.near.eq, patch.near.side, last.near.id) : patch.nearSel;
+    patch.farStart = null;
+    patch.skip = false;
+    renderPatch();
+  }
+  function undoLast() {
+    const m = patch.made.pop();
+    if (!m) return;
+    disconnect(m.a);
+    madeIds.delete(m.a); madeIds.delete(m.b);
+    patch.nearSel = m.a;
+    patch.farNext = m.b;
+    toast(`Undid ${m.id}`);
+    renderPatch();
+  }
+  function setFar(eqId, side) {
+    patch.far = { eq: eqId, side: side || patch.far.side };
+    patch.farStart = null;
+    patch.farNext = nextFree(patch.far.eq, patch.far.side, null);
+    renderPatch();
+  }
+
+  function cascade() {
+    const box = document.createElement('div');
+    box.className = 'cascade';
+    const cur = locOf(patch.far.eq);
+    const mk = (label, options, value, onChange) => {
+      const l = document.createElement('label');
+      const id = `cas-${label.toLowerCase()}`;
+      l.htmlFor = id;
+      l.textContent = label.toUpperCase();
+      const s = document.createElement('select');
+      s.id = id;
+      for (const [v, t] of options) { const o = document.createElement('option'); o.value = v; o.textContent = t; s.appendChild(o); }
+      s.value = value;
+      s.addEventListener('change', () => onChange(s.value));
+      l.appendChild(s);
+      return l;
+    };
+    const firstEqIn = (racks) => {
+      for (const r of racks) { const e = EQUIP.find((x) => x.rack === r.id && x.id !== patch.near.eq); if (e) return e.id; }
+      return null;
+    };
+    const site = SITES.find((s) => s === cur.site);
+    box.appendChild(mk('Site', SITES.map((s) => [s.id, s.name]), site.id, (v) => {
+      const s = SITES.find((x) => x.id === v);
+      const id = firstEqIn(s.nodes.flatMap((n) => n.racks));
+      if (id) setFar(id); else toast('No other equipment in that site');
+    }));
+    box.appendChild(mk('Node', site.nodes.map((n) => [n.id, n.name]), cur.node.id, (v) => {
+      const n = site.nodes.find((x) => x.id === v);
+      const id = firstEqIn(n.racks);
+      if (id) setFar(id); else toast('No other equipment in that node');
+    }));
+    box.appendChild(mk('Rack', cur.node.racks.map((r) => [r.id, `${r.name} (${EQUIP.filter((e) => e.rack === r.id).length})`]), cur.id, (v) => {
+      const id = firstEqIn([{ id: v }]);
+      if (id) setFar(id); else toast('No other equipment in that rack');
+    }));
+    const inRack = EQUIP.filter((e) => e.rack === cur.id && e.id !== patch.near.eq);
+    box.appendChild(mk('Equipment', inRack.map((e) => [e.id, `${e.name} · ${freeCount(e.id)} free`]), patch.far.eq, (v) => setFar(v)));
+    return box;
+  }
+
+  function renderPatch() {
+    const host = document.getElementById('patchHost');
+    const keepScroll = host.querySelector('.patch')?.scrollTop || 0;
+    host.innerHTML = '';
+    if (!patch) return;
+    const ps = pairs();
+    const nearPair = new Map(ps.filter((p) => p.near).map((p) => [p.near.id, p]));
+    const farPair = new Map(ps.filter((p) => p.far).map((p) => [p.far.id, p]));
+    const blocked = ps.filter((p) => p.problem).length;
+    const okCount = ps.length - blocked;
+
+    const scrim = document.createElement('div');
+    scrim.className = 'scrim';
+    scrim.addEventListener('mousedown', (ev) => { if (ev.target === scrim) closePatch(); });
+    const panel = document.createElement('div');
+    panel.className = 'patch';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-label', 'Patching');
+
+    // Head
+    const head = document.createElement('div');
+    head.className = 'patch-head';
+    head.innerHTML = `<div><h2>Patching · Plan: Building 01</h2><div class="quiet">Click a free jack on the left, then one on the right. Each cable is saved to the plan at once.</div></div>`;
+    const x = document.createElement('button');
+    x.type = 'button'; x.className = 'x'; x.textContent = '×'; x.setAttribute('aria-label', 'Close patching');
+    x.addEventListener('click', closePatch);
+    head.appendChild(x);
+
+    // Toolbar
+    const tb = document.createElement('div');
+    tb.className = 'toolbar';
+    const modeSeg = document.createElement('div');
+    modeSeg.className = 'seg';
+    modeSeg.setAttribute('aria-label', 'Mode');
+    for (const [m, t] of [['one', 'One at a time'], ['range', 'Range']]) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = t; b.className = patch.mode === m ? 'on' : '';
+      b.setAttribute('aria-pressed', patch.mode === m);
+      b.addEventListener('click', () => { patch.mode = m; patch.farStart = null; if (m === 'one') patch.farNext = nextFree(patch.far.eq, patch.far.side, null); renderPatch(); });
+      modeSeg.appendChild(b);
+    }
+    tb.appendChild(modeSeg);
+    if (patch.mode === 'range') {
+      const l = document.createElement('label');
+      l.className = 'radio-row';
+      l.htmlFor = 'range-count';
+      l.textContent = 'Count ';
+      const inp = document.createElement('input');
+      inp.className = 'count'; inp.id = 'range-count'; inp.inputMode = 'numeric'; inp.value = patch.count;
+      inp.addEventListener('change', () => { const n = parseInt(inp.value, 10); patch.count = Number.isFinite(n) && n > 0 ? Math.min(n, 500) : patch.count; renderPatch(); });
+      l.appendChild(inp);
+      const hint = document.createElement('span');
+      hint.className = 'quiet';
+      hint.textContent = patch.farStart ? 'Pairs are numbered on both faceplates.' : 'Shift-click the last near jack to set the count, then click the far start.';
+      tb.append(l, hint);
+    } else {
+      const hint = document.createElement('span');
+      hint.className = 'quiet';
+      hint.innerHTML = 'After each cable both sides move to the next free jack. <span class="kbd">Enter</span> makes the next one.';
+      tb.appendChild(hint);
+    }
+
+    // Columns
+    const cols = document.createElement('div');
+    cols.className = 'cols';
+    // Near
+    const left = document.createElement('div');
+    left.className = 'col';
+    const lh = document.createElement('div');
+    lh.className = 'col-head';
+    lh.innerHTML = `<span class="eyebrow">FROM</span><strong>${EQ.get(patch.near.eq).name}</strong><span class="loc">${locText(patch.near.eq)}</span>`;
+    left.appendChild(lh);
+    if (isPassive(patch.near.eq)) left.appendChild(sideSeg(patch.near.side, (s) => { patch.near.side = s; patch.nearSel = nextFree(patch.near.eq, s, null); patch.farStart = null; renderPatch(); }));
+    const lf = document.createElement('div');
+    lf.className = 'face-scroll';
+    lf.appendChild(drawFace(patch.near.eq, patch.near.side, (ep) => {
+      const s = baseState(ep);
+      if (madeIds.has(ep.id)) s.cls = 'made';
+      const pr = nearPair.get(ep.id);
+      if (pr) { s.cls = pr.problem ? 'blocked' : 'preview'; s.badge = pr.k; s.title = pr.problem || `pair ${pr.k}`; }
+      if (ep.id === patch.nearSel) { s.cls += ' selected'; s.title = 'selected'; }
+      if (cables.has(ep.id) && !pr) s.disabled = true;
+      return s;
+    }, (ep, ev) => {
+      if (cables.has(ep.id)) return;
+      if (patch.mode === 'range' && ev.shiftKey && patch.nearSel) {
+        const r = run(patch.near.eq, patch.near.side);
+        const a = r.findIndex((e) => e.id === patch.nearSel), b = r.findIndex((e) => e.id === ep.id);
+        if (b >= a) { patch.count = b - a + 1; renderPatch(); return; }
+      }
+      patch.nearSel = ep.id;
+      renderPatch();
+    }));
+    left.appendChild(lf);
+    // Far
+    const right = document.createElement('div');
+    right.className = 'col';
+    const rh = document.createElement('div');
+    rh.className = 'col-head';
+    rh.innerHTML = `<span class="eyebrow">TO</span><strong>${EQ.get(patch.far.eq).name}</strong><span class="loc">${locText(patch.far.eq)}</span>`;
+    right.append(rh, cascade());
+    if (isPassive(patch.far.eq)) right.appendChild(sideSeg(patch.far.side, (s) => setFar(patch.far.eq, s)));
+    const rf = document.createElement('div');
+    rf.className = 'face-scroll';
+    rf.appendChild(drawFace(patch.far.eq, patch.far.side, (ep) => {
+      const s = baseState(ep);
+      if (madeIds.has(ep.id)) s.cls = 'made';
+      if (cables.has(ep.id)) { s.disabled = true; s.cls += ' dim'; }
+      const pr = farPair.get(ep.id);
+      if (pr) { s.cls = pr.problem ? 'blocked' : 'preview'; s.badge = pr.k; s.title = pr.problem || `pair ${pr.k}`; s.disabled = !!cables.has(ep.id); }
+      if (patch.mode === 'one' && ep.id === patch.farNext) { s.cls += ' next'; s.title = 'next: press Enter or click'; }
+      return s;
+    }, (ep) => {
+      if (cables.has(ep.id)) return;
+      if (patch.mode === 'one') {
+        if (!patch.nearSel) { toast('Choose a free jack on the left first'); return; }
+        patch.farNext = ep.id;
+        connectNext();
+      } else {
+        patch.farStart = ep.id;
+        patch.skip = false;
+        renderPatch();
+      }
+    }));
+    right.appendChild(rf);
+    cols.append(left, right);
+
+    // Foot
+    const foot = document.createElement('div');
+    foot.className = 'foot';
+    if (patch.mode === 'one') {
+      const line = document.createElement('div');
+      line.className = 'next-line';
+      if (patch.nearSel && patch.farNext) {
+        line.innerHTML = `<span>Next:</span><b>${epName(patch.nearSel)}</b><span>→</span><b>${epName(patch.farNext)}</b>`;
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn primary'; b.innerHTML = 'Connect <span class="kbd" style="background:transparent;color:#fff;border-color:#a99bed">Enter</span>';
+        b.addEventListener('click', connectNext);
+        line.appendChild(b);
+      } else if (!patch.nearSel) {
+        line.textContent = `No free jack left on this side of ${EQ.get(patch.near.eq).name}.`;
+      } else {
+        line.textContent = `No free jack left on ${EQ.get(patch.far.eq).name}${isPassive(patch.far.eq) ? ' · ' + cap(patch.far.side) : ''}: choose other equipment on the right.`;
+      }
+      foot.appendChild(line);
+    } else {
+      if (ps.length) {
+        const ol = document.createElement('ol');
+        ol.className = 'pairs';
+        for (const p of ps) {
+          const li = document.createElement('li');
+          li.innerHTML = `<span class="${p.problem ? 'bad' : 'ok'}">${p.problem ? '⚠' : '✓'}</span><span>${p.k}. ${p.near ? p.near.label : '—'} → ${p.far ? epName(p.far.id) : '—'}</span>`;
+          if (p.problem) { const em = document.createElement('em'); em.textContent = p.problem; li.appendChild(em); }
+          ol.appendChild(li);
+        }
+        foot.appendChild(ol);
+      }
+      const row = document.createElement('div');
+      row.className = 'row';
+      if (blocked) {
+        const l = document.createElement('label');
+        l.className = 'radio-row';
+        l.innerHTML = `<input type="checkbox" id="skip" ${patch.skip ? 'checked' : ''}> Skip the ${blocked} pair${blocked === 1 ? '' : 's'} that can’t be made`;
+        l.querySelector('input').addEventListener('change', (e) => { patch.skip = e.target.checked; renderPatch(); });
+        row.appendChild(l);
+      }
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn primary';
+      b.textContent = ps.length ? `Connect ${okCount}` : 'Connect';
+      b.disabled = !ps.length || okCount === 0 || (blocked > 0 && !patch.skip);
+      b.addEventListener('click', connectRange);
+      const msg = document.createElement('span');
+      msg.className = 'quiet';
+      msg.textContent = ps.length ? `From ${epName(patch.nearSel)}, ${patch.count} pair${patch.count === 1 ? '' : 's'}.` : 'Click the far start on the right to see the pairs.';
+      row.append(b, msg);
+      foot.appendChild(row);
+    }
+    const made = document.createElement('div');
+    made.className = 'made-row';
+    const label = document.createElement('span');
+    label.className = 'eyebrow';
+    label.textContent = `MADE HERE (${patch.made.length})`;
+    const list = document.createElement('div');
+    list.className = 'made-list';
+    patch.made.slice(-6).forEach((m) => { const s = document.createElement('span'); s.textContent = `${EP.get(m.a).label} → ${epName(m.b)}`; list.appendChild(s); });
+    if (patch.made.length > 6) { const s = document.createElement('span'); s.textContent = `+${patch.made.length - 6} more`; list.appendChild(s); }
+    if (!patch.made.length) { const s = document.createElement('span'); s.className = 'quiet'; s.style.background = 'transparent'; s.textContent = 'Nothing yet. Each cable appears here and in the Changes drawer, each with its own Undo.'; list.appendChild(s); }
+    const undo = document.createElement('button');
+    undo.type = 'button'; undo.className = 'btn'; undo.textContent = 'Undo last';
+    undo.disabled = !patch.made.length;
+    undo.addEventListener('click', undoLast);
+    const done = document.createElement('button');
+    done.type = 'button'; done.className = 'btn'; done.textContent = 'Done';
+    done.addEventListener('click', closePatch);
+    made.append(label, list, undo, done);
+    foot.appendChild(made);
+
+    panel.append(head, tb, cols, foot);
+    scrim.appendChild(panel);
+    host.appendChild(scrim);
+    panel.scrollTop = keepScroll;
+  }
+
+  document.addEventListener('mousedown', (ev) => {
+    const host = document.getElementById('popupHost');
+    if (popupFor && !host.contains(ev.target) && !(ev.target.closest && ev.target.closest('.jack'))) closePopup();
+  });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && popupFor && !patch) closePopup(); });
+
+  renderPage();
+})();
+</script>

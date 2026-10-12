@@ -119,6 +119,8 @@ export interface PlateUnit {
   /** The bank's caption, on its first block only. */
   caption: string
   cells: FaceEndpoint[]
+  /** How many ports of the bank come before this block: a jack's number is start + its place + 1. */
+  start: number
 }
 
 /** Jack columns of a block: two jacks (odd above even) per column. */
@@ -140,6 +142,7 @@ export function layoutPlate(banks: readonly SwitchBankGroup[]): PlateUnit[][] {
           group: banks[0].group,
           caption: banks[0].caption,
           cells: banks[0].cells,
+          start: 0,
         },
       ],
     ]
@@ -150,6 +153,7 @@ export function layoutPlate(banks: readonly SwitchBankGroup[]): PlateUnit[][] {
         group: bank.group,
         caption: i === 0 ? bank.caption : '',
         cells: bank.cells.slice(i * BLOCK_PORTS, (i + 1) * BLOCK_PORTS),
+        start: i * BLOCK_PORTS,
       }),
     ),
   )

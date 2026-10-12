@@ -5,6 +5,7 @@ import {
   type Page,
 } from '@playwright/test'
 import { fitted, openRackInPhysical } from './helpers'
+import { chooseFar, farJack, patching, toHalf } from './patching-helpers'
 
 // The explorer writes its state on its root; these specs assert that model.
 const root = (page: Page) => page.locator('.physical-explorer')
@@ -134,7 +135,7 @@ test('ED-09 disconnect from the inspector, connect and disconnect from the endpo
   await expectRevision(request, id, '2')
   expect((await getPlan(request, id)).removals.links).toEqual(['cable-a04'])
 
-  // Endpoint detail of the now free AGG-03 port 1: Connect… offers free far ends only.
+  // Endpoint detail of the now free AGG-03 port 1: Connect… opens the patching screen.
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await openRackInPhysical(
     page,
@@ -146,16 +147,27 @@ test('ED-09 disconnect from the inspector, connect and disconnect from the endpo
   await page.locator('[data-endpoint-id="agg-03:p1"]').click()
   await expectMark(page, 'data-selected-endpoint', 'agg-03:p1')
   await page.getByRole('button', { name: 'Connect…' }).click()
-  const connect = confirm(page, 'Connect')
-  await expect(connect).toBeVisible()
-  const far = connect.getByRole('combobox')
-  await far.fill('agg-03')
-  // A sibling port on the same equipment is never offered.
-  await expect(page.getByRole('option', { name: /^AGG-03/ })).toHaveCount(0)
-  await far.fill('hdf-02 2b/3 rear')
-  await page.getByRole('option', { name: 'HDF-02 · 2B/3 rear' }).click()
-  await connect.getByRole('button', { name: /^Connect to HDF-02/ }).click()
+  await expect(patching(page)).toBeVisible()
+  await chooseFar(
+    page,
+    {
+      site: 'Main Campus',
+      node: 'Main Distribution',
+      rack: 'Rack Core 01',
+      equipment: 'HDF-02',
+    },
+    'Rear',
+  )
+  // The near equipment is never offered as the far end (no sibling ports).
+  await expect(
+    toHalf(page).getByLabel('Equipment').locator('option', {
+      hasText: 'AGG-03',
+    }),
+  ).toHaveCount(0)
+  await farJack(page, 'hdf-02:sp-2B:3:r').click()
   await expectRevision(request, id, '3')
+  await patching(page).getByRole('button', { name: 'Done' }).click()
+  await expect(patching(page)).toHaveCount(0)
   const connected = await getPlan(request, id)
   expect(connected.links).toHaveLength(1)
   expect([connected.links[0].a, connected.links[0].b].sort()).toEqual([
@@ -448,19 +460,15 @@ test('ED-14 Escape closes each inline confirm and form, and focus returns to the
   )
   await block(page, 'agg-15').click()
   await page.locator('[data-endpoint-id="agg-15:p3"]').click()
+  // A free jack in a plan also opens the popover; Escape closes it.
+  await expect(page.getByTestId('connect-popover')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('connect-popover')).toHaveCount(0)
   const connect = page.getByRole('button', { name: 'Connect…' })
   await connect.click()
-  const box = confirm(page, 'Connect')
-  const combo = box.getByRole('combobox')
-  await expect(combo).toBeFocused()
-  // The first Escape closes the open list, the second the connect box.
-  await combo.fill('agg')
-  await expect(box.getByRole('listbox')).toBeVisible()
+  await expect(patching(page)).toBeFocused()
   await page.keyboard.press('Escape')
-  await expect(box.getByRole('listbox')).toHaveCount(0)
-  await expect(box).toBeVisible()
-  await page.keyboard.press('Escape')
-  await expect(box).toHaveCount(0)
+  await expect(patching(page)).toHaveCount(0)
   await expect(connect).toBeFocused()
 
   // The library's HDF form.

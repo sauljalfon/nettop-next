@@ -1,5 +1,11 @@
 import { layoutPlate } from './faces'
-import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import {
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react'
 import type { Equipment, Network } from '../../shared/types'
 import { colorOf } from '../map/networkColors'
 import {
@@ -13,6 +19,19 @@ import { moveFocus, navCells } from './faceNav'
 import type { FaceEndpoint } from './faces'
 
 const PER_ROW = 12
+
+/**
+ * Extra marks on one jack, for the patching screen: a pair number, a tone
+ * (preview, blocked, the next far jack, made in this session) that replaces the
+ * fill, and disabled for a jack that cannot be chosen.
+ */
+export interface JackMark {
+  tone?: 'preview' | 'blocked' | 'next' | 'made'
+  badge?: number
+  disabled?: boolean
+  /** Said after the jack's own name, and shown in its tooltip. */
+  note?: string
+}
 const KEYS = new Set([
   'ArrowRight',
   'ArrowLeft',
@@ -34,7 +53,8 @@ interface Props {
     cell: FaceEndpoint & { fiberPair?: string },
     ordinal: number | undefined,
   ) => string
-  onSelect: (endpointId: string) => void
+  /** A click or Enter on a jack; the event carries Shift for a range. */
+  onSelect: (endpointId: string, event?: MouseEvent<HTMLElement>) => void
   onSide: (side: 'front' | 'rear') => void
   /** The "Print sheet" button next to the title. */
   onPrint?: () => void
@@ -44,6 +64,10 @@ interface Props {
   proposed?: boolean
   /** Plan editing under the title (Delete… and its confirm); absent when not editing. */
   editSlot?: ReactNode
+  /** Patching marks per endpoint; absent everywhere else. */
+  decorate?: (endpointId: string) => JackMark | undefined
+  /** False hides the legend (the patching screen has its own). */
+  legend?: boolean
 }
 
 /**
@@ -69,6 +93,8 @@ export default function FaceView({
   printing,
   proposed,
   editSlot,
+  decorate,
+  legend: showLegend = true,
 }: Props) {
   const networkName = (id?: string) => networks.find((n) => n.id === id)?.name
   const cells = navCells(face)
@@ -110,8 +136,9 @@ export default function FaceView({
     ordinal?: number,
   ) => {
     const look = cellLook(cell)
+    const mark = cell.endpointId ? decorate?.(cell.endpointId) : undefined
     const style =
-      look.fill === 'cabled'
+      look.fill === 'cabled' && !mark?.tone
         ? {
             background: colorOf(colors, cell.networkId ?? ''),
             borderColor: 'transparent',
@@ -121,28 +148,40 @@ export default function FaceView({
       <button
         key={cell.endpointId ?? `${text}-${JSON.stringify(extra)}`}
         type="button"
-        className={`face-cell ${kind} fill-${look.fill} ${look.selected ? 'is-selected' : ''}`}
+        className={`face-cell ${kind} fill-${look.fill} ${look.selected ? 'is-selected' : ''} ${mark?.tone ? `tone-${mark.tone}` : ''}`}
         style={style}
-        disabled={!cell.endpointId}
+        disabled={!cell.endpointId || !!mark?.disabled}
         tabIndex={cell.endpointId === activeId ? 0 : -1}
         data-testid="face-endpoint"
         data-endpoint-id={cell.endpointId}
         data-state={look.fill}
         data-selected={look.selected}
         data-network={cell.networkId ?? ''}
-        title={tooltip(cell, ordinal)}
-        aria-label={endpointAria(
-          { name: equipment.name, kind: equipment.kind, side },
-          cell,
-          networkName(cell.networkId),
-          ordinal,
-        )}
+        data-tone={mark?.tone}
+        data-pair={mark?.badge}
+        title={[tooltip(cell, ordinal), mark?.note].filter(Boolean).join(' · ')}
+        aria-label={[
+          endpointAria(
+            { name: equipment.name, kind: equipment.kind, side },
+            cell,
+            networkName(cell.networkId),
+            ordinal,
+          ),
+          mark?.note,
+        ]
+          .filter(Boolean)
+          .join(', ')}
         onFocus={() => cell.endpointId && setFocusId(cell.endpointId)}
-        onClick={() => cell.endpointId && onSelect(cell.endpointId)}
+        onClick={(event) => cell.endpointId && onSelect(cell.endpointId, event)}
         {...extra}
       >
         {text}
-        {cell.cabled && <i className="link-dot" />}
+        {cell.cabled && !mark?.tone && <i className="link-dot" />}
+        {mark?.badge !== undefined && (
+          <span className="pair-badge" aria-hidden="true">
+            {mark.badge}
+          </span>
+        )}
       </button>
     )
   }
@@ -223,11 +262,15 @@ export default function FaceView({
                       {unit.cells.map((cell, n) =>
                         button(
                           cell,
-                          String(n + 1),
+                          // Its number in the bank: a 48-port bank's second block shows 25…48.
+                          String(unit.start + n + 1),
                           'jack',
-                          { 'data-row': n % 2, 'data-position': n + 1 },
+                          {
+                            'data-row': n % 2,
+                            'data-position': unit.start + n + 1,
+                          },
                           // A grouped port is named by its label, an old one by its number.
-                          unit.group > 0 ? undefined : n + 1,
+                          unit.group > 0 ? undefined : unit.start + n + 1,
                         ),
                       )}
                     </div>
@@ -298,26 +341,28 @@ export default function FaceView({
         )}
       </div>
 
-      <footer className="face-legend" aria-label="Legend">
-        <span>
-          <i className="fill-free" /> free
-        </span>
-        {legend.map((id) => (
-          <span key={id} data-testid="legend-network" data-network={id}>
-            <i
-              className="fill-cabled"
-              style={{ background: colorOf(colors, id) }}
-            />{' '}
-            {networkName(id)}
+      {showLegend && (
+        <footer className="face-legend" aria-label="Legend">
+          <span>
+            <i className="fill-free" /> free
           </span>
-        ))}
-        <span>
-          <i className="fill-route" /> on the selected route
-        </span>
-        <span>
-          <i className="is-selected" /> selected
-        </span>
-      </footer>
+          {legend.map((id) => (
+            <span key={id} data-testid="legend-network" data-network={id}>
+              <i
+                className="fill-cabled"
+                style={{ background: colorOf(colors, id) }}
+              />{' '}
+              {networkName(id)}
+            </span>
+          ))}
+          <span>
+            <i className="fill-route" /> on the selected route
+          </span>
+          <span>
+            <i className="is-selected" /> selected
+          </span>
+        </footer>
+      )}
     </section>
   )
 }

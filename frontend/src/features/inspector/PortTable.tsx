@@ -42,14 +42,10 @@ interface Props {
     openerKey: string,
   ) => ReactNode
   /**
-   * In a current plan: the Connect a range box for a free side. When given,
-   * every free side gets a Connect a range… action.
+   * In a current plan: opens the patching screen from a free side (the opener's
+   * key is where focus returns). When given, every free side gets a Connect… action.
    */
-  renderRange?: (
-    endpointId: string,
-    onClose: () => void,
-    openerKey: string,
-  ) => ReactNode
+  onConnect?: (endpointId: string, openerKey: string) => void
   /** A search from Explore: fills the search with a label (and shows every endpoint) each time `serial` changes. */
   request?: { query: string; serial: number }
 }
@@ -77,7 +73,7 @@ export default function PortTable({
   onShowInPhysical,
   onPin,
   renderDisconnect,
-  renderRange,
+  onConnect,
   request,
 }: Props) {
   const total = unitCount(groups)
@@ -95,7 +91,6 @@ export default function PortTable({
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = useState<string>()
   const [disconnecting, setDisconnecting] = useState<string>()
-  const [ranging, setRanging] = useState<string>()
   const shown = filterGroups(groups, { mode, query })
   const ports = groups[0]?.id === 'ports'
   return (
@@ -165,9 +160,7 @@ export default function PortTable({
                       disconnecting={disconnecting}
                       onDisconnect={setDisconnecting}
                       renderDisconnect={renderDisconnect}
-                      ranging={ranging}
-                      onRange={setRanging}
-                      renderRange={renderRange}
+                      onConnect={onConnect}
                     />
                   ))}
                 </GroupRows>
@@ -227,14 +220,9 @@ function Row({
   disconnecting,
   onDisconnect,
   renderDisconnect,
-  ranging,
-  onRange,
-  renderRange,
+  onConnect,
 }: {
-  /** The free endpoint whose range box is open, if any. */
-  ranging?: string
-  onRange: (endpointId?: string) => void
-  renderRange?: Props['renderRange']
+  onConnect?: Props['onConnect']
   canDisconnect: boolean
   /** The cable whose confirm is open, if any. */
   disconnecting?: string
@@ -255,9 +243,6 @@ function Row({
   const pinLabel = pinned ? 'Unpin on map' : 'Pin on map'
   const open = unit.sides.find(
     (side) => side.cable && side.cable.linkId === disconnecting,
-  )
-  const openRange = unit.sides.find(
-    (side) => !side.cable && side.endpointId === ranging,
   )
   return (
     <>
@@ -352,19 +337,22 @@ function Row({
           >
             {pinned ? <PinOff size={14} /> : <Pin size={14} />}
           </button>
-          {renderRange &&
+          {onConnect &&
             unit.sides.map(
               (side) =>
                 !side.cable && (
                   <button
                     key={side.endpointId}
                     className="row-action"
-                    title="Connect a range…"
-                    aria-label={`Connect a range: ${name}${side.side === 'port' ? '' : ` ${side.side}`}`}
-                    data-opener={`port:range:${side.endpointId}`}
+                    title="Connect…"
+                    aria-label={`Connect: ${name}${side.side === 'port' ? '' : ` ${side.side}`}`}
+                    data-opener={`port:connect:${side.endpointId}`}
                     onClick={(event) => {
                       event.stopPropagation()
-                      onRange(side.endpointId)
+                      onConnect(
+                        side.endpointId,
+                        `port:connect:${side.endpointId}`,
+                      )
                     }}
                   >
                     <Cable size={14} />
@@ -392,17 +380,6 @@ function Row({
             )}
         </td>
       </tr>
-      {renderRange && openRange && (
-        <tr className="port-confirm-row">
-          <td colSpan={COLUMNS}>
-            {renderRange(
-              openRange.endpointId,
-              () => onRange(undefined),
-              `port:range:${openRange.endpointId}`,
-            )}
-          </td>
-        </tr>
-      )}
       {open?.cable && renderDisconnect && (
         <tr className="port-confirm-row">
           <td colSpan={COLUMNS}>

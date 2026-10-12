@@ -22,7 +22,7 @@ const COLUMNS = 'ABCD'
 
 /**
  * The endpoints of one equipment in the order a range runs through them, on
- * the side of `start`: switch ports by port number, standard panel positions by
+ * one side (none for a switch): switch ports by port number, standard panel positions by
  * position, HDF positions by row, then block A–D, then position 1–6 (answer 22).
  * A switch's ports run by their position (1…N in port group order, never read
  * from a label). Only ports saved before groups have no position (0): those
@@ -30,7 +30,11 @@ const COLUMNS = 'ABCD'
  * not as text, and a label without a number goes after the numbered ones, in
  * its original order.
  */
-function run(s: Snapshot, start: Endpoint): Endpoint[] {
+export function runOf(
+  s: Snapshot,
+  equipmentId: string,
+  side: 'front' | 'rear' | undefined,
+): Endpoint[] {
   const blocks = new Map(s.subpanels.map((p) => [p.id, p]))
   const key = (e: Endpoint): number => {
     const block = e.subpanelId ? blocks.get(e.subpanelId) : undefined
@@ -46,9 +50,7 @@ function run(s: Snapshot, start: Endpoint): Endpoint[] {
   return (
     s.endpoints
       .filter(
-        (e) =>
-          e.equipmentId === start.equipmentId &&
-          (e.side ?? '') === (start.side ?? ''),
+        (e) => e.equipmentId === equipmentId && (e.side ?? '') === (side ?? ''),
       )
       .map((e) => [key(e), e] as const)
       // The sort is stable, so equal keys (all the unnumbered) keep their order.
@@ -56,6 +58,9 @@ function run(s: Snapshot, start: Endpoint): Endpoint[] {
       .map(([, e]) => e)
   )
 }
+
+const run = (s: Snapshot, start: Endpoint) =>
+  runOf(s, start.equipmentId, start.side)
 
 /**
  * The pairs of a range: `count` endpoints from the near start and from the far

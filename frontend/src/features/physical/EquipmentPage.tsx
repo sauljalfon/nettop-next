@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import ConnectPopover from '../patching/ConnectPopover'
 import type { Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import DeleteEquipment from '../planning/DeleteEquipment'
@@ -68,6 +69,11 @@ export default function EquipmentPage({
   routeName?: string
 }) {
   const equipment = index.equipment.get(location.equipmentId ?? '')
+  // In a plan, a click on a free jack also asks where its cable goes.
+  const [popover, setPopover] = useState<{
+    endpointId: string
+    anchor: DOMRect
+  }>()
   const detail = useMemo(
     () =>
       location.endpointId
@@ -116,7 +122,17 @@ export default function EquipmentPage({
         tooltip={(cell, ordinal) =>
           endpointTooltip(index, equipment, cell, ordinal, side)
         }
-        onSelect={onSelectEndpoint}
+        onSelect={(id, event) => {
+          onSelectEndpoint(id)
+          setPopover(
+            edit && event && !index.cabled.has(id)
+              ? {
+                  endpointId: id,
+                  anchor: event.currentTarget.getBoundingClientRect(),
+                }
+              : undefined,
+          )
+        }}
         onSide={onSide}
         onPrint={onPrint}
         proposed={
@@ -144,6 +160,15 @@ export default function EquipmentPage({
           )
         }
       />
+      {popover && edit && (
+        <ConnectPopover
+          key={popover.endpointId}
+          index={index}
+          endpointId={popover.endpointId}
+          anchor={popover.anchor}
+          onClose={() => setPopover(undefined)}
+        />
+      )}
       <EndpointDetail
         model={detail}
         chain={chain}

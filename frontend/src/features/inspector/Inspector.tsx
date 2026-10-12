@@ -12,7 +12,7 @@ import { isPassiveEquipment } from '../../shared/equipment'
 import type { Equipment, Snapshot } from '../../shared/types'
 import DeleteEquipment from '../planning/DeleteEquipment'
 import DuplicateEquipment from '../planning/DuplicateEquipment'
-import ConnectRange from '../planning/ConnectRange'
+import { patchingSession } from '../patching/patchingSession'
 import { DisconnectConfirm } from '../planning/EditConfirms'
 import type { PlanEdit } from '../planning/editing'
 import type { LocationRef } from '../map/highlight'
@@ -304,19 +304,15 @@ export default function Inspector({
                 />
               ))
             }
-            renderRange={
+            onConnect={
               edit &&
-              ((endpointId, onClose, openerKey) => (
-                <ConnectRange
-                  key={endpointId}
-                  snapshot={snapshot}
-                  index={index}
-                  endpointId={endpointId}
-                  edit={edit}
-                  openerKey={openerKey}
-                  onClose={onClose}
-                />
-              ))
+              ((endpointId, openerKey) =>
+                patchingSession.open({
+                  nearEndpointId: endpointId,
+                  mode: 'one',
+                  count: 6,
+                  returnTo: `[data-opener="${CSS.escape(openerKey)}"]`,
+                }))
             }
             request={forMe}
           />

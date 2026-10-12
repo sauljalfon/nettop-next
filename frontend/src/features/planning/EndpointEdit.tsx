@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import type { Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
-import ConnectBox from './ConnectBox'
-import ConnectRange from './ConnectRange'
+import { patchingSession } from '../patching/patchingSession'
 import { DisconnectConfirm } from './EditConfirms'
 import type { PlanEdit } from './editing'
 
 /**
- * Connect or disconnect the selected endpoint, in a plan. On Installed it only
+ * Connect (the patching screen) or disconnect the selected endpoint, in a plan. On Installed it only
  * says where editing happens. Keyed by the endpoint, so a new selection starts
  * with no confirm open.
  */
@@ -24,7 +23,7 @@ export default function EndpointEdit({
   installedLinkIds: ReadonlySet<string>
   edit?: PlanEdit
 }) {
-  const [open, setOpen] = useState<'disconnect' | 'connect' | 'range'>()
+  const [open, setOpen] = useState<'disconnect'>()
   const cable = index.cableByEndpoint.get(endpointId)
   if (snapshot.context === 'installed')
     return (
@@ -49,24 +48,23 @@ export default function EndpointEdit({
         </button>
       ) : (
         <>
-          {open !== 'connect' && (
+          {(['one', 'range'] as const).map((mode) => (
             <button
-              className="button primary"
-              data-opener={`endpoint:connect:${endpointId}`}
-              onClick={() => setOpen('connect')}
+              key={mode}
+              className={`button ${mode === 'one' ? 'primary' : ''}`}
+              data-opener={`endpoint:${mode}:${endpointId}`}
+              onClick={() =>
+                patchingSession.open({
+                  nearEndpointId: endpointId,
+                  mode,
+                  count: 6,
+                  returnTo: `[data-opener="${CSS.escape(`endpoint:${mode}:${endpointId}`)}"]`,
+                })
+              }
             >
-              Connect…
+              {mode === 'one' ? 'Connect…' : 'Connect a range…'}
             </button>
-          )}
-          {open !== 'range' && (
-            <button
-              className="button"
-              data-opener={`endpoint:range:${endpointId}`}
-              onClick={() => setOpen('range')}
-            >
-              Connect a range…
-            </button>
-          )}
+          ))}
         </>
       )}
       {open === 'disconnect' && cable && (
@@ -78,28 +76,6 @@ export default function EndpointEdit({
           proposed={!installedLinkIds.has(cable.linkId)}
           edit={edit}
           openerKey={`endpoint:disconnect:${endpointId}`}
-          onClose={() => setOpen(undefined)}
-        />
-      )}
-      {open === 'range' && !cable && (
-        <ConnectRange
-          key={key}
-          snapshot={snapshot}
-          index={index}
-          endpointId={endpointId}
-          edit={edit}
-          openerKey={`endpoint:range:${endpointId}`}
-          onClose={() => setOpen(undefined)}
-        />
-      )}
-      {open === 'connect' && !cable && (
-        <ConnectBox
-          key={key}
-          snapshot={snapshot}
-          index={index}
-          endpointId={endpointId}
-          edit={edit}
-          openerKey={`endpoint:connect:${endpointId}`}
           onClose={() => setOpen(undefined)}
         />
       )}

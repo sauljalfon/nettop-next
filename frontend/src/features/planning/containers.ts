@@ -1,6 +1,4 @@
 import type { HDFInput, Snapshot } from '../../shared/types'
-import type { PickerItem } from '../pathfinding/picker'
-import type { SnapshotIndex } from '../map/snapshotIndex'
 
 export type ContainerKind = 'site' | 'node' | 'rack'
 
@@ -39,31 +37,6 @@ export const installedHint = (what: string) =>
 export const NOT_EMPTY_HINT = 'Delete is available once it is empty'
 
 export const DEFAULT_RACK_UNITS = 42
-
-/**
- * The free endpoints a new cable from `endpointId` can reach, for the trace
- * picker's combobox: not already cabled, and never on the same equipment (a
- * sibling port is not a destination). Built when Connect opens.
- */
-export function connectItems(
-  s: Snapshot,
-  index: SnapshotIndex,
-  endpointId: string,
-): PickerItem[] {
-  const own = index.owner.get(endpointId)
-  const items: PickerItem[] = []
-  for (const p of s.endpoints) {
-    if (p.id === endpointId || p.equipmentId === own || index.cabled.has(p.id))
-      continue
-    const name = index.equipment.get(p.equipmentId)?.name ?? p.equipmentId
-    items.push({
-      value: p.id,
-      label: `${name} · ${p.label}`,
-      search: `${name} ${p.label}`,
-    })
-  }
-  return items
-}
 
 /** The HDF form's values as typed. */
 export interface HdfFormValues {

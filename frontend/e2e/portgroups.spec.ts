@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { fitted, openRackInPhysical } from './helpers'
 import { command, getPlan, newPlan, unique } from './plan-api'
+import { chooseFar, farJack, patching, useRange } from './patching-helpers'
 
 // Step 11b: real interface names (Gi1/0/1, Te1/1/1) and mixed port types.
 const shot = (page: Page, name: string) =>
@@ -186,6 +187,16 @@ test('PG-04 banks that do not fit the face wrap onto the next row: 48 + 4', asyn
     (await banks.nth(i).getByTestId('face-endpoint').first().boundingBox())!
   expect(Math.abs((await jack(2)).y - (await jack(1)).y)).toBeLessThan(2)
   await expect(page.getByTestId('bank-row')).toHaveCount(2)
+  // The second block keeps counting (25…48); the uplinks start again at 1.
+  await expect(banks.nth(1).getByTestId('face-endpoint').first()).toHaveText(
+    '25',
+  )
+  await expect(banks.nth(1).getByTestId('face-endpoint').last()).toHaveText(
+    '48',
+  )
+  await expect(banks.nth(2).getByTestId('face-endpoint').first()).toHaveText(
+    '1',
+  )
   await shot(page, 'faceplate-wrap')
 
   // Keyboard follows what is seen: along the second row of banks across the gap,
@@ -210,13 +221,19 @@ test('PG-03 Connect a range from Gi1/0/23 with count 4 runs Gi1/0/23, Gi1/0/24, 
   await openSwitch(page, id, switchId)
   await page.locator(`[data-endpoint-id="${switchId}:p23"]`).click()
   await page.getByRole('button', { name: 'Connect a range…' }).click()
-  const range = box(page, 'Connect a range')
-  await range.getByLabel('Count').fill('4')
-  const combo = range.getByRole('combobox')
-  await combo.fill('panel-a 4 front')
-  await page
-    .getByRole('option', { name: 'PANEL-A · 4 · Front', exact: true })
-    .click()
+  const range = patching(page)
+  await useRange(page, 4)
+  await chooseFar(
+    page,
+    {
+      site: 'Main Campus',
+      node: 'Building A',
+      rack: 'Rack A03',
+      equipment: 'PANEL-A',
+    },
+    'Front',
+  )
+  await farJack(page, 'panel-a:4:f').click()
   const pairs = range.getByTestId('range-pairs').locator('li')
   await expect(pairs).toHaveCount(4)
   await expect(pairs).toHaveText([
@@ -227,7 +244,9 @@ test('PG-03 Connect a range from Gi1/0/23 with count 4 runs Gi1/0/23, Gi1/0/24, 
   ])
   await shot(page, 'range')
   await range.getByRole('button', { name: 'Connect 4' }).click()
-  await expect(range).toHaveCount(0)
+  await expect(range.getByTestId('patching-made')).toContainText(
+    'MADE HERE (4)',
+  )
   const plan = await getPlan(request, id)
   const ends = plan.links
     .filter((l: { kind: string }) => l.kind === 'cable')
