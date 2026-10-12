@@ -535,7 +535,8 @@ components:
     EquipmentInput:
       type: object
       additionalProperties: false
-      required: [name, kind, role, rackId, unit, height, portCount]
+      required: [name, kind, role, rackId, unit, height]
+      description: A switch needs portCount or portGroups (not both unless portCount equals their total); a panel needs portCount.
       properties:
         name: {type: string, minLength: 1, maxLength: 100}
         kind: {type: string, enum: [switch, panel]}
@@ -552,9 +553,35 @@ components:
         portCount:
           type: integer
           minimum: 1
-          maximum: 48
-          description: Switch ports or panel positions. Each panel position creates front/rear endpoints and one internal bridge.
+          maximum: 96
+          description: "Switch ports (1–96) or panel positions (1–48; each creates front/rear endpoints and one internal bridge). A switch made this way has one port group, \"Port {n}\". Leave it out when portGroups is given, or give their total."
+        portGroups:
+          type: array
+          minItems: 1
+          maxItems: 8
+          description: "Switches only: 1–8 groups of ports (such as 24 × Gi1/0/{n} copper and 4 × Te1/1/{n} fiber), 1–96 ports in all. Ports get position 1…N in group order and portGroup 1…G; endpoint IDs stay <equipment>:p<n>. Labels are 1–64 characters and unique on the switch ignoring case. Refusals are 422 in names, e.g. 'SW-NEW: port group 2: Names must contain {n} once'."
+          items: {$ref: '#/components/schemas/PortGroupInput'}
         details: {$ref: '#/components/schemas/Details'}
+    PortGroupInput:
+      type: object
+      additionalProperties: false
+      description: "One group of a switch's ports: either Count ports named by Names (a pattern with exactly one {n}, numbered from Start) or the Labels as they are (Duplicate sends them this way, because a label is display text and is never parsed back into a pattern). Details are the portType, connector and speed every port of the group starts with."
+      properties:
+        count: {type: integer, minimum: 1, description: With names.}
+        names: {type: string, description: "With count: a pattern with exactly one {n}, e.g. Gi1/0/{n}."}
+        start: {type: integer, minimum: 0, default: 1, description: With names. First number.}
+        labels:
+          type: array
+          minItems: 1
+          items: {type: string, minLength: 1, maxLength: 64}
+          description: Instead of count and names.
+        details:
+          type: object
+          additionalProperties: false
+          properties:
+            portType: {type: string, enum: [copper, fiber]}
+            connector: {type: string, maxLength: 200}
+            speed: {type: string, maxLength: 200}
     BatchItem:
       type: object
       additionalProperties: false
@@ -836,7 +863,8 @@ components:
         position:
           type: integer
           minimum: 1
-          description: Local position. Numbering restarts in every HDF subpanel (1-6); standard panels number positions on the chassis.
+          description: "HDF and panels: the local position (numbering restarts in every HDF subpanel, 1-6; standard panels number positions on the chassis). Switches: the order of the port, 1…N in port group order; absent on ports saved before port groups, which are ordered by the number in their label. Only `side` tells a panel position from a switch port."
+        portGroup: {type: integer, minimum: 1, description: "Switches: the 1-based port group. Absent on ports saved before port groups."}
         side: {type: string, enum: [front, rear]}
         portType: {type: string, enum: [copper, fiber]}
         connector: {type: string, maxLength: 200}

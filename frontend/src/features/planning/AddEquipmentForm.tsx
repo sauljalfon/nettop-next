@@ -1,5 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import type { Network, Plan, Rack } from '../../shared/types'
+import {
+  MAX_PORT_GROUPS,
+  MAX_SWITCH_PORTS,
+  checkGroups,
+  emptyRow,
+  groupSummary,
+  rowsFromCount,
+  type GroupRow,
+} from './portGroups'
 import { EditError } from './ConfirmShell'
 import type { PlanEdit } from './editing'
 import { useAsyncAction } from './useAsyncAction'
@@ -30,9 +39,10 @@ export function checkEquipmentForm(
     return { error: 'Choose the device’s network.' }
   if (!v.rackId) return { error: 'Choose a rack.' }
   if (!(unit >= 1 && unit <= 100)) return { error: 'Unit must be 1 or more.' }
-  if (!(ports >= 1 && ports <= 48))
+  const most = kind === 'panel' ? 48 : MAX_SWITCH_PORTS
+  if (!(ports >= 1 && ports <= most))
     return {
-      error: `${kind === 'panel' ? 'Positions' : 'Ports'} must be between 1 and 48.`,
+      error: `${kind === 'panel' ? 'Positions' : 'Ports'} must be between 1 and ${most}.`,
     }
   return { name: v.name.trim(), unit, ports }
 }
@@ -71,6 +81,9 @@ export default function AddEquipmentForm({
     unit: String(initial?.unit ?? 1),
     ports: '24',
   })
+  // Port groups (switches): null is the plain Ports count; rows name and
+  // describe the ports in groups (Count, Names, Type, Connector, Speed).
+  const [groups, setGroups] = useState<GroupRow[] | null>(null)
   const action = useAsyncAction()
   const dialog = useInlineDialog<HTMLFormElement>(onClose, openerKey)
   const set = (key: keyof typeof values) => (value: string) => {
@@ -79,8 +92,13 @@ export default function AddEquipmentForm({
   }
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    const checked = checkEquipmentForm(values, type.kind)
+    const checked = checkEquipmentForm(
+      groups ? { ...values, ports: '1' } : values,
+      type.kind,
+    )
     if ('error' in checked) return action.fail(checked.error)
+    const given = groups ? checkGroups(groups) : undefined
+    if (given && 'error' in given) return action.fail(given.error)
     void action
       .run(() =>
         edit({
@@ -93,7 +111,9 @@ export default function AddEquipmentForm({
             rackId: values.rackId,
             unit: checked.unit,
             height: 1,
-            portCount: checked.ports,
+            ...(given
+              ? { portGroups: given.groups }
+              : { portCount: checked.ports }),
           },
         }),
       )
@@ -171,16 +191,28 @@ export default function AddEquipmentForm({
           />
         </label>
       </div>
-      <label>
-        {type.kind === 'panel' ? 'Positions' : 'Ports'}
-        <input
-          type="number"
-          min={1}
-          max={48}
-          value={values.ports}
-          onChange={(e) => set('ports')(e.target.value)}
+      {!groups && (
+        <label>
+          {type.kind === 'panel' ? 'Positions' : 'Ports'}
+          <input
+            type="number"
+            min={1}
+            max={type.kind === 'panel' ? 48 : MAX_SWITCH_PORTS}
+            value={values.ports}
+            onChange={(e) => set('ports')(e.target.value)}
+          />
+        </label>
+      )}
+      {type.kind === 'switch' && (
+        <PortGroupRows
+          rows={groups}
+          onChange={(rows) => {
+            setGroups(rows)
+            action.clear()
+          }}
+          ports={values.ports}
         />
-      </label>
+      )}
       <EditError message={action.error} />
       <div className="inline-row">
         <button className="button primary" disabled={action.pending}>
@@ -191,5 +223,120 @@ export default function AddEquipmentForm({
         </button>
       </div>
     </form>
+  )
+}
+
+/**
+ * The port group rows of a switch's Add form (step 11b): "+ Add port group"
+ * turns the plain Ports count into groups; each row is Count, Names (one {n}),
+ * Type, Connector and Speed, with a ✕; one line says what the ports will be
+ * called. Removing the last row goes back to the plain count.
+ */
+function PortGroupRows({
+  rows,
+  onChange,
+  ports,
+}: {
+  rows: GroupRow[] | null
+  onChange: (rows: GroupRow[] | null) => void
+  ports: string
+}) {
+  const change = (i: number, patch: Partial<GroupRow>) =>
+    onChange(rows!.map((r, n) => (n === i ? { ...r, ...patch } : r)))
+  const summary = rows ? groupSummary(rows) : ''
+  return (
+    <div className="port-groups">
+      {rows?.map((r, i) => (
+        <div
+          key={i}
+          className="port-group"
+          role="group"
+          aria-label={`Port group ${i + 1}`}
+          data-testid="port-group-row"
+        >
+          <div className="group-line">
+            <label>
+              Count
+              <input
+                aria-label="Count"
+                inputMode="numeric"
+                className="count-input"
+                value={r.count}
+                onChange={(e) => change(i, { count: e.target.value })}
+              />
+            </label>
+            <label>
+              Names
+              <input
+                aria-label="Names"
+                placeholder="Gi1/0/{n}"
+                autoComplete="off"
+                value={r.names}
+                onChange={(e) => change(i, { names: e.target.value })}
+              />
+            </label>
+          </div>
+          <div className="group-line">
+            <select
+              aria-label="Type"
+              value={r.portType}
+              onChange={(e) =>
+                change(i, { portType: e.target.value as GroupRow['portType'] })
+              }
+            >
+              <option value="">Type</option>
+              <option value="copper">copper</option>
+              <option value="fiber">fiber</option>
+            </select>
+            <input
+              aria-label="Connector"
+              placeholder="Connector"
+              list="connector-suggestions"
+              value={r.connector}
+              onChange={(e) => change(i, { connector: e.target.value })}
+            />
+            <input
+              aria-label="Speed"
+              placeholder="Speed"
+              value={r.speed}
+              onChange={(e) => change(i, { speed: e.target.value })}
+            />
+            <button
+              type="button"
+              className="button ghost-danger"
+              aria-label={`Remove port group ${i + 1}`}
+              onClick={() =>
+                onChange(
+                  rows.length > 1 ? rows.filter((_, n) => n !== i) : null,
+                )
+              }
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      ))}
+      <datalist id="connector-suggestions">
+        {['RJ45', 'LC', 'SC', 'ST', 'SFP', 'SFP+', 'QSFP'].map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+      {summary && (
+        <p className="hint port-summary" data-testid="port-summary">
+          {summary}
+        </p>
+      )}
+      {(rows?.length ?? 0) < MAX_PORT_GROUPS && (
+        <button
+          type="button"
+          className="button"
+          onClick={() =>
+            onChange(rows ? [...rows, emptyRow()] : rowsFromCount(ports))
+          }
+        >
+          + Add port group
+        </button>
+      )}
+    </div>
   )
 }

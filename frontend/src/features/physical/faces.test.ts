@@ -3,7 +3,8 @@ import { agg03Route } from '../map/acceptanceFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import { physicalSnapshot, withFullHdf } from './testFixture'
 import { routeMarks } from './inventory'
-import { hdfFace, panelFace, switchBank } from './faces'
+import { hdfFace, layoutPlate, panelFace, switchBank } from './faces'
+import { withGroupedSwitch } from './testFixture'
 
 const s = withFullHdf(physicalSnapshot(), 'HDF-01', 4)
 const index = indexSnapshot(s)
@@ -164,5 +165,124 @@ describe('per-endpoint state: free, cabled, on route, selected', () => {
     const marks = routeMarks(index, agg03Route())
     const bank = switchBank(index, 'AGG-03', { marks })
     expect(bank.rows[0][0].state).toBe('route')
+  })
+})
+
+describe('PG-04 port banks: one per port group', () => {
+  const grouped = withGroupedSwitch(physicalSnapshot(), 'SW-G', 'rack-a03', 3, [
+    {
+      count: 24,
+      prefix: 'Gi1/0/',
+      portType: 'copper',
+      connector: 'RJ45',
+      speed: '1G',
+    },
+    {
+      count: 4,
+      prefix: 'Te1/1/',
+      portType: 'fiber',
+      connector: 'SFP+',
+      speed: '10G',
+    },
+  ])
+  const gi = indexSnapshot(grouped)
+
+  it('draws one bank per group with a caption from its first and last name, type and speed', () => {
+    const { banks } = switchBank(gi, 'SW-G')
+    expect(banks.map((b) => b.caption)).toEqual([
+      'Gi1/0/1–Gi1/0/24 · copper · 1G',
+      'Te1/1/1–Te1/1/4 · fiber · 10G',
+    ])
+    expect(banks.map((b) => b.cells.length)).toEqual([24, 4])
+    expect(banks[0].cells[0]).toMatchObject({
+      endpointId: 'SW-G:p1',
+      label: 'Gi1/0/1',
+    })
+    expect(banks[1].cells[0]).toMatchObject({
+      endpointId: 'SW-G:p25',
+      label: 'Te1/1/1',
+    })
+  })
+
+  it('keeps rows as every port in order, in rows of 12', () => {
+    const { rows } = switchBank(gi, 'SW-G')
+    expect(rows.flat().map((c) => c.endpointId)).toEqual(
+      Array.from({ length: 28 }, (_, i) => `SW-G:p${i + 1}`),
+    )
+  })
+
+  it('orders by position even when the group labels sort the other way', () => {
+    const swapped = withGroupedSwitch(
+      physicalSnapshot(),
+      'SW-S',
+      'rack-a03',
+      3,
+      [
+        { count: 2, prefix: 'Te1/1/' },
+        { count: 2, prefix: 'Gi1/0/' },
+      ],
+    )
+    const { banks } = switchBank(indexSnapshot(swapped), 'SW-S')
+    expect(banks.map((b) => b.caption)).toEqual([
+      'Te1/1/1–Te1/1/2',
+      'Gi1/0/1–Gi1/0/2',
+    ])
+  })
+
+  it('a switch saved before groups is one bank with no caption, as before', () => {
+    const { banks } = switchBank(index, 'EDGE-17')
+    expect(banks).toHaveLength(1)
+    expect(banks[0].caption).toBe('')
+    expect(banks[0].cells).toHaveLength(24)
+  })
+
+  it('a single-port group names just that port', () => {
+    const one = withGroupedSwitch(physicalSnapshot(), 'SW-1', 'rack-a03', 3, [
+      { count: 1, prefix: 'Mgmt', speed: '100M' },
+    ])
+    expect(switchBank(indexSnapshot(one), 'SW-1').banks[0].caption).toBe(
+      'Mgmt1 · 100M',
+    )
+  })
+})
+
+describe('port banks lie side by side and wrap (step 11b fixup)', () => {
+  const plate = (groups: { count: number; prefix: string }[]) => {
+    const g = withGroupedSwitch(
+      physicalSnapshot(),
+      'SW-L',
+      'rack-a03',
+      3,
+      groups,
+    )
+    return layoutPlate(switchBank(indexSnapshot(g), 'SW-L').banks)
+  }
+  const shape = (rows: ReturnType<typeof plate>) =>
+    rows.map((r) => r.map((u) => `${u.cells.length}${u.caption ? '*' : ''}`))
+
+  it('puts 24 + 4 in one row, access ports first and the uplinks to their right', () => {
+    const rows = plate([
+      { count: 24, prefix: 'Gi1/0/' },
+      { count: 4, prefix: 'Te1/1/' },
+    ])
+    expect(shape(rows)).toEqual([['24*', '4*']])
+    expect(rows[0][1].cells[0].label).toBe('Te1/1/1')
+  })
+
+  it('wraps what does not fit: 48 + 4 puts the second 24-port block and the uplinks on a second row', () => {
+    const rows = plate([
+      { count: 48, prefix: 'Gi1/0/' },
+      { count: 4, prefix: 'Te1/1/' },
+    ])
+    // The 48-port group is two blocks of 24 ports; only the first carries the caption.
+    expect(shape(rows)).toEqual([['24*'], ['24', '4*']])
+    expect(rows[1][0].cells[0].label).toBe('Gi1/0/25')
+  })
+
+  it('a switch with one group, or saved before groups, is one strip as before', () => {
+    const one = plate([{ count: 48, prefix: 'E' }])
+    expect(shape(one)).toEqual([['48*']])
+    const old = layoutPlate(switchBank(index, 'EDGE-17').banks)
+    expect(shape(old)).toEqual([['24']])
   })
 })

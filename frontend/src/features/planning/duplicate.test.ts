@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Snapshot } from '../../shared/types'
-import { physicalSnapshot } from '../physical/testFixture'
+import { physicalSnapshot, withGroupedSwitch } from '../physical/testFixture'
 import {
   copyLayout,
   duplicateLines,
@@ -142,14 +142,14 @@ describe('BK-03a duplicate', () => {
     const s = snap()
     s.endpoints = [
       ...s.endpoints,
-      ...Array.from({ length: 30 }, (_, i) => ({
+      ...Array.from({ length: 80 }, (_, i) => ({
         id: `EDGE-17:extra${i}`,
         equipmentId: 'EDGE-17',
         label: `Port ${100 + i}`,
       })),
     ]
     expect(duplicateLines(s, 'EDGE-17', 1, 'rack-new', 1)[0].problem).toBe(
-      'port count must be between 1 and 48',
+      'port count must be between 1 and 96',
     )
   })
   it('limits the count', () => {
@@ -196,6 +196,109 @@ describe('BK-04a copy rack layout', () => {
     const s = snap()
     const result = copyLayout(s, 'rack-core-02', 'rack-new')
     expect(result.lines.map((l) => l.name)).toEqual(['AGG-16', 'AGG-09'])
+  })
+})
+
+describe('PG-05 copies keep the port groups', () => {
+  const grouped = () => {
+    const s = withGroupedSwitch(snap(), 'SW-G', 'rack-a03', 3, [
+      {
+        count: 3,
+        prefix: 'Gi1/0/',
+        portType: 'copper',
+        connector: 'RJ45',
+        speed: '1G',
+      },
+      {
+        count: 2,
+        prefix: 'Te1/1/',
+        portType: 'fiber',
+        connector: 'SFP+',
+        speed: '10G',
+      },
+    ])
+    s.endpoints = s.endpoints.map((p) =>
+      p.id === 'SW-G:p1'
+        ? { ...p, state: 'faulty' as const, description: 'the first one' }
+        : p,
+    )
+    s.equipment = s.equipment.map((e) =>
+      e.id === 'SW-G'
+        ? {
+            ...e,
+            serialNumber: 'SN-77',
+            ipAddress: '10.0.0.77',
+            status: 'active' as const,
+            description: 'core',
+          }
+        : e,
+    )
+    return s
+  }
+
+  it('Duplicate copies the groups: labels in order, portType, connector and speed', () => {
+    const [line] = duplicateLines(grouped(), 'SW-G', 1, 'rack-new', 1)
+    expect(line.command).toEqual({
+      type: 'add_equipment',
+      equipment: {
+        name: 'SW-G-2',
+        kind: 'switch',
+        role: 'access',
+        networkId: 'A',
+        rackId: 'rack-new',
+        unit: 1,
+        height: 1,
+        portGroups: [
+          {
+            labels: ['Gi1/0/1', 'Gi1/0/2', 'Gi1/0/3'],
+            details: { portType: 'copper', connector: 'RJ45', speed: '1G' },
+          },
+          {
+            labels: ['Te1/1/1', 'Te1/1/2'],
+            details: { portType: 'fiber', connector: 'SFP+', speed: '10G' },
+          },
+        ],
+      },
+    })
+  })
+
+  it('never copies a serial number, IP address, status, description, state or notes', () => {
+    const json = JSON.stringify(
+      duplicateLines(grouped(), 'SW-G', 2, 'rack-new', 1).map((l) => l.command),
+    )
+    expect(json).not.toMatch(
+      /SN-77|10\.0\.0\.77|serialNumber|ipAddress|status|description|faulty|state|notes|the first one|core/,
+    )
+  })
+
+  it('Copy rack layout copies them too', () => {
+    const s = grouped()
+    s.equipment = s.equipment.map((e) =>
+      e.id === 'SW-G' ? { ...e, rackId: 'rack-core-03', unit: 3 } : e,
+    )
+    const { lines } = copyLayout(s, 'rack-core-03', 'rack-new')
+    const command = lines.find((l) => l.sourceName === 'SW-G')!.command as {
+      equipment: { portGroups: unknown[]; portCount?: number }
+    }
+    expect(command.equipment.portGroups).toHaveLength(2)
+    expect(command.equipment.portCount).toBeUndefined()
+  })
+
+  it('a switch saved before groups is still copied by its port count', () => {
+    const [line] = duplicateLines(snap(), 'EDGE-17', 1, 'rack-new', 1)
+    expect(line.command).toMatchObject({ equipment: { portCount: 24 } })
+    expect(
+      (line.command as { equipment: object }).equipment,
+    ).not.toHaveProperty('portGroups')
+  })
+
+  it('a copy over 96 ports is blocked in the server’s words', () => {
+    const big = withGroupedSwitch(snap(), 'SW-B', 'rack-a03', 3, [
+      { count: 97, prefix: 'E' },
+    ])
+    expect(duplicateLines(big, 'SW-B', 1, 'rack-new', 1)[0].problem).toBe(
+      'port count must be between 1 and 96',
+    )
   })
 })
 

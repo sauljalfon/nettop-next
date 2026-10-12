@@ -1,3 +1,4 @@
+import { hasSide } from '../../shared/ports'
 import type { Route } from '../../shared/types'
 import { facetKey } from '../map/facets'
 import type { SnapshotIndex } from '../map/snapshotIndex'
@@ -39,7 +40,7 @@ export function trailSteps(
       .map((id) => index.lookup.endpoints.get(id)?.side)
       .flatMap((side) => (side ? [INITIAL[side]] : []))
     const label =
-      first.position === undefined
+      !hasSide(first) || first.position === undefined
         ? `${equipment.name} ${first.label}`
         : `${equipment.name} ${facetKey(index.lookup, first)} ${sides.join('→')}`.trim()
     return [

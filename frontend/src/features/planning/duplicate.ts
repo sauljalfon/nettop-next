@@ -1,7 +1,10 @@
+import { comparePorts, hasSide } from '../../shared/ports'
 import type {
   BatchCommand,
+  Endpoint,
   Equipment,
   EquipmentInput,
+  PortGroupInput,
   Snapshot,
 } from '../../shared/types'
 
@@ -122,10 +125,41 @@ function copyCommand(
     rackId,
     unit,
     height: source.height,
-    portCount: size.get(source.id) ?? 0,
   }
+  const groups = source.kind === 'switch' ? portGroupsOf(s, source.id) : []
+  // A switch made with port groups is copied with them (the labels as they are,
+  // in order, and each group's type, connector and speed); any other switch, and
+  // a panel, by its count.
+  if (groups.length > 0) equipment.portGroups = groups
+  else equipment.portCount = size.get(source.id) ?? 0
   if (source.networkId) equipment.networkId = source.networkId
   return { type: 'add_equipment', equipment }
+}
+
+/**
+ * A switch's port groups as add_equipment takes them: each group's labels as
+ * they are, in position order, with the portType, connector and speed of its
+ * first port. Empty for a switch saved before groups (its ports have no
+ * group). Never a serial number, state, description or any other detail.
+ */
+function portGroupsOf(s: Snapshot, equipmentId: string): PortGroupInput[] {
+  const ports = s.endpoints
+    .filter((p) => p.equipmentId === equipmentId && !hasSide(p))
+    .sort(comparePorts)
+  if (ports.length === 0 || ports.some((p) => !p.portGroup)) return []
+  const groups: { first: Endpoint; labels: string[] }[] = []
+  for (const p of ports) {
+    const last = groups.at(-1)
+    if (last && last.first.portGroup === p.portGroup) last.labels.push(p.label)
+    else groups.push({ first: p, labels: [p.label] })
+  }
+  return groups.map(({ first, labels }) => {
+    const details: PortGroupInput['details'] = {}
+    if (first.portType) details.portType = first.portType
+    if (first.connector) details.connector = first.connector
+    if (first.speed) details.speed = first.speed
+    return Object.keys(details).length > 0 ? { labels, details } : { labels }
+  })
 }
 
 /** Ports of a switch, positions of a panel (its front sides), per equipment. */
@@ -137,11 +171,14 @@ function sizes(s: Snapshot): Map<string, number> {
   return size
 }
 
-/** What the server says of a switch or panel with this many ports or positions. */
-const sizeProblem = (source: Equipment, count: number) =>
-  source.kind !== 'hdf' && (count < 1 || count > 48)
-    ? 'port count must be between 1 and 48'
+/** What the server says of a switch (1–96 ports) or panel (1–48 positions) of this size. */
+const sizeProblem = (source: Equipment, count: number) => {
+  if (source.kind === 'hdf') return undefined
+  const most = source.kind === 'switch' ? 96 : 48
+  return count < 1 || count > most
+    ? `port count must be between 1 and ${most}`
     : undefined
+}
 
 /**
  * "N more like <name>": `count` copies into the next free units of `rackId`

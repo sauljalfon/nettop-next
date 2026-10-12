@@ -24,9 +24,11 @@ const COLUMNS = 'ABCD'
  * The endpoints of one equipment in the order a range runs through them, on
  * the side of `start`: switch ports by port number, standard panel positions by
  * position, HDF positions by row, then block A–D, then position 1–6 (answer 22).
- * Switch ports carry no position: they run by the number the app writes into
- * their label ("Port 7"), as a number and not as text; a label without a
- * number goes after the numbered ones, in its original order.
+ * A switch's ports run by their position (1…N in port group order, never read
+ * from a label). Only ports saved before groups have no position (0): those
+ * run by the number the app wrote into their label ("Port 7"), as a number and
+ * not as text, and a label without a number goes after the numbered ones, in
+ * its original order.
  */
 function run(s: Snapshot, start: Endpoint): Endpoint[] {
   const blocks = new Map(s.subpanels.map((p) => [p.id, p]))

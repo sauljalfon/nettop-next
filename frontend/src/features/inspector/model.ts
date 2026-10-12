@@ -1,3 +1,4 @@
+import { comparePorts } from '../../shared/ports'
 import type { Equipment, Snapshot } from '../../shared/types'
 import { labelMatches } from '../map/connections'
 import { facetKey, facetLabel } from '../map/facets'
@@ -119,8 +120,15 @@ export function inspectorGroups(
       unit.sides[0]
     ).endpointId
   }
-  const natural = (a: InspectorUnit, b: InspectorUnit) =>
-    a.label.localeCompare(b.label, undefined, { numeric: true })
+  // A switch's ports follow their position (the order they were made in);
+  // ports saved before groups, and panel positions, follow the number in the label.
+  const natural = (
+    a: InspectorUnit & { position: number },
+    b: InspectorUnit & { position: number },
+  ) =>
+    equipment.kind === 'switch'
+      ? comparePorts(a, b)
+      : a.label.localeCompare(b.label, undefined, { numeric: true })
   const all = [...units.values()]
   if (equipment.kind !== 'hdf')
     return [

@@ -175,6 +175,22 @@ func (r *Rack) SetDetail(f DetailField) bool {
 	return true
 }
 
+// DetailWord is a detail field's name as words for a message ("IP address",
+// "serial number", "port type", "rack type"), never the JSON name.
+func DetailWord(name string) string {
+	switch name {
+	case "serialNumber":
+		return "serial number"
+	case "ipAddress":
+		return "IP address"
+	case "portType":
+		return "port type"
+	case "rackType":
+		return "rack type"
+	}
+	return name
+}
+
 // field is one checked value: text up to max characters, optionally one of a set.
 type field struct {
 	name, value string
@@ -185,7 +201,7 @@ type field struct {
 // problem says in names ("who: ...") why the value is not allowed, or "".
 func (f field) problem(who string) string {
 	if len([]rune(f.value)) > f.max {
-		return fmt.Sprintf("%s: %s is longer than %d characters", who, f.name, f.max)
+		return fmt.Sprintf("%s: %s is longer than %d characters", who, DetailWord(f.name), f.max)
 	}
 	if f.value == "" || f.oneOf == nil {
 		return ""
@@ -195,7 +211,7 @@ func (f field) problem(who string) string {
 			return ""
 		}
 	}
-	return fmt.Sprintf("%s: %s must be %s, not %q", who, f.name, orList(f.oneOf), f.value)
+	return fmt.Sprintf("%s: %s must be %s, not %q", who, DetailWord(f.name), orList(f.oneOf), f.value)
 }
 
 func orList(values []string) string {
@@ -226,7 +242,7 @@ func (e Equipment) DetailProblem() string {
 	}
 	if e.IPAddress != "" {
 		if _, err := netip.ParseAddr(e.IPAddress); err != nil {
-			return fmt.Sprintf("%s: ipAddress %q is not an IPv4 or IPv6 address", e.Name, e.IPAddress)
+			return fmt.Sprintf("%s: IP address %q is not an IPv4 or IPv6 address", e.Name, e.IPAddress)
 		}
 	}
 	return ""

@@ -71,3 +71,18 @@ ALTER TABLE racks
         (location IS NULL OR length(location) BETWEEN 1 AND 200)
         AND (rack_type IS NULL OR rack_type IN ('standard','wall-mount','open-frame'))
         AND (description IS NULL OR length(description) BETWEEN 1 AND 1000));
+
+-- M5b step 11b: a switch port may have an order and a group.
+--
+-- `position` (already on every endpoint) orders a switch's ports 1…N in port
+-- group order, and `port_group` says which group (1…G) a port belongs to. Ports
+-- saved before keep position 0 and group 0. Neither is ever parsed from a
+-- label. A switch port still has no side and no subpanel, and the order is
+-- unique per switch among ports that have one.
+ALTER TABLE endpoints ADD COLUMN port_group integer NOT NULL DEFAULT 0 CHECK (port_group >= 0);
+ALTER TABLE endpoints DROP CONSTRAINT IF EXISTS endpoints_shape_by_kind;
+ALTER TABLE endpoints ADD CONSTRAINT endpoints_shape_by_kind CHECK (
+       (equipment_kind = 'switch' AND position >= 0 AND side = '' AND subpanel_id IS NULL AND (position > 0 OR port_group = 0))
+    OR (equipment_kind = 'panel' AND position > 0 AND side IN ('front','rear') AND subpanel_id IS NULL AND port_group = 0)
+    OR (equipment_kind = 'hdf' AND position BETWEEN 1 AND 6 AND side IN ('front','rear') AND subpanel_id IS NOT NULL AND port_group = 0));
+CREATE UNIQUE INDEX switch_port_position ON endpoints (equipment_id, position) WHERE equipment_kind = 'switch' AND position > 0;

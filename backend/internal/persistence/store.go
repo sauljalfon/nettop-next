@@ -151,13 +151,13 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT id,equipment_id,label,COALESCE(subpanel_id,''),position,side,COALESCE(port_type,''),COALESCE(connector,''),COALESCE(speed,''),COALESCE(state,''),COALESCE(description,'') FROM endpoints ORDER BY id`)
+	rows, err = tx.Query(ctx, `SELECT id,equipment_id,label,COALESCE(subpanel_id,''),position,side,port_group,COALESCE(port_type,''),COALESCE(connector,''),COALESCE(speed,''),COALESCE(state,''),COALESCE(description,'') FROM endpoints ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var p topology.Endpoint
-		if err = rows.Scan(&p.ID, &p.EquipmentID, &p.Label, &p.SubpanelID, &p.Position, &p.Side, &p.PortType, &p.Connector, &p.Speed, &p.State, &p.Description); err != nil {
+		if err = rows.Scan(&p.ID, &p.EquipmentID, &p.Label, &p.SubpanelID, &p.Position, &p.Side, &p.PortGroup, &p.PortType, &p.Connector, &p.Speed, &p.State, &p.Description); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -383,7 +383,7 @@ func insertSubpanel(ctx context.Context, tx pgx.Tx, sp topology.Subpanel) error 
 	return err
 }
 func insertEndpoint(ctx context.Context, tx pgx.Tx, p topology.Endpoint) error {
-	_, err := tx.Exec(ctx, `INSERT INTO endpoints(id,equipment_id,equipment_kind,label,position,side,subpanel_id,port_type,connector,speed,state,description) SELECT $1,$2,kind,$3,$4,$5,NULLIF($6,''),NULLIF($7,''),NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,'') FROM equipment WHERE id=$2`, p.ID, p.EquipmentID, p.Label, p.Position, p.Side, p.SubpanelID, p.PortType, p.Connector, p.Speed, p.State, p.Description)
+	_, err := tx.Exec(ctx, `INSERT INTO endpoints(id,equipment_id,equipment_kind,label,position,side,subpanel_id,port_group,port_type,connector,speed,state,description) SELECT $1,$2,kind,$3,$4,$5,NULLIF($6,''),$7,NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,''),NULLIF($12,'') FROM equipment WHERE id=$2`, p.ID, p.EquipmentID, p.Label, p.Position, p.Side, p.SubpanelID, p.PortGroup, p.PortType, p.Connector, p.Speed, p.State, p.Description)
 	return err
 }
 func insertLink(ctx context.Context, tx pgx.Tx, l topology.Link) error {

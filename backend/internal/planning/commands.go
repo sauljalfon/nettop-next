@@ -20,9 +20,35 @@ type EquipmentInput struct {
 	RackID    string `json:"rackId"`
 	Unit      int    `json:"unit"`
 	Height    int    `json:"height"`
-	PortCount int    `json:"portCount"`
+	// PortCount is the ports of a switch (1–96) or the positions of a panel
+	// (1–48). A switch given portGroups leaves it out (or gives their total).
+	PortCount int `json:"portCount"`
+	// PortGroups (switches only, 1–8) name and describe the ports in groups,
+	// such as 24 × Gi1/0/{n} copper and 4 × Te1/1/{n} fiber. Without them a
+	// switch has one group, "Port {n}".
+	PortGroups []PortGroupInput `json:"portGroups,omitempty"`
 	// Details are the optional detail fields of the equipment (never of its ports).
 	Details *topology.Details `json:"details,omitempty"`
+}
+
+// PortGroupInput is one group of a switch's ports: Count ports named by
+// Names (exactly one "{n}") numbered from Start (default 1).
+//
+// Instead of a pattern a group may give its Labels as they are (Duplicate does,
+// because a label is display text and is never parsed back into a pattern).
+type PortGroupInput struct {
+	Count   int               `json:"count,omitempty"`
+	Names   string            `json:"names,omitempty"`
+	Start   *int              `json:"start,omitempty"`
+	Labels  []string          `json:"labels,omitempty"`
+	Details *PortGroupDetails `json:"details,omitempty"`
+}
+
+// PortGroupDetails are the port details every port of a group starts with.
+type PortGroupDetails struct {
+	PortType  string `json:"portType,omitempty"`
+	Connector string `json:"connector,omitempty"`
+	Speed     string `json:"speed,omitempty"`
 }
 
 // HDFInput creates one HDF chassis with its complete grid atomically. Rows and
@@ -176,8 +202,32 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		if len(e.Name) < 1 || len(e.Name) > 100 {
 			return invalid("equipment name must contain 1–100 characters")
 		}
-		if e.PortCount < 1 || e.PortCount > 48 {
-			return invalid("port count must be between 1 and 48")
+		var ports []portSpec // a switch's ports, in position order
+		if len(e.PortGroups) > 0 {
+			if e.Kind != "switch" {
+				return invalid(e.Name + ": port groups are for switches")
+			}
+			var err error
+			if ports, err = portGroupPorts(e.Name, e.PortGroups); err != nil {
+				return Plan{}, Plan{}, err
+			}
+			if e.PortCount != 0 && e.PortCount != len(ports) {
+				return invalid(fmt.Sprintf("%s: portCount %d disagrees with the %d ports of its port groups; give one or the other", e.Name, e.PortCount, len(ports)))
+			}
+			e.PortCount = len(ports)
+		} else {
+			most := 48 // panel positions
+			if e.Kind == "switch" {
+				most = MaxSwitchPorts
+			}
+			if e.PortCount < 1 || e.PortCount > most {
+				return invalid(fmt.Sprintf("port count must be between 1 and %d", most))
+			}
+			if e.Kind == "switch" {
+				for n := 1; n <= e.PortCount; n++ {
+					ports = append(ports, portSpec{label: fmt.Sprintf("Port %d", n), group: 1})
+				}
+			}
 		}
 		if e.Unit < 1 || e.Unit > 100 || e.Height < 1 || e.Height > 100 {
 			return invalid("rack unit and height must be between 1 and 100")
@@ -207,7 +257,9 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		for n := 1; n <= e.PortCount; n++ {
 			portID := fmt.Sprintf("%s:p%d", id, n)
 			if e.Kind == "switch" {
-				next.Endpoints = append(next.Endpoints, topology.Endpoint{ID: portID, EquipmentID: id, Label: fmt.Sprintf("Port %d", n)})
+				spec := ports[n-1]
+				next.Endpoints = append(next.Endpoints, topology.Endpoint{ID: portID, EquipmentID: id, Label: spec.label, Position: n, PortGroup: spec.group,
+					PortType: spec.portType, Connector: spec.connector, Speed: spec.speed})
 				continue
 			}
 			for _, side := range []string{"front", "rear"} {

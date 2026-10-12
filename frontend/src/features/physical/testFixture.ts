@@ -69,3 +69,56 @@ export function withFullHdf(s: Snapshot, hdf: string, rows: number): Snapshot {
     }
   return { ...s, subpanels, endpoints, links }
 }
+
+/**
+ * Adds a switch whose ports come from port groups (step 11b): positions 1…N in
+ * group order, portGroup 1…G, labels `${prefix}${n}`. The IDs are `<id>:p<n>`.
+ */
+export function withGroupedSwitch(
+  s: Snapshot,
+  id: string,
+  rackId: string,
+  unit: number,
+  groups: {
+    count: number
+    prefix: string
+    start?: number
+    portType?: 'copper' | 'fiber'
+    connector?: string
+    speed?: string
+  }[],
+  networkId = s.networks[0].id,
+): Snapshot {
+  const endpoints: Endpoint[] = []
+  for (const [g, group] of groups.entries())
+    for (let i = 0; i < group.count; i++) {
+      const position = endpoints.length + 1
+      endpoints.push({
+        id: `${id}:p${position}`,
+        equipmentId: id,
+        label: `${group.prefix}${(group.start ?? 1) + i}`,
+        position,
+        portGroup: g + 1,
+        ...(group.portType && { portType: group.portType }),
+        ...(group.connector && { connector: group.connector }),
+        ...(group.speed && { speed: group.speed }),
+      })
+    }
+  return {
+    ...s,
+    equipment: [
+      ...s.equipment,
+      {
+        id,
+        name: id,
+        kind: 'switch',
+        role: 'access',
+        networkId,
+        rackId,
+        unit,
+        height: 1,
+      },
+    ],
+    endpoints: [...s.endpoints, ...endpoints],
+  }
+}

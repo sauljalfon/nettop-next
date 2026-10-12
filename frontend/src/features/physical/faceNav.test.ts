@@ -11,7 +11,7 @@ describe('PB-03 arrow keys follow the visual layout', () => {
   describe('a switch: ports 1,3,5… on top and 2,4,6… below', () => {
     const cells = navCells({
       kind: 'switch',
-      rows: switchBank(index, 'EDGE-17').rows,
+      ...switchBank(index, 'EDGE-17'),
     })
     const from = (id: string, key: string) =>
       moveFocus(cells, `EDGE-17:p${id}`, key)
@@ -100,7 +100,7 @@ describe('PB-03 arrow keys follow the visual layout', () => {
   it('an unknown current endpoint moves nowhere, except Home and End', () => {
     const cells = navCells({
       kind: 'switch',
-      rows: switchBank(index, 'EDGE-17').rows,
+      ...switchBank(index, 'EDGE-17'),
     })
     expect(moveFocus(cells, 'nope', 'ArrowRight')).toBeUndefined()
     expect(moveFocus(cells, 'nope', 'Home')).toBe('EDGE-17:p1')

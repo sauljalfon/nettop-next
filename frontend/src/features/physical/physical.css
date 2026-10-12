@@ -1253,3 +1253,32 @@
 .chain-link[data-on-route='true'] small {
   color: #108b79;
 }
+
+/* One bank per port group (step 11b): banks lie side by side with a caption
+   above each, and wrap onto the next row when the face is not wide enough. A
+   switch with one bank keeps the compact plate it always had. */
+.faceplate[data-kind='switch'][data-banks]:not([data-banks='1']) {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+.plate-bank-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end; /* jacks line up even when captions take different lines */
+  gap: 12px 24px;
+}
+.plate-bank-row + .plate-bank-row {
+  margin-top: 12px;
+}
+.bank-caption {
+  margin: 0 0 4px;
+  font-size: 11px;
+  line-height: 14px;
+  color: #8fa0b8;
+  letter-spacing: 0.2px;
+  /* The caption never widens its bank: it wraps inside the jack columns. */
+  width: 0;
+  min-width: 100%;
+  overflow-wrap: anywhere;
+}

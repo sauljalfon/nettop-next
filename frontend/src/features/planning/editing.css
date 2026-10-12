@@ -345,3 +345,65 @@
   overflow-y: auto;
   box-shadow: 0 8px 28px rgba(31, 41, 74, 0.18);
 }
+
+/* Port group rows of a switch's Add form (step 11b). */
+.port-groups {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.port-group {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #e3e8f0;
+  border-radius: 6px;
+}
+.group-line {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+  align-items: flex-end;
+}
+.group-line label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.group-line label:last-child {
+  flex: 1;
+}
+.group-line label:last-child input {
+  width: 100%;
+}
+.group-line input,
+.group-line select {
+  min-width: 0;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid #c9d2e0;
+  border-radius: 6px;
+  background: #fff;
+  color: #26344b;
+}
+.group-line > input,
+.group-line > select {
+  width: 0;
+}
+.group-line input[aria-label='Connector'] {
+  flex: 1.2;
+}
+.group-line input[aria-label='Speed'] {
+  flex: 0.8;
+}
+.group-line select {
+  flex: 1;
+}
+.port-summary {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

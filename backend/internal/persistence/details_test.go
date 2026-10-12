@@ -277,3 +277,74 @@ func TestFD03APortStateNeverChangesATrace(t *testing.T) {
 	}
 	_ = plan
 }
+
+// PG-01 (persistence): a switch with grouped ports round-trips through a plan,
+// Record and the database with positions 1–28 and groups 1–2, and the database
+// keeps the order unique per switch.
+func TestPG01GroupedSwitchRoundTripsThroughRecord(t *testing.T) {
+	ctx := context.Background()
+	s, url := testStore(t)
+	if err := s.Seed(ctx, acceptance.Installed()); err != nil {
+		t.Fatal(err)
+	}
+	base, _ := s.Installed(ctx)
+	plan, _ := s.CreatePlan(ctx, "Groups", base.Revision)
+	plan, err := s.Command(ctx, plan.ID, planning.Command{Type: "add_equipment", ExpectedRevision: plan.Revision, Equipment: &planning.EquipmentInput{
+		Name: "EDGE-30", Kind: "switch", Role: "access", NetworkID: "net-a", RackID: "rack-a03", Unit: 3, Height: 1,
+		PortGroups: []planning.PortGroupInput{
+			{Count: 24, Names: "Gi1/0/{n}", Details: &planning.PortGroupDetails{PortType: "copper", Connector: "RJ45", Speed: "1G"}},
+			{Count: 4, Names: "Te1/1/{n}", Details: &planning.PortGroupDetails{PortType: "fiber", Connector: "SFP+", Speed: "10G"}},
+		}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = s.Record(ctx, plan.ID, plan.Revision, "grouped", "Tester"); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	reopened, err := Open(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	after, err := reopened.Installed(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var id string
+	for _, e := range after.Equipment {
+		if e.Name == "EDGE-30" {
+			id = e.ID
+		}
+	}
+	var ports []topology.Endpoint
+	for _, p := range after.Endpoints {
+		if p.EquipmentID == id {
+			ports = append(ports, p)
+		}
+	}
+	if len(ports) != 28 {
+		t.Fatalf("%d ports", len(ports))
+	}
+	byPosition := map[int]topology.Endpoint{}
+	for _, p := range ports {
+		byPosition[p.Position] = p
+	}
+	first, last, up := byPosition[1], byPosition[24], byPosition[25]
+	if first.Label != "Gi1/0/1" || first.PortGroup != 1 || first.PortType != "copper" || first.Connector != "RJ45" || first.Speed != "1G" ||
+		last.Label != "Gi1/0/24" || up.Label != "Te1/1/1" || up.PortGroup != 2 || up.PortType != "fiber" || byPosition[28].Label != "Te1/1/4" {
+		t.Fatalf("ports after record: %+v %+v %+v", first, last, up)
+	}
+	// The database keeps the order unique per switch, and ports before groups stay at 0.
+	if _, err := reopened.pool.Exec(ctx, `UPDATE endpoints SET position=1 WHERE id=$1`, id+":p2"); err == nil {
+		t.Error("the database accepted two ports at one position")
+	}
+	if _, err := reopened.pool.Exec(ctx, `UPDATE endpoints SET port_group=3, position=0 WHERE id=$1`, "edge-17:p1"); err == nil {
+		t.Error("the database accepted a group without a position")
+	}
+	for _, p := range after.Endpoints {
+		if p.EquipmentID == "edge-17" && (p.Position != 0 || p.PortGroup != 0) {
+			t.Fatalf("a port saved before groups changed: %+v", p)
+		}
+	}
+}

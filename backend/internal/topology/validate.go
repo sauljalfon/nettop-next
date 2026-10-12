@@ -138,6 +138,7 @@ func Validate(s Snapshot) error {
 	}
 	endpoints := map[string]Endpoint{}
 	positions := map[string]bool{}
+	switchPositions := map[string]bool{}
 	perSubpanel := map[string]int{}
 	for _, p := range s.Endpoints {
 		if _, ok := endpoints[p.ID]; ok || p.ID == "" {
@@ -162,8 +163,15 @@ func Validate(s Snapshot) error {
 			}
 			perSubpanel[p.SubpanelID]++
 		default:
-			if p.Side != "" || p.Position != 0 || p.SubpanelID != "" {
+			if p.Side != "" || p.SubpanelID != "" || p.Position < 0 || p.PortGroup < 0 || (p.Position == 0 && p.PortGroup != 0) {
 				return fmt.Errorf("device endpoint has panel metadata")
+			}
+			if p.Position > 0 {
+				key := fmt.Sprintf("%s#%d", e.ID, p.Position)
+				if switchPositions[key] {
+					return fmt.Errorf("%s has two ports at position %d", e.Name, p.Position)
+				}
+				switchPositions[key] = true
 			}
 		}
 		if e.Kind != "switch" {

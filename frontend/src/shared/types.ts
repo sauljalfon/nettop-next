@@ -121,8 +121,26 @@ export interface EquipmentInput {
   rackId: string
   unit: number
   height: number
-  portCount: number
+  /** Switch ports (1–96) or panel positions (1–48). A switch given portGroups leaves it out. */
+  portCount?: number
+  /**
+   * Switches only, 1–8 groups: the ports are named and described in groups. Ports
+   * get position 1…N in group order and portGroup 1…G. Without them a switch
+   * has one group, "Port {n}".
+   */
+  portGroups?: PortGroupInput[]
   details?: EquipmentDetails
+}
+
+/** Count ports named by `names` (exactly one "{n}"), numbered from `start` (default 1). */
+export interface PortGroupInput {
+  /** With names (a pattern with one "{n}"). */
+  count?: number
+  names?: string
+  start?: number
+  /** Or the labels as they are, instead of count and names (Duplicate copies a group this way). */
+  labels?: string[]
+  details?: Pick<PortDetails, 'portType' | 'connector' | 'speed'>
 }
 
 export interface HDFInput {
@@ -273,8 +291,16 @@ export interface Endpoint extends PortDetails {
   equipmentId: string
   label: string
   subpanelId?: string
+  /**
+   * Panels and HDFs: the position on a side. Switches: the order of the port
+   * (1…N in port group order); absent on ports saved before groups, which are
+   * ordered by the number in their label. Only `side` tells a panel position
+   * from a switch port.
+   */
   position?: number
   side?: 'front' | 'rear'
+  /** Switches: the 1-based port group; absent on ports saved before groups. */
+  portGroup?: number
 }
 export interface Link extends CableDetails {
   id: string

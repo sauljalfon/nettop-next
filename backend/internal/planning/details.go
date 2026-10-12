@@ -28,7 +28,7 @@ func setDetails(d *topology.Details, who string, set func(topology.DetailField) 
 	}
 	for _, f := range d.Fields() {
 		if !set(f) {
-			return invalidf("%s does not apply to %s", f.Name, who)
+			return invalidf("%s does not apply to %s", topology.DetailWord(f.Name), who)
 		}
 	}
 	return nil
@@ -98,7 +98,7 @@ func updateDetails(next *Plan, current topology.Snapshot, target TargetInput, d 
 	apply := func(who string, set func(topology.DetailField) bool) error {
 		for _, f := range d.Fields() {
 			if !set(f) {
-				return invalidf("%s does not apply to %s", f.Name, who)
+				return invalidf("%s does not apply to %s", topology.DetailWord(f.Name), who)
 			}
 		}
 		return nil
@@ -187,7 +187,7 @@ func detailsStep(plan Plan, u DetailUpdate) step {
 		doSet := func(who string, set func(topology.DetailField) bool) error {
 			for _, f := range fields {
 				if !set(f) {
-					return invalidf("%s does not apply to %s", f.Name, who)
+					return invalidf("%s does not apply to %s", topology.DetailWord(f.Name), who)
 				}
 			}
 			return nil

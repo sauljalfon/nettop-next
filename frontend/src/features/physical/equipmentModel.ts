@@ -1,3 +1,4 @@
+import { hasSide } from '../../shared/ports'
 import type { Equipment, Network } from '../../shared/types'
 import { facetLabel } from '../map/facets'
 import type { SnapshotIndex } from '../map/snapshotIndex'
@@ -8,6 +9,7 @@ import {
   hdfFace,
   panelFace,
   switchBank,
+  type SwitchBankGroup,
   type FaceEndpoint,
   type FaceOptions,
   type HdfBlock,
@@ -184,7 +186,12 @@ export function detailModel(
 }
 
 export type Face =
-  | { kind: 'switch'; rows: FaceEndpoint[][] }
+  | {
+      kind: 'switch'
+      rows: FaceEndpoint[][]
+      /** One bank per port group (a switch without groups is one bank). */
+      banks: SwitchBankGroup[]
+    }
   | { kind: 'panel'; face: PanelFace }
   | { kind: 'hdf'; face: HdfFace }
 
@@ -196,7 +203,7 @@ export function faceFor(
   options: FaceOptions,
 ): Face {
   if (e.kind === 'switch')
-    return { kind: 'switch', rows: switchBank(index, e.id, options).rows }
+    return { kind: 'switch', ...switchBank(index, e.id, options) }
   if (e.kind === 'panel')
     return {
       kind: 'panel',
@@ -312,7 +319,7 @@ export function connectionChain(
   const place = (id: string) => {
     const q = index.lookup.endpoints.get(id)!
     const label = facetLabel(index.lookup, q)
-    return q.position === undefined ? label : `${label} ${q.side ?? ''}`.trim()
+    return !hasSide(q) ? label : `${label} ${q.side ?? ''}`.trim()
   }
   const farBox = (
     role: 'far' | 'otherFar',

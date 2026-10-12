@@ -1,3 +1,4 @@
+import { hasSide } from '../../shared/ports'
 import type { Endpoint, Route, Snapshot, Subpanel } from '../../shared/types'
 
 /** One switch port, or one panel/HDF position with its front and rear sides. */
@@ -52,14 +53,14 @@ export function endpointLookup(s: Snapshot): EndpointLookup {
 
 /** Stable key of a facet within its equipment: a port's endpoint ID, or "3C/5" / "1". */
 export function facetKey(lookup: EndpointLookup, p: Endpoint) {
-  if (p.position === undefined) return p.id
+  if (!hasSide(p) || p.position === undefined) return p.id
   const sub = lookup.subpanels.get(p.subpanelId ?? '')
   return sub ? `${sub.row}${sub.column}/${p.position}` : String(p.position)
 }
 
 /** "3C / 5" for HDF positions, the position for panels, the port label for switches. */
 export function facetLabel(lookup: EndpointLookup, p: Endpoint) {
-  if (p.position === undefined) return p.label
+  if (!hasSide(p) || p.position === undefined) return p.label
   const sub = lookup.subpanels.get(p.subpanelId ?? '')
   return sub ? `${sub.row}${sub.column} / ${p.position}` : String(p.position)
 }

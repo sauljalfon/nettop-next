@@ -1,4 +1,5 @@
-import type { Snapshot } from '../../shared/types'
+import { comparePorts } from '../../shared/ports'
+import type { Endpoint, Snapshot } from '../../shared/types'
 
 /** One thing the trace picker can offer: a whole switch, or one exact endpoint. */
 export interface PickerItem {
@@ -33,7 +34,20 @@ export function pickerItems(
           label: `${e.name} · all ports`,
           search: `${e.name} all ports`,
         })
+  // Each equipment's ports in the order they were made (the snapshot lists them
+  // by ID); other equipment keeps the snapshot's order.
+  const byEquipment = new Map<string, Endpoint[]>()
   for (const p of s.endpoints) {
+    const own = byEquipment.get(p.equipmentId)
+    if (own) own.push(p)
+    else byEquipment.set(p.equipmentId, [p])
+  }
+  const ordered = [...byEquipment.values()].flatMap((own) =>
+    own.some((p) => (p.position ?? 0) > 0 && !p.side)
+      ? [...own].sort(comparePorts)
+      : own,
+  )
+  for (const p of ordered) {
     const name = names.get(p.equipmentId) ?? p.equipmentId
     items.push({
       value: p.id,

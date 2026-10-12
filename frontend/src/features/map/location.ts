@@ -1,3 +1,4 @@
+import { hasSide } from '../../shared/ports'
 import type { Snapshot } from '../../shared/types'
 
 /** "Site / Node / Rack" of an equipment; empty when it has no known location. */
@@ -32,7 +33,9 @@ export function cabledSummaries(
   const units = new Map<string, Map<string, boolean>>()
   for (const p of s.endpoints) {
     const unit =
-      p.position === undefined ? p.id : `${p.subpanelId ?? ''}/${p.position}`
+      !hasSide(p) || p.position === undefined
+        ? p.id
+        : `${p.subpanelId ?? ''}/${p.position}`
     let own = units.get(p.equipmentId)
     if (!own) units.set(p.equipmentId, (own = new Map()))
     own.set(unit, (own.get(unit) ?? false) || cabled.has(p.id))

@@ -1,3 +1,4 @@
+import { layoutPlate } from './faces'
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { Equipment, Network } from '../../shared/types'
 import { colorOf } from '../map/networkColors'
@@ -193,20 +194,47 @@ export default function FaceView({
 
       <div ref={container} onKeyDown={onKeyDown}>
         {face.kind === 'switch' && (
-          <div className="faceplate" data-kind="switch">
-            <div className="plate-ports">
-              {face.rows
-                .flat()
-                .map((cell, n) =>
-                  button(
-                    cell,
-                    String(n + 1),
-                    'jack',
-                    { 'data-row': n % 2, 'data-position': n + 1 },
-                    n + 1,
-                  ),
-                )}
-            </div>
+          <div
+            className="faceplate"
+            data-kind="switch"
+            data-banks={face.banks.length}
+          >
+            {layoutPlate(face.banks).map((row, r) => (
+              <div key={r} className="plate-bank-row" data-testid="bank-row">
+                {row.map((unit, u) => (
+                  <div
+                    key={`${unit.group}-${u}`}
+                    className="plate-bank"
+                    data-testid="port-bank"
+                    data-group={unit.group}
+                  >
+                    {unit.caption ? (
+                      <p className="bank-caption" data-testid="bank-caption">
+                        {unit.caption}
+                      </p>
+                    ) : (
+                      face.banks.length > 1 && (
+                        <p className="bank-caption" aria-hidden="true">
+                          &nbsp;
+                        </p>
+                      )
+                    )}
+                    <div className="plate-ports">
+                      {unit.cells.map((cell, n) =>
+                        button(
+                          cell,
+                          String(n + 1),
+                          'jack',
+                          { 'data-row': n % 2, 'data-position': n + 1 },
+                          // A grouped port is named by its label, an old one by its number.
+                          unit.group > 0 ? undefined : n + 1,
+                        ),
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         )}
 

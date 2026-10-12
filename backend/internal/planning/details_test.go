@@ -102,9 +102,9 @@ func TestFD02CommandsRefuseBadDetailsInNames(t *testing.T) {
 		want string
 	}{
 		"status not in the set":   {v2Plan(), switchWith("SW-B", 8, &topology.Details{Status: str("broken")}), `SW-B: status must be active, inactive or maintenance, not "broken"`},
-		"ip address":              {v2Plan(), switchWith("SW-B", 8, &topology.Details{IPAddress: str("10.0.0")}), `SW-B: ipAddress "10.0.0" is not an IPv4 or IPv6 address`},
+		"ip address":              {v2Plan(), switchWith("SW-B", 8, &topology.Details{IPAddress: str("10.0.0")}), `SW-B: IP address "10.0.0" is not an IPv4 or IPv6 address`},
 		"too long":                {v2Plan(), switchWith("SW-B", 8, &topology.Details{Model: str(strings.Repeat("m", 201))}), "SW-B: model is longer than 200 characters"},
-		"a field of another kind": {v2Plan(), switchWith("SW-B", 8, &topology.Details{RackType: str("standard")}), "rackType does not apply to equipment SW-B"},
+		"a field of another kind": {v2Plan(), switchWith("SW-B", 8, &topology.Details{RackType: str("standard")}), "rack type does not apply to equipment SW-B"},
 		"duplicate serial":        {withSerial, withRev(switchWith("SW-B", 9, &topology.Details{SerialNumber: str("sn-0042")}), "2"), "sn-0042 is already the serial number of SW-A"},
 	}
 	for name, c := range cases {
@@ -157,7 +157,7 @@ func TestUpdateDetailsRefusals(t *testing.T) {
 		"installed equipment":   {"agg-03", topology.Details{Model: str("x")}, "Installed details are changed with a direct fix (M5b step 12), not in a plan"},
 		"installed port":        {"agg-03:p1", topology.Details{State: str("faulty")}, "Installed details are changed with a direct fix (M5b step 12), not in a plan"},
 		"unknown object":        {"nope", topology.Details{Model: str("x")}, "cannot update details of unknown object nope"},
-		"field of another kind": {"equipment-sw", topology.Details{PortType: str("fiber")}, "portType does not apply to equipment SW-NEW"},
+		"field of another kind": {"equipment-sw", topology.Details{PortType: str("fiber")}, "port type does not apply to equipment SW-NEW"},
 		"invalid value":         {"equipment-sw:p2", topology.Details{State: str("broken")}, `SW-NEW · Port 2: state must be available, reserved, disabled or faulty, not "broken"`},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -263,7 +263,7 @@ func TestUpdateDetailsInABatch(t *testing.T) {
 		updateDetails("", "equipment-sw:p2", topology.Details{PortType: str("coax")}),
 	}}
 	_, err = planning.ExecuteBatch(base, start, bad, []string{"", ""})
-	want := `invalid plan command: command 2 (update_details): SW-NEW · Port 2: portType must be copper or fiber, not "coax"`
+	want := `invalid plan command: command 2 (update_details): SW-NEW · Port 2: port type must be copper or fiber, not "coax"`
 	if err == nil || err.Error() != want {
 		t.Fatalf("got %v\nwant %s", err, want)
 	}

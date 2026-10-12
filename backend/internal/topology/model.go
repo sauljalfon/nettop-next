@@ -58,6 +58,11 @@ type Endpoint struct {
 	SubpanelID  string `json:"subpanelId,omitempty"`
 	Position    int    `json:"position,omitempty"`
 	Side        string `json:"side,omitempty"`
+	// PortGroup is the 1-based group of a switch port made by add_equipment's
+	// portGroups (0 for ports saved before groups, and for panels and HDFs).
+	// Position orders a switch's ports (1…N in group order); 0 means saved
+	// before positions, and such ports are ordered as before.
+	PortGroup int `json:"portGroup,omitempty"`
 
 	PortType    string `json:"portType,omitempty"`
 	Connector   string `json:"connector,omitempty"`

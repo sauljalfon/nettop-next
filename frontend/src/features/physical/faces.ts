@@ -1,3 +1,4 @@
+import { comparePorts, hasSide } from '../../shared/ports'
 import type { Endpoint } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import type { RouteMarks } from './inventory'
@@ -63,25 +64,132 @@ function cell(
   }
 }
 
-const numeric = (a: string, b: string) =>
-  a.localeCompare(b, undefined, { numeric: true })
-
 const PORTS_PER_ROW = 12
 
-/** A switch's ports in numeric label order, in rows of 12. */
+/** One port group of a switch, drawn as its own bank of jacks (odd above even). */
+export interface SwitchBankGroup {
+  /** The 1-based port group; 0 for the one bank of ports saved before groups. */
+  group: number
+  /** "Gi1/0/1–Gi1/0/24 · copper · 1G": the first and last name as they are, then the type and speed; "" for a switch saved before groups. */
+  caption: string
+  cells: FaceEndpoint[]
+}
+
+/**
+ * A switch's ports in the order they were made (by position, or by the number
+ * in the label for ports saved before groups), in rows of 12, and as banks:
+ * one per port group, each with a caption. A switch without groups is one bank
+ * with no caption.
+ */
 export function switchBank(
   index: SnapshotIndex,
   equipmentId: string,
   options: FaceOptions = {},
-): { rows: FaceEndpoint[][] } {
+): { rows: FaceEndpoint[][]; banks: SwitchBankGroup[] } {
   const ports = (index.lookup.byEquipment.get(equipmentId) ?? [])
-    .filter((p) => p.position === undefined)
-    .sort((a, b) => numeric(a.label, b.label))
-    .map((p) => cell(index, p, p.label, options))
+    .filter((p) => !hasSide(p))
+    .sort(comparePorts)
+  const cells = ports.map((p) => cell(index, p, p.label, options))
   const rows: FaceEndpoint[][] = []
-  for (let i = 0; i < ports.length; i += PORTS_PER_ROW)
-    rows.push(ports.slice(i, i + PORTS_PER_ROW))
-  return { rows }
+  for (let i = 0; i < cells.length; i += PORTS_PER_ROW)
+    rows.push(cells.slice(i, i + PORTS_PER_ROW))
+  const banks: SwitchBankGroup[] = []
+  ports.forEach((p, i) => {
+    const group = p.portGroup ?? 0
+    let bank = banks.at(-1)
+    if (!bank || bank.group !== group) {
+      bank = { group, caption: '', cells: [] }
+      banks.push(bank)
+    }
+    bank.cells.push(cells[i])
+    bank.caption = group > 0 ? caption(ports, bank, i, p) : ''
+  })
+  return { rows, banks }
+}
+
+/** Jack columns a face row holds (the face card's width) and the gap between banks, in columns. */
+export const FACE_COLUMNS = 15
+const BANK_GAP = 1
+/** A bank of more than this many ports is laid out as blocks of this many (12 columns, odd above even). */
+const BLOCK_PORTS = 24
+
+/** One block of jacks on the faceplate: a bank, or one 24-port block of a long bank. */
+export interface PlateUnit {
+  group: number
+  /** The bank's caption, on its first block only. */
+  caption: string
+  cells: FaceEndpoint[]
+}
+
+/** Jack columns of a block: two jacks (odd above even) per column. */
+export const unitColumns = (u: Pick<PlateUnit, 'cells'>) =>
+  Math.ceil(u.cells.length / 2)
+
+/**
+ * Where the banks lie on the faceplate: side by side from left to right (access
+ * ports first, uplinks to their right) with a gap between them; what does not
+ * fit the face width wraps to the next row. A bank of more than 24 ports is cut
+ * into blocks of 24 (12 columns) so it can wrap too. A switch with one bank
+ * (one group, or saved before groups) is one strip, as it always was.
+ */
+export function layoutPlate(banks: readonly SwitchBankGroup[]): PlateUnit[][] {
+  if (banks.length === 1)
+    return [
+      [
+        {
+          group: banks[0].group,
+          caption: banks[0].caption,
+          cells: banks[0].cells,
+        },
+      ],
+    ]
+  const units: PlateUnit[] = banks.flatMap((bank) =>
+    Array.from(
+      { length: Math.ceil(bank.cells.length / BLOCK_PORTS) },
+      (_, i) => ({
+        group: bank.group,
+        caption: i === 0 ? bank.caption : '',
+        cells: bank.cells.slice(i * BLOCK_PORTS, (i + 1) * BLOCK_PORTS),
+      }),
+    ),
+  )
+  const rows: PlateUnit[][] = []
+  let used = 0
+  for (const unit of units) {
+    const width = unitColumns(unit)
+    const row = rows.at(-1)
+    if (row && used + BANK_GAP + width <= FACE_COLUMNS) {
+      row.push(unit)
+      used += BANK_GAP + width
+    } else {
+      rows.push([unit])
+      used = width
+    }
+  }
+  return rows
+}
+
+/** The column each unit of a plate row starts at, in jack columns. */
+export function unitOffsets(row: readonly PlateUnit[]): number[] {
+  let at = 0
+  return row.map((u) => {
+    const start = at
+    at += unitColumns(u) + BANK_GAP
+    return start
+  })
+}
+
+/** The caption of a grouped bank as it stands once port `i` is its last one. */
+function caption(
+  ports: readonly Endpoint[],
+  bank: SwitchBankGroup,
+  i: number,
+  last: Endpoint,
+) {
+  const first = ports[i - bank.cells.length + 1]
+  const range =
+    bank.cells.length === 1 ? first.label : `${first.label}–${last.label}`
+  return [range, first.portType, first.speed].filter(Boolean).join(' · ')
 }
 
 export interface PanelFace {
@@ -100,7 +208,7 @@ export function panelFace(
   const bySide = new Map<number, Endpoint>()
   let count = 0
   for (const p of index.lookup.byEquipment.get(equipmentId) ?? []) {
-    if (p.position === undefined) continue
+    if (!hasSide(p) || p.position === undefined) continue
     count = Math.max(count, p.position)
     if (p.side === side) bySide.set(p.position, p)
   }

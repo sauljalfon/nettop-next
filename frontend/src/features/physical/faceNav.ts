@@ -1,4 +1,5 @@
 import type { Face } from './equipmentModel'
+import { layoutPlate, unitOffsets } from './faces'
 
 export interface NavCell {
   id: string
@@ -7,20 +8,31 @@ export interface NavCell {
 }
 
 /**
- * Every endpoint of a face with its place in the visual layout: a switch's two
- * rows (ports 1,3,5… above 2,4,6…), a panel's rows of 12, and an HDF as one grid
+ * Every endpoint of a face with its place in the visual layout: a switch's banks, left
+ * to right and then on the next row, each two rows (ports 1,3,5… above 2,4,6…), a panel's rows of 12, and an HDF as one grid
  * three positions wide per block and two high, so arrows cross blocks. Cells
  * with no endpoint are left out.
  */
 export function navCells(face: Face): NavCell[] {
   if (face.kind === 'switch')
-    return face.rows
-      .flat()
-      .flatMap((cell, n) =>
-        cell.endpointId
-          ? [{ id: cell.endpointId, row: n % 2, col: Math.floor(n / 2) }]
-          : [],
+    // Banks lie left to right with a gap, then wrap to the next row; every row
+    // of banks is two rows of jacks (odd above even).
+    return layoutPlate(face.banks).flatMap((row, r) => {
+      const offsets = unitOffsets(row)
+      return row.flatMap((unit, u) =>
+        unit.cells.flatMap((cell, n) =>
+          cell.endpointId
+            ? [
+                {
+                  id: cell.endpointId,
+                  row: r * 2 + (n % 2),
+                  col: offsets[u] + Math.floor(n / 2),
+                },
+              ]
+            : [],
+        ),
       )
+    })
   if (face.kind === 'panel')
     return face.face.positions.flatMap((cell) =>
       cell.endpointId

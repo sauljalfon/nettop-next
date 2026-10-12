@@ -24,7 +24,7 @@ func TestFD02DetailsContractOverHTTP(t *testing.T) {
 	}{
 		{"unknown detail field", strings.Replace(add, "%s", `{"colour":"red"}`, 1), 400, "Invalid request JSON"},
 		{"unknown field in update_details", `{"type":"update_details","expectedRevision":"1","target":{"id":"edge-17"},"details":{"colour":"red"}}`, 400, "Invalid request JSON"},
-		{"field of another kind", strings.Replace(add, "%s", `{"rackType":"standard"}`, 1), 422, "rackType does not apply to equipment EDGE-30"},
+		{"field of another kind", strings.Replace(add, "%s", `{"rackType":"standard"}`, 1), 422, "rack type does not apply to equipment EDGE-30"},
 		{"invalid value", strings.Replace(add, "%s", `{"status":"broken"}`, 1), 422, "EDGE-30: status must be active, inactive or maintenance, not"},
 		{"installed object", `{"type":"update_details","expectedRevision":"1","target":{"id":"agg-03"},"details":{"model":"x"}}`, 422, "Installed details are changed with a direct fix (M5b step 12), not in a plan"},
 		{"details on another command", `{"type":"add_site","expectedRevision":"1","site":{"name":"X"},"details":{"location":"x"}}`, 422, "add_site takes its details inside its payload"},
