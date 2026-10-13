@@ -12,6 +12,7 @@ import {
   changedFix,
   editMode,
   equipmentFields,
+  planEditCommand,
   equipmentValues,
   fixLine,
   hasChanges,
@@ -42,9 +43,9 @@ describe('FD-model where details are edited', () => {
     expect(editMode('planned', true, false)).toBe('none') // stale or recorded
   })
 
-  it('a plan cannot rename (update_details has no name)', () => {
+  it('a plan renames equipment it adds (rename_equipment), so its form has the name', () => {
     expect(equipmentFields('fix').map((f) => f.key)).toContain('name')
-    expect(equipmentFields('plan').map((f) => f.key)).not.toContain('name')
+    expect(equipmentFields('plan').map((f) => f.key)).toContain('name')
   })
 
   it('only a switch port with a position can be renamed, and only by a fix', () => {
@@ -181,6 +182,60 @@ describe('FD-model history lines', () => {
       name: 'Expansion',
       note: 'EDGE-18 installed',
       by: 'Saul',
+    })
+  })
+})
+
+describe('P2-3 what a save in a plan sends', () => {
+  const fields = equipmentFields('plan')
+  const before = { name: 'REN-1', model: '' }
+  const send = (after: Record<string, string>) =>
+    planEditCommand('eq-1', changedFix(fields, before, after))
+  const rename = {
+    type: 'rename_equipment',
+    target: { id: 'eq-1' },
+    name: 'Lab switch',
+  } as const
+  const update = {
+    type: 'update_details',
+    target: { id: 'eq-1' },
+    details: { model: 'C9300' },
+  } as const
+
+  it('sends rename_equipment for a name alone', () => {
+    expect(send({ name: ' Lab switch ', model: '' })).toEqual(rename)
+  })
+
+  it('sends update_details for details alone, never with a name', () => {
+    expect(send({ name: 'REN-1', model: 'C9300' })).toEqual(update)
+  })
+
+  it('sends one batch, the rename first, when both changed', () => {
+    expect(send({ name: 'Lab switch', model: 'C9300' })).toEqual({
+      type: 'batch',
+      batch: {
+        commands: [
+          {
+            type: 'rename_equipment',
+            target: rename.target,
+            name: rename.name,
+          },
+          {
+            type: 'update_details',
+            target: update.target,
+            details: update.details,
+          },
+        ],
+      },
+    })
+  })
+
+  it('sends nothing when nothing changed, and passes a cleared name on for the server to refuse', () => {
+    expect(send({ name: 'REN-1', model: '' })).toBeUndefined()
+    expect(send({ name: '  ', model: '' })).toEqual({
+      type: 'rename_equipment',
+      target: { id: 'eq-1' },
+      name: '',
     })
   })
 })

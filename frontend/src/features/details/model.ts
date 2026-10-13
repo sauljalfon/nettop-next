@@ -1,4 +1,5 @@
 import type {
+  BatchCommand,
   ChangeLogEntry,
   Details,
   DirectFix,
@@ -6,6 +7,7 @@ import type {
   Equipment,
   Plan,
 } from '../../shared/types'
+import type { EditCommand } from '../planning/editing'
 
 export type FieldKey =
   | 'name'
@@ -116,11 +118,15 @@ export function editMode(
   return proposed && canEdit ? 'plan' : 'none'
 }
 
-/** update_details carries no name, so a plan edits everything but the name. */
+/**
+ * Equipment has its name in both modes: a fix renames installed equipment, and
+ * rename_equipment renames what a plan adds. The mode stays a parameter so the
+ * callers say which one they edit.
+ */
 export const equipmentFields = (mode: EditMode): readonly FieldSpec[] =>
-  mode === 'fix'
-    ? EQUIPMENT_FIELDS
-    : EQUIPMENT_FIELDS.filter((f) => f.key !== 'name')
+  mode === 'none'
+    ? EQUIPMENT_FIELDS.filter((f) => f.key !== 'name')
+    : EQUIPMENT_FIELDS
 
 export const canRenamePort = (
   equipment: Pick<Equipment, 'kind'>,
@@ -183,6 +189,30 @@ export function changedFix(
   if (Object.keys(details).length) fix.details = details as Details
   if (note.trim()) fix.note = note.trim()
   return fix
+}
+
+/**
+ * What Save in plan sends for equipment the plan adds: rename_equipment for a
+ * changed name, update_details for changed details, both as one batch (rename
+ * first), and nothing when neither changed. A cleared name is sent as it is;
+ * the server refuses it in its own words.
+ */
+export function planEditCommand(
+  equipmentId: string,
+  fix: DirectFix,
+): EditCommand | undefined {
+  const target = { id: equipmentId }
+  const rename: BatchCommand | undefined =
+    fix.name !== undefined
+      ? { type: 'rename_equipment', target, name: fix.name }
+      : undefined
+  const update: BatchCommand | undefined =
+    fix.details !== undefined
+      ? { type: 'update_details', target, details: fix.details }
+      : undefined
+  if (rename && update)
+    return { type: 'batch', batch: { commands: [rename, update] } }
+  return rename ?? update
 }
 
 /** A note alone changes nothing. */

@@ -5,6 +5,7 @@ import {
   getPlan,
   installedRevision,
   newPlan,
+  record,
   unique,
 } from './plan-api'
 
@@ -71,7 +72,7 @@ test('FD-04 a refused fix keeps the form open with the reason; Escape closes it 
   await expect(button).toBeFocused()
 })
 
-test('FD-04 in a plan: a proposed switch is edited with update_details; installed equipment only shows a hint', async ({
+test('FD-04 in a plan: a proposed switch is edited with update_details (and its Name with rename_equipment); installed equipment only shows a hint', async ({
   page,
   request,
 }) => {
@@ -81,7 +82,7 @@ test('FD-04 in a plan: a proposed switch is edited with update_details; installe
   await fitted(page)
   await inspect(page, sw, 'EDGE-40')
   await details(page).getByRole('button', { name: 'Edit details' }).click()
-  await expect(form(page).getByLabel('Name')).toHaveCount(0)
+  await expect(form(page).getByLabel('Name')).toHaveValue('EDGE-40')
   await form(page).getByLabel('Model').fill('C9300-48P')
   await form(page).getByRole('button', { name: 'Save in plan' }).click()
   await expect(form(page)).toHaveCount(0)
@@ -97,6 +98,85 @@ test('FD-04 in a plan: a proposed switch is edited with update_details; installe
   await expect(details(page)).toContainText(
     'Details of installed equipment are fixed on Installed',
   )
+})
+
+test('P2-3 rename equipment the plan adds: the name saves in the plan, shows on the page, undoes from Changes, and is recorded', async ({
+  page,
+  request,
+}) => {
+  const id = await newPlan(request, unique('Rename'))
+  const sw = await addSwitch(request, id, 'rack-a03', 'REN-1', 3, 4)
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  const title = () => page.locator('.face-head h2')
+  const changes = page.getByRole('complementary', { name: 'Changes & plans' })
+  const edit = async () => {
+    await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
+    await page.getByTestId(`rf__node-${sw}`).click()
+    await details(page).getByRole('button', { name: 'Edit details' }).click()
+  }
+  const showPage = async () => {
+    const close = page.getByRole('button', {
+      name: 'Close Equipment inspector',
+    })
+    if (await close.count()) await close.click()
+    await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
+    await page.locator(`.rack-block[data-equipment-id="${sw}"]`).click()
+  }
+
+  // Only the name: rename_equipment, no details.
+  await edit()
+  await form(page).getByLabel('Name').fill('Lab switch')
+  await form(page).getByRole('button', { name: 'Save in plan' }).click()
+  await expect(form(page)).toHaveCount(0)
+  let plan = await getPlan(request, id)
+  expect(plan.renames).toEqual([{ id: sw, name: 'Lab switch' }])
+  expect(plan.details ?? []).toHaveLength(0)
+  await showPage()
+  await expect(title()).toContainText('Lab switch')
+
+  // The Changes drawer has the line, and Undo brings the name back.
+  await page.getByRole('button', { name: /^Changes/ }).click()
+  await expect(changes).toContainText('Rename REN-1 → Lab switch')
+  await expect(changes).toContainText('REN-1 · access switch')
+  await changes
+    .getByRole('button', { name: 'Undo: Rename REN-1 → Lab switch' })
+    .click()
+  await expect(changes).not.toContainText('Rename REN-1')
+  await expect(title()).toContainText('REN-1')
+  expect((await getPlan(request, id)).renames ?? []).toHaveLength(0)
+
+  // The name and a detail in one save.
+  await edit()
+  await form(page).getByLabel('Name').fill('Lab switch')
+  await form(page).getByLabel('Model').fill('C9300')
+  await page.screenshot({ path: 'test-results/p2-3-rename.png' })
+  await form(page).getByRole('button', { name: 'Save in plan' }).click()
+  await expect(form(page)).toHaveCount(0)
+  plan = await getPlan(request, id)
+  expect(plan.renames).toEqual([{ id: sw, name: 'Lab switch' }])
+  expect(JSON.stringify(plan.details)).toContain('C9300')
+  const revision = plan.revision
+
+  // A taken name is refused in the server's words and changes nothing.
+  await details(page).getByRole('button', { name: 'Edit details' }).click()
+  await form(page).getByLabel('Name').fill('EDGE-17')
+  await form(page).getByRole('button', { name: 'Save in plan' }).click()
+  await expect(form(page).getByTestId('edit-error')).toContainText(
+    'equipment name already exists in this topology',
+  )
+  await expect(form(page)).toBeVisible()
+  expect((await getPlan(request, id)).revision).toBe(revision)
+  await page.keyboard.press('Escape')
+
+  // Recording writes the new name to Installed.
+  await record(request, id)
+  const installed = await (
+    await request.get('/api/topology?context=installed')
+  ).json()
+  const names = installed.equipment.map((e: { name: string }) => e.name)
+  expect(names).toContain('Lab switch')
+  expect(names).not.toContain('REN-1')
 })
 
 test('FD-05 a faulty port: Edit port details in Physical, the jack is hatched, and the detail says faulty', async ({

@@ -105,6 +105,12 @@ export interface DetailUpdate {
   details: Details
 }
 
+/** The proposed name of one piece of equipment the plan adds (rename_equipment). */
+export interface Rename {
+  id: string
+  name: string
+}
+
 export interface Plan {
   id: string
   name: string
@@ -137,6 +143,8 @@ export interface Plan {
   links: Link[]
   /** update_details entries (undo with remove_change key update_details:<id>). */
   details?: DetailUpdate[]
+  /** rename_equipment entries (undo with remove_change key rename_equipment:<id>). */
+  renames?: Rename[]
 }
 
 export interface EquipmentInput {
@@ -234,6 +242,17 @@ export type PlanCommand =
       expectedRevision: string
       target: { id: string }
       details: Details
+    }
+  /**
+   * Renames equipment the plan adds; undone by remove_change with
+   * rename_equipment:<id>. Installed equipment is refused (422): it is renamed
+   * by a direct fix.
+   */
+  | {
+      type: 'rename_equipment'
+      expectedRevision: string
+      target: { id: string }
+      name: string
     }
   /**
    * Removes one change of a draft by the key Check reports, with the changes
@@ -445,6 +464,7 @@ export type BatchCommand =
       }
     }
   | { type: 'update_details'; target: { id: string }; details: Details }
+  | { type: 'rename_equipment'; target: { id: string }; name: string }
   | {
       type:
         | 'delete_equipment'

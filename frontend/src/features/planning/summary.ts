@@ -115,6 +115,15 @@ export function planSummary(plan: Plan, installed: Snapshot): ChangeLine[] {
       go: { kind: 'equipment', equipmentId: e.id },
     })
   }
+  for (const r of plan.renames ?? []) {
+    const added = plan.equipment.find((e) => e.id === r.id)
+    add({
+      key: `rename_equipment:${r.id}`,
+      group: 'Equipment added',
+      text: `Rename ${added?.name ?? labels[r.id] ?? 'equipment'} → ${r.name}`,
+      go: added ? { kind: 'equipment', equipmentId: r.id } : undefined,
+    })
+  }
   const placements = [
     ...(plan.placements ?? []),
     ...(plan.updates ?? []).map((u) => ({

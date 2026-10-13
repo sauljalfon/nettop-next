@@ -75,3 +75,57 @@ func TestPlanOverlayV2FieldsSurviveReconnectAndApply(t *testing.T) {
 		t.Fatal("removal escaped the draft, or the container addition was lost")
 	}
 }
+
+// A rename lives in the plan's JSON like every other overlay field: it survives
+// a reconnect, and Record writes the equipment to Installed with the new name.
+func TestRenameSurvivesReconnectAndRecordWritesTheNewName(t *testing.T) {
+	s, url := testStore(t)
+	ctx := context.Background()
+	if err := s.Seed(ctx, acceptance.Installed()); err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.CreatePlan(ctx, "Rename", "acceptance-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err = s.Command(ctx, p.ID, planning.Command{Type: "add_equipment", ExpectedRevision: p.Revision, Equipment: &planning.EquipmentInput{
+		Name: "EDGE-40", Kind: "switch", Role: "access", NetworkID: "net-a", RackID: "rack-a03", Unit: 3, Height: 1, PortCount: 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := p.Equipment[0].ID
+	name := "EDGE-41"
+	p, err = s.Command(ctx, p.ID, planning.Command{Type: "rename_equipment", ExpectedRevision: p.Revision, Target: &planning.TargetInput{ID: id}, Name: &name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = Open(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	loaded, err := s.Plan(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(loaded.Renames, []planning.Rename{{ID: id, Name: "EDGE-41"}}) || loaded.Labels[id] != "EDGE-41" {
+		t.Fatalf("rename through PostgreSQL: %+v labels %v", loaded.Renames, loaded.Labels)
+	}
+	if _, _, err := s.Record(ctx, p.ID, loaded.Revision, "renamed", "test"); err != nil {
+		t.Fatal(err)
+	}
+	installed, err := s.Installed(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range installed.Equipment {
+		if e.ID == id {
+			names = append(names, e.Name)
+		}
+	}
+	if !reflect.DeepEqual(names, []string{"EDGE-41"}) {
+		t.Fatalf("installed names for %s: %v", id, names)
+	}
+}

@@ -40,7 +40,7 @@ func IDPrefix(commandType string) string {
 // not remove_change.
 var batchable = map[string]bool{
 	"add_equipment": true, "add_hdf": true, "add_cable": true, "move_equipment": true,
-	"add_site": true, "add_node": true, "add_rack": true, "update_details": true,
+	"add_site": true, "add_node": true, "add_rack": true, "update_details": true, "rename_equipment": true,
 	"delete_equipment": true, "disconnect_cable": true, "delete_rack": true, "delete_node": true, "delete_site": true,
 }
 

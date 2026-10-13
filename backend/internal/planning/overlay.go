@@ -50,6 +50,15 @@ type Plan struct {
 	Links      []topology.Link      `json:"links"`
 	// Details are update_details changes on objects the plan adds.
 	Details []DetailUpdate `json:"details,omitempty"`
+	// Renames are rename_equipment changes on equipment the plan adds: one entry
+	// per equipment, holding its name in the proposed topology.
+	Renames []Rename `json:"renames,omitempty"`
+}
+
+// Rename is the new name of one piece of equipment the plan adds.
+type Rename struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // ErrRecorded is the reason a recorded plan refuses commands, record and rebase.
@@ -240,6 +249,7 @@ func (p Plan) remove(base, current topology.Snapshot, kind RemovalKind, id strin
 				}
 			}
 			dropDetails(&next, dropped, func(string) {})
+			dropRenames(&next, dropped, func(string) {})
 			next.Links = slices.DeleteFunc(next.Links, func(l topology.Link) bool { return own[l.A] || own[l.B] })
 			return next, nil
 		}
@@ -354,6 +364,7 @@ func (p Plan) clone() Plan {
 	p.Endpoints = slices.Clone(p.Endpoints)
 	p.Links = slices.Clone(p.Links)
 	p.Details = slices.Clone(p.Details)
+	p.Renames = slices.Clone(p.Renames)
 	return p
 }
 
@@ -532,6 +543,13 @@ func steps(plan Plan) []step {
 			s.Links = append(s.Links, l)
 			return nil
 		})
+	}
+	final := make(map[string]string, len(plan.Renames))
+	for _, r := range plan.Renames {
+		final[r.ID] = r.Name
+	}
+	for _, r := range plan.Renames {
+		add("rename_equipment:"+r.ID, renameStep(plan, r, final).run)
 	}
 	for _, u := range plan.Details {
 		add("update_details:"+u.ID, detailsStep(plan, u).run)

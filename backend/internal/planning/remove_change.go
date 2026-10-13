@@ -65,6 +65,7 @@ func RemoveChange(p Plan, key string) (Plan, []string, error) {
 		})
 		dropPlacement(&next, id, drop)
 		dropDetails(&next, dropped, drop)
+		dropRenames(&next, dropped, drop)
 	}
 	var dropRack func(id string)
 	dropRack = func(id string) {
@@ -137,6 +138,11 @@ func RemoveChange(p Plan, key string) (Plan, []string, error) {
 			return unknown()
 		}
 		dropDetails(&next, map[string]bool{id: true}, drop)
+	case "rename_equipment":
+		if !slices.ContainsFunc(next.Renames, func(r Rename) bool { return r.ID == id }) {
+			return unknown()
+		}
+		dropRenames(&next, map[string]bool{id: true}, drop)
 	case "remove_equipment", "remove_cable", "remove_rack", "remove_node", "remove_site":
 		list := map[string]*[]string{"remove_equipment": &next.Removals.Equipment, "remove_cable": &next.Removals.Links, "remove_rack": &next.Removals.Racks, "remove_node": &next.Removals.Nodes, "remove_site": &next.Removals.Sites}[kind]
 		if !slices.Contains(*list, id) {

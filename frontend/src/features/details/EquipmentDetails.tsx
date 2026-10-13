@@ -7,6 +7,7 @@ import {
   EQUIPMENT_FIELDS,
   equipmentFields,
   equipmentValues,
+  planEditCommand,
   type EditMode,
 } from './model'
 
@@ -64,11 +65,8 @@ export default function EquipmentDetails({
                 `Fixed ${fix.name ?? equipment.name}: ${answer.changes.length} field${answer.changes.length === 1 ? '' : 's'}`,
               )
             } else if (edit) {
-              await edit({
-                type: 'update_details',
-                target: { id: equipment.id },
-                details: fix.details ?? {},
-              })
+              const command = planEditCommand(equipment.id, fix)
+              if (command) await edit(command)
             }
           }}
         />

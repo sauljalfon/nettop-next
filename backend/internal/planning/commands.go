@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"nettop.local/backend/internal/topology"
 )
@@ -112,6 +113,9 @@ type Command struct {
 	// Details go with a target in update_details; every other command carries
 	// its details inside its own payload.
 	Details *topology.Details `json:"details,omitempty"`
+	// Name is the new name in rename_equipment, with a target; no other command
+	// takes one.
+	Name *string `json:"name,omitempty"`
 }
 
 // ChangeInput names one change of a draft by the key Check reports for it:
@@ -192,6 +196,9 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 	if c.Details != nil && c.Type != "update_details" {
 		return invalid(c.Type + " takes its details inside its payload")
 	}
+	if c.Name != nil && c.Type != "rename_equipment" {
+		return invalid(c.Type + " takes its name inside its payload")
+	}
 	switch c.Type {
 	case "add_equipment":
 		if c.Equipment == nil || c.payloads() != 1 {
@@ -199,7 +206,7 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		}
 		e := *c.Equipment
 		e.Name = strings.TrimSpace(e.Name)
-		if len(e.Name) < 1 || len(e.Name) > 100 {
+		if n := utf8.RuneCountInString(e.Name); n < 1 || n > 100 {
 			return invalid("equipment name must contain 1–100 characters")
 		}
 		var ports []portSpec // a switch's ports, in position order
@@ -273,7 +280,7 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		}
 		h := *c.HDF
 		h.Name = strings.TrimSpace(h.Name)
-		if len(h.Name) < 1 || len(h.Name) > 100 {
+		if n := utf8.RuneCountInString(h.Name); n < 1 || n > 100 {
 			return invalid("HDF name must contain 1–100 characters")
 		}
 		// Rows are checked before anything is built so a huge value can never
@@ -420,6 +427,13 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		if err := updateDetails(&next, current, *c.Target, *c.Details, &delta); err != nil {
 			return Plan{}, Plan{}, err
 		}
+	case "rename_equipment":
+		if c.Target == nil || c.Name == nil || c.payloads() != 1 {
+			return invalid("rename_equipment requires a target and a name")
+		}
+		if err := renameEquipment(&next, current, c.Target.ID, *c.Name, &delta); err != nil {
+			return Plan{}, Plan{}, err
+		}
 	case "delete_equipment", "disconnect_cable", "delete_rack", "delete_node", "delete_site":
 		if c.Target == nil || c.payloads() != 1 {
 			return invalid(c.Type + " requires only a target payload")
@@ -432,7 +446,7 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		next = removed
 		delta.Removals = removal(kind, c.Target.ID)
 	default:
-		return invalid("supported commands are add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, update_details, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site, remove_change, and batch")
+		return invalid("supported commands are add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, update_details, rename_equipment, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site, remove_change, and batch")
 	}
 	// What was appended is what the command added.
 	delta.Sites, delta.Nodes, delta.Racks = next.Sites[min(was.sites, len(next.Sites)):], next.Nodes[min(was.nodes, len(next.Nodes)):], next.Racks[min(was.racks, len(next.Racks)):]

@@ -518,6 +518,13 @@ components:
       properties:
         id: {type: string}
         details: {$ref: '#/components/schemas/Details'}
+    Rename:
+      type: object
+      required: [id, name]
+      description: The name of one piece of equipment the plan adds, in the proposed topology (rename_equipment).
+      properties:
+        id: {type: string}
+        name: {type: string, minLength: 1, maxLength: 100}
     Site:
       type: object
       required: [id, name]
@@ -595,6 +602,10 @@ components:
           type: array
           description: update_details changes on objects the plan adds, one entry per object, layered over the additions (undo with remove_change update_details:<id>). The additions' own details are inside the equipment, cable, site, node and rack entries. Omitted when empty.
           items: {$ref: '#/components/schemas/DetailUpdate'}
+        renames:
+          type: array
+          description: rename_equipment changes on equipment the plan adds, one entry per equipment, holding its proposed name (undo with remove_change rename_equipment:<id>). The equipment entry keeps the name it was added with. Omitted when empty.
+          items: {$ref: '#/components/schemas/Rename'}
     HDFInput:
       type: object
       additionalProperties: false
@@ -666,8 +677,9 @@ components:
       required: [type]
       description: One command inside a batch, with exactly the payload its type needs (the same payloads as the single commands) and no expectedRevision.
       properties:
-        type: {enum: [add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, update_details, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site]}
+        type: {enum: [add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, update_details, rename_equipment, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site]}
         details: {$ref: '#/components/schemas/Details', description: With target, for update_details only.}
+        name: {type: string, description: 'With target, for rename_equipment only.'}
         equipment: {$ref: '#/components/schemas/EquipmentInput'}
         hdf: {$ref: '#/components/schemas/HDFInput'}
         cable:
@@ -854,8 +866,22 @@ components:
             details: {$ref: '#/components/schemas/Details'}
         - type: object
           additionalProperties: false
+          required: [type, expectedRevision, target, name]
+          description: "Renames equipment the plan adds (a switch, panel or HDF). The name follows the add_equipment rules: trimmed, 1–100 characters, unique ignoring case among all equipment of the proposed topology. Refused with 422 in words: installed equipment ('Installed equipment is renamed with a direct fix, not in a plan'), an unknown ID or a target that is not equipment ('cannot rename unknown equipment <id>'), a taken name ('equipment name already exists in this topology'), and the name it already has, ignoring case ('<name> is already called <current>'). One entry per equipment: renaming again replaces it, and renaming back to the name it was added with removes it. Its change key is rename_equipment:<id>; remove_change undoes it, deleting the equipment or removing its addition drops it, Check names it when the name is taken after Update draft, and it is allowed in a batch. A top-level name on any other command is 422."
+          properties:
+            type: {const: rename_equipment}
+            expectedRevision: {type: string, minLength: 1}
+            target:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id: {type: string}
+            name: {type: string}
+        - type: object
+          additionalProperties: false
           required: [type, expectedRevision, batch]
-          description: "Applies 1–500 commands in order, all or nothing, with one revision bump, one expectedRevision and nothing persisted on failure. Each inner command is one of add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site, without its own expectedRevision; batch itself (no nesting) and remove_change are refused. Each command is checked against the draft as the earlier commands left it, so later commands see their effect (a unit freed by a delete can be used). A command cannot refer to an object created earlier in the same batch: the IDs are allocated by the server and are only known from the response. 422 names the failing command by its 1-based position and the reason in names, for example: command 7 (add_cable): HDF-02 · 2B/3 rear is already cabled (cable-a04). Empty or more than 500 commands is 422; a stale revision or a recorded plan is 409. The response is {plan, ids}."
+          description: "Applies 1–500 commands in order, all or nothing, with one revision bump, one expectedRevision and nothing persisted on failure. Each inner command is one of add_equipment, add_hdf, add_cable, move_equipment, add_site, add_node, add_rack, update_details, rename_equipment, delete_equipment, disconnect_cable, delete_rack, delete_node, delete_site, without its own expectedRevision; batch itself (no nesting) and remove_change are refused. Each command is checked against the draft as the earlier commands left it, so later commands see their effect (a unit freed by a delete can be used). A command cannot refer to an object created earlier in the same batch: the IDs are allocated by the server and are only known from the response. 422 names the failing command by its 1-based position and the reason in names, for example: command 7 (add_cable): HDF-02 · 2B/3 rear is already cabled (cable-a04). Empty or more than 500 commands is 422; a stale revision or a recorded plan is 409. The response is {plan, ids}."
           properties:
             type: {const: batch}
             expectedRevision: {type: string, minLength: 1}
@@ -883,7 +909,7 @@ components:
               properties:
                 key:
                   type: string
-                  description: "The \"<kind>:<id>\" key a conflict or the summary names: add_site, add_node, add_rack, add_equipment, place_equipment, add_cable, update_details, remove_equipment, remove_cable, remove_rack, remove_node, remove_site. Dependents removed with it - add_equipment:X also its cables (add_cable) and placement; add_rack:R also the plan's equipment in R and placements into R; add_node:N its racks; add_site:S its nodes. Every other key removes only itself (undoing a removal restores the object)."
+                  description: "The \"<kind>:<id>\" key a conflict or the summary names: add_site, add_node, add_rack, add_equipment, place_equipment, add_cable, update_details, rename_equipment, remove_equipment, remove_cable, remove_rack, remove_node, remove_site. Dependents removed with it - add_equipment:X also its cables (add_cable) and placement; add_rack:R also the plan's equipment in R and placements into R; add_node:N its racks; add_site:S its nodes. Every other key removes only itself (undoing a removal restores the object)."
         - type: object
           additionalProperties: false
           required: [type, expectedRevision, target]

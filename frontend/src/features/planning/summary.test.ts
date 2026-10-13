@@ -133,6 +133,19 @@ it('RC-04 writes names, never IDs', () => {
     for (const line of lines) expect(line.text).not.toContain(id)
 })
 
+it('P2-3 a rename is one line in Equipment added, in names, and the add line keeps the added name', () => {
+  const renamed: Plan = { ...plan, renames: [{ id: EQ, name: 'Lab switch' }] }
+  const lines = planSummary(renamed, installed)
+  const rename = lineForKey(lines, `rename_equipment:${EQ}`)
+  expect(rename?.text).toBe('Rename EDGE-18 → Lab switch')
+  expect(rename?.group).toBe('Equipment added')
+  expect(rename?.go).toEqual({ kind: 'equipment', equipmentId: EQ })
+  expect(lineForKey(lines, `add_equipment:${EQ}`)?.text).toBe(
+    'EDGE-18 · access switch · Rack A03 U6',
+  )
+  expect(rename?.text).not.toContain(EQ)
+})
+
 it('RC-04 each line links to its object; removals have nothing to open', () => {
   const go = Object.fromEntries(
     planSummary(plan, installed).map((l) => [l.key, l.go]),

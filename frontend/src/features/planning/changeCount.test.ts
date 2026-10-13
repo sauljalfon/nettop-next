@@ -53,6 +53,22 @@ it('counts containers, equipment, placements, removals and cable additions', () 
   expect(changeCount(plan)).toBe(12)
 })
 
+it('counts a rename as a change', () => {
+  const e = {
+    kind: 'switch',
+    role: 'access',
+    rackId: 'r',
+    unit: 1,
+    height: 1,
+  } as const
+  const plan: Plan = {
+    ...empty,
+    equipment: [{ id: 'e', name: 'E', ...e }],
+    renames: [{ id: 'e', name: 'F' }],
+  }
+  expect(changeCount(plan)).toBe(2)
+})
+
 it('still counts the legacy updates of a plan saved before placements', () => {
   const legacy: Plan = {
     ...empty,

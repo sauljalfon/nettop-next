@@ -313,6 +313,7 @@ func loadPlan(ctx context.Context, tx pgx.Tx, id string, lock bool) (planning.Pl
 	p.Endpoints = additions.Endpoints
 	p.Links = additions.Links
 	p.Details = additions.Details
+	p.Renames = additions.Renames
 	return p, nil
 }
 
