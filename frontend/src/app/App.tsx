@@ -173,6 +173,18 @@ export default function App() {
       client.invalidateQueries({ queryKey: ['topology'] }),
     ])
   }, [client])
+  // A direct fix keeps the topology revision, so nothing refetches by itself:
+  // Installed, every plan (drawn on Installed) and the history are refetched.
+  const fixed = useCallback(
+    async (message: string) => {
+      await Promise.all([
+        refresh(),
+        client.invalidateQueries({ queryKey: ['history'] }),
+      ])
+      notify(message)
+    },
+    [refresh, client, notify],
+  )
   const saved = useCallback(
     async (plan: Plan) => {
       client.setQueryData<Plan[]>(['plans'], (previous) =>
@@ -397,6 +409,7 @@ export default function App() {
       ) : (
         topology.data && (
           <Workspace
+            onFixed={fixed}
             key={`${context}:${selectedID ?? 'installed'}`}
             snapshot={topology.data}
             installed={installed.data}
@@ -524,6 +537,8 @@ interface WorkspaceProps {
   onSelectEquipment: () => void
   onPlanSaved: (plan: Plan) => Promise<void>
   onRefresh: () => Promise<void>
+  /** After a direct fix: refetch and toast. */
+  onFixed: (message: string) => Promise<void>
   view: MapView
   onViewChange: (view: MapView) => void
   networkId?: string
@@ -543,6 +558,7 @@ function Workspace({
   onSelectEquipment,
   onPlanSaved,
   onRefresh,
+  onFixed,
   view,
   onViewChange,
   networkId,
@@ -889,6 +905,7 @@ function Workspace({
   )
   const drawerEquipment = equipment && (
     <Inspector
+      onFixed={onFixed}
       snapshot={snapshot}
       index={index}
       equipment={equipment}
@@ -944,6 +961,7 @@ function Workspace({
         />
       ) : (
         <PhysicalExplorer
+          onFixed={onFixed}
           snapshot={snapshot}
           index={index}
           route={route}

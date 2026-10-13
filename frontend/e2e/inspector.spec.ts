@@ -265,7 +265,7 @@ test('POL-20 the inspector has Overview and Ports tabs, a compact port table, al
 
   // Tabs: Overview first, then Positions for a passive panel (Ports for a switch).
   const tabs = page.getByRole('tab')
-  await expect(tabs).toHaveText(['Overview', 'Positions'])
+  await expect(tabs).toHaveText(['Overview', 'Positions', 'History'])
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
   const overview = page.getByRole('tabpanel')
   await expect(overview).toContainText('Rack A03')
@@ -381,10 +381,16 @@ test('POL-20 the tabs follow the WAI-ARIA pattern: roving tabindex and arrow key
   await expect(ports).toHaveAttribute('tabindex', '0')
   await expect(overview).toHaveAttribute('tabindex', '-1')
   await expect(page.getByRole('tabpanel')).toContainText('24 of 24 ports')
+  const history = page.getByRole('tab', { name: 'History' })
+  await page.keyboard.press('ArrowRight') // History is the third tab
+  await expect(history).toBeFocused()
+  await expect(history).toHaveAttribute('aria-selected', 'true')
   await page.keyboard.press('ArrowRight') // wraps around
   await expect(overview).toBeFocused()
   await expect(overview).toHaveAttribute('aria-selected', 'true')
   await page.keyboard.press('ArrowLeft') // and back
+  await expect(history).toBeFocused()
+  await page.keyboard.press('ArrowLeft')
   await expect(ports).toBeFocused()
   await expect(ports).toHaveAttribute('aria-selected', 'true')
 })

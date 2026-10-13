@@ -1,0 +1,131 @@
+import { expect, test, type Page } from '@playwright/test'
+import { fitted, openRackInPhysical } from './helpers'
+import {
+  addSwitch,
+  getPlan,
+  installedRevision,
+  newPlan,
+  unique,
+} from './plan-api'
+
+const shot = (page: Page, name: string) =>
+  page.screenshot({ path: `test-results/fd-${name}.png` })
+const details = (page: Page) => page.getByTestId('equipment-details')
+const form = (page: Page) => page.getByTestId('details-form')
+
+/** Select a map card by equipment ID; the inspector opens with its name. */
+async function inspect(page: Page, id: string, name = id.toUpperCase()) {
+  await page.getByTestId(`rf__node-${id}`).click()
+  await expect(page.locator('.inspector-header h2')).toHaveText(name)
+}
+test('FD-04 a direct fix on Installed: Edit details saves, the Overview shows it at once, and History lists it with its note', async ({
+  page,
+  request,
+}) => {
+  const revision = await installedRevision(request)
+  await page.goto('/')
+  await fitted(page)
+  await inspect(page, 'agg-12')
+  await expect(details(page)).toContainText('Manufacturer')
+  await details(page).getByRole('button', { name: 'Edit details' }).click()
+  await expect(form(page).getByLabel('Name')).toBeFocused()
+  await form(page).getByLabel('Manufacturer').fill('Cisco')
+  await form(page).getByLabel('Serial number').fill('FD-SN-15')
+  await form(page).getByLabel('Status').selectOption('maintenance')
+  await form(page)
+    .getByLabel('Why (optional, kept in history)')
+    .fill('Asset audit')
+  await shot(page, 'edit-form')
+  await form(page).getByRole('button', { name: 'Save fix' }).click()
+  await expect(form(page)).toHaveCount(0)
+  // Shown at once, without a reload (the revision did not change).
+  await expect(details(page)).toContainText('Cisco')
+  await expect(details(page)).toContainText('FD-SN-15')
+  await expect(details(page)).toContainText('maintenance')
+  expect(await installedRevision(request)).toBe(revision)
+
+  await page.getByRole('tab', { name: 'History' }).click()
+  const fixes = page.getByTestId('history-fixes').locator('li')
+  await expect(fixes).toHaveCount(3)
+  await expect(page.getByTestId('history-fixes')).toContainText('Manufacturer')
+  await expect(page.getByTestId('history-fixes')).toContainText('Asset audit')
+  await shot(page, 'history')
+})
+
+test('FD-04 a refused fix keeps the form open with the reason; Escape closes it and returns focus', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await inspect(page, 'agg-12')
+  const button = details(page).getByRole('button', { name: 'Edit details' })
+  await button.click()
+  await form(page).getByLabel('Name').fill('AGG-08')
+  await form(page).getByRole('button', { name: 'Save fix' }).click()
+  await expect(form(page).getByTestId('edit-error')).toContainText(
+    'AGG-08 already exists',
+  )
+  await expect(form(page)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(form(page)).toHaveCount(0)
+  await expect(button).toBeFocused()
+})
+
+test('FD-04 in a plan: a proposed switch is edited with update_details; installed equipment only shows a hint', async ({
+  page,
+  request,
+}) => {
+  const id = await newPlan(request, unique('Details'))
+  const sw = await addSwitch(request, id, 'rack-a03', 'EDGE-40', 3, 24)
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  await inspect(page, sw, 'EDGE-40')
+  await details(page).getByRole('button', { name: 'Edit details' }).click()
+  await expect(form(page).getByLabel('Name')).toHaveCount(0)
+  await form(page).getByLabel('Model').fill('C9300-48P')
+  await form(page).getByRole('button', { name: 'Save in plan' }).click()
+  await expect(form(page)).toHaveCount(0)
+  await expect(details(page)).toContainText('C9300-48P')
+  const plan = await getPlan(request, id)
+  expect(JSON.stringify(plan.details)).toContain('C9300-48P')
+
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
+  await inspect(page, 'agg-03')
+  await expect(
+    details(page).getByRole('button', { name: 'Edit details' }),
+  ).toHaveCount(0)
+  await expect(details(page)).toContainText(
+    'Details of installed equipment are fixed on Installed',
+  )
+})
+
+test('FD-05 a faulty port: Edit port details in Physical, the jack is hatched, and the detail says faulty', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await openRackInPhysical(
+    page,
+    'Main Campus',
+    'Main Distribution',
+    'Rack Core 02',
+  )
+  await page.locator('.rack-block[data-equipment-id="agg-15"]').click()
+  const jack = page.locator('[data-endpoint-id="agg-15:p3"]')
+  await jack.click()
+  const port = page.getByTestId('port-details')
+  await port.getByRole('button', { name: 'Edit port details' }).click()
+  await form(page).getByLabel('State').selectOption('faulty')
+  await form(page).getByLabel('Speed').selectOption('10G')
+  await form(page)
+    .getByLabel('Why (optional, kept in history)')
+    .fill('Bent pins, module to replace')
+  await form(page).getByRole('button', { name: 'Save fix' }).click()
+  await expect(form(page)).toHaveCount(0)
+  await expect(port).toContainText('faulty')
+  await expect(port).toContainText('10G')
+  await expect(jack).toHaveAttribute('data-port-state', 'faulty')
+  await expect(jack).toHaveClass(/port-state-faulty/)
+  await expect(page.getByTestId('legend-state')).toContainText('faulty')
+  await shot(page, 'faulty-port')
+})

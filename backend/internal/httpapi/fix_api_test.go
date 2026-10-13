@@ -67,3 +67,18 @@ func TestFX03HistoryOverHTTP(t *testing.T) {
 	call("GET", "/api/change-log?entityId=cable-a01", "", 400)
 	call("GET", "/api/change-log?entityKind=link", "", 400)
 }
+
+// Review fix 1 and 2: the answer never depends on map order, and null means "not given".
+func TestFixAnswersAreDeterministicAndNullMeansNotGiven(t *testing.T) {
+	call := newCaller(t, handlerFor(t, acceptance.Installed()))
+	for i := 0; i < 25; i++ {
+		msg := errorOf(t, call("PATCH", "/api/installed/equipment/agg-03", `{"zeta":1,"unit":3,"colour":"red","rackId":"rack-dr01"}`, 422))
+		if msg != "rackId changes the topology: use a plan" {
+			t.Fatalf("try %d: %q", i, msg)
+		}
+	}
+	got := decodeBody[fixAnswer](t, call("PATCH", "/api/installed/equipment/agg-03", `{"name":null,"details":null,"note":null}`, 200))
+	if got.Changes == nil || len(got.Changes) != 0 {
+		t.Fatalf("null fields must change nothing: %+v", got.Changes)
+	}
+}

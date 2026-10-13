@@ -8,6 +8,9 @@ import {
   type ReactNode,
   useEffect,
 } from 'react'
+import EquipmentDetails from '../details/EquipmentDetails'
+import HistoryTab from '../details/HistoryTab'
+import { editMode } from '../details/model'
 import { isPassiveEquipment } from '../../shared/equipment'
 import type { Equipment, Snapshot } from '../../shared/types'
 import DeleteEquipment from '../planning/DeleteEquipment'
@@ -52,13 +55,15 @@ interface Props {
   searchRequest?: { equipmentId: string; query: string; serial: number }
   /** Set in a current plan: Delete… in the header and Disconnect on cabled rows. */
   edit?: PlanEdit
+  /** After a direct fix: refetch and toast. */
+  onFixed: (message: string) => Promise<void>
   installedLinkIDs?: ReadonlySet<string>
   /** The plan placement form, shown on the Overview tab when a plan is open. */
   children?: ReactNode
 }
 
-type Tab = 'overview' | 'ports'
-const TABS: readonly Tab[] = ['overview', 'ports']
+type Tab = 'overview' | 'ports' | 'history'
+const TABS: readonly Tab[] = ['overview', 'ports', 'history']
 
 /**
  * The equipment inspector: a sticky header (identity, cabling meter, location,
@@ -78,6 +83,7 @@ export default function Inspector({
   onOpenRack,
   searchRequest,
   edit,
+  onFixed,
   installedLinkIDs,
   children,
 }: Props) {
@@ -252,7 +258,11 @@ export default function Inspector({
               tabIndex={tab === id ? 0 : -1}
               onClick={() => setTab(id)}
             >
-              {id === 'overview' ? 'Overview' : portsLabel}
+              {id === 'overview'
+                ? 'Overview'
+                : id === 'ports'
+                  ? portsLabel
+                  : 'History'}
             </button>
           ))}
         </div>
@@ -274,9 +284,24 @@ export default function Inspector({
             groups={groups}
             networkName={networkName}
             networkColor={networkColor}
+            details={
+              <EquipmentDetails
+                key={equipment.id}
+                equipment={equipment}
+                mode={editMode(
+                  snapshot.context === 'installed' ? 'installed' : 'planned',
+                  header.proposed,
+                  !!edit,
+                )}
+                edit={edit}
+                onFixed={onFixed}
+              />
+            }
           >
             {children}
           </Overview>
+        ) : tab === 'history' ? (
+          <HistoryTab key={equipment.id} equipmentId={equipment.id} />
         ) : (
           <PortTable
             key={equipment.id}

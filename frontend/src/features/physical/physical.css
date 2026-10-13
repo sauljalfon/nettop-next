@@ -1282,3 +1282,29 @@
   min-width: 100%;
   overflow-wrap: anywhere;
 }
+
+/* Port state (locked 6: data only, never a trace): a pattern over the fill. */
+.face-cell.port-state-reserved,
+.face-legend i.port-state-reserved {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    rgba(180, 110, 9, 0.55) 4px 6px
+  );
+}
+.face-cell.port-state-disabled,
+.face-legend i.port-state-disabled {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 5px,
+    rgba(95, 107, 128, 0.55) 5px 6px
+  );
+}
+.face-cell.port-state-faulty,
+.face-legend i.port-state-faulty {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 3px,
+    rgba(180, 35, 24, 0.7) 3px 5px
+  );
+}

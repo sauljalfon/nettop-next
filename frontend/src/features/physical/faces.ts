@@ -18,6 +18,8 @@ export interface FaceEndpoint {
   selected: boolean
   /** Selected beats on-route beats cabled beats free. */
   state: EndpointState
+  /** A state other than available (reserved, disabled, faulty): drawn hatched, never a trace change. */
+  portState?: 'reserved' | 'disabled' | 'faulty'
 }
 
 export interface FaceOptions {
@@ -52,6 +54,7 @@ function cell(
       index.circuits.get(p.id) ??
       (device && device.role !== 'passive' ? device.networkId : undefined),
     cable: index.cableByEndpoint.get(p.id),
+    portState: p.state && p.state !== 'available' ? p.state : undefined,
     onRoute,
     selected,
     state: selected

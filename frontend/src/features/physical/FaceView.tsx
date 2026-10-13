@@ -20,6 +20,20 @@ import type { FaceEndpoint } from './faces'
 
 const PER_ROW = 12
 
+/** The port states drawn on a face, in a fixed order, for the legend. */
+function faceStates(face: Props['face']) {
+  const cells =
+    face.kind === 'switch'
+      ? face.rows.flat()
+      : face.kind === 'panel'
+        ? face.face.positions
+        : face.face.blocks.flatMap((b) => b.positions)
+  const present = new Set(cells.map((c) => c.portState))
+  return (['reserved', 'disabled', 'faulty'] as const).filter((s) =>
+    present.has(s),
+  )
+}
+
 /**
  * Extra marks on one jack, for the patching screen: a pair number, a tone
  * (preview, blocked, the next far jack, made in this session) that replaces the
@@ -140,7 +154,7 @@ export default function FaceView({
     const style =
       look.fill === 'cabled' && !mark?.tone
         ? {
-            background: colorOf(colors, cell.networkId ?? ''),
+            backgroundColor: colorOf(colors, cell.networkId ?? ''),
             borderColor: 'transparent',
           }
         : undefined
@@ -148,7 +162,7 @@ export default function FaceView({
       <button
         key={cell.endpointId ?? `${text}-${JSON.stringify(extra)}`}
         type="button"
-        className={`face-cell ${kind} fill-${look.fill} ${look.selected ? 'is-selected' : ''} ${mark?.tone ? `tone-${mark.tone}` : ''}`}
+        className={`face-cell ${kind} fill-${look.fill} ${look.selected ? 'is-selected' : ''} ${mark?.tone ? `tone-${mark.tone}` : ''} ${cell.portState ? `port-state-${cell.portState}` : ''}`}
         style={style}
         disabled={!cell.endpointId || !!mark?.disabled}
         tabIndex={cell.endpointId === activeId ? 0 : -1}
@@ -158,6 +172,7 @@ export default function FaceView({
         data-selected={look.selected}
         data-network={cell.networkId ?? ''}
         data-tone={mark?.tone}
+        data-port-state={cell.portState}
         data-pair={mark?.badge}
         title={[tooltip(cell, ordinal), mark?.note].filter(Boolean).join(' · ')}
         aria-label={[
@@ -167,6 +182,7 @@ export default function FaceView({
             networkName(cell.networkId),
             ordinal,
           ),
+          cell.portState,
           mark?.note,
         ]
           .filter(Boolean)
@@ -353,6 +369,11 @@ export default function FaceView({
                 style={{ background: colorOf(colors, id) }}
               />{' '}
               {networkName(id)}
+            </span>
+          ))}
+          {faceStates(face).map((s) => (
+            <span key={s} data-testid="legend-state">
+              <i className={`port-state-${s}`} /> {s}
             </span>
           ))}
           <span>

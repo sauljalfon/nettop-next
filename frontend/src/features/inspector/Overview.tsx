@@ -10,6 +10,8 @@ interface Props {
   /** Display name and shared color of a network ID. */
   networkName: (id: string) => string
   networkColor: (id: string) => string
+  /** The Details block (fields, Edit details). */
+  details?: ReactNode
   /** The plan placement form, when a plan is open. */
   children?: ReactNode
 }
@@ -21,6 +23,7 @@ export default function Overview({
   groups,
   networkName,
   networkColor,
+  details,
   children,
 }: Props) {
   const counts = networkCounts(groups)
@@ -38,6 +41,7 @@ export default function Overview({
           </div>
         )}
       </dl>
+      {details}
       <h3 className="inspector-section">Cabled by network</h3>
       {counts.length ? (
         <ul className="network-counts">

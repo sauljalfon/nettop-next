@@ -56,6 +56,8 @@ interface Props {
   canEdit: boolean
   /** Set in a current plan: add and delete containers, delete equipment, connect and disconnect. */
   edit?: PlanEdit
+  /** After a direct fix: refetch and toast. */
+  onFixed: (message: string) => Promise<void>
   /** Installed sites, nodes and racks; any other container is proposed (marked in a plan). */
   installedContainerIds: ReadonlySet<string>
   onMoveEquipment: (equipmentId: string, rackId: string, unit?: number) => void
@@ -92,6 +94,7 @@ export default function PhysicalExplorer({
   planName,
   canEdit,
   edit,
+  onFixed,
   installedContainerIds,
   onMoveEquipment,
   onCreateEquipment,
@@ -416,6 +419,7 @@ export default function PhysicalExplorer({
             onPrint={() => setSheet('equipment')}
             marks={marks}
             edit={edit}
+            onFixed={onFixed}
             installedIds={installedIds}
             installedLinkIds={installedLinkIDs}
             routeName={

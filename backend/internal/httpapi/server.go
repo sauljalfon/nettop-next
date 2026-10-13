@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -368,30 +370,40 @@ func New(repo Repository, environment string) http.Handler {
 			return
 		}
 		f := fixes.Fix{Kind: kind, ID: r.PathValue("id")}
-		for key, raw := range body {
-			switch {
-			case key == "name":
+		keys := slices.Sorted(maps.Keys(body))
+		// Topology fields first, in sorted order, so a body that also has an
+		// unknown field always gets the same answer.
+		for _, key := range keys {
+			if topologyFields[key] {
+				problem(w, 422, key+" changes the topology: use a plan")
+				return
+			}
+		}
+		for _, key := range keys {
+			raw := body[key]
+			if string(bytes.TrimSpace(raw)) == "null" {
+				continue // null means "not given"
+			}
+			switch key {
+			case "name":
 				var name string
 				if json.Unmarshal(raw, &name) != nil {
 					problem(w, 400, "Invalid request JSON")
 					return
 				}
 				f.Name = &name
-			case key == "note":
+			case "note":
 				if json.Unmarshal(raw, &f.Note) != nil {
 					problem(w, 400, "Invalid request JSON")
 					return
 				}
-			case key == "details":
+			case "details":
 				decoder := json.NewDecoder(bytes.NewReader(raw))
 				decoder.DisallowUnknownFields()
 				if decoder.Decode(&f.Details) != nil {
 					problem(w, 400, "Invalid request JSON")
 					return
 				}
-			case topologyFields[key]:
-				problem(w, 422, key+" changes the topology: use a plan")
-				return
 			default:
 				problem(w, 400, "Invalid request JSON")
 				return

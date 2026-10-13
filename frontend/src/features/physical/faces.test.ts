@@ -294,3 +294,24 @@ describe('port banks lie side by side and wrap (step 11b fixup)', () => {
     expect(shape(old)).toEqual([['24']])
   })
 })
+
+it('FD-05 a port state other than available is carried to its jack', () => {
+  const base = physicalSnapshot()
+  const snap = {
+    ...base,
+    endpoints: base.endpoints.map((p) =>
+      p.id === 'EDGE-17:p3'
+        ? { ...p, state: 'faulty' as const }
+        : p.id === 'EDGE-17:p4'
+          ? { ...p, state: 'available' as const }
+          : p,
+    ),
+  }
+  const cells = switchBank(indexSnapshot(snap), 'EDGE-17').rows.flat()
+  expect(cells.find((c) => c.endpointId === 'EDGE-17:p3')?.portState).toBe(
+    'faulty',
+  )
+  expect(cells.find((c) => c.endpointId === 'EDGE-17:p4')?.portState).toBe(
+    undefined,
+  )
+})

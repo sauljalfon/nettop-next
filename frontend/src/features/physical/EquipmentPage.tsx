@@ -6,6 +6,7 @@ import DeleteEquipment from '../planning/DeleteEquipment'
 import DuplicateEquipment from '../planning/DuplicateEquipment'
 import EndpointEdit from '../planning/EndpointEdit'
 import type { PlanEdit } from '../planning/editing'
+import PortDetails from '../details/PortDetails'
 import EndpointDetail from './EndpointDetail'
 import type { ElevationRow } from './elevation'
 import {
@@ -43,11 +44,14 @@ export default function EquipmentPage({
   marks,
   routeName,
   edit,
+  onFixed,
   installedIds,
   installedLinkIds,
 }: {
   /** Set in a current plan: Delete…, Connect… and Disconnect…. */
   edit?: PlanEdit
+  /** After a direct fix: refetch and toast. */
+  onFixed: (message: string) => Promise<void>
   installedIds: ReadonlySet<string>
   installedLinkIds: ReadonlySet<string>
   snapshot: Snapshot
@@ -182,14 +186,28 @@ export default function EquipmentPage({
         onShowOnMap={() => onShowOnMap(equipment.id)}
       >
         {detail && (
-          <EndpointEdit
-            key={detail.endpointId}
-            snapshot={snapshot}
-            index={index}
-            endpointId={detail.endpointId}
-            installedLinkIds={installedLinkIds}
-            edit={edit}
-          />
+          <>
+            <PortDetails
+              key={`details:${detail.endpointId}`}
+              snapshot={snapshot}
+              index={index}
+              endpointId={detail.endpointId}
+              proposed={
+                snapshot.context === 'planned' &&
+                !installedIds.has(equipment.id)
+              }
+              edit={edit}
+              onFixed={onFixed}
+            />
+            <EndpointEdit
+              key={detail.endpointId}
+              snapshot={snapshot}
+              index={index}
+              endpointId={detail.endpointId}
+              installedLinkIds={installedLinkIds}
+              edit={edit}
+            />
+          </>
         )}
       </EndpointDetail>
     </div>
