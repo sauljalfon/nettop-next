@@ -5,6 +5,7 @@ import {
   type Page,
 } from '@playwright/test'
 import { pick } from './helpers'
+import { chooseRack } from './patching-helpers'
 
 const getPlan = async (request: APIRequestContext, id: string) =>
   (await request.get(`/api/plans/${id}`)).json()
@@ -38,7 +39,11 @@ test('save a plan, add equipment through the library form, reload, and reject st
   await expect(form.getByTestId('edit-error')).toContainText('network')
   expect((await getPlan(request, planID)).revision).toBe('1')
   await form.getByLabel('Network').selectOption('net-a')
-  await form.getByLabel('Rack', { exact: true }).selectOption('rack-a03')
+  await chooseRack(form, 'Place', {
+    site: 'Main Campus',
+    node: 'Building A',
+    rack: 'Rack A03',
+  })
   await form.getByLabel('Unit', { exact: true }).fill('4')
   await form.getByLabel('Ports').fill('2')
   await form.getByRole('button', { name: 'Add to plan' }).click()
@@ -88,7 +93,11 @@ test('save a plan, add equipment through the library form, reload, and reject st
   const stale = await openSwitchForm(page)
   await stale.getByLabel('Name').fill('STALE-EDIT')
   await stale.getByLabel('Network').selectOption('net-a')
-  await stale.getByLabel('Rack', { exact: true }).selectOption('rack-a03')
+  await chooseRack(stale, 'Place', {
+    site: 'Main Campus',
+    node: 'Building A',
+    rack: 'Rack A03',
+  })
   await stale.getByLabel('Unit', { exact: true }).fill('5')
   await stale.getByRole('button', { name: 'Add to plan' }).click()
   // The server says the draft changed (in its own words); the edit is not retried.

@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext } from '@playwright/test'
 import { openRackInPhysical, expandResults } from './helpers'
+import { chooseRack } from './patching-helpers'
+import { getPlan } from './plan-api'
 
 /** A fresh draft on the current Installed. */
 async function newPlan(request: APIRequestContext, name: string) {
@@ -38,11 +40,15 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   )
   // A rack shows one rack at a time, so moves to other nodes use the placement
   // form in the inspector (the same command a drag sends).
-  const moveWithForm = async (from: string, rack: string, unit: string) => {
+  const moveWithForm = async (
+    from: string,
+    where: { site: string; node: string; rack: string },
+    unit: string,
+  ) => {
     await page.getByTestId(from).locator('.rack-block').click() // opens its page
     if ((await page.locator('aside.studio-drawer').count()) === 0)
       await page.getByRole('button', { name: 'Open inspector' }).click()
-    await page.getByLabel('Placement rack').selectOption(rack)
+    await chooseRack(page, 'Placement', where)
     await page.getByLabel('Placement unit', { exact: true }).fill(unit)
     await page
       .getByRole('button', { name: 'Save planned placement', exact: true })
@@ -50,11 +56,19 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
     // Selecting opened the equipment page; Back returns to the rack.
     await page.getByRole('button', { name: 'Back', exact: true }).click()
   }
-  await moveWithForm('rack-slot-rack-a03-4', 'rack-dr02', '3')
+  await moveWithForm(
+    'rack-slot-rack-a03-4',
+    { site: 'DR Site', node: 'DR Distribution', rack: 'Rack DR02' },
+    '3',
+  )
   await expect(page.getByTestId('rack-slot-rack-a03-4')).not.toContainText(
     'DRAG-EDGE',
   )
-  await moveWithForm('rack-slot-rack-a03-8', 'rack-core-02', '4')
+  await moveWithForm(
+    'rack-slot-rack-a03-8',
+    { site: 'Main Campus', node: 'Main Distribution', rack: 'Rack Core 02' },
+    '4',
+  )
   await expect(page.getByTestId('rack-slot-rack-a03-8')).not.toContainText(
     'EDGE-17',
   )
@@ -130,7 +144,11 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
   const next = page.getByTestId('equipment-form')
   await next.getByLabel('Name').fill('BOARD-EDGE')
   await next.getByLabel('Network').selectOption('net-a')
-  await next.getByLabel('Rack', { exact: true }).selectOption('rack-a03')
+  await chooseRack(next, 'Place', {
+    site: 'Main Campus',
+    node: 'Building A',
+    rack: 'Rack A03',
+  })
   await next.getByLabel('Ports').fill('2')
   await next.getByRole('button', { name: 'Add to plan' }).click()
   await expect(page.locator('.unplaced-card')).toHaveCount(0)
@@ -141,4 +159,77 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
   await expect(page.getByTestId('rack-slot-rack-a03-1')).toContainText(
     'BOARD-EDGE',
   )
+})
+
+test('P2-1 the Add form picks its rack as Site › Node › Rack, starting at the open rack', async ({
+  page,
+  request,
+}) => {
+  const id = await newPlan(request, 'Picker check')
+  await page.goto(`/?plan=${id}`)
+  await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
+  await page.getByRole('button', { name: 'Add equipment library' }).click()
+  await page.getByRole('button', { name: 'Add Access switch…' }).click()
+  const form = page.getByTestId('equipment-form')
+  const place = form.getByRole('group', { name: 'Place', exact: true })
+  const level = (name: string) => place.getByLabel(name, { exact: true })
+  await expect(level('Site')).toHaveValue('site-main-campus')
+  await expect(level('Node')).toHaveValue('node-building-a')
+  await expect(level('Rack')).toHaveValue('rack-a03')
+  await expect(level('Rack').locator('option:checked')).toHaveText(
+    'Rack A03 · 12U',
+  )
+  // A site change moves Node and Rack to that site's first.
+  await level('Site').selectOption('site-dr')
+  await expect(level('Node')).toHaveValue('node-dr-access')
+  await expect(level('Rack')).toHaveValue('rack-dr01')
+  await chooseRack(form, 'Place', {
+    site: 'Main Campus',
+    node: 'Main Distribution',
+    rack: 'Rack Core 03',
+  })
+  await page.screenshot({ path: 'test-results/p2-1-add-form.png' })
+  await form.getByLabel('Name').fill('PICK-EDGE')
+  await form.getByLabel('Network').selectOption('net-a')
+  await form.getByLabel('Ports').fill('2')
+  await form.getByRole('button', { name: 'Add to plan' }).click()
+  await expect(form).toHaveCount(0)
+  const plan = await getPlan(request, id)
+  expect(
+    plan.equipment.find((e: { name: string }) => e.name === 'PICK-EDGE'),
+  ).toMatchObject({ rackId: 'rack-core-03', unit: 1 })
+})
+
+test('P2-1 at node level the Add form starts in that node', async ({
+  page,
+  request,
+}) => {
+  const id = await newPlan(request, 'Node level check')
+  await page.goto(`/?plan=${id}`)
+  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  const sites = page
+    .getByRole('navigation', { name: 'Breadcrumbs' })
+    .getByRole('button', { name: 'Sites', exact: true })
+  if (await sites.count()) await sites.click()
+  await page
+    .getByRole('button', { name: 'Open Main Campus', exact: true })
+    .click()
+  await page
+    .getByRole('button', {
+      name: 'Open racks of Main Distribution',
+      exact: true,
+    })
+    .click()
+  await page.getByRole('button', { name: 'Add equipment library' }).click()
+  await page.getByRole('button', { name: 'Add Access switch…' }).click()
+  const form = page.getByTestId('equipment-form')
+  const place = form.getByRole('group', { name: 'Place', exact: true })
+  const level = (name: string) => place.getByLabel(name, { exact: true })
+  await expect(level('Site')).toHaveValue('site-main-campus')
+  await expect(level('Node')).toHaveValue('node-main-distribution')
+  await expect(level('Rack')).toHaveValue('')
+  await form.getByLabel('Name').fill('NODE-EDGE')
+  await form.getByLabel('Network').selectOption('net-a')
+  await form.getByRole('button', { name: 'Add to plan' }).click()
+  await expect(form.getByTestId('edit-error')).toContainText('Choose a rack.')
 })

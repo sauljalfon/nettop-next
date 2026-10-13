@@ -28,7 +28,7 @@
   color: #178e76;
   font-size: 10px;
 }
-.placement-editor label {
+.placement-editor > label {
   display: flex;
   flex-direction: column;
   gap: 6px;

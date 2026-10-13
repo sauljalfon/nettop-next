@@ -11,6 +11,9 @@ import type {
 /** The most copies one Duplicate makes: a batch holds 500 commands, a rack at most 60 units. */
 export const MAX_COPIES = 60
 
+/** The longest name the server accepts. */
+const MAX_NAME = 100
+
 /** One line of a Duplicate or Copy rack layout preview. */
 export interface CopyLine {
   /** 1-based, as listed. */
@@ -97,6 +100,23 @@ export function freeUnits(
 
 const unitsWord = (n: number) => (n === 1 ? '1 unit' : `${n} units`)
 
+/** What Duplicate lets the user change before sending. */
+export interface DuplicateOverrides {
+  /** By copy index; a blank (after trim) keeps the counted-up name. */
+  names?: readonly string[]
+  /** Switches only; blank keeps the source's network. */
+  networkId?: string
+  /** By the source's port group index; replaces that group's portType/connector/speed ('' = not set). */
+  groups?: readonly GroupDetails[]
+}
+
+/** A port group's type, connector and speed as the Duplicate form holds them; '' is not set. */
+export interface GroupDetails {
+  portType: '' | 'copper' | 'fiber'
+  connector: string
+  speed: string
+}
+
 /** A copy of `source` called `name` at `unit` in `rackId`: kind, role, network, height and size, never cables or details. */
 function copyCommand(
   s: Snapshot,
@@ -105,6 +125,7 @@ function copyCommand(
   name: string,
   rackId: string,
   unit: number,
+  overrides: Pick<DuplicateOverrides, 'networkId' | 'groups'> = {},
 ): BatchCommand {
   if (source.kind === 'hdf') {
     const rows = Math.max(
@@ -130,10 +151,27 @@ function copyCommand(
   // A switch made with port groups is copied with them (the labels as they are,
   // in order, and each group's type, connector and speed); any other switch, and
   // a panel, by its count.
-  if (groups.length > 0) equipment.portGroups = groups
+  if (groups.length > 0)
+    equipment.portGroups = groups.map((g, i) => {
+      const given = overrides.groups?.[i]
+      return given ? { labels: g.labels, ...detailsOf(given) } : g
+    })
   else equipment.portCount = size.get(source.id) ?? 0
-  if (source.networkId) equipment.networkId = source.networkId
+  const networkId =
+    source.kind === 'switch' && overrides.networkId?.trim()
+      ? overrides.networkId.trim()
+      : source.networkId
+  if (networkId) equipment.networkId = networkId
   return { type: 'add_equipment', equipment }
+}
+
+/** `{ details }` with the fields that are set (trimmed), or nothing. */
+function detailsOf(d: GroupDetails): { details?: PortGroupInput['details'] } {
+  const details: NonNullable<PortGroupInput['details']> = {}
+  if (d.portType) details.portType = d.portType
+  if (d.connector.trim()) details.connector = d.connector.trim()
+  if (d.speed.trim()) details.speed = d.speed.trim()
+  return Object.keys(details).length > 0 ? { details } : {}
 }
 
 /**
@@ -160,6 +198,71 @@ function portGroupsOf(s: Snapshot, equipmentId: string): PortGroupInput[] {
     if (first.speed) details.speed = first.speed
     return Object.keys(details).length > 0 ? { labels, details } : { labels }
   })
+}
+
+/**
+ * The port groups of a switch made with groups, for the Duplicate form: a
+ * caption ("Gi1/0/1–Gi1/0/24 (24)", or just the label for a group of one), the
+ * count and the type, connector and speed of the group's first port ('' when
+ * not set). Empty for a switch without groups, a panel and an HDF.
+ */
+export function sourceGroups(
+  s: Snapshot,
+  equipmentId: string,
+): {
+  caption: string
+  first: string
+  last: string
+  count: number
+  details: GroupDetails
+}[] {
+  const source = s.equipment.find((e) => e.id === equipmentId)
+  if (source?.kind !== 'switch') return []
+  return portGroupsOf(s, equipmentId).map((g) => {
+    const labels = g.labels ?? []
+    const d = g.details ?? {}
+    return {
+      first: labels[0],
+      last: labels[labels.length - 1],
+      caption:
+        labels.length === 1
+          ? labels[0]
+          : `${labels[0]}–${labels[labels.length - 1]} (${labels.length})`,
+      count: labels.length,
+      details: {
+        portType: d.portType ?? '',
+        connector: d.connector ?? '',
+        speed: d.speed ?? '',
+      },
+    }
+  })
+}
+
+/**
+ * One line for what each copy will have, from the groups as they will be made:
+ * "Each copy: 28 ports · Gi1/0/1 … Gi1/0/24 copper RJ45 1G, Te1/1/1 … Te1/1/4
+ * fiber SFP+ 10G". Each group is its first and last label ("first … last"; a
+ * group of one is its label), then its type, connector and speed, leaving out
+ * what is not set. "1 port" for one; '' for no groups.
+ */
+export function copySummary(
+  groups: readonly {
+    first: string
+    last: string
+    count: number
+    details: GroupDetails
+  }[],
+): string {
+  if (groups.length === 0) return ''
+  const total = groups.reduce((n, g) => n + g.count, 0)
+  const parts = groups.map((g) => {
+    const range = g.count === 1 ? g.first : `${g.first} … ${g.last}`
+    const { portType, connector, speed } = g.details
+    return [range, portType, connector.trim(), speed.trim()]
+      .filter(Boolean)
+      .join(' ')
+  })
+  return `Each copy: ${total} port${total === 1 ? '' : 's'} · ${parts.join(', ')}`
 }
 
 /** Ports of a switch, positions of a panel (its front sides), per equipment. */
@@ -190,16 +293,31 @@ export function duplicateLines(
   count: number,
   rackId: string,
   fromUnit: number,
+  overrides: DuplicateOverrides = {},
 ): CopyLine[] {
   const source = s.equipment.find((e) => e.id === equipmentId)
   const rack = s.racks.find((r) => r.id === rackId)
   if (!source || !rack || count < 1) return []
   const size = sizes(s)
-  const names = nextNames(
+  const defaults = nextNames(
     source.name,
     count,
     s.equipment.map((e) => e.name),
   )
+  // A blank keeps the counted-up name; anything else is used as typed (trimmed).
+  const names = defaults.map((d, i) => overrides.names?.[i]?.trim() || d)
+  const existing = new Set(s.equipment.map((e) => e.name.toLowerCase()))
+  const uses = new Map<string, number>()
+  for (const n of names)
+    uses.set(n.toLowerCase(), (uses.get(n.toLowerCase()) ?? 0) + 1)
+  const nameProblem = (name: string) =>
+    name.length > MAX_NAME
+      ? `Names are at most ${MAX_NAME} characters`
+      : existing.has(name.toLowerCase())
+        ? `${name} is already the name of other equipment`
+        : (uses.get(name.toLowerCase()) ?? 0) > 1
+          ? `${name} is used twice`
+          : undefined
   const { units } = freeUnits(s, rackId, source.height, count, fromUnit)
   return names.map((name, i) => {
     const unit = units[i]
@@ -209,7 +327,8 @@ export function duplicateLines(
         name,
         problem: `${rack.name} has no free unit for ${name}`,
       }
-    const problem = sizeProblem(source, size.get(source.id) ?? 0)
+    const problem =
+      nameProblem(name) ?? sizeProblem(source, size.get(source.id) ?? 0)
     return {
       n: i + 1,
       name,
@@ -217,7 +336,7 @@ export function duplicateLines(
       problem,
       command: problem
         ? undefined
-        : copyCommand(s, size, source, name, rackId, unit),
+        : copyCommand(s, size, source, name, rackId, unit, overrides),
     }
   })
 }
@@ -265,17 +384,4 @@ export function copyLayout(
   return notEmpty
     ? { lines, problem: `${target.name} is not empty` }
     : { lines }
-}
-
-/** The racks of a snapshot for the trace picker's combobox: "Rack A03 · Building A". */
-export function rackItems(s: Snapshot) {
-  const nodes = new Map(s.nodes.map((n) => [n.id, n.name]))
-  return s.racks.map((r) => {
-    const node = nodes.get(r.nodeId) ?? ''
-    return {
-      value: r.id,
-      label: node ? `${r.name} · ${node}` : r.name,
-      search: `${r.name} ${node}`,
-    }
-  })
 }

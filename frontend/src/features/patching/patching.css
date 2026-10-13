@@ -141,39 +141,6 @@
 .patching-col-head strong {
   font-size: 15px;
 }
-.location-picker {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-@media (max-width: 600px) {
-  .location-picker {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-.location-picker label {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
-  color: #77849a;
-  text-transform: uppercase;
-}
-.location-picker select {
-  width: 100%;
-  min-width: 0;
-  padding: 6px 7px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #26344b;
-  text-transform: none;
-  letter-spacing: 0;
-  background: #fff;
-  border: 1px solid #d5dce7;
-  border-radius: 7px;
-}
 .patching-foot {
   display: grid;
   gap: 10px;

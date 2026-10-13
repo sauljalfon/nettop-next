@@ -24,6 +24,18 @@ async function choose(select: Locator, text: string) {
   await select.selectOption(value!)
 }
 
+/** A rack by Site › Node › Rack in the picker group named `group`, as a user picks it. */
+export async function chooseRack(
+  scope: Locator | Page,
+  group: string,
+  where: { site: string; node: string; rack: string },
+) {
+  const picker = scope.getByRole('group', { name: group, exact: true })
+  await choose(picker.getByLabel('Site', { exact: true }), where.site)
+  await choose(picker.getByLabel('Node', { exact: true }), where.node)
+  await choose(picker.getByLabel('Rack', { exact: true }), `${where.rack} ·`)
+}
+
 /** The far end by Site › Node › Rack › Equipment, as a user picks it. */
 export async function chooseFar(
   page: Page,

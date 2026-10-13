@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import type { Network, Plan, Rack } from '../../shared/types'
+import type { Network, Plan } from '../../shared/types'
 import {
   MAX_PORT_GROUPS,
   MAX_SWITCH_PORTS,
@@ -9,7 +9,10 @@ import {
   rowsFromCount,
   type GroupRow,
 } from './portGroups'
+import LocationPicker from '../patching/LocationPicker'
+import type { Near, SiteBranch } from '../patching/patching'
 import { EditError } from './ConfirmShell'
+import PortDetailFields from './PortDetailFields'
 import type { PlanEdit } from './editing'
 import { useAsyncAction } from './useAsyncAction'
 import { useInlineDialog } from './useInlineDialog'
@@ -56,7 +59,8 @@ export function checkEquipmentForm(
 export default function AddEquipmentForm({
   title,
   type,
-  racks,
+  tree,
+  near,
   networks,
   initial,
   edit,
@@ -66,7 +70,8 @@ export default function AddEquipmentForm({
 }: {
   title: string
   type: EquipmentKind
-  racks: readonly Rack[]
+  tree: readonly SiteBranch[]
+  near?: Near
   networks: readonly Network[]
   initial?: { rackId?: string; unit?: number }
   edit: PlanEdit
@@ -163,34 +168,23 @@ export default function AddEquipmentForm({
           </select>
         </label>
       )}
-      <div className="two">
-        <label>
-          Rack
-          <select
-            aria-label="Rack"
-            value={values.rackId}
-            onChange={(e) => set('rackId')(e.target.value)}
-          >
-            <option value="" disabled>
-              Choose a rack
-            </option>
-            {racks.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Unit
-          <input
-            type="number"
-            min={1}
-            value={values.unit}
-            onChange={(e) => set('unit')(e.target.value)}
-          />
-        </label>
-      </div>
+      <LocationPicker
+        level="rack"
+        label="Place"
+        tree={tree}
+        near={near}
+        rackId={values.rackId}
+        onChange={set('rackId')}
+      />
+      <label>
+        Unit
+        <input
+          type="number"
+          min={1}
+          value={values.unit}
+          onChange={(e) => set('unit')(e.target.value)}
+        />
+      </label>
       {!groups && (
         <label>
           {type.kind === 'panel' ? 'Positions' : 'Ports'}
@@ -277,29 +271,9 @@ function PortGroupRows({
             </label>
           </div>
           <div className="group-line">
-            <select
-              aria-label="Type"
-              value={r.portType}
-              onChange={(e) =>
-                change(i, { portType: e.target.value as GroupRow['portType'] })
-              }
-            >
-              <option value="">Type</option>
-              <option value="copper">copper</option>
-              <option value="fiber">fiber</option>
-            </select>
-            <input
-              aria-label="Connector"
-              placeholder="Connector"
-              list="connector-suggestions"
-              value={r.connector}
-              onChange={(e) => change(i, { connector: e.target.value })}
-            />
-            <input
-              aria-label="Speed"
-              placeholder="Speed"
-              value={r.speed}
-              onChange={(e) => change(i, { speed: e.target.value })}
+            <PortDetailFields
+              value={r}
+              onChange={(patch) => change(i, patch)}
             />
             <button
               type="button"
@@ -316,11 +290,6 @@ function PortGroupRows({
           </div>
         </div>
       ))}
-      <datalist id="connector-suggestions">
-        {['RJ45', 'LC', 'SC', 'ST', 'SFP', 'SFP+', 'QSFP'].map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
       {summary && (
         <p className="hint port-summary" data-testid="port-summary">
           {summary}

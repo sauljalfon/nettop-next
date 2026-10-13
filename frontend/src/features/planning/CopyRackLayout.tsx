@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { Snapshot } from '../../shared/types'
-import TracePicker from '../pathfinding/TracePicker'
+import LocationPicker from '../patching/LocationPicker'
+import { locationTree } from '../patching/patching'
 import { ConfirmShell, EditError } from './ConfirmShell'
 import CopyPreview from './CopyPreview'
-import { copyLayout, rackItems } from './duplicate'
+import { copyLayout } from './duplicate'
 import type { PlanEdit } from './editing'
 import { useAsyncAction } from './useAsyncAction'
 import './editing.css'
@@ -89,10 +90,7 @@ function CopyBox({
   openerKey: string
   onClose: () => void
 }) {
-  const racks = useMemo(
-    () => rackItems(snapshot).filter((r) => r.value !== rackId),
-    [snapshot, rackId],
-  )
+  const tree = useMemo(() => locationTree(snapshot), [snapshot])
   const [from, setFrom] = useState('')
   const action = useAsyncAction()
   const result = useMemo(
@@ -110,10 +108,13 @@ function CopyBox({
       className="connect-box connect-range copy-popover nodrag nopan"
       style={style}
     >
-      <TracePicker
+      <LocationPicker
+        level="rack"
         label="Copy the layout of"
-        items={racks}
-        value={from}
+        tree={tree}
+        near={{ nodeId: snapshot.racks.find((r) => r.id === rackId)?.nodeId }}
+        rackId={from}
+        exclude={rackId}
         onChange={(v) => {
           setFrom(v)
           action.clear()

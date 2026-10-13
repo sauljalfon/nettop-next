@@ -1,14 +1,19 @@
 import { useState } from 'react'
 import type { Equipment, Rack } from '../../shared/types'
+import LocationPicker from '../patching/LocationPicker'
+import type { SiteBranch } from '../patching/patching'
 
 export default function PlacementEditor({
   equipment,
+  tree,
   racks,
   pending,
   onMove,
 }: {
   equipment: Equipment
-  racks: Rack[]
+  tree: readonly SiteBranch[]
+  /** For the chosen rack's height, the unit's maximum. */
+  racks: readonly Rack[]
   pending: boolean
   onMove: (placement: {
     equipmentId: string
@@ -23,24 +28,18 @@ export default function PlacementEditor({
       className="placement-editor"
       onSubmit={(event) => {
         event.preventDefault()
-        onMove({ equipmentId: equipment.id, rackId: rackID, unit })
+        if (rackID) onMove({ equipmentId: equipment.id, rackId: rackID, unit })
       }}
     >
       <p className="section-label">Planned placement</p>
-      <label>
-        Placement rack
-        <select
-          value={rackID}
-          disabled={pending}
-          onChange={(e) => setRackID(e.target.value)}
-        >
-          {racks.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <LocationPicker
+        level="rack"
+        label="Placement"
+        tree={tree}
+        rackId={rackID}
+        disabled={pending}
+        onChange={setRackID}
+      />
       <label>
         Placement unit
         <input
@@ -53,7 +52,7 @@ export default function PlacementEditor({
           onChange={(e) => setUnit(Number(e.target.value))}
         />
       </label>
-      <button className="button" disabled={pending}>
+      <button className="button" disabled={pending || !rackID}>
         {pending ? 'Saving placement…' : 'Save planned placement'}
       </button>
     </form>

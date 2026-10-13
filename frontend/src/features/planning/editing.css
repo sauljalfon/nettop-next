@@ -407,3 +407,54 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Duplicate: a copy's name is typed in its preview line; the rows stack when they do not fit. */
+.copy-preview li:has(.copy-name) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  white-space: normal;
+}
+.copy-preview li:has(.copy-name) em {
+  flex-basis: 100%;
+}
+.copy-name {
+  width: 9em;
+  min-width: 0;
+  height: 22px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 11px;
+  color: #26344b;
+  background: #fff;
+  border: 1px solid #c9d2e0;
+  border-radius: 6px;
+}
+.group-caption {
+  font-size: 11px;
+  color: #4b5a72;
+}
+
+/* Duplicate's Network row lines up with the picker's Site, Node and Rack rows. */
+.connect-range label.duplicate-network {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #4b5a72;
+}
+.connect-range label.duplicate-network select {
+  width: 100%;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 7px;
+  font: inherit;
+  font-size: 12px;
+  color: #26344b;
+  background: #fff;
+  border: 1px solid #d5dce7;
+  border-radius: 7px;
+}

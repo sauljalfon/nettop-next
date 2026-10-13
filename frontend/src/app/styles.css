@@ -613,7 +613,7 @@ button:hover:not(:disabled) {
   margin-top: 16px;
 }
 .trace-form label,
-.placement-editor label {
+.placement-editor > label {
   display: flex;
   flex-direction: column;
   gap: 7px;

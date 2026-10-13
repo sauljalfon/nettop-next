@@ -1,96 +1,99 @@
 import { useId, useState } from 'react'
-import type { NodeBranch, RackBranch, SiteBranch } from './patching'
+import {
+  chooseNode,
+  chooseSite,
+  eligibleIn,
+  findRack,
+  follow,
+  racksOf,
+  startPlace,
+  type Near,
+  type Place,
+  type PickRules,
+  type SiteBranch,
+} from './patching'
+import './location-picker.css'
 
-interface Choice {
-  siteId: string
-  nodeId: string
-  rackId: string
-}
-
-/** Where an equipment is in the tree; the first site, node and rack when it is in none. */
-function placeOf(tree: readonly SiteBranch[], equipmentId?: string): Choice {
-  for (const site of tree)
-    for (const node of site.nodes)
-      for (const rack of node.racks)
-        if (rack.equipment.some((e) => e.id === equipmentId))
-          return { siteId: site.id, nodeId: node.id, rackId: rack.id }
-  const site = tree[0]
-  const node = site?.nodes[0]
-  return {
-    siteId: site?.id ?? '',
-    nodeId: node?.id ?? '',
-    rackId: node?.racks[0]?.id ?? '',
-  }
-}
+type Props = {
+  tree: readonly SiteBranch[]
+  /** The group's accessible name. */
+  label?: string
+  /** A rack in rack mode, an equipment otherwise; never offered. */
+  exclude?: string
+  disabled?: boolean
+  /** Rack mode: where to start when there is no rack, instead of the first site. */
+  near?: Near
+} & (
+  | {
+      level?: 'equipment'
+      equipmentId?: string
+      freeOf: (equipmentId: string) => number
+      onChange: (equipmentId: string) => void
+    }
+  | {
+      level: 'rack'
+      rackId?: string
+      onChange: (rackId: string) => void
+    }
+)
 
 /**
- * The far end chosen as Site › Node › Rack › Equipment (four dropdowns), so a
- * large network never becomes one long list. Changing a level moves the levels
- * under it to their first entry that holds equipment; a rack with none says so.
- * `exclude` (the near equipment) is never offered.
+ * A place chosen as Site › Node › Rack (rack mode, the forms) or Site › Node ›
+ * Rack › Equipment (the patching far end), so a large network never becomes
+ * one long list. Where it starts (in rack mode with no rack: `near`) and what
+ * a Site or Node change selects are the pure `startPlace`, `chooseSite` and
+ * `chooseNode` in patching.ts.
  */
-export default function LocationPicker({
-  tree,
-  equipmentId,
-  exclude,
-  freeOf,
-  onChange,
-}: {
-  tree: readonly SiteBranch[]
-  equipmentId?: string
-  exclude?: string
-  freeOf: (equipmentId: string) => number
-  onChange: (equipmentId: string) => void
-}) {
-  const id = useId()
-  const [choice, setChoice] = useState(() => placeOf(tree, equipmentId))
-  // Follow a far end chosen elsewhere (a recent target, Undo).
-  const [shown, setShown] = useState(equipmentId)
-  if (shown !== equipmentId) {
-    setShown(equipmentId)
-    setChoice(placeOf(tree, equipmentId))
+export default function LocationPicker(props: Props) {
+  const { tree, disabled } = props
+  const rules: PickRules = {
+    level: props.level ?? 'equipment',
+    exclude: props.exclude,
   }
-  const eligible = (rack?: RackBranch) =>
-    (rack?.equipment ?? []).filter((e) => e.id !== exclude)
+  const value = props.level === 'rack' ? props.rackId : props.equipmentId
+  const id = useId()
+  const [choice, setChoice] = useState(() =>
+    startPlace(tree, value, rules, props.near),
+  )
+  // Follow a value set elsewhere (a recent target, Undo, a new drop).
+  const [shown, setShown] = useState(value)
+  if (shown !== value) {
+    setShown(value)
+    setChoice(follow(tree, choice, value, rules, props.near))
+  }
   const site = tree.find((s) => s.id === choice.siteId) ?? tree[0]
   const node = site?.nodes.find((n) => n.id === choice.nodeId) ?? site?.nodes[0]
-  const rack = node?.racks.find((r) => r.id === choice.rackId) ?? node?.racks[0]
-  const inRack = eligible(rack)
+  const racks = racksOf(node, rules)
+  const rack =
+    racks.find((r) => r.id === choice.rackId) ??
+    (rules.level === 'rack' ? undefined : racks[0])
+  const inRack = eligibleIn(rack, rules)
 
-  /** Moves to `next` and picks its first equipment, when it has one. */
-  const go = (next: Choice) => {
+  /** Moves to `next` and reports it: the rack, or its first equipment when it has one. */
+  const go = (next: Place) => {
     setChoice(next)
-    const first = eligible(
-      tree
-        .find((s) => s.id === next.siteId)
-        ?.nodes.find((n) => n.id === next.nodeId)
-        ?.racks.find((r) => r.id === next.rackId),
-    )[0]
-    if (first) onChange(first.id)
+    if (props.level === 'rack') return props.onChange(next.rackId)
+    const first = eligibleIn(findRack(tree, next), rules)[0]
+    if (first) props.onChange(first.id)
   }
-  const firstRack = (n?: NodeBranch) =>
-    n?.racks.find((r) => eligible(r).length > 0) ?? n?.racks[0]
-  const firstNode = (s?: SiteBranch) =>
-    s?.nodes.find((n) => n.racks.some((r) => eligible(r).length > 0)) ??
-    s?.nodes[0]
 
   return (
-    <div className="location-picker" role="group" aria-label="Far end">
+    <div
+      className="location-picker"
+      role="group"
+      aria-label={props.label ?? 'Far end'}
+      data-level={rules.level}
+    >
       <label htmlFor={`${id}-site`}>
         Site
         <select
           id={`${id}-site`}
+          aria-label="Site"
           value={site?.id ?? ''}
-          onChange={(e) => {
-            const s = tree.find((x) => x.id === e.target.value)
-            const n = firstNode(s)
-            go({
-              siteId: s?.id ?? '',
-              nodeId: n?.id ?? '',
-              rackId: firstRack(n)?.id ?? '',
-            })
-          }}
+          disabled={disabled || tree.length === 0}
+          onChange={(e) => go(chooseSite(tree, e.target.value, rules))}
         >
+          {tree.length === 0 && <option value="">No sites yet</option>}
           {tree.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -102,17 +105,14 @@ export default function LocationPicker({
         Node
         <select
           id={`${id}-node`}
+          aria-label="Node"
           value={node?.id ?? ''}
-          disabled={!site?.nodes.length}
-          onChange={(e) => {
-            const n = site?.nodes.find((x) => x.id === e.target.value)
-            go({
-              siteId: site?.id ?? '',
-              nodeId: n?.id ?? '',
-              rackId: firstRack(n)?.id ?? '',
-            })
-          }}
+          disabled={disabled || !site?.nodes.length}
+          onChange={(e) =>
+            go(chooseNode(tree, site?.id ?? '', e.target.value, rules))
+          }
         >
+          {!site?.nodes.length && <option value="">No nodes here</option>}
           {site?.nodes.map((n) => (
             <option key={n.id} value={n.id}>
               {n.name}
@@ -124,8 +124,9 @@ export default function LocationPicker({
         Rack
         <select
           id={`${id}-rack`}
+          aria-label="Rack"
           value={rack?.id ?? ''}
-          disabled={!node?.racks.length}
+          disabled={disabled || racks.length === 0}
           onChange={(e) =>
             go({
               siteId: site?.id ?? '',
@@ -134,34 +135,45 @@ export default function LocationPicker({
             })
           }
         >
-          {node?.racks.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name} ({eligible(r).length})
-            </option>
-          ))}
-        </select>
-      </label>
-      <label htmlFor={`${id}-equipment`}>
-        Equipment
-        <select
-          id={`${id}-equipment`}
-          value={inRack.some((e) => e.id === equipmentId) ? equipmentId : ''}
-          disabled={inRack.length === 0}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          {inRack.length === 0 && <option value="">No equipment here</option>}
-          {inRack.length > 0 && !inRack.some((e) => e.id === equipmentId) && (
+          {racks.length === 0 && <option value="">No racks here</option>}
+          {racks.length > 0 && !rack && (
             <option value="" disabled>
               Choose…
             </option>
           )}
-          {inRack.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name} · {freeOf(e.id)} free
+          {racks.map((r) => (
+            <option key={r.id} value={r.id}>
+              {rules.level === 'rack'
+                ? `${r.name} · ${r.units}U`
+                : `${r.name} (${eligibleIn(r, rules).length})`}
             </option>
           ))}
         </select>
       </label>
+      {props.level !== 'rack' && (
+        <label htmlFor={`${id}-equipment`}>
+          Equipment
+          <select
+            id={`${id}-equipment`}
+            aria-label="Equipment"
+            value={inRack.some((e) => e.id === value) ? value : ''}
+            disabled={disabled || inRack.length === 0}
+            onChange={(e) => props.onChange(e.target.value)}
+          >
+            {inRack.length === 0 && <option value="">No equipment here</option>}
+            {inRack.length > 0 && !inRack.some((e) => e.id === value) && (
+              <option value="" disabled>
+                Choose…
+              </option>
+            )}
+            {inRack.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name} · {props.freeOf(e.id)} free
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
     </div>
   )
 }

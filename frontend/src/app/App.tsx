@@ -68,6 +68,7 @@ import {
 import MapResults from '../features/map/MapResults'
 import MapTraceError from '../features/map/MapTraceError'
 import LibraryItems from '../features/planning/LibraryItems'
+import { locationTree } from '../features/patching/patching'
 import PlacementEditor from '../features/planning/PlacementEditor'
 import TracePicker from '../features/pathfinding/TracePicker'
 import { pickerItems } from '../features/pathfinding/picker'
@@ -629,6 +630,7 @@ function Workspace({
     snapshot.equipment.find((e) => e.id === selected) ?? snapshot.equipment[0]
   // Snapshot-only work, shared by the map and the inspector.
   const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
+  const tree = useMemo(() => locationTree(snapshot), [snapshot])
   // The trace pickers' and Explore's search lists: built once per snapshot (and
   // mode) when the browser is idle, never when a drawer opens.
   const startItems = useIdleLazy(
@@ -814,10 +816,7 @@ function Workspace({
       setOpenAfterCreate(undefined)
     }
   }, [openAfterCreate, index, showInPhysical])
-  const currentRackId = resolveLocation(
-    index,
-    physicalSession.history().current,
-  ).rackId
+  const current = resolveLocation(index, physicalSession.history().current)
   const move = useCallback(
     (id: string, rackID: string, unit?: number) => {
       if (!plan) return
@@ -925,6 +924,7 @@ function Workspace({
         <PlacementEditor
           key={`${equipment.id}:${equipment.rackId}:${equipment.unit}`}
           equipment={equipment}
+          tree={tree}
           racks={snapshot.racks}
           pending={!canEdit}
           onMove={(input) => placement.mutate(input)}
@@ -992,9 +992,10 @@ function Workspace({
           <LibraryItems
             canEdit={canEdit}
             edit={edit}
-            racks={snapshot.racks}
+            tree={tree}
             networks={snapshot.networks}
-            defaultRackId={currentRackId}
+            defaultRackId={current.rackId}
+            near={{ siteId: current.siteId, nodeId: current.nodeId }}
             pending={pending}
             onCancelPending={onCancelPreview}
             onAdded={onEquipmentAdded}

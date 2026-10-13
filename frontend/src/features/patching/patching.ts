@@ -14,6 +14,7 @@ export interface FarTarget {
 export interface RackBranch {
   id: string
   name: string
+  units: number
   equipment: Pick<Equipment, 'id' | 'name' | 'kind'>[]
 }
 export interface NodeBranch {
@@ -57,10 +58,159 @@ export function locationTree(s: Snapshot): SiteBranch[] {
           .map((rack) => ({
             id: rack.id,
             name: rack.name,
+            units: rack.units,
             equipment: [...(inRack.get(rack.id) ?? [])].sort(byName),
           })),
       })),
   }))
+}
+
+/** A place in the tree; '' where a level has nothing chosen. */
+export interface Place {
+  siteId: string
+  nodeId: string
+  rackId: string
+}
+
+/** What a LocationPicker ends on: an equipment (the patching far end) or a rack (the forms). */
+export type PickLevel = 'equipment' | 'rack'
+
+/** `exclude` is a rack in rack mode (Copy rack layout's target) and an equipment in equipment mode (the near end). */
+export interface PickRules {
+  level: PickLevel
+  exclude?: string
+}
+
+/** The racks a node offers. */
+export function racksOf(node: NodeBranch | undefined, rules: PickRules) {
+  const racks = node?.racks ?? []
+  return rules.level === 'rack'
+    ? racks.filter((r) => r.id !== rules.exclude)
+    : racks
+}
+
+/** The equipment a rack offers as a far end. */
+export function eligibleIn(rack: RackBranch | undefined, rules: PickRules) {
+  const all = rack?.equipment ?? []
+  return rules.level === 'equipment'
+    ? all.filter((e) => e.id !== rules.exclude)
+    : all
+}
+
+export function findRack(tree: readonly SiteBranch[], place: Place) {
+  return tree
+    .find((s) => s.id === place.siteId)
+    ?.nodes.find((n) => n.id === place.nodeId)
+    ?.racks.find((r) => r.id === place.rackId)
+}
+
+/** A rack worth landing on: any rack in rack mode, one with equipment to offer otherwise. */
+const offers = (rack: RackBranch, rules: PickRules) =>
+  rules.level === 'rack' || eligibleIn(rack, rules).length > 0
+
+function firstRack(node: NodeBranch | undefined, rules: PickRules) {
+  const racks = racksOf(node, rules)
+  return racks.find((r) => offers(r, rules)) ?? racks[0]
+}
+
+function firstNode(site: SiteBranch | undefined, rules: PickRules) {
+  return (
+    site?.nodes.find((n) => racksOf(n, rules).some((r) => offers(r, rules))) ??
+    site?.nodes[0]
+  )
+}
+
+/** Where the user is, for a rack picker with no rack to start at. */
+export type Near = { siteId?: string; nodeId?: string }
+
+/**
+ * Where the picker starts for `value` (a rack ID in rack mode, an equipment ID
+ * otherwise). When it is not in the tree: in rack mode the `near` node (else
+ * the near site's first node) with no rack, so a form never adds to a rack
+ * nobody chose; failing that, and in equipment mode, the first site and its
+ * first node (equipment mode: that node's first rack, as the patching screen
+ * always did). Equipment mode ignores `near`.
+ */
+export function startPlace(
+  tree: readonly SiteBranch[],
+  value: string | undefined,
+  rules: PickRules,
+  near?: Near,
+): Place {
+  for (const site of tree)
+    for (const node of site.nodes)
+      for (const rack of node.racks)
+        if (
+          rules.level === 'rack'
+            ? rack.id === value
+            : rack.equipment.some((e) => e.id === value)
+        )
+          return { siteId: site.id, nodeId: node.id, rackId: rack.id }
+  if (rules.level === 'rack' && near) {
+    const inNode = tree.find((s) => s.nodes.some((n) => n.id === near.nodeId))
+    if (inNode) return { siteId: inNode.id, nodeId: near.nodeId!, rackId: '' }
+    const inSite = tree.find((s) => s.id === near.siteId)
+    if (inSite)
+      return {
+        siteId: inSite.id,
+        nodeId: inSite.nodes[0]?.id ?? '',
+        rackId: '',
+      }
+  }
+  const site = tree[0]
+  const node = site?.nodes[0]
+  return {
+    siteId: site?.id ?? '',
+    nodeId: node?.id ?? '',
+    rackId: rules.level === 'rack' ? '' : (node?.racks[0]?.id ?? ''),
+  }
+}
+
+/** After the user picks a site: its first node with something to offer, and that node's first such rack. */
+export function chooseSite(
+  tree: readonly SiteBranch[],
+  siteId: string,
+  rules: PickRules,
+): Place {
+  const site = tree.find((s) => s.id === siteId)
+  const node = firstNode(site, rules)
+  return {
+    siteId: site?.id ?? '',
+    nodeId: node?.id ?? '',
+    rackId: firstRack(node, rules)?.id ?? '',
+  }
+}
+
+/** After the user picks a node: its first rack with something to offer; '' when it has no rack. */
+export function chooseNode(
+  tree: readonly SiteBranch[],
+  siteId: string,
+  nodeId: string,
+  rules: PickRules,
+): Place {
+  const node = tree
+    .find((s) => s.id === siteId)
+    ?.nodes.find((n) => n.id === nodeId)
+  return { siteId, nodeId, rackId: firstRack(node, rules)?.id ?? '' }
+}
+
+/**
+ * The place for a value set from outside (a recent target, Undo, a refetch, the
+ * form echoing what the picker reported): the same place when it already shows
+ * that value, so the user's Site and Node stay put; else where the value starts.
+ */
+export function follow(
+  tree: readonly SiteBranch[],
+  place: Place,
+  value: string | undefined,
+  rules: PickRules,
+  near?: Near,
+): Place {
+  const shown =
+    rules.level === 'rack'
+      ? place.rackId === (value ?? '')
+      : eligibleIn(findRack(tree, place), rules).some((e) => e.id === value)
+  return shown ? place : startPlace(tree, value, rules, near)
 }
 
 /** Endpoints of an equipment without a cable. */

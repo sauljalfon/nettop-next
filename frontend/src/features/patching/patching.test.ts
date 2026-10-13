@@ -3,12 +3,19 @@ import { acceptanceSnapshot } from '../map/acceptanceFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import { rangePairs } from '../planning/range'
 import {
+  chooseNode,
+  chooseSite,
+  eligibleIn,
   farDefault,
   farSide,
+  findRack,
+  follow,
   freeCount,
   locationTree,
   nextFree,
   pairMarks,
+  startPlace,
+  type SiteBranch,
 } from './patching'
 
 const s = acceptanceSnapshot()
@@ -126,5 +133,202 @@ describe('PT-04 pair marks on both faceplates', () => {
     })
     expect(marks.far.get('PANEL-A:4:f')).toEqual({ n: 3, problem: undefined })
     expect(marks.near.size).toBe(3)
+  })
+})
+
+const RACK = { level: 'rack' } as const
+const EQUIPMENT = { level: 'equipment' } as const
+const tree = locationTree(s)
+
+describe('P2-1 the rack picker: where it starts and how it moves', () => {
+  it('carries each rack’s height for the "Rack A03 · 12U" option', () => {
+    expect(tree[1].nodes[0].racks[0]).toMatchObject({
+      id: 'rack-a03',
+      units: 12,
+    })
+  })
+
+  it('starts at the rack it is given', () => {
+    expect(startPlace(tree, 'rack-core-02', RACK)).toEqual({
+      siteId: 'site-main',
+      nodeId: 'node-core',
+      rackId: 'rack-core-02',
+    })
+  })
+
+  it('with no rack, or one that no longer exists, starts at the first site and node with no rack chosen', () => {
+    const first = { siteId: 'site-dr', nodeId: 'node-dr1', rackId: '' }
+    expect(startPlace(tree, undefined, RACK)).toEqual(first)
+    expect(startPlace(tree, 'rack-gone', RACK)).toEqual(first)
+  })
+
+  it('a site change selects its first node and that node’s first rack, empty or not', () => {
+    expect(chooseSite(tree, 'site-main', RACK)).toEqual({
+      siteId: 'site-main',
+      nodeId: 'node-a',
+      rackId: 'rack-a03',
+    })
+  })
+
+  it('a node change selects its first rack', () => {
+    expect(chooseNode(tree, 'site-main', 'node-core', RACK)).toEqual({
+      siteId: 'site-main',
+      nodeId: 'node-core',
+      rackId: 'rack-core-01',
+    })
+  })
+
+  it('a node with no racks leaves the rack empty', () => {
+    const bare: SiteBranch[] = [
+      {
+        id: 's',
+        name: 'Site',
+        nodes: [
+          { id: 'n1', name: 'Hall 1', racks: [] },
+          {
+            id: 'n2',
+            name: 'Hall 2',
+            racks: [{ id: 'r', name: 'R1', units: 42, equipment: [] }],
+          },
+        ],
+      },
+    ]
+    expect(chooseNode(bare, 's', 'n1', RACK)).toEqual({
+      siteId: 's',
+      nodeId: 'n1',
+      rackId: '',
+    })
+    // A site change prefers a node that has a rack.
+    expect(chooseSite(bare, 's', RACK)).toEqual({
+      siteId: 's',
+      nodeId: 'n2',
+      rackId: 'r',
+    })
+  })
+
+  it('never offers the excluded rack (Copy rack layout’s own target)', () => {
+    const own = { level: 'rack', exclude: 'rack-a03' } as const
+    expect(chooseNode(tree, 'site-main', 'node-a', own)).toEqual({
+      siteId: 'site-main',
+      nodeId: 'node-a',
+      rackId: '',
+    })
+    expect(chooseSite(tree, 'site-main', own).rackId).not.toBe('rack-a03')
+  })
+
+  it('an empty database gives an empty place and does not throw', () => {
+    expect(startPlace([], undefined, RACK)).toEqual({
+      siteId: '',
+      nodeId: '',
+      rackId: '',
+    })
+    expect(chooseSite([], 'x', RACK)).toEqual({
+      siteId: '',
+      nodeId: '',
+      rackId: '',
+    })
+  })
+
+  it('keeps the shown place when the value it reports comes back (a refetch, its own "")', () => {
+    const chosen = chooseNode(tree, 'site-main', 'node-core', RACK)
+    expect(follow(tree, chosen, 'rack-core-01', RACK)).toBe(chosen)
+    const bare = { ...chosen, rackId: '' }
+    expect(follow(tree, bare, '', RACK)).toBe(bare)
+  })
+
+  it('moves to a value set from elsewhere', () => {
+    const chosen = startPlace(tree, 'rack-a03', RACK)
+    expect(follow(tree, chosen, 'rack-dr02', RACK)).toEqual({
+      siteId: 'site-dr',
+      nodeId: 'node-dr2',
+      rackId: 'rack-dr02',
+    })
+  })
+  describe('with no rack, it starts where the user is (near)', () => {
+    const first = { siteId: 'site-dr', nodeId: 'node-dr1', rackId: '' }
+
+    it('starts in the near node with no rack chosen', () => {
+      expect(
+        startPlace(tree, undefined, RACK, { nodeId: 'node-core' }),
+      ).toEqual({ siteId: 'site-main', nodeId: 'node-core', rackId: '' })
+    })
+
+    it('with only a site, starts at its first node', () => {
+      expect(
+        startPlace(tree, undefined, RACK, { siteId: 'site-main' }),
+      ).toEqual({ siteId: 'site-main', nodeId: 'node-a', rackId: '' })
+    })
+
+    it('a near node that does not exist falls back to the near site', () => {
+      expect(
+        startPlace(tree, undefined, RACK, {
+          siteId: 'site-main',
+          nodeId: 'node-gone',
+        }),
+      ).toEqual({ siteId: 'site-main', nodeId: 'node-a', rackId: '' })
+    })
+
+    it('a near that does not exist falls back to the first site and node', () => {
+      expect(
+        startPlace(tree, undefined, RACK, {
+          siteId: 'site-gone',
+          nodeId: 'node-gone',
+        }),
+      ).toEqual(first)
+      expect(startPlace(tree, undefined, RACK, {})).toEqual(first)
+    })
+
+    it('a rack that is found wins over near', () => {
+      expect(
+        startPlace(tree, 'rack-core-02', RACK, { nodeId: 'node-dr1' }),
+      ).toEqual({
+        siteId: 'site-main',
+        nodeId: 'node-core',
+        rackId: 'rack-core-02',
+      })
+    })
+
+    it('equipment mode ignores near', () => {
+      expect(
+        startPlace(tree, undefined, EQUIPMENT, { nodeId: 'node-core' }),
+      ).toEqual(startPlace(tree, undefined, EQUIPMENT))
+    })
+
+    it('follow lands on near’s node for a value that is not in the tree', () => {
+      const chosen = startPlace(tree, 'rack-a03', RACK)
+      expect(
+        follow(tree, chosen, 'unknown', RACK, { nodeId: 'node-core' }),
+      ).toEqual({ siteId: 'site-main', nodeId: 'node-core', rackId: '' })
+    })
+  })
+})
+
+describe('P2-1 the far-end picker keeps its behaviour', () => {
+  it('starts at the equipment’s rack, else the first site, node and rack', () => {
+    expect(startPlace(tree, 'PANEL-A', EQUIPMENT)).toEqual({
+      siteId: 'site-main',
+      nodeId: 'node-a',
+      rackId: 'rack-a03',
+    })
+    expect(startPlace(tree, undefined, EQUIPMENT)).toEqual({
+      siteId: tree[0].id,
+      nodeId: tree[0].nodes[0].id,
+      rackId: tree[0].nodes[0].racks[0].id,
+    })
+  })
+
+  it('never offers the excluded near end', () => {
+    const near = { level: 'equipment', exclude: 'BB-01' } as const
+    const core03 = findRack(tree, {
+      siteId: 'site-main',
+      nodeId: 'node-core',
+      rackId: 'rack-core-03',
+    })
+    expect(core03?.equipment.map((e) => e.id)).toEqual(['BB-01'])
+    expect(eligibleIn(core03, near)).toEqual([])
+    // A node change skips the rack that offers nothing.
+    expect(chooseNode(tree, 'site-main', 'node-core', near).rackId).toBe(
+      'rack-core-01',
+    )
   })
 })

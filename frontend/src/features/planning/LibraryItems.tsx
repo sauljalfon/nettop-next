@@ -1,6 +1,7 @@
 import { GitFork, Network as NetworkIcon, PanelTop } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { Network, Plan, Rack } from '../../shared/types'
+import type { Network, Plan } from '../../shared/types'
+import type { Near, SiteBranch } from '../patching/patching'
 import AddEquipmentForm, { type EquipmentKind } from './AddEquipmentForm'
 import { useLastEdit, type PlanEdit } from './editing'
 import HdfForm from './HdfForm'
@@ -60,7 +61,8 @@ const itemFor = (p: PendingEquipment) =>
 export default function LibraryItems({
   canEdit,
   edit,
-  racks,
+  tree,
+  near,
   networks,
   defaultRackId,
   pending,
@@ -70,7 +72,9 @@ export default function LibraryItems({
 }: {
   canEdit: boolean
   edit?: PlanEdit
-  racks: readonly Rack[]
+  tree: readonly SiteBranch[]
+  /** Where the user is in Physical, for a form with no rack to start at. */
+  near?: Near
   networks: readonly Network[]
   defaultRackId?: string
   pending?: PendingEquipment
@@ -151,7 +155,8 @@ export default function LibraryItems({
               key={pending?.token ?? 'manual'}
               title={item.name}
               type={item.type}
-              racks={racks}
+              tree={tree}
+              near={near}
               networks={networks}
               initial={
                 pending && itemFor(pending) === item.id
@@ -170,7 +175,8 @@ export default function LibraryItems({
         </div>
       ))}
       <HdfForm
-        racks={racks}
+        tree={tree}
+        near={near}
         defaultRackId={defaultRackId}
         edit={edit}
         onCreated={onHdfCreated}

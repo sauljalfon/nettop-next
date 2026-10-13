@@ -6,6 +6,7 @@ import {
   pick,
   viewport,
 } from './helpers'
+import { chooseRack } from './patching-helpers'
 
 // Only the position: the style attribute also carries React Flow's
 // visibility: hidden until a card has been measured.
@@ -134,7 +135,11 @@ test('C12 saving and refetching reconcile by ID without remounting or resetting'
   const form = page.getByTestId('equipment-form')
   await form.getByLabel('Name').fill('EDGE-SAVED')
   await form.getByLabel('Network').selectOption('net-a')
-  await form.getByLabel('Rack', { exact: true }).selectOption('rack-a03')
+  await chooseRack(form, 'Place', {
+    site: 'Main Campus',
+    node: 'Building A',
+    rack: 'Rack A03',
+  })
   await form.getByLabel('Unit', { exact: true }).fill('4')
   await form.getByRole('button', { name: 'Add to plan' }).click()
   await expect(page.getByRole('status')).toContainText('revision 2')

@@ -1,7 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { fitted, openRackInPhysical } from './helpers'
 import { command, getPlan, newPlan, unique } from './plan-api'
-import { chooseFar, farJack, patching, useRange } from './patching-helpers'
+import {
+  chooseFar,
+  chooseRack,
+  farJack,
+  patching,
+  useRange,
+} from './patching-helpers'
 
 // Step 11b: real interface names (Gi1/0/1, Te1/1/1) and mixed port types.
 const shot = (page: Page, name: string) =>
@@ -66,7 +72,11 @@ test('PG-06 the Add form: port group rows, a one-line summary, and the ports it 
   const form = page.getByTestId('equipment-form')
   await form.getByLabel('Name', { exact: true }).fill('SW-FORM')
   await form.getByLabel('Network').selectOption('net-a')
-  await form.getByLabel('Rack', { exact: true }).selectOption('rack-a03')
+  await chooseRack(form, 'Place', {
+    site: 'Main Campus',
+    node: 'Building A',
+    rack: 'Rack A03',
+  })
   await form.getByLabel('Unit', { exact: true }).fill('3')
 
   // The plain Ports count turns into groups: the same ports as "Port {n}", plus an empty row.

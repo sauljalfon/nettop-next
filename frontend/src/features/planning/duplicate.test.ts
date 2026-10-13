@@ -3,7 +3,9 @@ import type { Snapshot } from '../../shared/types'
 import { physicalSnapshot, withGroupedSwitch } from '../physical/testFixture'
 import {
   copyLayout,
+  copySummary,
   duplicateLines,
+  sourceGroups,
   freeUnits,
   nextNames,
   MAX_COPIES,
@@ -332,5 +334,223 @@ describe('step 11: copies carry no details', () => {
         /SN-0001|Acme|10\.0\.0\.1|serialNumber|manufacturer|details|portType|"state"/,
       )
     }
+  })
+})
+
+describe('P2-2 Duplicate overrides', () => {
+  const grouped = () =>
+    withGroupedSwitch(snap(), 'SW-G', 'rack-a03', 3, [
+      {
+        count: 24,
+        prefix: 'Gi1/0/',
+        portType: 'copper',
+        connector: 'RJ45',
+        speed: '1G',
+      },
+      {
+        count: 4,
+        prefix: 'Te1/1/',
+        portType: 'fiber',
+        connector: 'SFP+',
+        speed: '10G',
+      },
+    ])
+  const equipmentOf = (l: { command?: unknown }) =>
+    (l.command as { equipment: Record<string, unknown> }).equipment
+
+  it('uses a given name for a copy; a blank keeps the counted-up one', () => {
+    const lines = duplicateLines(snap(), 'EDGE-17', 3, 'rack-a03', 9, {
+      names: ['  CORE-X ', '   ', undefined as unknown as string],
+    })
+    expect(lines.map((l) => l.name)).toEqual(['CORE-X', 'EDGE-19', 'EDGE-20'])
+    expect(equipmentOf(lines[0]).name).toBe('CORE-X')
+    expect(equipmentOf(lines[1]).name).toBe('EDGE-19')
+  })
+
+  it('refuses a name over 100 characters', () => {
+    const [line] = duplicateLines(snap(), 'EDGE-17', 1, 'rack-a03', 9, {
+      names: ['x'.repeat(101)],
+    })
+    expect(line.problem).toBe('Names are at most 100 characters')
+    expect(line.command).toBeUndefined()
+    expect(
+      duplicateLines(snap(), 'EDGE-17', 1, 'rack-a03', 9, {
+        names: ['x'.repeat(100)],
+      })[0].problem,
+    ).toBeUndefined()
+  })
+
+  it('refuses the name of other equipment, ignoring case', () => {
+    const [line] = duplicateLines(snap(), 'EDGE-17', 1, 'rack-a03', 9, {
+      names: ['panel-a'],
+    })
+    expect(line.problem).toBe('panel-a is already the name of other equipment')
+    expect(line.command).toBeUndefined()
+  })
+
+  it('refuses a name two copies share, on both lines', () => {
+    const lines = duplicateLines(snap(), 'EDGE-17', 2, 'rack-a03', 9, {
+      names: ['New-1', 'new-1'],
+    })
+    expect(lines.map((l) => l.problem)).toEqual([
+      'New-1 is used twice',
+      'new-1 is used twice',
+    ])
+    expect(lines.every((l) => !l.command)).toBe(true)
+  })
+
+  it('checks the length before the other problems', () => {
+    const name = 'PANEL-A'.padEnd(101, 'x')
+    const [line] = duplicateLines(snap(), 'EDGE-17', 1, 'rack-a03', 9, {
+      names: [name],
+    })
+    expect(line.problem).toBe('Names are at most 100 characters')
+  })
+
+  it('keeps the no-free-unit problem on a line with no unit', () => {
+    const lines = duplicateLines(snap(), 'EDGE-17', 11, 'rack-a03', 9, {
+      names: Array(11).fill('') as string[],
+    })
+    expect(lines.at(-1)?.problem).toBe('Rack A03 has no free unit for EDGE-29')
+  })
+
+  it('sends networkId only for a switch; a panel ignores it', () => {
+    const s = snap()
+    const [sw] = duplicateLines(s, 'EDGE-17', 1, 'rack-a03', 9, {
+      networkId: 'B',
+    })
+    expect(equipmentOf(sw).networkId).toBe('B')
+    const [blank] = duplicateLines(s, 'EDGE-17', 1, 'rack-a03', 9, {
+      networkId: '',
+    })
+    expect(equipmentOf(blank).networkId).toBe('A')
+    const [panel] = duplicateLines(s, 'PANEL-A', 1, 'rack-new', 1, {
+      networkId: 'B',
+    })
+    expect(equipmentOf(panel).networkId).toBeUndefined()
+  })
+
+  it('replaces each group’s type, connector and speed; "" leaves a field out', () => {
+    const [line] = duplicateLines(grouped(), 'SW-G', 1, 'rack-new', 1, {
+      groups: [
+        { portType: 'fiber', connector: 'LC', speed: '10G' },
+        { portType: '', connector: '', speed: '25G' },
+      ],
+    })
+    const groups = equipmentOf(line).portGroups as {
+      labels: string[]
+      details?: object
+    }[]
+    expect(groups[0].labels).toHaveLength(24)
+    expect(groups[0].labels[0]).toBe('Gi1/0/1')
+    expect(groups[0].details).toEqual({
+      portType: 'fiber',
+      connector: 'LC',
+      speed: '10G',
+    })
+    expect(groups[1].labels[3]).toBe('Te1/1/4')
+    expect(groups[1].details).toEqual({ speed: '25G' })
+  })
+
+  it('sends no details for a group whose fields are all cleared', () => {
+    const [line] = duplicateLines(grouped(), 'SW-G', 1, 'rack-new', 1, {
+      groups: [
+        { portType: '', connector: '', speed: '' },
+        { portType: 'fiber', connector: 'SFP+', speed: '10G' },
+      ],
+    })
+    const groups = equipmentOf(line).portGroups as { details?: object }[]
+    expect(groups[0]).not.toHaveProperty('details')
+  })
+
+  it('a switch without groups still sends portCount and ignores groups', () => {
+    const [line] = duplicateLines(snap(), 'EDGE-17', 1, 'rack-a03', 9, {
+      groups: [{ portType: 'fiber', connector: 'LC', speed: '10G' }],
+    })
+    expect(equipmentOf(line).portGroups).toBeUndefined()
+    expect(equipmentOf(line).portCount).toBeGreaterThan(0)
+  })
+
+  it('without overrides the lines are the same as before', () => {
+    const s = grouped()
+    expect(duplicateLines(s, 'SW-G', 2, 'rack-new', 1, {})).toEqual(
+      duplicateLines(s, 'SW-G', 2, 'rack-new', 1),
+    )
+  })
+
+  it('sourceGroups: a caption per group, the first and last label and the count', () => {
+    expect(sourceGroups(grouped(), 'SW-G')).toEqual([
+      {
+        caption: 'Gi1/0/1–Gi1/0/24 (24)',
+        first: 'Gi1/0/1',
+        last: 'Gi1/0/24',
+        count: 24,
+        details: { portType: 'copper', connector: 'RJ45', speed: '1G' },
+      },
+      {
+        caption: 'Te1/1/1–Te1/1/4 (4)',
+        first: 'Te1/1/1',
+        last: 'Te1/1/4',
+        count: 4,
+        details: { portType: 'fiber', connector: 'SFP+', speed: '10G' },
+      },
+    ])
+  })
+
+  it('sourceGroups: a group of one is just its label, unset fields are ""', () => {
+    const s = withGroupedSwitch(snap(), 'SW-1', 'rack-a03', 3, [
+      { count: 1, prefix: 'Mgmt' },
+    ])
+    expect(sourceGroups(s, 'SW-1')).toEqual([
+      {
+        caption: 'Mgmt1',
+        first: 'Mgmt1',
+        last: 'Mgmt1',
+        count: 1,
+        details: { portType: '', connector: '', speed: '' },
+      },
+    ])
+  })
+
+  it('copySummary keeps a label that contains "–"', () => {
+    const s = withGroupedSwitch(snap(), 'SW-D', 'rack-a03', 3, [
+      { count: 2, prefix: 'A–' },
+    ])
+    expect(copySummary(sourceGroups(s, 'SW-D'))).toBe(
+      'Each copy: 2 ports · A–1 … A–2',
+    )
+  })
+
+  it('sourceGroups is empty for a switch without groups, a panel and an HDF', () => {
+    const s = snap()
+    expect(sourceGroups(s, 'EDGE-17')).toEqual([])
+    expect(sourceGroups(s, 'PANEL-A')).toEqual([])
+    expect(sourceGroups(s, 'HDF-01')).toEqual([])
+  })
+
+  it('copySummary: "Each copy: N ports · first … last type connector speed, …"', () => {
+    expect(copySummary(sourceGroups(grouped(), 'SW-G'))).toBe(
+      'Each copy: 28 ports · Gi1/0/1 … Gi1/0/24 copper RJ45 1G, Te1/1/1 … Te1/1/4 fiber SFP+ 10G',
+    )
+  })
+
+  it('copySummary leaves out unset fields, names a single port alone and is "" for no groups', () => {
+    expect(
+      copySummary([
+        {
+          first: 'Gi1/0/1',
+          last: 'Gi1/0/24',
+          count: 24,
+          details: { portType: '', connector: '', speed: '1G' },
+        },
+        {
+          first: 'Mgmt1',
+          last: 'Mgmt1',
+          count: 1,
+          details: { portType: '', connector: '', speed: '' },
+        },
+      ]),
+    ).toBe('Each copy: 25 ports · Gi1/0/1 … Gi1/0/24 1G, Mgmt1')
+    expect(copySummary([])).toBe('')
   })
 })

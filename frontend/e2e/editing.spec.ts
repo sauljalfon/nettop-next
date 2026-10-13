@@ -5,7 +5,13 @@ import {
   type Page,
 } from '@playwright/test'
 import { fitted, openRackInPhysical } from './helpers'
-import { chooseFar, farJack, patching, toHalf } from './patching-helpers'
+import {
+  chooseFar,
+  chooseRack,
+  farJack,
+  patching,
+  toHalf,
+} from './patching-helpers'
 
 // The explorer writes its state on its root; these specs assert that model.
 const root = (page: Page) => page.locator('.physical-explorer')
@@ -348,7 +354,11 @@ test('ED-11 the HDF form adds a 4-row HDF in a rack, shows the server refusing a
   await form.getByLabel('Name').fill('HDF-NEW')
   await form.getByLabel(/^Rows/).fill('4')
   await form.getByLabel('Height (U)').fill('3')
-  await form.locator('select').selectOption({ label: 'Rack SM01' })
+  await chooseRack(form, 'Place', {
+    site: 'Main Campus',
+    node: 'North Sub-main',
+    rack: 'Rack SM01',
+  })
   await expect(form).toContainText('96 positions per side')
   // U4–U6 are HDF-01's: the server says so and nothing is saved.
   await form.getByLabel('Lowest unit').fill('4')
@@ -521,7 +531,11 @@ test('ED-16 the library Add… form adds a patch panel, and answers a clash in n
   const form = page.getByTestId('equipment-form')
   await expect(form.getByLabel('Network')).toHaveCount(0) // a panel has no network
   await form.getByLabel('Name').fill('PANEL-LIB')
-  await form.getByLabel('Rack', { exact: true }).selectOption('rack-sm01')
+  await chooseRack(form, 'Place', {
+    site: 'Main Campus',
+    node: 'North Sub-main',
+    rack: 'Rack SM01',
+  })
   // U4–U6 are HDF-01's: the server says so, in names, and nothing is saved.
   await form.getByLabel('Unit', { exact: true }).fill('5')
   await form.getByRole('button', { name: 'Add to plan' }).click()

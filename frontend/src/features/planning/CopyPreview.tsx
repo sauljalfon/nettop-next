@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { CopyLine } from './duplicate'
 
 /**
@@ -9,7 +10,7 @@ export default function CopyPreview({
   describe,
 }: {
   lines: CopyLine[]
-  describe: (line: CopyLine) => string
+  describe: (line: CopyLine) => ReactNode
 }) {
   if (lines.length === 0) return null
   return (

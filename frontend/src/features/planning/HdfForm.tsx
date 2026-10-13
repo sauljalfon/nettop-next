@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import type { Plan, Rack } from '../../shared/types'
+import type { Plan } from '../../shared/types'
+import LocationPicker from '../patching/LocationPicker'
+import type { Near, SiteBranch } from '../patching/patching'
 import { EditError } from './ConfirmShell'
 import { HDF_MAX_ROWS, hdfPositions, parseHdfForm } from './containers'
 import { useLastEdit, type PlanEdit } from './editing'
@@ -9,16 +11,18 @@ import './editing.css'
 
 /**
  * The equipment library's HDF item. "Add HDF…" opens a form (name, rows 1–32,
- * height in rack units, rack, lowest unit) that sends add_hdf; the new HDF is
+ * height in rack units, Site › Node › Rack, lowest unit) that sends add_hdf; the new HDF is
  * then opened in Physical by `onCreated`. Disabled outside a current plan.
  */
 export default function HdfForm({
-  racks,
+  tree,
+  near,
   defaultRackId,
   edit,
   onCreated,
 }: {
-  racks: readonly Rack[]
+  tree: readonly SiteBranch[]
+  near?: Near
   defaultRackId?: string
   edit?: PlanEdit
   onCreated: (plan: Plan, name: string) => void
@@ -49,7 +53,8 @@ export default function HdfForm({
       </div>
       {open && formEdit && (
         <Form
-          racks={racks}
+          tree={tree}
+          near={near}
           defaultRackId={defaultRackId}
           edit={formEdit}
           onClose={() => setOpen(false)}
@@ -61,13 +66,15 @@ export default function HdfForm({
 }
 
 function Form({
-  racks,
+  tree,
+  near,
   defaultRackId,
   edit,
   onClose,
   onCreated,
 }: {
-  racks: readonly Rack[]
+  tree: readonly SiteBranch[]
+  near?: Near
   defaultRackId?: string
   edit: PlanEdit
   onClose: () => void
@@ -77,7 +84,7 @@ function Form({
     name: '',
     rows: '4',
     height: '3',
-    rackId: defaultRackId ?? racks[0]?.id ?? '',
+    rackId: defaultRackId ?? '',
     unit: '1',
   })
   const action = useAsyncAction()
@@ -141,30 +148,23 @@ function Form({
           />
         </label>
       </div>
-      <div className="two">
-        <label>
-          Rack
-          <select
-            value={values.rackId}
-            onChange={(e) => set('rackId')(e.target.value)}
-          >
-            {racks.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Lowest unit
-          <input
-            type="number"
-            min={1}
-            value={values.unit}
-            onChange={(e) => set('unit')(e.target.value)}
-          />
-        </label>
-      </div>
+      <LocationPicker
+        level="rack"
+        label="Place"
+        tree={tree}
+        near={near}
+        rackId={values.rackId}
+        onChange={set('rackId')}
+      />
+      <label>
+        Lowest unit
+        <input
+          type="number"
+          min={1}
+          value={values.unit}
+          onChange={(e) => set('unit')(e.target.value)}
+        />
+      </label>
       <span className="hint">
         Each row has blocks A–D with 6 positions, front and rear.
         {rows >= 1 && rows <= HDF_MAX_ROWS
