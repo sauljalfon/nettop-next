@@ -2,8 +2,8 @@ openapi: 3.1.0
 security: []
 info:
   title: Net-Top Next API
-  version: 0.5.0
-  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing (point-to-point and Find AGG / BB). Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/implementation-plan.md. Networks can be created and renamed, and Physical site-screen node positions are saved and shared; both are presentation or reference data and never change a topology revision. The only way installed topology changes is recording a draft (POST /plans/{id}/record); there are no direct edit endpoints yet.
+  version: 0.6.0
+  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing (point-to-point and Find AGG / BB). Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/implementation-plan.md. Networks can be created and renamed, and Physical site-screen node positions are saved and shared; both are presentation or reference data and never change a topology revision. The only way installed topology changes is recording a draft (POST /plans/{id}/record). Names and detail fields of installed objects can be corrected directly (PATCH /installed/{kind}/{id}); each changed field is written to the change log, and the topology revision does not change.
 servers:
   - url: http://127.0.0.1:8080/api
 paths:
@@ -382,6 +382,65 @@ paths:
         '409': {$ref: '#/components/responses/Error'}
         '422': {$ref: '#/components/responses/Error'}
         '500': {$ref: '#/components/responses/Error'}
+  /installed/{kind}/{id}:
+    parameters:
+      - in: path
+        name: kind
+        required: true
+        schema: {type: string, enum: [equipment, endpoints, links, sites, nodes, racks]}
+      - in: path
+        name: id
+        required: true
+        schema: {type: string}
+    patch:
+      operationId: fixInstalled
+      summary: Correct an installed object's name or details (a direct fix)
+      description: "Changes only names and detail fields, never topology: a field such as rackId, unit, networkId or role is 422 (use a plan); an unknown field is 400. Fixable: equipment name and details; a switch port's label (only ports with a position; panel and HDF positions are named by their place) and port details; a cable's label, status and notes (a cable has no name; an internal bridge has no details); site and node name, location and description; rack name, location, rack type and description. Names follow the plan commands' rules (1–100 characters, a port label 1–64; equipment unique in Installed, nodes within their site, racks within their node, port labels on their switch, all ignoring case: 409). One change-log row is written per changed field, in one transaction; the topology revision does not change, so drafts stay current. Same values answer an empty list."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DirectFix'}
+      responses:
+        '200':
+          description: The change-log rows written, in field order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changes]
+                properties:
+                  changes:
+                    type: array
+                    items: {$ref: '#/components/schemas/ChangeLogEntry'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /change-log:
+    get:
+      operationId: getChangeLog
+      summary: An installed object's direct fixes, newest first
+      parameters:
+        - in: query
+          name: entityKind
+          required: true
+          schema: {type: string, enum: [equipment, endpoint, link, site, node, rack]}
+        - in: query
+          name: entityId
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Newest first; empty when the object has none
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/ChangeLogEntry'}
+        '400': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
 components:
   parameters:
     SitePathID:
@@ -405,7 +464,7 @@ components:
       schema: {type: string}
   responses:
     Error:
-      description: 400 malformed request or unknown field; 404 missing plan, site, or network; 409 stale revision or duplicate network name; 422 invalid domain operation, node of another site, bad coordinates, or bad network name; 500 persistence failure; 503 unhealthy database.
+      description: 400 malformed request or unknown field; 404 missing plan, site, or network, or unknown installed object or kind; 409 stale revision or duplicate network or object name; 422 invalid domain operation, node of another site, bad coordinates, bad network name, or a topology field in a direct fix; 500 persistence failure; 503 unhealthy database.
       content:
         application/json:
           schema:
@@ -414,6 +473,25 @@ components:
             properties:
               error: {type: string}
   schemas:
+    DirectFix:
+      type: object
+      additionalProperties: false
+      properties:
+        name: {type: string, description: The display name; a switch port's label for an endpoint.}
+        details: {$ref: '#/components/schemas/Details'}
+        note: {type: string, maxLength: 500}
+    ChangeLogEntry:
+      type: object
+      required: [id, at, entityKind, entityId, field, oldValue, newValue]
+      properties:
+        id: {type: integer}
+        at: {type: string, format: date-time}
+        entityKind: {type: string, enum: [equipment, endpoint, link, site, node, rack]}
+        entityId: {type: string}
+        field: {type: string, description: '"name" or a detail field name.'}
+        oldValue: {type: string}
+        newValue: {type: string, description: Empty when the field was cleared.}
+        note: {type: string}
     Details:
       type: object
       additionalProperties: false

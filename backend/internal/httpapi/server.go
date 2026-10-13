@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,7 +10,9 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"nettop.local/backend/internal/fixes"
 	"nettop.local/backend/internal/pathfinding"
 	"nettop.local/backend/internal/planning"
 	"nettop.local/backend/internal/topology"
@@ -45,6 +48,24 @@ type Repository interface {
 	ResetSiteLayout(context.Context, string) error
 	CreateNetwork(context.Context, string) (topology.Network, error)
 	RenameNetwork(ctx context.Context, id, name string) (topology.Network, error)
+	// Direct fixes of installed names and details (never topology): one
+	// change_log row per changed field; the topology revision never changes.
+	Fix(ctx context.Context, f fixes.Fix) ([]fixes.Entry, error)
+	ChangeLog(ctx context.Context, entityKind, entityID string) ([]fixes.Entry, error)
+}
+
+// fixKinds maps the PATCH path's plural to change_log's entity kind.
+var fixKinds = map[string]string{
+	"equipment": fixes.Equipment, "endpoints": fixes.Endpoint, "links": fixes.Link,
+	"sites": fixes.Site, "nodes": fixes.Node, "racks": fixes.Rack,
+}
+
+// topologyFields are the fields a direct fix refuses with 422 (they change
+// topology, so they go through a plan), as opposed to unknown fields (400).
+var topologyFields = map[string]bool{
+	"id": true, "kind": true, "role": true, "networkId": true, "rackId": true, "unit": true, "height": true,
+	"siteId": true, "nodeId": true, "units": true, "equipmentId": true, "subpanelId": true,
+	"position": true, "side": true, "portGroup": true, "a": true, "b": true,
 }
 
 func respond(w http.ResponseWriter, code int, value any) {
@@ -75,6 +96,8 @@ func repositoryError(w http.ResponseWriter, err error) {
 		problem(w, 404, "Site not found")
 	case errors.Is(err, topology.ErrNetworkNotFound):
 		problem(w, 404, "Network not found")
+	case errors.Is(err, fixes.ErrNotFound):
+		problem(w, 404, "Not found: "+strings.TrimPrefix(err.Error(), "not found: "))
 	case errors.Is(err, topology.ErrDuplicateName):
 		problem(w, 409, err.Error())
 	case errors.Is(err, topology.ErrInvalidInput):
@@ -328,6 +351,71 @@ func New(repo Repository, environment string) http.Handler {
 			return
 		}
 		respond(w, 200, n)
+	})
+	// Direct fixes: names and details of installed objects, never topology.
+	mux.HandleFunc("PATCH /api/installed/{kind}/{id}", func(w http.ResponseWriter, r *http.Request) {
+		kind, ok := fixKinds[r.PathValue("kind")]
+		if !ok {
+			problem(w, 404, "Not found: "+r.PathValue("kind"))
+			return
+		}
+		var body map[string]json.RawMessage
+		if !decode(w, r, &body) {
+			return
+		}
+		if body == nil {
+			problem(w, 400, "Invalid request JSON")
+			return
+		}
+		f := fixes.Fix{Kind: kind, ID: r.PathValue("id")}
+		for key, raw := range body {
+			switch {
+			case key == "name":
+				var name string
+				if json.Unmarshal(raw, &name) != nil {
+					problem(w, 400, "Invalid request JSON")
+					return
+				}
+				f.Name = &name
+			case key == "note":
+				if json.Unmarshal(raw, &f.Note) != nil {
+					problem(w, 400, "Invalid request JSON")
+					return
+				}
+			case key == "details":
+				decoder := json.NewDecoder(bytes.NewReader(raw))
+				decoder.DisallowUnknownFields()
+				if decoder.Decode(&f.Details) != nil {
+					problem(w, 400, "Invalid request JSON")
+					return
+				}
+			case topologyFields[key]:
+				problem(w, 422, key+" changes the topology: use a plan")
+				return
+			default:
+				problem(w, 400, "Invalid request JSON")
+				return
+			}
+		}
+		entries, err := repo.Fix(r.Context(), f)
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, map[string]any{"changes": entries})
+	})
+	mux.HandleFunc("GET /api/change-log", func(w http.ResponseWriter, r *http.Request) {
+		kind, id := r.URL.Query().Get("entityKind"), r.URL.Query().Get("entityId")
+		if kind == "" || id == "" {
+			problem(w, 400, "entityKind and entityId are required")
+			return
+		}
+		entries, err := repo.ChangeLog(r.Context(), kind, id)
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, entries)
 	})
 	return mux
 }

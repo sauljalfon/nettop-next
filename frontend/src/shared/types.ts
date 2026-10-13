@@ -73,6 +73,32 @@ export type Details = EquipmentDetails &
   CableDetails &
   RackDetails
 
+/** change_log's entity kinds (singular); the PATCH path uses the plural. */
+export type ChangeLogKind =
+  'equipment' | 'endpoint' | 'link' | 'site' | 'node' | 'rack'
+
+/** One field changed by a direct fix (GET /change-log, PATCH /installed/...). */
+export interface ChangeLogEntry {
+  id: number
+  at: string
+  entityKind: ChangeLogKind
+  entityId: string
+  field: string
+  oldValue: string
+  newValue: string
+  note?: string
+}
+
+/**
+ * A direct fix of an installed object: its name (a switch port's label) and
+ * detail fields only, never topology. An empty string clears a detail.
+ */
+export interface DirectFix {
+  name?: string
+  details?: Details
+  note?: string
+}
+
 /** update_details changes on objects the plan adds, one entry per object. */
 export interface DetailUpdate {
   id: string

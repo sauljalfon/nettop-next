@@ -12,6 +12,8 @@ import {
   recordedPlansFor,
   APIError,
   createNetwork,
+  fixInstalled,
+  getChangeLog,
   getSiteLayout,
   renameNetwork,
   resetSiteLayout,
@@ -357,4 +359,37 @@ it('reads the health answer, with the environment the API reports', async () => 
     environment: 'test',
   })
   expect(fetchMock.mock.calls[0][0]).toBe('/api/health')
+})
+
+it('FX client: a direct fix PATCHes the plural path with only name, details and note', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ changes: [{ id: 1, field: 'name' }] }),
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  const answer = await fixInstalled('endpoint', 'sw/1:p1', {
+    name: 'Gi1/0/9',
+    details: { state: 'faulty' },
+    note: 'relabelled',
+  })
+  const [url, init] = fetchMock.mock.calls[0]
+  expect(url).toBe('/api/installed/endpoints/sw%2F1%3Ap1')
+  expect(init.method).toBe('PATCH')
+  expect(JSON.parse(init.body)).toEqual({
+    name: 'Gi1/0/9',
+    details: { state: 'faulty' },
+    note: 'relabelled',
+  })
+  expect(answer.changes).toHaveLength(1)
+})
+
+it('FX client: history asks for one object by kind and ID', async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue({ ok: true, json: async () => [] })
+  vi.stubGlobal('fetch', fetchMock)
+  await getChangeLog('rack', 'rack a03')
+  expect(fetchMock.mock.calls[0][0]).toBe(
+    '/api/change-log?entityKind=rack&entityId=rack%20a03',
+  )
 })

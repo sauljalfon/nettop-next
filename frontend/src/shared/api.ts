@@ -1,7 +1,10 @@
 import type {
   BatchCommand,
   BatchResult,
+  ChangeLogEntry,
+  ChangeLogKind,
   Context,
+  DirectFix,
   Network,
   NodePosition,
   Plan,
@@ -191,4 +194,33 @@ export const renameNetwork = (id: string, name: string) =>
   request<Network>(
     `/networks/${encodeURIComponent(id)}`,
     json('PATCH', { name }),
+  )
+
+const FIX_PATH: Record<ChangeLogKind, string> = {
+  equipment: 'equipment',
+  endpoint: 'endpoints',
+  link: 'links',
+  site: 'sites',
+  node: 'nodes',
+  rack: 'racks',
+}
+/**
+ * A direct fix of installed names and details (never topology): the server
+ * writes one change-log row per changed field and keeps the topology revision,
+ * so drafts stay current. 404 unknown object, 409 duplicate name, 422 invalid.
+ */
+export const fixInstalled = (kind: ChangeLogKind, id: string, fix: DirectFix) =>
+  request<{ changes: ChangeLogEntry[] }>(
+    `/installed/${FIX_PATH[kind]}/${encodeURIComponent(id)}`,
+    json('PATCH', fix),
+  )
+/** An object's direct fixes, newest first. */
+export const getChangeLog = (
+  kind: ChangeLogKind,
+  id: string,
+  signal?: AbortSignal,
+) =>
+  request<ChangeLogEntry[]>(
+    `/change-log?entityKind=${kind}&entityId=${encodeURIComponent(id)}`,
+    { signal },
   )
