@@ -94,46 +94,56 @@ export default function DetailsEditor({
       }}
     >
       <span className="eyebrow">{title}</span>
-      {fields.map((f) => {
-        const fieldId = `${id}-${f.key}`
-        const value = values[f.key] ?? ''
-        const set = (v: string) => {
-          setValues((old) => ({ ...old, [f.key]: v }))
-          action.clear()
-        }
-        return (
-          <label key={f.key} htmlFor={fieldId}>
-            {f.label}
-            {f.kind === 'select' ? (
-              <select
-                id={fieldId}
-                value={value}
-                onChange={(e) => set(e.target.value)}
-              >
-                {optionsFor(f, value).map((o) => (
-                  <option key={o} value={o}>
-                    {o || '—'}
-                  </option>
-                ))}
-              </select>
-            ) : f.kind === 'textarea' ? (
-              <textarea
-                id={fieldId}
-                value={value}
-                rows={2}
-                onChange={(e) => set(e.target.value)}
-              />
-            ) : (
-              <input
-                id={fieldId}
-                className={f.mono ? 'mono' : undefined}
-                value={value}
-                onChange={(e) => set(e.target.value)}
-              />
-            )}
-          </label>
-        )
-      })}
+      <div className="details-fields">
+        {fields.map((f) => {
+          const fieldId = `${id}-${f.key}`
+          const value = values[f.key] ?? ''
+          const set = (v: string) => {
+            setValues((old) => ({ ...old, [f.key]: v }))
+            action.clear()
+          }
+          return (
+            <label
+              key={f.key}
+              htmlFor={fieldId}
+              className={
+                f.key === 'name' || f.kind === 'textarea'
+                  ? 'details-wide'
+                  : undefined
+              }
+            >
+              {f.label}
+              {f.kind === 'select' ? (
+                <select
+                  id={fieldId}
+                  value={value}
+                  onChange={(e) => set(e.target.value)}
+                >
+                  {optionsFor(f, value).map((o) => (
+                    <option key={o} value={o}>
+                      {o || '—'}
+                    </option>
+                  ))}
+                </select>
+              ) : f.kind === 'textarea' ? (
+                <textarea
+                  id={fieldId}
+                  value={value}
+                  rows={2}
+                  onChange={(e) => set(e.target.value)}
+                />
+              ) : (
+                <input
+                  id={fieldId}
+                  className={f.mono ? 'mono' : undefined}
+                  value={value}
+                  onChange={(e) => set(e.target.value)}
+                />
+              )}
+            </label>
+          )
+        })}
+      </div>
       {withNote && (
         <label htmlFor={`${id}-note`}>
           Why (optional, kept in history)

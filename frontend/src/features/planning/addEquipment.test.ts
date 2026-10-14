@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { checkEquipmentForm } from './AddEquipmentForm'
+import { checkEquipmentForm, networkChoice } from './AddEquipmentForm'
 
 const ok = {
   name: ' EDGE-31 ',
@@ -45,4 +45,13 @@ it('ED-16 the library form checks what it can before sending', () => {
   expect(checkEquipmentForm({ ...ok, ports: '0' }, 'panel')).toEqual({
     error: 'Positions must be between 1 and 48.',
   })
+})
+
+it('P2-4 a switch form with no networks says so instead of offering an empty list', () => {
+  const nets = [{ id: 'net-a', name: 'Network A' }]
+  expect(networkChoice('switch', nets)).toBe('list')
+  expect(networkChoice('switch', [])).toBe('none-yet')
+  // A panel is shared and never asks for a network.
+  expect(networkChoice('panel', [])).toBe('not-needed')
+  expect(networkChoice('panel', nets)).toBe('not-needed')
 })

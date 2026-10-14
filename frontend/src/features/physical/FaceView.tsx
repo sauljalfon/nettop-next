@@ -191,7 +191,7 @@ export default function FaceView({
         onClick={(event) => cell.endpointId && onSelect(cell.endpointId, event)}
         {...extra}
       >
-        {text}
+        {cell.portState ? <span className="jack-number">{text}</span> : text}
         {cell.cabled && !mark?.tone && <i className="link-dot" />}
         {mark?.badge !== undefined && (
           <span className="pair-badge" aria-hidden="true">

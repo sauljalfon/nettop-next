@@ -51,6 +51,18 @@ export function checkEquipmentForm(
 }
 
 /**
+ * What the form's Network field shows: the list, "No networks yet" when there
+ * is nothing to choose (a new database), or nothing for a panel.
+ */
+export function networkChoice(
+  kind: EquipmentKind['kind'],
+  networks: readonly Network[],
+): 'list' | 'none-yet' | 'not-needed' {
+  if (kind !== 'switch') return 'not-needed'
+  return networks.length ? 'list' : 'none-yet'
+}
+
+/**
  * The library's "Add…" form for an access switch, an aggregation switch or a
  * patch panel (the non-drag way): name, network (switches), rack and unit, then
  * add_equipment. A drop from the library opens it prefilled with the rack and
@@ -67,6 +79,7 @@ export default function AddEquipmentForm({
   openerKey,
   onClose,
   onAdded,
+  onManageNetworks,
 }: {
   title: string
   type: EquipmentKind
@@ -78,6 +91,8 @@ export default function AddEquipmentForm({
   openerKey: string
   onClose: () => void
   onAdded: (plan: Plan) => void
+  /** Opens the Manage networks drawer (the hint when there are no networks yet). */
+  onManageNetworks: () => void
 }) {
   const [values, setValues] = useState({
     name: '',
@@ -89,6 +104,7 @@ export default function AddEquipmentForm({
   // Port groups (switches): null is the plain Ports count; rows name and
   // describe the ports in groups (Count, Names, Type, Connector, Speed).
   const [groups, setGroups] = useState<GroupRow[] | null>(null)
+  const noNetworks = networkChoice(type.kind, networks) === 'none-yet'
   const action = useAsyncAction()
   const dialog = useInlineDialog<HTMLFormElement>(onClose, openerKey)
   const set = (key: keyof typeof values) => (value: string) => {
@@ -149,24 +165,45 @@ export default function AddEquipmentForm({
           onChange={(e) => set('name')(e.target.value)}
         />
       </label>
-      {type.kind === 'switch' && (
-        <label>
-          Network
-          <select
-            aria-label="Network"
-            value={values.networkId}
-            onChange={(e) => set('networkId')(e.target.value)}
-          >
-            <option value="" disabled>
-              Choose the device&apos;s network
-            </option>
-            {networks.map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      {networkChoice(type.kind, networks) !== 'not-needed' && (
+        <>
+          <label>
+            Network
+            <select
+              aria-label="Network"
+              value={values.networkId}
+              disabled={noNetworks}
+              onChange={(e) => set('networkId')(e.target.value)}
+            >
+              {noNetworks ? (
+                <option value="">No networks yet</option>
+              ) : (
+                <>
+                  <option value="" disabled>
+                    Choose the device&apos;s network
+                  </option>
+                  {networks.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </label>
+          {noNetworks && (
+            <p className="hint" data-testid="no-networks-hint">
+              A switch belongs to a network.{' '}
+              <button
+                type="button"
+                className="link-button"
+                onClick={onManageNetworks}
+              >
+                Manage networks…
+              </button>
+            </p>
+          )}
+        </>
       )}
       <LocationPicker
         level="rack"

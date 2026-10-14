@@ -20,15 +20,36 @@
 .details-form .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+/* The form follows the inspector's width, not the window's: short fields pair up
+   (Manufacturer | Model, Serial | IP, as in the demo) when there is room; the
+   name and the descriptions always take the full row. */
+.details-form {
+  container-type: inline-size;
+}
+.details-fields {
+  display: grid;
+  gap: 12px;
+}
+@container (min-width: 320px) {
+  .details-fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .details-fields .details-wide {
+    grid-column: 1 / -1;
+  }
+}
 .details-form label {
   display: grid;
-  gap: 3px;
+  gap: 6px;
   font-size: 11px;
   color: #4b5a72;
 }
 .details-form input,
 .details-form select,
 .details-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   padding: 5px 8px;
   font-size: 12px;
   border: 1px solid #d5dce7;

@@ -1284,6 +1284,14 @@
 }
 
 /* Port state (locked 6: data only, never a trace): a pattern over the fill. */
+/* The number keeps a solid pill in the cell's own colour, so the hatch shows around it, not behind it. */
+.face-cell[data-port-state] .jack-number {
+  padding: 1px 5px;
+  line-height: 1.2;
+  background-color: inherit;
+  background-image: none;
+  border-radius: 999px;
+}
 .face-cell.port-state-reserved,
 .face-legend i.port-state-reserved {
   background-image: repeating-linear-gradient(

@@ -69,6 +69,7 @@ export default function LibraryItems({
   onCancelPending,
   onAdded,
   onHdfCreated,
+  onManageNetworks,
 }: {
   canEdit: boolean
   edit?: PlanEdit
@@ -82,6 +83,8 @@ export default function LibraryItems({
   /** Equipment was added through a form here. */
   onAdded: (plan: Plan) => void
   onHdfCreated: (plan: Plan, name: string) => void
+  /** Opens the Manage networks drawer (from a switch form with no networks yet). */
+  onManageNetworks: () => void
 }) {
   const [open, setOpen] = useState<string>()
   const formEdit = useLastEdit(edit)
@@ -166,6 +169,7 @@ export default function LibraryItems({
               edit={formEdit}
               openerKey={`library:add:${item.id}`}
               onClose={close}
+              onManageNetworks={onManageNetworks}
               onAdded={(plan) => {
                 setOpen(undefined)
                 onAdded(plan)

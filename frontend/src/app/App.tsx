@@ -426,6 +426,7 @@ export default function App() {
             }}
             onConfigurePreview={configurePreview}
             onSelectEquipment={openInspector}
+            onManageNetworks={() => setDrawer('networks')}
             onPlanSaved={saved}
             onRefresh={refresh}
             view={view}
@@ -536,6 +537,8 @@ interface WorkspaceProps {
   /** Equipment was added through the library form: the drawer is done. */
   onEquipmentAdded: () => void
   onSelectEquipment: () => void
+  /** Opens the Manage networks drawer. */
+  onManageNetworks: () => void
   onPlanSaved: (plan: Plan) => Promise<void>
   onRefresh: () => Promise<void>
   /** After a direct fix: refetch and toast. */
@@ -557,6 +560,7 @@ function Workspace({
   onCancelPreview,
   onEquipmentAdded,
   onSelectEquipment,
+  onManageNetworks,
   onPlanSaved,
   onRefresh,
   onFixed,
@@ -999,6 +1003,7 @@ function Workspace({
             pending={pending}
             onCancelPending={onCancelPreview}
             onAdded={onEquipmentAdded}
+            onManageNetworks={onManageNetworks}
             onHdfCreated={(saved, name) => {
               const created = saved.equipment.find(
                 (e) => e.kind === 'hdf' && e.name === name,
