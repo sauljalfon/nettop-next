@@ -487,11 +487,10 @@ test('results in Physical use the map overlay, without route view or export, and
     'agg-08 edge-17 hdf-01 hdf-02 panel-a',
   )
   await expectMark(page, 'data-location', 'sites')
-  // A hop opens the endpoint's equipment in Physical.
+  // A walk row opens the endpoint's equipment in Physical.
   await results
-    .getByTestId('map-hop-row')
-    .filter({ hasText: 'HDF-02 · 1D/2 front' })
-    .first()
+    .getByTestId('walk-row')
+    .filter({ hasText: 'in front 1D/2' })
     .click()
   await expect(root(page)).toHaveAttribute('data-location', /rack:rack-core-01/)
   // Clear trace removes the marks only.

@@ -1,8 +1,8 @@
-import { ChevronDown, ChevronUp, Server, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useState } from 'react'
 import type { Snapshot, TraceResult } from '../../shared/types'
-import type { SnapshotIndex } from './snapshotIndex'
-import { hopRows } from '../pathfinding/hops'
+import type { Sheet } from '../paths/sheet'
+import WalkSheet from '../paths/WalkSheet'
 import { endpointLabel } from '../pathfinding/projection'
 import { exportHeader, exportRouteView } from './exportRoute'
 import { mismatchLine, truncationNotice } from '../pathfinding/results'
@@ -10,16 +10,16 @@ import { resultsSummary, resultsTitle, routeRows } from './routeList'
 
 interface Props {
   snapshot: Snapshot
-  /** Per-snapshot lookups for the hop labels. */
-  index: SnapshotIndex
+  /** The selected route's walk sheet, built once by the app and shared with the route view. */
+  sheet?: Sheet
   /** A muted line under the header, for example that the selected route is not in this context. */
   note?: string
   result: TraceResult
   routeIndex: number
   onRoute: (index: number) => void
-  /** A hop was clicked: select its equipment and center on it. */
+  /** A walk row was clicked: select its equipment and center on it. */
   onHop: (endpointId: string) => void
-  /** Open this hop's endpoint in Physical, from either view. */
+  /** Open this row's endpoint in Physical, from either view. */
   onShowInPhysical: (endpointId: string) => void
   onClear: () => void
   /** Show only this route, laid out for reading (session-only). */
@@ -37,7 +37,7 @@ interface Props {
  */
 export default function MapResults({
   snapshot,
-  index,
+  sheet,
   note,
   result,
   routeIndex,
@@ -59,13 +59,13 @@ export default function MapResults({
     )
   const [exporting, setExporting] = useState<'png' | 'pdf'>()
   const [exportError, setExportError] = useState<string>()
-  // One capture of the route view's React Flow viewport; nothing on the page changes.
+  // One capture of the route view's diagram; nothing on the page changes.
   async function exportRoute(format: 'png' | 'pdf') {
     const route = result.routes[routeIndex]
-    const viewport = document.querySelector<HTMLElement>(
-      '.flow-surface .react-flow__viewport',
+    const element = document.querySelector<HTMLElement>(
+      '.flow-surface [data-testid="route-diagram"]',
     )
-    if (!route || !viewport) return
+    if (!route || !element) return
     const start = endpointLabel(snapshot, route.start)
     const end = endpointLabel(snapshot, route.end)
     setExporting(format)
@@ -73,7 +73,7 @@ export default function MapResults({
     try {
       await exportRouteView({
         format,
-        viewport,
+        element,
         start,
         end,
         header: exportHeader({
@@ -94,6 +94,7 @@ export default function MapResults({
     }
   }
   const rows = routeRows(snapshot, result)
+  const selected = result.routes[routeIndex]
   const notice = truncationNotice(result)
   return (
     <section
@@ -142,7 +143,7 @@ export default function MapResults({
                     <span>{row.label}</span>
                     <small>{row.counts}</small>
                   </button>
-                  {row.index === routeIndex && result.routes[row.index] && (
+                  {row.index === routeIndex && selected && (
                     <>
                       {!physical && (
                         <div className="map-route-tools">
@@ -178,29 +179,13 @@ export default function MapResults({
                           )}
                         </div>
                       )}
-                      <ol className="map-hops" aria-label="Route hops">
-                        {hopRows(index, result.routes[row.index]).map((hop) => (
-                          <li key={hop.key} className="map-hop-item">
-                            <button
-                              data-testid="map-hop-row"
-                              className={`map-hop ${hop.kind}`}
-                              onClick={() => onHop(hop.endpointId)}
-                            >
-                              <small>{hop.title}</small>
-                              <span>{hop.label}</span>
-                              {hop.linkLabel && <em>{hop.linkLabel}</em>}
-                            </button>
-                            <button
-                              className="row-action"
-                              title="Show in Physical"
-                              aria-label={`Show in Physical: ${hop.label}`}
-                              onClick={() => onShowInPhysical(hop.endpointId)}
-                            >
-                              <Server size={13} />
-                            </button>
-                          </li>
-                        ))}
-                      </ol>
+                      {sheet && (
+                        <WalkSheet
+                          sheet={sheet}
+                          onRow={onHop}
+                          onShowInPhysical={onShowInPhysical}
+                        />
+                      )}
                     </>
                   )}
                 </li>

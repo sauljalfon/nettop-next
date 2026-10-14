@@ -257,8 +257,9 @@ test('POL-16 highlight, route and network filter combine and clear independently
     ],
     dimmedCards: ['agg-12', 'edge-22', 'panel-dr'],
   })
-  // Only the trace itself went to the backend: no extra data was loaded for those cards.
-  expect(requests).toEqual(['POST /api/traces'])
+  // Only traces went to the backend: the uplinks summary of EDGE-17's inspector, then the
+  // user's trace. No extra data was loaded for those cards.
+  expect(requests).toEqual(['POST /api/traces', 'POST /api/traces'])
   // Cable a01 is on the route and highlighted: teal, with the amber outline beneath.
   const colors = await page.evaluate(() => {
     const edge = document.querySelector('.react-flow__edge.hl.animated')

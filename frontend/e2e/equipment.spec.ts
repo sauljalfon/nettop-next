@@ -290,12 +290,17 @@ test('F10 a switch shows its port bank in rows of 12, with cabled and free ports
   )
   await port(1).click()
   await expectMark(page, 'data-selected-endpoint', 'edge-17:p1')
-  await expect(external(page)).toContainText('cable-a01')
-  await expect(external(page)).toContainText('PANEL-A')
-  await expect(external(page)).toContainText('Rack A03')
-  await expect(internal(page)).toHaveCount(0)
+  // A switch port shows its walk sheet: the cable, PANEL-A in Rack A03, and on.
+  const walk = detail(page).getByTestId('walk-sheet')
+  await expect(walk.getByTestId('walk-cable').first()).toHaveAttribute(
+    'data-link',
+    'cable-a01',
+  )
+  await expect(walk.getByTestId('walk-row').nth(1)).toContainText('PANEL-A')
+  await expect(walk.getByTestId('walk-place').first()).toContainText('Rack A03')
+  await expect(detail(page).getByTestId('chain')).toHaveCount(0)
   await port(4).click()
-  await expect(external(page)).toHaveCount(0) // a free port has no cable
+  await expect(walk.getByTestId('walk-end')).toHaveAttribute('data-end', 'none') // a free port has no cable
 })
 
 test('F10 a standard panel shows positions 1..N on the chosen side, and switching keeps the position', async ({
@@ -335,14 +340,13 @@ test('Show on map returns to the conceptual map with this equipment selected', a
   ).toHaveClass(/selected/)
 })
 
-test('a hop opens the exact endpoint', async ({ page }) => {
+test('a walk row opens the exact endpoint', async ({ page }) => {
   await traceAgg03(page)
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
   await expandResults(page)
   await page
-    .getByTestId('map-hop-row')
-    .filter({ hasText: 'HDF-02 · 2B/3 front' })
-    .first()
+    .getByTestId('walk-row')
+    .filter({ hasText: 'in front 2B/3' })
     .click()
   await expectMark(page, 'data-physical-level', 'equipment')
   await expectMark(page, 'data-selected-endpoint', HDF02_2B3_FRONT)

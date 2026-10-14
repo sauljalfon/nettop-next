@@ -1,8 +1,7 @@
 import type { TraceRequest } from '../../shared/types'
-import type { Rect } from './routeView'
 
 export const EXPORT = {
-  /** Space around the route and its boxes. */
+  /** Space around the diagram. */
   padding: 32,
   /** The header band above the route, in CSS px. */
   headerHeight: 96,
@@ -68,7 +67,7 @@ export function exportFileName(
 }
 
 export interface CaptureLayout {
-  /** The whole image in CSS px: the route area under the header band. */
+  /** The whole image in CSS px: the diagram area under the header band. */
   width: number
   height: number
   routeHeight: number
@@ -77,25 +76,23 @@ export interface CaptureLayout {
   ratio: number
   pixelWidth: number
   pixelHeight: number
-  /** Where the canvas's flow origin goes inside the route area, in CSS px. */
-  translate: { x: number; y: number }
+  /** Where the diagram's top-left goes inside the diagram area, in CSS px. */
+  offset: { x: number; y: number }
 }
 
 /**
- * How big the export is and where the route sits in it: the bounds of the
- * route's cards and outline boxes (flow coordinates), padded, centered if the
- * header needs more width, under the header band, at pixel ratio 2 unless that
- * would pass the safe maximum.
+ * How big the export is and where the diagram sits in it: the diagram's full size
+ * (not the part in view), padded, centered if the header needs more width, under
+ * the header band, at pixel ratio 2 unless that would pass the safe maximum.
  */
-export function captureLayout(rects: readonly Rect[]): CaptureLayout {
-  const left = Math.min(...rects.map((r) => r.x))
-  const top = Math.min(...rects.map((r) => r.y))
-  const right = Math.max(...rects.map((r) => r.x + r.width))
-  const bottom = Math.max(...rects.map((r) => r.y + r.height))
+export function captureLayout(size: {
+  width: number
+  height: number
+}): CaptureLayout {
   const { padding, headerHeight } = EXPORT
-  const boundsWidth = right - left + 2 * padding
+  const boundsWidth = size.width + 2 * padding
   const width = Math.max(EXPORT.minWidth, boundsWidth)
-  const routeHeight = bottom - top + 2 * padding
+  const routeHeight = size.height + 2 * padding
   const height = routeHeight + headerHeight
   const ratio = Math.min(EXPORT.ratio, EXPORT.maxSide / Math.max(width, height))
   return {
@@ -106,32 +103,8 @@ export function captureLayout(rects: readonly Rect[]): CaptureLayout {
     ratio,
     pixelWidth: Math.round(width * ratio),
     pixelHeight: Math.round(height * ratio),
-    translate: {
-      x: padding - left + (width - boundsWidth) / 2,
-      y: padding - top,
-    },
+    offset: { x: padding + (width - boundsWidth) / 2, y: padding },
   }
-}
-
-/** Every node's rectangle in flow coordinates, read from the drawn viewport. */
-export function readNodeRects(viewport: HTMLElement): Rect[] {
-  return [
-    ...viewport.querySelectorAll<HTMLElement>('.react-flow__node'),
-  ].flatMap((el) => {
-    const at = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(
-      el.style.transform,
-    )
-    return at
-      ? [
-          {
-            x: Number(at[1]),
-            y: Number(at[2]),
-            width: el.offsetWidth,
-            height: el.offsetHeight,
-          },
-        ]
-      : []
-  })
 }
 
 export function download(blob: Blob, fileName: string) {
@@ -167,47 +140,45 @@ function drawHeader(
 }
 
 /**
- * Captures the route view once and downloads it as a PNG or a one-page PDF.
+ * Captures the route diagram once and downloads it as a PNG or a one-page PDF.
  * The libraries load on the first export. The capture is of a clone of the
- * React Flow viewport with its own transform, so the route is whole whatever
- * the zoom, pan or open drawers are, and the page itself is never touched:
- * no viewport, session or snapshot change, and no backend call.
+ * diagram element at its full scroll size, so the whole route is in the image
+ * whatever is scrolled or covered, and the page itself is never touched: no
+ * session or snapshot change, and no backend call.
  */
 export async function exportRouteView(options: {
   format: 'png' | 'pdf'
-  viewport: HTMLElement
+  /** The diagram's own element (the inner `.rd`), not its scroll box. */
+  element: HTMLElement
   header: ExportHeader
   start: string
   end: string
 }): Promise<void> {
-  const { format, viewport, header } = options
-  const rects = readNodeRects(viewport)
-  if (!rects.length) throw new Error('Nothing to export.')
-  const layout = captureLayout(rects)
+  const { format, element, header } = options
+  const size = { width: element.scrollWidth, height: element.scrollHeight }
+  if (!size.width || !size.height) throw new Error('Nothing to export.')
+  const layout = captureLayout(size)
   const { toCanvas } = await import('html-to-image')
-  const route = await toCanvas(viewport, {
-    width: layout.width,
-    height: layout.routeHeight,
+  const picture = await toCanvas(element, {
+    width: size.width,
+    height: size.height,
     pixelRatio: layout.ratio,
-    backgroundColor: '#f6f8fb',
+    backgroundColor: '#ffffff',
     skipFonts: true, // the app uses system fonts only
-    style: {
-      width: `${layout.width}px`,
-      height: `${layout.routeHeight}px`,
-      transform: `translate(${layout.translate.x}px, ${layout.translate.y}px) scale(1)`,
-    },
   })
   const canvas = document.createElement('canvas')
   canvas.width = layout.pixelWidth
   canvas.height = layout.pixelHeight
   const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
   drawHeader(ctx, header, layout)
   ctx.drawImage(
-    route,
-    0,
-    layout.headerHeight * layout.ratio,
-    layout.width * layout.ratio,
-    layout.routeHeight * layout.ratio,
+    picture,
+    layout.offset.x * layout.ratio,
+    (layout.headerHeight + layout.offset.y) * layout.ratio,
+    size.width * layout.ratio,
+    size.height * layout.ratio,
   )
   const fileName = exportFileName(options.start, options.end, format)
   if (format === 'png') {

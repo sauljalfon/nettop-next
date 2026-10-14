@@ -11,7 +11,7 @@ A calm, spacious technical workspace: a light neutral canvas, restrained borders
 - **Truthful:** a summary says what it counts (real cables); a colour never replaces a label (roles, sides and states are written, BB is labelled BB); proposed objects are marked PROPOSED (dashed); a preview is never shown as installed.
 - **Stable:** saving, refetching, tracing, filtering or switching context never resets the viewport or the selection, never refits and never remounts. Objects are reconciled by stable ID.
 - **Colours follow meaning, never an ID:** each network has one stable colour by creation order (grey when unresolved); the selected route is teal; a highlight is amber; free endpoints are white.
-- Theme tokens, the font and equipment silhouettes are design-system choices, not requirements; the portal-style tokens of the inventory live in one shared stylesheet (roadmap §3).
+- Theme tokens, the font and equipment silhouettes are design-system choices, not requirements; the portal-style tokens of the inventory live in one shared stylesheet (roadmap §2).
 
 ## 2. Shell
 
@@ -22,15 +22,15 @@ A calm, spacious technical workspace: a light neutral canvas, restrained borders
 
 ## 3. Conceptual map (locked 2, 3, 9, 11)
 
-- A full-page map of **equipment connected by real cables**, freely arranged; positions are the user's (session today; saved on the server in roadmap §2). Not an ownership tree, not a nested inventory, not a route strip.
+- A full-page map of **equipment connected by real cables**, freely arranged; positions are the user's (session today; saved on the server in roadmap §1). Not an ownership tree, not a nested inventory, not a route strip.
 - Cards are compact: name, kind/role, location label, "N of M cabled", network badges (one for an active device; one per circuit network for a passive one), and facets. Panels and HDFs are single objects; front and rear are sides of one object.
 - Cables attach to exact endpoints. Parallel cables between two cards on one network are one line whose width and count show how many; it lists the cable IDs and splits into one line per cable on demand. Lines are drawing aids, never traversal.
 - **The network filter** shows one network's active devices plus the passive equipment that carries its circuits; it never changes what a trace finds.
 - **A trace highlights the map in place:** the route is teal, cards and the viewport do not move, other cables stay visible and quieter. The route's cards are shown even where the filter or a highlight would hide them.
 - **HDF states:** compact by default; the selected route reveals only its positions automatically (tagged "route", the parent name always visible, each used position separately); positions pinned by the user (only from the inspector) stay until unpinned and survive route changes. Automatic and manual detail are separate state. Counts keep subpanels, positions, cabled positions and networks apart.
 - **Highlight a location:** a site or node from Explore or the inspector highlights its equipment, the cables leaving it and their far ends, fading the rest; it is independent of the trace.
-- **Route view** (opt-in, locked 3 amendment): only the active route, left to right in hop order, inside node and rack outlines, exportable as PNG and PDF; turning it off restores the map exactly.
-- **Readable at real size** is roadmap §2: an overview by node, a focus on one device's neighbourhood, and a saved arrangement.
+- **Route view** (opt-in, locked 3 amendment): a picture of only the active route over the map, left to right: sites as frames, nodes as boxes with their steps close together and far apart from each other, each step with its rack and the ports used, one thick line with arrows and the cable names on it. Exportable as PNG and PDF; turning it off restores the map exactly.
+- **Readable at real size** is roadmap §1: an overview by node, a focus on one device's neighbourhood, and a saved arrangement.
 
 ## 4. Physical explorer (locked 4, 8, 9)
 
@@ -40,15 +40,16 @@ Sites → site → node → rack → equipment → exact port or position (front
 
 - Always the **complete physical inventory**; a one-line scope note says so. A chosen network or route only marks things (other networks muted, never hidden; the route teal).
 - **Sites:** cards with truthful counts and network badges. **A site:** only its node cards, arranged freely and saved on the server, joined by cable summary lines that count real cables and list them; a large site starts arranged by cable distance (access → passive → AGG/BB). **A node:** its own rack previews (a mini elevation each), searchable when there are many. **A rack:** a cabinet that fits the screen, real U numbers, one block per equipment spanning its height. **Equipment:** a faceplate (a switch's banks per port group, odd jacks above even; a panel's positions; the full HDF grid in row-major blocks A–D), with Front | Rear for passive equipment.
-- **Endpoint detail:** the external cable and its far end (Go to peer), the internal peer on the other side (Switch to front/rear, keeping the position), Find AGG / BB from here, Show on map; port details and their state (reserved, disabled, faulty jacks are hatched, with a readable number).
-- **Navigation:** clickable breadcrumbs and an in-app Back that restores the exact location, endpoint and side; Show in Physical from the inspector, its rows and every hop; switching back to Conceptual finds the map exactly as it was. A selected route shows as a trail of steps across levels.
+- **Endpoint detail:** for a switch port, its **walk sheet** wherever the path ends; for a panel or HDF position, the external cable and its far end (Go to peer) and the internal peer on the other side (Switch to front/rear, keeping the position); always Find AGG / BB from here, Show on map, and port details and their state (reserved, disabled, faulty jacks are hatched, with a readable number).
+- **Uplinks summary:** an access switch's page (and its inspector) lists each port that reaches an AGG or BB, AGG first, with its destination, cable count and the passives it goes through; those ports are marked on the faceplate.
+- **Navigation:** clickable breadcrumbs and an in-app Back that restores the exact location, endpoint and side; Show in Physical from the inspector, its rows and every walk sheet row; switching back to Conceptual finds the map exactly as it was. A selected route shows as a trail of steps across levels.
 - Not a geographic map or floor plan; real photos or plans need real data.
 
 ## 5. Find AGG / BB (locked 7)
 
 - Started from a switch (all ports), a port or position row, a facet, or the Trace drawer; exact port-to-port tracing stays in the Trace drawer.
 - Every reachable route is listed with destination, actual role, network, start port and its length (cables, bridges); AGG first, BB never dropped; mismatches separately as "on another network"; truncation said plainly. An unreachable device is never a result.
-- Choosing another route changes the highlight and the revealed positions, never the layout. Each route expands to its explanation (today a hop list; the **walk sheet** of roadmap §1 replaces it: steps by place, cables by label, bridges folded into rows, right-to-left names kept readable).
+- Choosing another route changes the highlight and the revealed positions, never the layout. Each route expands to its **walk sheet**: one row per equipment grouped by place (Site › Node › Rack, with the unit), the bridge folded into the row ("in front 2 → out rear 2"), cables by label (else a short ID), a note when the path leaves a node or site, a line saying how it ends, and right-to-left names kept readable.
 
 ```text
 EDGE-17 / Network A

@@ -23,71 +23,63 @@ async function traceFromEdge17(page: Page) {
   await expect(rows(page)).toHaveCount(3)
 }
 
-async function hopTexts(rows: import('@playwright/test').Locator) {
-  return rows.evaluateAll((els) =>
+/** Each walk row as its name and its in/out text; each cable by its link ID. */
+async function sheetRows(sheet: import('@playwright/test').Locator) {
+  return sheet.getByTestId('walk-row').evaluateAll((els) =>
     els.map((el) => ({
-      title: el.querySelector('small')!.textContent,
-      label: el.querySelector('span')!.textContent,
-      link: el.querySelector('em')?.textContent ?? null,
+      name: el.querySelector('.walk-name bdi')!.textContent,
+      io: el.querySelector('.walk-io')!.textContent,
     })),
   )
 }
+const cableLinks = (sheet: import('@playwright/test').Locator) =>
+  sheet
+    .getByTestId('walk-cable')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-link')))
 
-test('POL-04 the map overlay lists the same hop rows in Physical, in order', async ({
+test('POL-04 the map overlay lists the same walk rows in Physical, in order', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await traceFromEdge17(page)
 
-  // Only the selected route is expanded: START plus seven hops for AGG-03.
-  const hops = page.getByTestId('map-hop-row')
-  await expect(hops).toHaveCount(8)
-  const onMap = await hops.evaluateAll((els) =>
-    els.map((el) => ({
-      title: el.querySelector('small')!.textContent,
-      label: el.querySelector('span')!.textContent,
-      link: el.querySelector('em')?.textContent ?? null,
-    })),
-  )
-  expect(onMap[0]).toEqual({
-    title: 'START',
-    label: 'EDGE-17 · Port 1',
-    link: null,
-  })
-  expect(onMap.slice(1).map((r) => r.title)).toEqual([
-    '1 · CABLE',
-    '2 · PANEL BRIDGE',
-    '3 · CABLE',
-    '4 · PANEL BRIDGE',
-    '5 · CABLE',
-    '6 · PANEL BRIDGE',
-    '7 · CABLE',
+  // Only the selected route is expanded: one row per equipment, AGG-03's path.
+  const sheet = page.getByTestId('walk-sheet')
+  await expect(sheet).toHaveCount(1)
+  await expect(sheet.getByTestId('walk-row')).toHaveCount(5)
+  const onMap = await sheetRows(sheet)
+  expect(onMap).toEqual([
+    { name: 'EDGE-17', io: 'start · out Port 1' },
+    { name: 'PANEL-A', io: 'in front 1 → out rear 1' },
+    { name: 'HDF-01', io: 'in rear 3C/5 → out front 3C/5' },
+    { name: 'HDF-02', io: 'in front 2B/3 → out rear 2B/3' },
+    { name: 'AGG-03', io: 'in Port 1' },
   ])
-  // Cables carry their IDs; the start and panel bridges are told apart by kind.
-  expect(
-    onMap.filter((_, i) => [1, 3, 5, 7].includes(i)).map((r) => r.link),
-  ).toEqual(['cable-a01', 'cable-a02', 'cable-a03', 'cable-a04'])
-  expect(
-    onMap.filter((_, i) => [2, 4, 6].includes(i)).every((r) => r.link),
-  ).toBe(true)
+  // The cables between the rows carry their IDs; the bridges are inside the rows.
+  expect(await cableLinks(sheet)).toEqual([
+    'cable-a01',
+    'cable-a02',
+    'cable-a03',
+    'cable-a04',
+  ])
 
   // Selecting another route moves the expansion; the others stay collapsed.
   await rows(page).nth(1).click()
-  await expect(hops).toHaveCount(8)
-  await expect(hops.nth(1)).toContainText('cable-a05')
+  await expect(sheet).toHaveCount(1)
+  expect((await cableLinks(sheet))[0]).toBe('cable-a05')
 
   // The Physical view uses the same overlay and shows the same rows.
   await rows(page).nth(0).click()
-  const mapRows = await hopTexts(hops)
+  const mapRows = await sheetRows(sheet)
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
   await expandResults(page)
-  expect(await hopTexts(page.getByTestId('map-hop-row'))).toEqual(mapRows)
+  expect(await sheetRows(page.getByTestId('walk-sheet'))).toEqual(mapRows)
   // Without the route view toggle or export, which belong to the map.
   await expect(page.getByRole('button', { name: 'Route view' })).toHaveCount(0)
 })
 
-test('POL-05 clicking a hop selects its equipment and centers without changing zoom', async ({
+test('POL-05 clicking a walk row selects its equipment and centers without changing zoom', async ({
   page,
 }) => {
   await page.goto('/')
@@ -97,8 +89,8 @@ test('POL-05 clicking a hop selects its equipment and centers without changing z
   const positions = await layout(page)
 
   await page
-    .getByTestId('map-hop-row')
-    .filter({ hasText: 'HDF-02 · 2B/3 front' })
+    .getByTestId('walk-row')
+    .filter({ hasText: 'in front 2B/3' })
     .click()
   await expect(page.locator('.inspector-header h2')).toHaveText('HDF-02')
   await expectCenteredInVisibleArea(page, 'hdf-02')

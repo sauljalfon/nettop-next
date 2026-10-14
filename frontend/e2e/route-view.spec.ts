@@ -9,42 +9,35 @@ import {
   settledViewport,
 } from './helpers'
 
-const ROUTE_CARDS = ['agg-03', 'edge-17', 'hdf-01', 'hdf-02', 'panel-a']
-const ORDER = ['edge-17', 'panel-a', 'hdf-01', 'hdf-02', 'agg-03']
+const ORDER = ['EDGE-17', 'PANEL-A', 'HDF-01', 'HDF-02', 'AGG-03']
 const toggle = (page: Page) => page.getByRole('button', { name: 'Route view' })
 const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
+const diagram = (page: Page) => page.getByTestId('route-diagram')
+const steps = (page: Page) => diagram(page).getByTestId('rd-step')
+const cables = (page: Page) => diagram(page).getByTestId('rd-cable')
 
-/** Find AGG / BB from EDGE-17; the first route is AGG-03, so it is the active one. */
-async function traceFromEdge17(page: Page) {
-  await page.getByTestId('rf__node-edge-17').click()
+/** Find AGG / BB from a switch; the first route is the active one. */
+async function traceFrom(page: Page, id: string, name: string, count: number) {
+  await page.getByTestId(`rf__node-${id}`).click()
   await page
-    .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
+    .getByRole('button', { name: `Find AGG / BB from ${name}`, exact: true })
     .click()
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  await expect(rows(page)).toHaveCount(3)
+  await expect(rows(page)).toHaveCount(count)
 }
+const traceFromEdge17 = (page: Page) => traceFrom(page, 'edge-17', 'EDGE-17', 3)
 
-const box = async (page: Page, selector: string) =>
-  (await page.locator(selector).boundingBox())!
-interface Rect {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-const inside = (inner: Rect, outer: Rect) =>
-  inner.x >= outer.x - 1 &&
-  inner.y >= outer.y - 1 &&
-  inner.x + inner.width <= outer.x + outer.width + 1 &&
-  inner.y + inner.height <= outer.y + outer.height + 1
-const overlaps = (a: Rect, b: Rect) =>
-  a.x < b.x + b.width &&
-  b.x < a.x + a.width &&
-  a.y < b.y + b.height &&
-  b.y < a.y + a.height
+/** The step names in drawing order, read from the cards' own names. */
+const stepNames = (page: Page) =>
+  steps(page).evaluateAll((els) =>
+    els.map((el) => el.querySelector('.rd-name')!.textContent),
+  )
 
-test('POL-22 the toggle shows only the route, and turning it off restores the same map', async ({
+// POL-22 (kept, rewritten): the old assertions on the route-view map (only the route's cards
+// and cables drawn, only its facets) are replaced by the opposite: the map is not touched while
+// the picture is on. Everything about restoring the map is kept as it was.
+test('POL-22 the toggle covers the map with the route, and turning it off leaves the same map', async ({
   page,
 }) => {
   await page.goto('/')
@@ -68,25 +61,32 @@ test('POL-22 the toggle shows only the route, and turning it off restores the sa
   const positions = await layout(page)
   const port = await settledViewport(page)
 
+  await expect(diagram(page)).toHaveCount(0)
   await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false')
   await toggle(page).click()
   await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true')
-  await expectMarks(page, {
-    routeView: true,
-    cards: ROUTE_CARDS,
-    routeLinks: ['cable-a01', 'cable-a02', 'cable-a03', 'cable-a04'],
-    highlightCards: [],
-    dimmedCards: [],
-    splitPairs: [],
-  })
-  // Only the route's exact positions show, not the pin.
-  await expect(
-    page.getByLabel('HDF-01 shown connections').locator('.map-facet-label'),
-  ).toHaveText(['3C / 5'])
-  await expect(page.getByTestId('rf__node-agg-15')).toHaveCount(0)
+  await expectMarks(page, { routeView: true })
+  await expect(diagram(page)).toBeVisible()
+  // The map underneath is untouched: same cards, highlight, pairs, positions and view.
+  await expect(page.locator('.flow-surface')).toHaveAttribute(
+    'data-cards',
+    marksBefore.cards!,
+  )
+  await expect(page.locator('.flow-surface')).toHaveAttribute(
+    'data-split-pairs',
+    marksBefore.split!,
+  )
+  expect(await layout(page)).toEqual(positions)
+  expect(await settledViewport(page)).toBe(port)
+  // The map's own controls are not offered over the picture.
+  await expect(page.locator('.react-flow__controls')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Reset layout' })).toHaveCount(
+    0,
+  )
 
   await toggle(page).click()
   await expectMarks(page, { routeView: false })
+  await expect(diagram(page)).toHaveCount(0)
   await expect(page.locator('.flow-surface')).toHaveAttribute(
     'data-cards',
     marksBefore.cards!,
@@ -101,6 +101,7 @@ test('POL-22 the toggle shows only the route, and turning it off restores the sa
   )
   expect(await layout(page)).toEqual(positions)
   expect(await settledViewport(page)).toBe(port)
+  await expect(page.locator('.react-flow__controls')).toHaveCount(1)
   await expect(
     page.getByRole('combobox', { name: 'Show network' }),
   ).toHaveValue('net-a')
@@ -109,83 +110,167 @@ test('POL-22 the toggle shows only the route, and turning it off restores the sa
   ).toHaveText(['1A / 2', '3C / 5'])
 })
 
-test('POL-23 the route lays out left to right in hop order, on one row', async ({
+// POL-23 (rewritten): was "cards on one row, left to right". Now the steps are numbered in
+// route order and drawn left to right.
+test('POL-23 the steps are in route order, numbered, and drawn left to right', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await traceFromEdge17(page)
   await toggle(page).click()
-  await expectMarks(page, { routeView: true })
-  await settledViewport(page) // the fit animates for a moment
-  const boxes = []
-  for (const id of ORDER)
-    boxes.push(await box(page, `[data-testid="rf__node-${id}"]`))
+  await expect(steps(page)).toHaveCount(5)
+  expect(await stepNames(page)).toEqual(ORDER)
+  expect(
+    await steps(page).evaluateAll((els) =>
+      els.map((e) => e.getAttribute('data-n')),
+    ),
+  ).toEqual(['1', '2', '3', '4', '5'])
+  const boxes = await steps(page).evaluateAll((els) =>
+    els.map((e) => e.getBoundingClientRect().toJSON()),
+  )
   for (let i = 1; i < boxes.length; i++) {
     expect(boxes[i].x).toBeGreaterThan(boxes[i - 1].x + boxes[i - 1].width - 1)
     expect(Math.abs(boxes[i].y - boxes[0].y)).toBeLessThan(2)
   }
+  // Every name is in a bdi, and the ports are pins.
+  await expect(steps(page).first().locator('.rd-name > bdi')).toHaveText(
+    'EDGE-17',
+  )
+  await expect(steps(page).nth(1).locator('.pin.in')).toHaveText('front 1')
+  await expect(steps(page).nth(1).locator('.pin.out')).toHaveText('rear 1')
+  await expect(steps(page).first().locator('.pin.out')).toHaveText('Port 1')
+  await expect(steps(page).last().locator('.pin.in')).toHaveText('Port 1')
 })
 
-test('POL-24 EDGE-17 → AGG-03 shows a dashed node box per run with its label, and a rack box only where two or more cards share a rack', async ({
+// POL-24 (rewritten): was "dashed node and rack outline boxes on the map". Now sites and nodes
+// are the picture's own frames and boxes, and each cable says how far it goes.
+test('POL-24 EDGE-17 → AGG-03: one site, three nodes, cables by gap, leave notes on the long ones', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await traceFromEdge17(page)
   await toggle(page).click()
-  await expectMarks(page, { routeView: true })
-  await settledViewport(page)
-  const marks = await page.locator('.flow-surface').evaluate((el) => ({
-    node: el.getAttribute('data-node-boxes')!.split(' ').length,
-    rack: el.getAttribute('data-rack-boxes')!.split(' ').length,
-  }))
-  expect(marks).toEqual({ node: 3, rack: 2 })
-  const nodes = page.locator('.route-outline.node')
-  const racks = page.locator('.route-outline.rack')
-  await expect(nodes).toHaveCount(3)
-  await expect(racks).toHaveCount(2)
-  await expect(nodes.locator('.route-outline-label')).toHaveText([
-    'Main Campus / Building A',
-    'Main Campus / North Sub-main',
-    'Main Campus / Main Distribution',
+  const sites = diagram(page).getByTestId('rd-site')
+  await expect(sites).toHaveCount(1)
+  await expect(sites.locator('.rd-site-head bdi')).toHaveText(['Main Campus'])
+  const nodes = diagram(page).getByTestId('rd-node')
+  await expect(nodes.locator('.rd-node-head bdi')).toHaveText([
+    'Building A',
+    'North Sub-main',
+    'Main Distribution',
   ])
-  await expect(racks.locator('.route-outline-label')).toHaveText([
+  await expect(sites.first()).toHaveCSS('border-top-style', 'dashed')
+  // Which steps each node holds.
+  expect(
+    await nodes.evaluateAll((els) =>
+      els.map((n) =>
+        [...n.querySelectorAll('[data-testid="rd-step"] .rd-name')].map(
+          (s) => s.textContent,
+        ),
+      ),
+    ),
+  ).toEqual([['EDGE-17', 'PANEL-A'], ['HDF-01'], ['HDF-02', 'AGG-03']])
+  // The rack is on its step.
+  await expect(steps(page).locator('.rd-rack')).toHaveText([
     'Rack A03',
+    'Rack A03',
+    'Rack SM01',
+    'Rack Core 01',
     'Rack Core 01',
   ])
-  await expect(nodes.first()).toHaveCSS('border-top-style', 'dashed')
-  await expect(racks.first()).toHaveCSS('border-top-style', 'dashed')
-
-  // Each node box encloses exactly its cards, and a rack box sits inside its node box.
-  const card = (id: string) => box(page, `[data-testid="rf__node-${id}"]`)
-  const nodeBoxes = await nodes.evaluateAll((els) =>
-    els.map((e) => e.getBoundingClientRect().toJSON()),
+  // Cables, in order, with their gap kind and (long ones) the place they leave.
+  await expect(cables(page)).toHaveCount(4)
+  expect(
+    await cables(page).evaluateAll((els) =>
+      els.map((e) => [e.getAttribute('data-link'), e.getAttribute('data-gap')]),
+    ),
+  ).toEqual([
+    ['cable-a01', 'in-node'],
+    ['cable-a02', 'node-gap'],
+    ['cable-a03', 'node-gap'],
+    ['cable-a04', 'in-node'],
+  ])
+  // These cables have no label: the short ID (… and the last six characters).
+  await expect(cables(page).locator('.clabel')).toHaveText([
+    '…le-a01',
+    '…le-a02',
+    '…le-a03',
+    '…le-a04',
+  ])
+  await expect(cables(page).first().locator('.clabel')).toHaveAttribute(
+    'title',
+    'cable-a01',
   )
-  const rackBoxes = await racks.evaluateAll((els) =>
-    els.map((e) => e.getBoundingClientRect().toJSON()),
+  await expect(cables(page).nth(1).locator('.cleave')).toHaveText(
+    'leaves Building A',
   )
-  const members = [['edge-17', 'panel-a'], ['hdf-01'], ['hdf-02', 'agg-03']]
-  for (const [i, ids] of members.entries())
-    for (const id of ORDER) {
-      const c = await card(id)
-      expect(inside(c, nodeBoxes[i])).toBe(ids.includes(id))
-    }
-  expect(inside(rackBoxes[0], nodeBoxes[0])).toBe(true)
-  expect(inside(rackBoxes[1], nodeBoxes[2])).toBe(true)
-  // Labels never sit on a card.
-  const labels = await page
-    .locator('.route-outline-label')
-    .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()))
-  for (const label of labels)
-    for (const id of ORDER) expect(overlaps(label, await card(id))).toBe(false)
+  await expect(cables(page).nth(2).locator('.cleave')).toHaveText(
+    'leaves North Sub-main',
+  )
+  await expect(cables(page).nth(0).locator('.cleave')).toHaveCount(0)
+  // The first step has the teal border, the destination is AGG purple.
+  await expect(steps(page).first()).toHaveClass(/first/)
+  await expect(steps(page).last()).toHaveClass(/dest/)
 })
 
-test('POL-25 a route that leaves a node and returns gets two boxes for it', async ({
+test('POL-24 a path across sites has a site-gap cable that says it leaves DR Site', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await traceFrom(page, 'edge-22', 'EDGE-22', 1)
+  await toggle(page).click()
+  const sites = diagram(page).getByTestId('rd-site')
+  // DR Site, Main Campus, then DR Site again: two frames of the same name, kept apart.
+  await expect(sites.locator('.rd-site-head bdi')).toHaveText([
+    'DR Site',
+    'Main Campus',
+    'DR Site',
+  ])
+  expect(
+    await cables(page).evaluateAll((els) =>
+      els.map((e) => [e.getAttribute('data-link'), e.getAttribute('data-gap')]),
+    ),
+  ).toEqual([
+    ['cable-b01', 'in-node'],
+    ['cable-b02', 'site-gap'],
+    ['cable-b03', 'node-gap'],
+    ['cable-b04', 'site-gap'],
+  ])
+  await expect(cables(page).nth(1).locator('.cleave')).toHaveText(
+    'leaves DR Site',
+  )
+  await expect(cables(page).nth(3).locator('.cleave')).toHaveText(
+    'leaves Main Campus',
+  )
+  await expect(
+    cables(page).nth(1).locator('.cleave bdi', { hasText: 'DR Site' }),
+  ).toHaveCount(1)
+})
+
+test('a step click opens that endpoint in Physical', async ({ page }) => {
+  await page.goto('/')
+  await fitted(page)
+  await traceFromEdge17(page)
+  await toggle(page).click()
+  const step = steps(page).nth(2) // HDF-01
+  const endpoint = await step.getAttribute('data-endpoint')
+  expect(endpoint).toBeTruthy()
+  await step.click()
+  const root = page.locator('.physical-explorer')
+  await expect(root).toBeVisible()
+  await expect(root).toHaveAttribute('data-physical-level', 'equipment')
+  await expect(root).toHaveAttribute('data-selected-endpoint', endpoint!)
+})
+
+// POL-25 (rewritten): was "two outline boxes for a route that leaves a node and returns".
+test('POL-25 a route that leaves a node and returns gets two node boxes for it', async ({
   page,
   request,
 }) => {
-  // In a draft, AGG-03 moves into Rack A03: the route goes Building A → North Sub-main → Main Distribution → Building A.
+  // In a draft, AGG-03 moves into Rack A03: Building A → North Sub-main → Main Distribution → Building A.
   const created = await request.post('/api/plans', {
     data: { name: 'Back to A', expectedBaseRevision: 'acceptance-1' },
   })
@@ -203,136 +288,116 @@ test('POL-25 a route that leaves a node and returns gets two boxes for it', asyn
   await fitted(page)
   await traceFromEdge17(page)
   await toggle(page).click()
-  await expectMarks(page, { routeView: true })
-  const nodes = page.locator('.route-outline.node')
-  await expect(nodes).toHaveCount(4)
-  await expect(nodes.locator('.route-outline-label')).toHaveText([
-    'Main Campus / Building A',
-    'Main Campus / North Sub-main',
-    'Main Campus / Main Distribution',
-    'Main Campus / Building A',
+  const nodes = diagram(page).getByTestId('rd-node')
+  await expect(nodes.locator('.rd-node-head bdi')).toHaveText([
+    'Building A',
+    'North Sub-main',
+    'Main Distribution',
+    'Building A',
   ])
-  // Rack A03 is boxed once, around EDGE-17 and PANEL-A; AGG-03 alone gets no rack box.
-  await expect(page.locator('.route-outline.rack')).toHaveCount(1)
+  // One site frame; the same node is not merged across the trip.
+  await expect(diagram(page).getByTestId('rd-site')).toHaveCount(1)
+  await expect(steps(page).locator('.rd-rack')).toHaveText([
+    'Rack A03',
+    'Rack A03',
+    'Rack SM01',
+    'Rack Core 01',
+    'Rack A03',
+  ])
 })
 
-/** Every route card and node box lies fully inside the canvas, clear of every drawer, the tool rail and the results overlay. */
-async function expectRouteInVisibleArea(page: Page) {
-  await expect
-    .poll(async () => {
-      return page.evaluate(() => {
-        const surface = document
-          .querySelector('.flow-surface')!
-          .getBoundingClientRect()
-        const covers = [
-          ...document.querySelectorAll(
-            '.studio-drawer, .map-results, .tool-rail',
-          ),
-        ].map((el) => el.getBoundingClientRect())
-        const things = [
-          ...document.querySelectorAll('.react-flow__node-equipment'),
-          ...document.querySelectorAll('.route-outline.node'),
-        ]
-        if (things.length !== 5 + 3) return `drawn: ${things.length}`
-        const bad = things.filter((el) => {
-          const r = el.getBoundingClientRect()
-          const inCanvas =
-            r.left >= surface.left - 1 &&
-            r.top >= surface.top - 1 &&
-            r.right <= surface.right + 1 &&
-            r.bottom <= surface.bottom + 1
-          const underCover = covers.some(
-            (c) =>
-              r.left < c.right - 1 &&
-              c.left < r.right - 1 &&
-              r.top < c.bottom - 1 &&
-              c.top < r.bottom - 1,
-          )
-          return !inCanvas || underCover
-        })
-        return bad.length ? `outside: ${bad.length}` : 'ok'
-      })
-    })
-    .toBe('ok')
-}
-
-test('POL-31 entering the route view fits the route and its boxes into the visible area, clear of the drawers and the overlay', async ({
+// POL-31 (rewritten): was "the route fits the visible area". The picture is not fitted; it
+// starts at the left, clear of the tool rail and open drawers, and scrolls sideways.
+test('POL-31 the picture starts at the left, clear of the drawers, and scrolls sideways', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await traceFromEdge17(page)
+  const clear = (id: string) =>
+    page.evaluate((selector) => {
+      const first = document.querySelector(selector)!.getBoundingClientRect()
+      const covers = [
+        ...document.querySelectorAll('.studio-drawer, .tool-rail'),
+      ].map((el) => el.getBoundingClientRect())
+      return covers.every(
+        (c) =>
+          first.right <= c.left + 1 ||
+          c.right <= first.left + 1 ||
+          first.bottom <= c.top + 1 ||
+          c.bottom <= first.top + 1,
+      )
+    }, id)
 
   // With Trace tools open.
   await page
     .getByRole('button', { name: 'Open trace tools', exact: true })
     .click()
   await toggle(page).click()
-  await expectMarks(page, { routeView: true })
-  await expectRouteInVisibleArea(page)
+  await expect(diagram(page)).toBeVisible()
+  expect(await clear('[data-testid="rd-step"][data-n="1"]')).toBe(true)
+  expect(await page.locator('.rd-scroll').evaluate((el) => el.scrollLeft)).toBe(
+    0,
+  )
 
   // With the inspector open instead.
   await toggle(page).click()
-  await expectMarks(page, { routeView: false })
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await page.getByTestId('rf__node-edge-17').click()
   await expect(page.locator('.studio-drawer.right')).toBeVisible()
   await toggle(page).click()
-  await expectMarks(page, { routeView: true })
-  await expectRouteInVisibleArea(page)
+  await expect(diagram(page)).toBeVisible()
+  expect(await clear('[data-testid="rd-step"][data-n="1"]')).toBe(true)
+  // The scroll box scrolls: the diagram is wider than what is shown.
+  const scroll = page.locator('.rd-scroll')
+  expect(await scroll.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+    true,
+  )
+  await scroll.evaluate((el) => (el.scrollLeft = el.scrollWidth))
+  expect(await scroll.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0)
 })
 
-test('POL-34 choosing another route in the route view lays it out afresh and fits it, whatever was dragged', async ({
+// POL-34 (rewritten): was "another route is laid out afresh and fitted, whatever was dragged".
+// Cards are no longer draggable in the route view, so the picture is simply redrawn.
+test('POL-34 choosing another route while it is on redraws the picture, from the left', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await traceFromEdge17(page)
   await toggle(page).click()
-  await expectMarks(page, { routeView: true })
-  await settledViewport(page)
-  // Drag HDF-01 away: local to the route view.
-  const hdf = page.getByTestId('rf__node-hdf-01')
-  const at = (await hdf.boundingBox())!
-  await page.mouse.move(at.x + 60, at.y + 20)
-  await page.mouse.down()
-  await page.mouse.move(at.x + 60, at.y + 160, { steps: 8 })
-  await page.mouse.up()
-  expect((await hdf.boundingBox())!.y).toBeGreaterThan(at.y + 80)
+  expect(await stepNames(page)).toEqual(ORDER)
+  await page.locator('.rd-scroll').evaluate((el) => (el.scrollLeft = 300))
 
   // The third route (BB-01) takes the same five places, in its own order.
-  await page
-    .getByLabel('Map trace results')
-    .getByTestId('route-row')
-    .nth(2)
-    .click()
-  await expectMarks(page, {
-    cards: ['bb-01', 'edge-17', 'hdf-01', 'hdf-02', 'panel-a'],
-  })
-  await settledViewport(page)
-  // Every card is where the route-view model puts it: one row, one card per 360 px.
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        Object.fromEntries(
-          [...document.querySelectorAll('.react-flow__node-equipment')].map(
-            (n) => {
-              const [x, y] = (n as HTMLElement).style.transform
-                .match(/-?[\d.]+/g)!
-                .map(Number)
-              return [n.getAttribute('data-id'), [x, y]]
-            },
-          ),
-        ),
-      ),
-    )
-    .toEqual(
-      Object.fromEntries(
-        ['edge-17', 'panel-a', 'hdf-01', 'hdf-02', 'bb-01'].map((id, i) => [
-          id,
-          [i * 360, 0],
-        ]),
-      ),
-    )
-  await expectRouteInVisibleArea(page)
+  await rows(page).nth(2).click()
+  await expect(steps(page).last().locator('.rd-name')).toHaveText('BB-01')
+  expect(await stepNames(page)).toEqual([
+    'EDGE-17',
+    'PANEL-A',
+    'HDF-01',
+    'HDF-02',
+    'BB-01',
+  ])
+  await expect(steps(page).last()).toHaveClass(/bbdest/)
+  await expect(steps(page).first().locator('.pin.out')).toHaveText('Port 3')
+  expect(await page.locator('.rd-scroll').evaluate((el) => el.scrollLeft)).toBe(
+    0,
+  )
+  await expectMarks(page, { routeView: true })
+})
+
+test('clearing the trace turns the route view off', async ({ page }) => {
+  await page.goto('/')
+  await fitted(page)
+  await traceFromEdge17(page)
+  await toggle(page).click()
+  await expect(diagram(page)).toBeVisible()
+  await page.getByRole('button', { name: 'Clear trace' }).click()
+  await expect(diagram(page)).toHaveCount(0)
+  await expectMarks(page, { routeView: false })
+  // A new trace starts on the full map again.
+  await traceFromEdge17(page)
+  await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false')
+  await expect(diagram(page)).toHaveCount(0)
 })

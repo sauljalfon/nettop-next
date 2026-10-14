@@ -19,36 +19,35 @@ async function traceAgg03(page: Page) {
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 
-/** Each hop's label stays on one line, with its icon beside it and not stretched. */
+/** Each walk row's name stays on one line, with its icon beside it and not stretched. */
 async function expectHopLayout(page: Page) {
-  const rows = await page.getByTestId('map-hop-row').count()
-  expect(rows).toBeGreaterThanOrEqual(8)
+  const rows = await page.getByTestId('walk-row').count()
+  expect(rows).toBe(5)
   const boxes = await page.evaluate(() =>
-    [...document.querySelectorAll('[data-testid="map-hop-row"]')].map((row) => {
+    [...document.querySelectorAll('[data-testid="walk-row"]')].map((row) => {
       const item = row.closest('li')!
-      const label = row.querySelector('span')!.getBoundingClientRect()
+      const name = row.querySelector('.walk-name')!.getBoundingClientRect()
       const icon = item.querySelector('.row-action')!.getBoundingClientRect()
       const r = row.getBoundingClientRect()
       return {
-        text: row.querySelector('span')!.textContent,
-        labelHeight: label.height,
-        labelWidth: label.width,
+        text: row.querySelector('.walk-name')!.textContent,
+        nameHeight: name.height,
+        nameWidth: name.width,
         iconWidth: icon.width,
         iconHeight: icon.height,
         rowWidth: r.width,
-        iconLeftOfLabelEnd: icon.left < label.right - 1,
-        sameLine:
-          Math.abs(icon.top + icon.height / 2 - (r.top + r.height / 2)) < 12,
+        iconLeftOfRowEnd: icon.left < r.right - 1,
+        sameLine: icon.top < r.bottom && icon.bottom > r.top,
       }
     }),
   )
   for (const b of boxes) {
-    expect(b.labelHeight, `${b.text} wraps`).toBeLessThan(20)
-    expect(b.labelWidth, `${b.text} is squeezed`).toBeGreaterThan(70)
+    expect(b.nameHeight, `${b.text} wraps`).toBeLessThan(30)
+    expect(b.nameWidth, `${b.text} is squeezed`).toBeGreaterThan(40)
     expect(b.iconWidth, `${b.text}'s icon is stretched`).toBeLessThanOrEqual(30)
     expect(b.iconHeight).toBeLessThanOrEqual(30)
     expect(b.rowWidth).toBeGreaterThan(b.iconWidth * 5)
-    expect(b.iconLeftOfLabelEnd, `${b.text}: icon over the label`).toBe(false)
+    expect(b.iconLeftOfRowEnd, `${b.text}: icon over the row`).toBe(false)
     expect(b.sameLine, `${b.text}: icon not beside the row`).toBe(true)
   }
 }
@@ -58,7 +57,7 @@ test.beforeEach(async ({ page }) => {
   await fitted(page)
 })
 
-test('TR-01 the hop rows keep their label on one line with the icon beside it, in both views', async ({
+test('TR-01 the walk rows keep their name on one line with the icon beside it, in both views', async ({
   page,
 }) => {
   await traceAgg03(page)
@@ -68,7 +67,7 @@ test('TR-01 the hop rows keep their label on one line with the icon beside it, i
   await expectHopLayout(page)
 })
 
-test('TR-03 in Physical the results panel opens as one line and its expanded hop list scrolls', async ({
+test('TR-03 in Physical the results panel opens as one line and its expanded walk sheet scrolls', async ({
   page,
 }) => {
   await traceAgg03(page)
@@ -85,7 +84,7 @@ test('TR-03 in Physical the results panel opens as one line and its expanded hop
 
   await results(page).getByRole('button', { name: 'Expand results' }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
-  const hops = results(page).getByRole('list', { name: 'Route hops' })
+  const hops = results(page).getByTestId('walk-sheet')
   const metrics = await hops.evaluate((el) => ({
     client: el.clientHeight,
     scroll: el.scrollHeight,

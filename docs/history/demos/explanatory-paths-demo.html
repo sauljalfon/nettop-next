@@ -1,0 +1,749 @@
+<title>Net-Top Walk Sheet Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: the app's header; Physical shows one switch page (uplinks summary, faceplate) with the
+   walk sheet in a side panel; Conceptual shows the Find AGG / BB results overlay with the walk sheet
+   in place of today's hop list. Single light theme, matching Net-Top and the earlier demos. */
+:root {
+  --bg: #f2f5f8;
+  --surface: #ffffff;
+  --sunk: #f7f9fb;
+  --ink: #26344b;
+  --muted: #6b7a90;
+  --line: #e1e7ee;
+  --purple: #6454c6;
+  --purple-soft: #f0edfa;
+  --teal: #108b79;
+  --teal-soft: #e3f4f1;
+  --amber: #b97a0b;
+  --amber-soft: #fdf3dc;
+  --red: #c4473a;
+  --red-soft: #fdf3f2;
+  --bb: #2f6fb5;
+  --bb-soft: #e6f0fa;
+  --plate: #1f2735;
+  --plate-edge: #2a3446;
+  --scrim: rgba(24, 33, 48, 0.42);
+  --font: Inter, "Noto Sans Hebrew", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid #a99bed; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+bdi { unicode-bidi: isolate; }
+[hidden] { display: none !important; }
+
+/* Header */
+.app-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; font-size: 16px; letter-spacing: -0.2px; }
+.brand span { color: var(--purple); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 6px 11px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.seg button.on { background: var(--purple-soft); color: var(--purple); font-weight: 600; }
+.seg button:disabled { cursor: default; }
+.chip-env { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #8a5a00; background: var(--amber-soft); padding: 3px 8px; border-radius: 5px; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; display: grid; gap: 16px; }
+.banner { display: grid; gap: 6px; padding: 12px 14px; background: var(--purple-soft); border: 1px solid #ddd6f6; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+.banner strong { color: var(--purple); }
+.banner ol { margin: 0; padding-left: 20px; }
+
+/* Physical: page + side panel */
+.phys { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 16px; align-items: start; }
+@media (max-width: 980px) { .phys { grid-template-columns: minmax(0, 1fr); } }
+.eq-page, .side { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
+.side { position: sticky; top: 12px; }
+.crumbs { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px; }
+.crumbs button { border: 0; background: none; padding: 0; color: var(--muted); }
+.crumbs b { color: var(--ink); font-weight: 600; }
+.eq-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+.eq-title h1 { margin: 0; font-size: 20px; letter-spacing: -0.2px; }
+.tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: var(--sunk); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.tag.agg { background: var(--purple-soft); border-color: #ddd6f6; color: var(--purple); }
+.tag.bb { background: var(--bb-soft); border-color: #cfe0f3; color: var(--bb); }
+.tag.net::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #4a86d8; }
+.section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
+
+/* Uplinks summary */
+.uplinks { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.uplinks-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; padding: 10px 12px; background: var(--sunk); border-bottom: 1px solid var(--line); }
+.uplinks-head h2 { margin: 0; font-size: 14px; }
+.uplinks-head small { color: var(--muted); font-size: 12px; }
+.uplink { display: grid; grid-template-columns: 72px minmax(0, auto) auto minmax(0, 1fr); align-items: center; gap: 4px 12px; width: 100%; padding: 9px 12px; border: 0; border-bottom: 1px solid var(--line); background: var(--surface); text-align: left; }
+.uplink:last-child { border-bottom: 0; }
+.uplink:hover { background: #fafbfd; }
+.uplink.on { background: var(--purple-soft); box-shadow: inset 3px 0 0 var(--purple); }
+.uplink .port { font-family: var(--mono); font-size: 12px; font-weight: 500; }
+.uplink .dest { font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.uplink .count { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.uplink .via { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+@media (max-width: 640px) {
+  .uplink { grid-template-columns: 72px minmax(0, 1fr); }
+  .uplink .count { grid-column: 2; }
+  .uplink .via { grid-column: 1 / -1; white-space: normal; }
+}
+.uplinks-empty { padding: 12px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+/* Faceplate */
+.face-wrap { overflow-x: auto; padding-bottom: 4px; }
+.plate { display: inline-flex; flex-wrap: wrap; gap: 10px 14px; padding: 10px 12px; background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 8px; }
+.bank { display: grid; grid-auto-flow: column; grid-template-rows: auto auto; gap: 4px; }
+.bank-label { grid-row: auto; }
+.bank-wrap { display: grid; gap: 5px; }
+.bank-wrap small { color: #9aa7bb; font-size: 10px; font-family: var(--mono); }
+.jack { width: 25px; height: 24px; border-radius: 4px; border: 1px solid #3b475c; background: #e9edf2; color: #37445a; font-family: var(--mono); font-size: 10px; padding: 0; display: grid; place-items: center; }
+.jack.cabled { background: #7fcab9; border-color: #5fb6a2; color: #0d3b33; }
+.jack.up { background: #a99bed; border-color: #8a79e0; color: #231a5c; }
+.jack.on { outline: 3px solid #ffd166; outline-offset: 1px; }
+.jack:hover { filter: brightness(1.06); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 12px; border-radius: 3px; border: 1px solid #b9c3d0; }
+
+/* Walk sheet */
+.sheet { display: grid; gap: 12px; min-width: 0; }
+.sheet-head { display: grid; gap: 6px; }
+.sheet-title { font-size: 15px; font-weight: 650; line-height: 1.4; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.sheet-title .arrow { color: var(--muted); font-weight: 500; }
+.sheet-meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sheet-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 5px 10px; font-size: 12px; font-weight: 500; }
+.btn[aria-pressed="true"] { background: var(--purple-soft); border-color: #ddd6f6; color: var(--purple); }
+.btn.quiet { color: var(--muted); }
+
+.walk { list-style: none; margin: 0; padding: 0; display: grid; }
+.place { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 4px; padding: 6px 10px; background: var(--sunk); border: 1px solid var(--line); border-radius: 8px 8px 0 0; font-size: 12px; color: var(--muted); }
+.place .sep { opacity: 0.6; }
+.place b { color: var(--ink); font-weight: 600; }
+.step { border-inline: 1px solid var(--line); }
+.place + .step { border-top: 0; }
+.step:has(+ .cable), .step:last-child { border-bottom: 1px solid var(--line); border-radius: 0 0 8px 8px; }
+.step:has(+ .step) { border-bottom: 1px dashed var(--line); }
+.step-btn { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 2px 10px; width: 100%; padding: 9px 10px; border: 0; background: var(--surface); text-align: left; border-radius: inherit; }
+.step-btn:hover { background: #fafbfd; }
+.step .unit { grid-row: span 2; align-self: start; font-family: var(--mono); font-size: 11px; color: var(--muted); padding-top: 2px; }
+.step .name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-weight: 600; min-width: 0; }
+.step .name bdi { overflow-wrap: anywhere; }
+.step .io { font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.step .io em { font-style: normal; color: var(--muted); }
+.step .io code { font-family: var(--mono); font-size: 12px; background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.step.dest .step-btn { background: var(--purple-soft); }
+.step.dest.bbdest .step-btn { background: var(--bb-soft); }
+.step.free .io .stop { color: var(--amber); font-weight: 600; }
+
+.cable { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 10px; padding: 2px 10px; }
+.cable .line { justify-self: center; width: 2px; min-height: 30px; background: repeating-linear-gradient(var(--purple) 0 6px, transparent 6px 9px); }
+.cable .what { align-self: center; display: grid; gap: 2px; padding-block: 6px; font-size: 12px; color: var(--muted); }
+.cable .what b { color: var(--ink); font-weight: 600; }
+.cable .id { font-family: var(--mono); font-size: 11px; border-bottom: 1px dotted var(--muted); cursor: help; }
+.cable .leave { color: var(--amber); font-weight: 600; }
+
+.end-line { padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; border: 1px solid var(--line); background: var(--sunk); }
+.end-line.dest { background: var(--purple-soft); border-color: #ddd6f6; }
+.end-line.bbdest { background: var(--bb-soft); border-color: #cfe0f3; }
+.end-line.free, .end-line.nocable { background: var(--amber-soft); border-color: #f0dca8; }
+
+/* Today's hop list, for comparison */
+.today { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.today li { display: grid; gap: 1px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; background: var(--surface); }
+.today small { font-size: 10px; font-weight: 700; letter-spacing: 0.6px; color: var(--muted); }
+.today em { font-family: var(--mono); font-style: normal; font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.today-note { font-size: 12px; color: var(--muted); margin: 0; }
+
+/* Conceptual: map with the results overlay */
+.mapview { position: relative; min-height: 640px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: radial-gradient(circle, #d8dfe8 1px, transparent 1.2px) 0 0 / 22px 22px, var(--sunk); }
+.map-cards { position: absolute; inset: 0; }
+.mcard { position: absolute; padding: 6px 9px; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; box-shadow: 0 1px 2px rgba(20, 30, 50, 0.06); }
+.mcard.hot { color: var(--ink); border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+.map-hint { position: absolute; left: 14px; bottom: 12px; font-size: 12px; color: var(--muted); }
+.results { position: absolute; top: 12px; right: 12px; bottom: 12px; width: min(440px, calc(100% - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 28px rgba(20, 30, 50, 0.14); display: flex; flex-direction: column; overflow: hidden; }
+.results header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.results header strong { font-size: 14px; }
+.badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: var(--teal-soft); color: var(--teal); }
+.results-body { overflow: auto; padding: 10px 12px; display: grid; gap: 8px; align-content: start; }
+.route-row { display: grid; gap: 2px; width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); text-align: left; }
+.route-row.on { border-color: var(--purple); background: var(--purple-soft); }
+.route-row span { font-weight: 600; font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.route-row small { color: var(--muted); font-size: 12px; }
+.route-open { display: grid; gap: 10px; padding: 4px 0 8px; }
+@media (max-width: 640px) {
+  .mapview { min-height: 0; overflow: visible; background: var(--sunk); }
+  .map-cards, .map-hint { display: none; }
+  .results { position: static; width: 100%; box-shadow: none; }
+}
+
+
+/* Route view: only the active route, left to right. Steps in one node sit close together inside the
+   node's box; nodes are far apart inside their site's frame; the trace is one thick line with arrows. */
+.mapview.rv-on { min-height: 0; overflow: visible; background: var(--surface); display: grid; gap: 14px; padding: 14px; }
+.mapview.rv-on .map-cards, .mapview.rv-on .map-hint { display: none; }
+.mapview.rv-on .results { position: static; width: 100%; box-shadow: none; }
+.rv { display: grid; gap: 10px; min-width: 0; --trace: #5b47d6; --trace-glow: rgba(91, 71, 214, 0.22); }
+.rv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.rv-head .sheet-title { flex: 1 1 320px; font-size: 16px; }
+.rv-scroll { overflow-x: auto; padding-bottom: 8px; }
+.rv-track { display: flex; align-items: stretch; width: max-content; padding: 4px 2px; }
+.rv-site { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px 14px; border: 1.5px dashed #c3cbe0; border-radius: 18px; background: #f5f7fc; }
+.rv-site-head, .rv-node-head { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.rv-site-head { font-size: 13px; font-weight: 700; color: var(--ink); }
+.rv-site-head small, .rv-node-head small { font-size: 10px; font-weight: 700; letter-spacing: 0.7px; color: var(--muted); text-transform: uppercase; }
+.rv-site-row { display: flex; align-items: stretch; flex: 1; }
+.rv-node { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px 14px; border: 1.5px solid #d5dbe8; border-radius: 14px; background: var(--surface); box-shadow: 0 1px 3px rgba(20, 30, 50, 0.06); }
+.rv-node-head { font-size: 14px; font-weight: 700; color: var(--ink); }
+.rv-node-row { display: flex; align-items: stretch; }
+.rv-card { width: 188px; height: 150px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px 10px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); text-align: left; }
+.rv-card:hover { border-color: #c5bdf0; }
+.rv-card.first { border: 2px solid var(--teal); background: #f6fbfa; }
+.rv-card.dest { border: 2px solid var(--purple); background: var(--purple-soft); }
+.rv-card.dest.bbdest { border-color: var(--bb); background: var(--bb-soft); }
+.rv-card.free { border: 2px dashed var(--amber); }
+.rv-top { display: flex; align-items: center; gap: 6px; }
+.rv-num { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--trace); color: #fff; font-variant-numeric: tabular-nums; }
+.rv-top .u { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.rv-rack { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-name { font-size: 15px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.rv-pins { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 6px; height: 22px; }
+.pin { position: relative; font-family: var(--mono); font-size: 11px; padding: 2px 7px; border-radius: 5px; background: #efecfb; border: 1px solid #cfc6f4; color: #2e2470; white-space: nowrap; }
+.pin.in { margin-right: auto; padding-left: 12px; }
+.pin.out { margin-left: auto; padding-right: 12px; }
+.pin.in::before, .pin.out::after { content: ""; position: absolute; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--trace); box-shadow: 0 0 0 3px var(--trace-glow); }
+.pin.in::before { left: -18px; }
+.pin.out::after { right: -18px; }
+.pin.stop { color: var(--amber); border-color: #f0dca8; background: var(--amber-soft); font-family: var(--font); }
+/* A cable: the wire sits at the pins' height, measured from the bottom of its row. */
+.rv-cable { position: relative; flex: none; --y: 21px; }
+.rv-cable.in-node { width: 104px; }
+.rv-cable.node-gap { width: 210px; --y: 37px; }
+.rv-cable.site-gap { width: 240px; --y: 53px; }
+.rv-cable .wire { position: absolute; left: 4px; right: 8px; bottom: calc(var(--y) - 3px); height: 6px; border-radius: 3px; background: var(--trace); box-shadow: 0 0 0 4px var(--trace-glow); overflow: hidden; }
+.rv-cable .wire::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.55) 0 8px, transparent 8px 22px); animation: flow 1.1s linear infinite; }
+@keyframes flow { from { transform: translateX(-22px); } to { transform: translateX(0); } }
+.rv-cable .arrow { position: absolute; right: 0; bottom: calc(var(--y) - 8px); width: 0; height: 0; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 12px solid var(--trace); }
+.rv-cable .clabel { position: absolute; left: 50%; bottom: calc(var(--y) + 10px); transform: translateX(-50%); max-width: calc(100% - 8px); padding: 3px 8px; border-radius: 6px; background: var(--surface); border: 1.5px solid #cfc6f4; font-size: 12px; font-weight: 650; color: #2e2470; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-cable .clabel.id { font-family: var(--mono); font-weight: 500; color: var(--muted); border-style: dashed; }
+.rv-cable .cleave { position: absolute; left: 50%; bottom: calc(var(--y) - 28px); transform: translateX(-50%); padding: 2px 8px; border-radius: 6px; background: var(--amber-soft); border: 1px solid #f0dca8; font-size: 11.5px; font-weight: 650; color: var(--amber); white-space: nowrap; max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; }
+.rv-foot { font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .rv-cable .wire::before { animation: none; } }
+
+/* Notes */
+.notes { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; font-size: 13px; line-height: 1.6; }
+.notes h2 { margin: 0 0 6px; font-size: 14px; }
+.notes ul { margin: 0 0 10px; padding-left: 20px; }
+
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 9px 14px; border-radius: 8px; background: var(--ink); color: #fff; font-size: 13px; box-shadow: 0 6px 20px rgba(20, 30, 50, 0.25); }
+</style>
+
+<header class="app-head">
+  <div class="brand">net<span>top</span></div>
+  <div class="seg" aria-label="View" id="viewSeg">
+    <button type="button" data-view="map">Conceptual</button><button type="button" data-view="physical" class="on">Physical</button>
+  </div>
+  <div class="seg" aria-label="Context"><button class="on" type="button" disabled>Installed</button><button type="button" disabled>Plan</button></div>
+  <span class="chip-env">DEMO</span>
+</header>
+
+<main class="wrap">
+  <section class="banner" aria-label="About this demo">
+    <div><strong>Proposed walk sheet and uplinks summary.</strong> Fictional data that lives only in this page; nothing is saved.</div>
+    <ol>
+      <li>On the switch page, the <b>Uplinks</b> box lists every port that reaches an AGG or BB. Click a line to see its walk sheet on the right.</li>
+      <li>Click <b>any port</b> on the faceplate: you get its walk sheet wherever it ends (an AGG/BB, another switch, a free end, or no cable).</li>
+      <li>Click a row of the walk sheet: a switch opens its own page; other rows say where they would open in Physical.</li>
+      <li><b>Compare with today</b> shows the current hop list for the same path. <b>Conceptual</b> in the header shows the walk sheet inside the Find AGG / BB results; turn on <b>Route view</b> there for the new route picture.</li>
+    </ol>
+  </section>
+
+  <section class="phys" id="physView" aria-label="Physical">
+    <div class="eq-page" id="eqPage"></div>
+    <aside class="side" id="sidePanel" aria-label="Path of the selected port"></aside>
+  </section>
+
+  <section class="mapview" id="mapView" aria-label="Conceptual map" hidden>
+    <div class="rv" id="rvHost" hidden></div>
+    <div class="map-cards" id="mapCards"></div>
+    <div class="map-hint">The map itself is unchanged in this demo; only the results panel is new.</div>
+    <section class="results" aria-label="Map trace results">
+      <header>
+        <strong>Find AGG / BB</strong><span class="badge">Physical path found</span>
+      </header>
+      <div class="results-body" id="resultsBody"></div>
+    </section>
+  </section>
+
+  <section class="notes" aria-label="What changes from today">
+    <h2>What changes from today</h2>
+    <ul>
+      <li>One row per equipment, grouped by place (Site › Node › Rack, with the unit). A passive bridge is folded into its row as “in front 2 → out rear 2”; there is no separate PANEL BRIDGE row.</li>
+      <li>Cables show their <b>label</b> when it is set. Without a label they show the last six characters of the ID; hover for the full ID.</li>
+      <li>When a cable leaves a node or a site, the sheet says so (“leaves <bdi>בניין 12 – מעבדות</bdi>”).</li>
+      <li>Hebrew names are kept whole and in their own direction, so “<bdi>HDF-צפון-01</bdi> · 3C/5” never mixes with the position next to it.</li>
+      <li>The same uplinks summary also appears in the inspector when a switch is selected on the map.</li>
+      <li><b>Route view</b> (Conceptual, in the results) is redrawn: each node is a box holding its steps close together, nodes are far apart inside their site's frame, and a cable that leaves a node or site is long and says so. The trace is one thick line with arrows and a moving flow, joining the ports used at each end. PNG and PDF export this picture.</li>
+      <li>No server change: everything is built from the trace result and the inventory the page already has.</li>
+    </ul>
+  </section>
+</main>
+
+<div id="toastHost"></div>
+
+<script>
+(() => {
+  // ---------- Fictional inventory ----------
+  const SITES = { main: 'קמפוס מרכזי', dr: 'אתר גיבוי' };
+  const NODES = {
+    b12: { name: 'בניין 12 – מעבדות', site: 'main' },
+    b14: { name: 'בניין 14', site: 'main' },
+    nsm: { name: 'תת-ראשי צפון', site: 'main' },
+    core: { name: 'חדר תקשורת ראשי', site: 'main' },
+    drs: { name: 'חדר שרתים DR', site: 'dr' },
+  };
+  const RACKS = {
+    r1: { name: 'ארון 1', node: 'b12' },
+    r2: { name: 'ארון 2', node: 'b14' },
+    r3: { name: 'ארון 3', node: 'nsm' },
+    c1: { name: 'ארון ליבה 01', node: 'core' },
+    c2: { name: 'ארון ליבה 02', node: 'core' },
+    dr1: { name: 'R1', node: 'drs' },
+  };
+  const NETWORK = 'רשת קמפוס';
+  const EQUIP = [
+    { id: 'sw12', name: 'EDGE-12-קומה2', kind: 'switch', role: 'access', rack: 'r1', unit: 38,
+      groups: [ { pat: 'Gi1/0/{n}', count: 48 }, { pat: 'Te1/1/{n}', count: 4 } ] },
+    { id: 'p12c', name: 'פאנל נחושת 12-A', kind: 'panel', rack: 'r1', unit: 40, positions: 48 },
+    { id: 'p12f', name: 'פאנל סיבים 12', kind: 'panel', rack: 'r1', unit: 42, positions: 12 },
+    { id: 'hdf12', name: 'HDF-12', kind: 'hdf', rack: 'r1', unit: 2, rows: 2 },
+    { id: 'sw14', name: 'EDGE-14', kind: 'switch', role: 'access', rack: 'r2', unit: 30,
+      groups: [ { pat: 'Gi1/0/{n}', count: 24 } ] },
+    { id: 'p14', name: 'פאנל-14', kind: 'panel', rack: 'r2', unit: 32, positions: 24 },
+    { id: 'hdfN1', name: 'HDF-צפון-01', kind: 'hdf', rack: 'r3', unit: 4, rows: 4 },
+    { id: 'hdfN2', name: 'HDF-צפון-02', kind: 'hdf', rack: 'r3', unit: 10, rows: 4 },
+    { id: 'hdfM1', name: 'HDF-ראשי-01', kind: 'hdf', rack: 'c1', unit: 2, rows: 8 },
+    { id: 'agg03', name: 'AGG-03', kind: 'switch', role: 'aggregation', rack: 'c1', unit: 30,
+      groups: [ { pat: 'Port {n}', count: 24 } ] },
+    { id: 'hdfM4', name: 'HDF-ראשי-04', kind: 'hdf', rack: 'c2', unit: 2, rows: 8 },
+    { id: 'agg04', name: 'AGG-04', kind: 'switch', role: 'aggregation', rack: 'c2', unit: 30,
+      groups: [ { pat: 'Port {n}', count: 24 } ] },
+    { id: 'hdfDR', name: 'HDF-DR-01', kind: 'hdf', rack: 'dr1', unit: 3, rows: 2 },
+    { id: 'bb01', name: 'BB-01', kind: 'switch', role: 'backbone', rack: 'dr1', unit: 20,
+      groups: [ { pat: 'Port {n}', count: 16 } ] },
+  ];
+  const EQ = new Map(EQUIP.map((e) => [e.id, e]));
+  const EP = new Map();
+  const COLS = 'ABCD';
+  const passive = (e) => e.kind !== 'switch';
+
+  for (const e of EQUIP) {
+    e.endpoints = [];
+    const add = (ep) => { ep.eq = e.id; e.endpoints.push(ep); EP.set(ep.id, ep); };
+    if (e.kind === 'switch') {
+      e.groups.forEach((g, gi) => {
+        for (let n = 1; n <= g.count; n++) {
+          const label = g.pat.replace('{n}', n);
+          add({ id: `${e.id}|${label}`, label, group: gi, n });
+        }
+      });
+    } else if (e.kind === 'panel') {
+      for (let p = 1; p <= e.positions; p++)
+        for (const side of ['front', 'rear']) add({ id: `${e.id}|${p}|${side}`, place: String(p), side });
+    } else {
+      for (let r = 1; r <= e.rows; r++)
+        for (const c of COLS)
+          for (let p = 1; p <= 6; p++)
+            for (const side of ['front', 'rear']) add({ id: `${e.id}|${r}${c}/${p}|${side}`, place: `${r}${c}/${p}`, side });
+    }
+  }
+  const S = (eq, label) => `${eq}|${label}`;
+  const P = (eq, place, side) => `${eq}|${place}|${side}`;
+  const other = (ep) => P(ep.eq, ep.place, ep.side === 'front' ? 'rear' : 'front');
+
+  // ---------- Cables ----------
+  let seed = 7;
+  const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const newId = () => 'cable-' + Array.from({ length: 26 }, () => B32[Math.floor(rand() * 32)]).join('');
+  const CABLE = new Map(); // endpoint id -> cable
+  const link = (a, b, label) => {
+    const c = { id: newId(), label, a, b };
+    CABLE.set(a, c); CABLE.set(b, c);
+  };
+  // Te1/1/1 → AGG-03 Port 7, through five passives
+  link(S('sw12', 'Te1/1/1'), P('p12f', 1, 'front'), 'C-1204');
+  link(P('p12f', 1, 'rear'), P('hdf12', '1A/1', 'rear'));
+  link(P('hdf12', '1A/1', 'front'), P('hdfN1', '3C/5', 'front'), 'סיב 12-צפון/07');
+  link(P('hdfN1', '3C/5', 'rear'), P('hdfN2', '1A/2', 'rear'));
+  link(P('hdfN2', '1A/2', 'front'), P('hdfM1', '6B/3', 'front'));
+  link(P('hdfM1', '6B/3', 'rear'), S('agg03', 'Port 7'), 'AGG3-07');
+  // Te1/1/2 → AGG-04 Port 7
+  link(S('sw12', 'Te1/1/2'), P('p12f', 2, 'front'), 'C-1205');
+  link(P('p12f', 2, 'rear'), P('hdf12', '1A/2', 'rear'));
+  link(P('hdf12', '1A/2', 'front'), P('hdfN1', '3C/6', 'front'));
+  link(P('hdfN1', '3C/6', 'rear'), P('hdfM4', '2D/1', 'rear'));
+  link(P('hdfM4', '2D/1', 'front'), S('agg04', 'Port 7'));
+  // Te1/1/3 → BB-01 Port 2, leaving the campus
+  link(S('sw12', 'Te1/1/3'), P('p12f', 3, 'front'));
+  link(P('p12f', 3, 'rear'), P('hdf12', '1B/1', 'rear'));
+  link(P('hdf12', '1B/1', 'front'), P('hdfN1', '4A/1', 'front'));
+  link(P('hdfN1', '4A/1', 'rear'), P('hdfM1', '7A/4', 'rear'));
+  link(P('hdfM1', '7A/4', 'front'), P('hdfDR', '1A/1', 'front'), 'DR-קו-1');
+  link(P('hdfDR', '1A/1', 'rear'), S('bb01', 'Port 2'));
+  // Te1/1/4: patched to HDF-12, nothing beyond it yet
+  link(S('sw12', 'Te1/1/4'), P('p12f', 4, 'front'));
+  link(P('p12f', 4, 'rear'), P('hdf12', '1B/2', 'rear'));
+  // Copper to the floor: rear side goes to wall outlets (not recorded)
+  for (let n = 1; n <= 36; n++) link(S('sw12', `Gi1/0/${n}`), P('p12c', n, 'front'), `12-A-${String(n).padStart(2, '0')}`);
+  // Gi1/0/47 → EDGE-14 (daisy chain)
+  link(S('sw12', 'Gi1/0/47'), P('p12c', 47, 'front'));
+  link(P('p12c', 47, 'rear'), P('p14', 24, 'rear'), 'בין בניינים 12-14');
+  link(P('p14', 24, 'front'), S('sw14', 'Gi1/0/24'));
+  // EDGE-14
+  for (let n = 1; n <= 16; n++) link(S('sw14', `Gi1/0/${n}`), P('p14', n, 'front'));
+  link(S('sw14', 'Gi1/0/23'), P('p14', 23, 'front'));
+  link(P('p14', 23, 'rear'), P('hdfN1', '4A/3', 'rear'));
+  link(P('hdfN1', '4A/3', 'front'), P('hdfM4', '3A/2', 'front'));
+  link(P('hdfM4', '3A/2', 'rear'), S('agg04', 'Port 12'));
+
+  // ---------- The walk: exact continuity (cable, then same position across front/rear) ----------
+  function walk(startId) {
+    const start = EP.get(startId);
+    const rows = [{ eq: start.eq, in: null, out: startId, cable: null }];
+    const hops = [];
+    const seen = new Set([startId]);
+    let cur = startId;
+    for (;;) {
+      const c = CABLE.get(cur);
+      if (!c) {
+        const kind = rows.length === 1 ? 'nocable' : 'free';
+        return { startId, rows, hops, end: { kind, at: cur } };
+      }
+      const next = c.a === cur ? c.b : c.a;
+      if (seen.has(next)) return { startId, rows, hops, end: { kind: 'free', at: cur } };
+      seen.add(next);
+      hops.push({ kind: 'cable', link: c, to: next });
+      const ep = EP.get(next);
+      const e = EQ.get(ep.eq);
+      if (!passive(e)) {
+        rows.push({ eq: e.id, in: next, out: null, cable: c });
+        const kind = e.role === 'aggregation' ? 'agg' : e.role === 'backbone' ? 'bb' : 'switch';
+        return { startId, rows, hops, end: { kind, at: next } };
+      }
+      const out = other(ep);
+      seen.add(out);
+      hops.push({ kind: 'internal', to: out });
+      rows.push({ eq: e.id, in: next, out, cable: c });
+      cur = out;
+    }
+  }
+
+  // ---------- Text helpers ----------
+  const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const b = (s) => `<bdi>${esc(s)}</bdi>`;
+  const portText = (id) => { const ep = EP.get(id); return ep.label ?? `${ep.side} ${ep.place}`; };
+  const where = (eqId) => { const r = RACKS[EQ.get(eqId).rack]; const n = NODES[r.node]; return { rack: r.name, node: n.name, site: SITES[n.site], rackId: EQ.get(eqId).rack, nodeId: r.node, siteId: n.site }; };
+  const roleTag = (e) => e.role === 'aggregation' ? '<span class="tag agg">AGG</span>' : e.role === 'backbone' ? '<span class="tag bb">BB</span>' : '';
+  const kindTag = (e) => e.kind === 'hdf' ? '<span class="tag">HDF</span>' : e.kind === 'panel' ? '<span class="tag">Panel</span>' : e.role === 'access' ? '<span class="tag">Access</span>' : roleTag(e);
+  const shortId = (id) => `…${id.slice(-6)}`;
+  const cablesIn = (w) => w.hops.filter((h) => h.kind === 'cable').length;
+  const passivesIn = (w) => w.rows.filter((r) => passive(EQ.get(r.eq))).length;
+  const placesIn = (w) => { let n = 0, last = ''; for (const r of w.rows) { const k = EQ.get(r.eq).rack; if (k !== last) { n++; last = k; } } return n; };
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+  function endTitle(w) {
+    const s = EP.get(w.startId);
+    const start = `${b(EQ.get(s.eq).name)} · ${esc(portText(w.startId))}`;
+    const at = EP.get(w.end.at); const e = EQ.get(at.eq);
+    if (w.end.kind === 'nocable') return `${start} <span class="arrow">has no cable</span>`;
+    if (w.end.kind === 'free') return `${start} <span class="arrow">→</span> free end at ${b(e.name)} · ${esc(portText(w.end.at))}`;
+    return `${start} <span class="arrow">→</span> ${b(e.name)} · ${esc(portText(w.end.at))} ${roleTag(e)}`;
+  }
+
+  function endLine(w) {
+    const at = EP.get(w.end.at); const e = EQ.get(at.eq);
+    switch (w.end.kind) {
+      case 'agg': return `<div class="end-line dest">Ends at ${b(e.name)} · ${esc(portText(w.end.at))}, an AGG.</div>`;
+      case 'bb': return `<div class="end-line bbdest">Ends at ${b(e.name)} · ${esc(portText(w.end.at))}, a BB.</div>`;
+      case 'switch': return `<div class="end-line">Ends at another switch, ${b(e.name)} · ${esc(portText(w.end.at))}. It does not reach an AGG or BB from here.</div>`;
+      case 'free': return `<div class="end-line free">Ends at a free position: nothing is connected to ${b(e.name)} · ${esc(portText(w.end.at))}.</div>`;
+      default: return `<div class="end-line nocable">No cable is connected to this port.</div>`;
+    }
+  }
+
+  function placeHead(eqId) {
+    const p = where(eqId);
+    return `<li class="place">${b(p.site)}<span class="sep">›</span>${b(p.node)}<span class="sep">›</span><b>${b(p.rack)}</b></li>`;
+  }
+
+  function leaveNote(fromEq, toEq) {
+    const a = where(fromEq), z = where(toEq);
+    if (a.siteId !== z.siteId) return `<span class="leave">leaves ${b(a.site)}</span>`;
+    if (a.nodeId !== z.nodeId) return `<span class="leave">leaves ${b(a.node)}</span>`;
+    if (a.rackId !== z.rackId) return `<span class="leave">to ${b(z.rack)}, same node</span>`;
+    return '';
+  }
+
+  function stepRow(w, i) {
+    const r = w.rows[i];
+    const e = EQ.get(r.eq);
+    const last = i === w.rows.length - 1;
+    let io;
+    if (r.in === null) io = `<em>start</em> · out <code>${esc(portText(r.out))}</code>`;
+    else if (r.out === null) io = `in <code>${esc(portText(r.in))}</code>`;
+    else {
+      const a = EP.get(r.in), z = EP.get(r.out);
+      io = `in ${a.side} <code>${esc(a.place)}</code> → out ${z.side} <code>${esc(z.place)}</code>`;
+      if (last && w.end.kind === 'free') io += ` · <span class="stop">nothing connected</span>`;
+    }
+    const cls = ['step'];
+    if (last && (w.end.kind === 'agg' || w.end.kind === 'bb')) cls.push('dest');
+    if (last && w.end.kind === 'bb') cls.push('bbdest');
+    if (last && w.end.kind === 'free') cls.push('free');
+    const target = r.in ?? r.out;
+    return `<li class="${cls.join(' ')}"><button type="button" class="step-btn" data-open="${esc(target)}">
+      <span class="unit">U${e.unit}</span>
+      <span class="name">${b(e.name)} ${kindTag(e)}</span>
+      <span class="io">${io}</span>
+    </button></li>`;
+  }
+
+  function cableRow(w, i) {
+    const r = w.rows[i];
+    const c = r.cable;
+    const what = c.label
+      ? `<span>cable <b>${b(c.label)}</b></span>`
+      : `<span>cable, no label · <span class="id" title="${esc(c.id)}">${esc(shortId(c.id))}</span></span>`;
+    const note = leaveNote(w.rows[i - 1].eq, r.eq);
+    return `<li class="cable"><span class="line" aria-hidden="true"></span><span class="what">${what}${note}</span></li>`;
+  }
+
+  function todayList(w) {
+    const rows = [`<li><small>START</small><span>${b(EQ.get(EP.get(w.startId).eq).name)} · ${esc(oldLabel(w.startId))}</span></li>`];
+    w.hops.forEach((h, i) => {
+      const bridge = h.kind === 'internal';
+      rows.push(`<li><small>${i + 1} · ${bridge ? 'PANEL BRIDGE' : 'CABLE'}</small><span>${b(EQ.get(EP.get(h.to).eq).name)} · ${esc(oldLabel(h.to))}</span><em>${bridge ? 'bridge' : esc(h.link.id)}</em></li>`);
+    });
+    return `<p class="today-note">Today's hop list for the same path (${w.hops.length + 1} rows):</p><ol class="today">${rows.join('')}</ol>`;
+  }
+  const oldLabel = (id) => { const ep = EP.get(id); return ep.label ?? `${ep.place} ${ep.side}`; };
+
+  function walkSheet(w, { tools = '' } = {}) {
+    const items = [];
+    w.rows.forEach((r, i) => {
+      if (i > 0) items.push(cableRow(w, i));
+      if (i === 0 || EQ.get(r.eq).rack !== EQ.get(w.rows[i - 1].eq).rack) items.push(placeHead(r.eq));
+      items.push(stepRow(w, i));
+    });
+    const meta = w.end.kind === 'nocable'
+      ? `network ${b(NETWORK)}`
+      : `${plural(cablesIn(w), 'cable', 'cables')} · ${plural(passivesIn(w), 'passive', 'passives')} · ${plural(placesIn(w), 'rack', 'racks')} · network ${b(NETWORK)}`;
+    return `<div class="sheet">
+      <div class="sheet-head">
+        <div class="sheet-title">${endTitle(w)}</div>
+        <div class="sheet-meta">${meta}</div>
+        <div class="sheet-tools">${tools}<button type="button" class="btn quiet" data-compare aria-pressed="${state.compare}">Compare with today</button></div>
+      </div>
+      ${state.compare ? todayList(w) : `<ol class="walk" aria-label="Walk sheet">${items.join('')}</ol>${endLine(w)}`}
+    </div>`;
+  }
+
+  // ---------- State ----------
+  const state = { view: 'physical', eq: 'sw12', port: S('sw12', 'Te1/1/1'), compare: false, mapRoute: 0, routeView: false };
+
+  function uplinksOf(eqId) {
+    const e = EQ.get(eqId);
+    return e.endpoints.map((ep) => walk(ep.id))
+      .filter((w) => w.end.kind === 'agg' || w.end.kind === 'bb')
+      .sort((x, y) => (x.end.kind === y.end.kind ? 0 : x.end.kind === 'agg' ? -1 : 1));
+  }
+
+  // ---------- Physical ----------
+  function renderPage() {
+    const e = EQ.get(state.eq);
+    const p = where(e.id);
+    const ups = e.role === 'access' ? uplinksOf(e.id) : [];
+    const upIds = new Set(ups.map((w) => w.startId));
+    const total = e.endpoints.length;
+
+    let summary;
+    if (e.role !== 'access') {
+      summary = `<div class="uplinks"><div class="uplinks-head"><h2>Uplinks</h2></div><div class="uplinks-empty">${b(e.name)} is ${e.role === 'backbone' ? 'a BB' : 'an AGG'}: paths from access switches end here. Click a port to see where it leads.</div></div>`;
+    } else if (!ups.length) {
+      summary = `<div class="uplinks"><div class="uplinks-head"><h2>Uplinks</h2></div><div class="uplinks-empty">No port of ${b(e.name)} reaches an AGG or BB.</div></div>`;
+    } else {
+      summary = `<div class="uplinks">
+        <div class="uplinks-head"><h2>Uplinks</h2><small>${ups.length} of ${total} ports reach an AGG or BB</small></div>
+        ${ups.map((w) => {
+          const at = EP.get(w.end.at); const d = EQ.get(at.eq);
+          const via = w.rows.slice(1, -1).map((r) => EQ.get(r.eq).name);
+          return `<button type="button" class="uplink ${state.port === w.startId ? 'on' : ''}" data-port="${esc(w.startId)}">
+            <span class="port">${esc(portText(w.startId))}</span>
+            <span class="dest">→ ${b(d.name)} · ${esc(portText(w.end.at))} ${roleTag(d)}</span>
+            <span class="count">${plural(cablesIn(w), 'cable', 'cables')}</span>
+            <span class="via" title="${esc(via.join(' › '))}">via ${via.map(b).join(' › ')}</span>
+          </button>`;
+        }).join('')}
+      </div>`;
+    }
+
+    const jack = (ep) => {
+      const cls = ['jack'];
+      if (upIds.has(ep.id)) cls.push('up'); else if (CABLE.has(ep.id)) cls.push('cabled');
+      if (state.port === ep.id) cls.push('on');
+      const st = upIds.has(ep.id) ? 'reaches an AGG or BB' : CABLE.has(ep.id) ? 'cabled' : 'no cable';
+      return `<button type="button" class="${cls.join(' ')}" data-port="${esc(ep.id)}" title="${esc(ep.label)}: ${st}" aria-label="${esc(ep.label)}, ${st}" aria-pressed="${state.port === ep.id}">${ep.n}</button>`;
+    };
+    const banks = e.groups.map((g, gi) => {
+      const eps = e.endpoints.filter((ep) => ep.group === gi);
+      const top = eps.filter((ep) => ep.n % 2 === 1), bottom = eps.filter((ep) => ep.n % 2 === 0);
+      const cells = top.map((t, i) => jack(t) + (bottom[i] ? jack(bottom[i]) : '')).join('');
+      return `<div class="bank-wrap"><small>${esc(g.pat.replace('{n}', '1'))}–${g.count}</small><div class="bank">${cells}</div></div>`;
+    }).join('');
+
+    document.getElementById('eqPage').innerHTML = `
+      <nav class="crumbs" aria-label="Location">${b(p.site)} › ${b(p.node)} › ${b(p.rack)} › <b>${b(e.name)}</b></nav>
+      <div class="eq-title"><h1>${b(e.name)}</h1>${kindTag(e)}<span class="tag net">${b(NETWORK)}</span><span class="tag">U${e.unit}</span></div>
+      ${summary}
+      <div class="section-label">Front</div>
+      <div class="face-wrap"><div class="plate">${banks}</div></div>
+      <div class="legend">
+        <span><i style="background:#a99bed"></i>reaches an AGG or BB</span>
+        <span><i style="background:#7fcab9"></i>cabled</span>
+        <span><i style="background:#e9edf2"></i>no cable</span>
+        <span><i style="background:#fff;outline:2px solid #ffd166"></i>selected</span>
+      </div>`;
+
+    document.getElementById('sidePanel').innerHTML = state.port
+      ? `<div class="section-label">Path of the selected port</div>${walkSheet(walk(state.port))}`
+      : `<div class="section-label">Path</div><p class="today-note">Click a port or an uplink line.</p>`;
+  }
+
+  // ---------- Route view ----------
+  function routeView(w) {
+    const n = w.rows.length;
+    const wh = (i) => where(w.rows[i].eq);
+    const portOf = (id) => EP.get(id).label ?? `${EP.get(id).side} ${EP.get(id).place}`;
+
+    const card = (i) => {
+      const r = w.rows[i];
+      const e = EQ.get(r.eq);
+      const last = i === n - 1;
+      const cls = ['rv-card'];
+      if (i === 0) cls.push('first');
+      if (last && (w.end.kind === 'agg' || w.end.kind === 'bb')) cls.push('dest');
+      if (last && w.end.kind === 'bb') cls.push('bbdest');
+      if (last && w.end.kind === 'free') cls.push('free');
+      const inPin = r.in ? `<span class="pin in">${esc(portOf(r.in))}</span>` : '';
+      const outPin = r.out
+        ? (last && w.end.kind === 'free'
+          ? `<span class="pin stop">${esc(portOf(r.out))}: nothing connected</span>`
+          : `<span class="pin out">${esc(portOf(r.out))}</span>`)
+        : '';
+      return `<button type="button" class="${cls.join(' ')}" data-open="${esc(r.in ?? r.out)}">
+        <span class="rv-top"><span class="rv-num">${i + 1}</span>${kindTag(e)}<span class="u">U${e.unit}</span></span>
+        <span class="rv-name">${b(e.name)}</span>
+        <span class="rv-rack">${b(wh(i).rack)}</span>
+        <span class="rv-pins">${inPin}${outPin}</span>
+      </button>`;
+    };
+    const cable = (i, gap) => {
+      const c = w.rows[i].cable;
+      const label = c.label ? `<span class="clabel" title="${esc(c.id)}">${b(c.label)}</span>` : `<span class="clabel id" title="${esc(c.id)}">${esc(shortId(c.id))}</span>`;
+      const note = gap === 'in-node' ? '' : `<span class="cleave">leaves ${b(gap === 'site-gap' ? wh(i - 1).site : wh(i - 1).node)}</span>`;
+      return `<div class="rv-cable ${gap}"><span class="wire"></span><span class="arrow"></span>${label}${note}</div>`;
+    };
+
+    // Runs of steps: sites, then nodes inside them.
+    const runs = (from, to, key) => {
+      const out = [];
+      let s0 = from;
+      for (let i = from + 1; i <= to + 1; i++) if (i > to || key(i) !== key(s0)) { out.push([s0, i - 1]); s0 = i; }
+      return out;
+    };
+    const siteRuns = runs(0, n - 1, (i) => wh(i).siteId);
+    const track = siteRuns.map(([s0, s1], si) => {
+      const nodes = runs(s0, s1, (i) => wh(i).nodeId).map(([n0, n1], ni) => {
+        let row = '';
+        for (let i = n0; i <= n1; i++) row += (i > n0 ? cable(i, 'in-node') : '') + card(i);
+        return (ni > 0 ? cable(n0, 'node-gap') : '') +
+          `<div class="rv-node"><div class="rv-node-head"><small>Node</small>${b(wh(n0).node)}</div><div class="rv-node-row">${row}</div></div>`;
+      }).join('');
+      return (si > 0 ? cable(s0, 'site-gap') : '') +
+        `<div class="rv-site"><div class="rv-site-head"><small>Site</small>${b(wh(s0).site)}</div><div class="rv-site-row">${nodes}</div></div>`;
+    }).join('');
+
+    const meta = `${plural(cablesIn(w), 'cable', 'cables')} · ${plural(passivesIn(w), 'passive', 'passives')} · ${plural(placesIn(w), 'rack', 'racks')} · network ${b(NETWORK)}`;
+    return `<div class="rv-head"><div class="sheet-title">${endTitle(w)}</div>
+        <button type="button" class="btn" data-export="PNG">PNG</button><button type="button" class="btn" data-export="PDF">PDF</button></div>
+      <div class="sheet-meta">${meta}</div>
+      <div class="rv-scroll"><div class="rv-track">${track}</div></div>
+      <div class="rv-foot">Click a step to open it in Physical. The map behind is unchanged; turning Route view off restores it exactly.</div>`;
+  }
+
+  // ---------- Conceptual ----------
+  const MAP_CARDS = [
+    ['sw12', 4, 12], ['p12c', 4, 30], ['p12f', 22, 22], ['hdf12', 22, 42], ['sw14', 4, 62], ['p14', 22, 70],
+    ['hdfN1', 40, 20], ['hdfN2', 40, 44], ['hdfM1', 58, 14], ['hdfM4', 58, 50], ['agg03', 74, 8], ['agg04', 74, 56], ['hdfDR', 40, 82], ['bb01', 58, 86],
+  ];
+  function renderMap() {
+    const ups = uplinksOf('sw12');
+    const w = ups[state.mapRoute];
+    const hot = new Set(w.rows.map((r) => r.eq));
+    document.getElementById('mapCards').innerHTML = MAP_CARDS.map(([id, x, y]) =>
+      `<div class="mcard ${hot.has(id) ? 'hot' : ''}" style="left:${x}%;top:${y}%">${b(EQ.get(id).name)}</div>`).join('');
+    const tools = `<button type="button" class="btn" data-rv aria-pressed="${state.routeView}">Route view</button>`;
+    document.getElementById('mapView').classList.toggle('rv-on', state.routeView);
+    const host = document.getElementById('rvHost');
+    host.hidden = !state.routeView;
+    host.innerHTML = state.routeView ? routeView(w) : '';
+    document.getElementById('resultsBody').innerHTML = ups.map((u, i) => {
+      const at = EP.get(u.end.at); const d = EQ.get(at.eq);
+      const row = `<button type="button" class="route-row ${i === state.mapRoute ? 'on' : ''}" data-route="${i}" aria-pressed="${i === state.mapRoute}">
+        <span>${b(EQ.get(EP.get(u.startId).eq).name)} · ${esc(portText(u.startId))} → ${b(d.name)} · ${esc(portText(u.end.at))} ${roleTag(d)}</span>
+        <small>${plural(cablesIn(u), 'cable', 'cables')} · ${plural(placesIn(u), 'rack', 'racks')}</small>
+      </button>`;
+      return i === state.mapRoute ? row + `<div class="route-open">${walkSheet(u, { tools })}</div>` : row;
+    }).join('');
+  }
+
+  function render() {
+    document.getElementById('physView').hidden = state.view !== 'physical';
+    document.getElementById('mapView').hidden = state.view !== 'map';
+    for (const btn of document.querySelectorAll('#viewSeg button')) btn.classList.toggle('on', btn.dataset.view === state.view);
+    if (state.view === 'physical') renderPage(); else renderMap();
+  }
+
+  // ---------- Events ----------
+  let toastTimer;
+  function toast(html) {
+    const host = document.getElementById('toastHost');
+    host.innerHTML = `<div class="toast" role="status">${html}</div>`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { host.innerHTML = ''; }, 3200);
+  }
+
+  document.addEventListener('click', (ev) => {
+    const t = ev.target.closest('button');
+    if (!t) return;
+    if (t.dataset.view) { state.view = t.dataset.view; render(); return; }
+    if (t.dataset.port) { state.port = t.dataset.port; render(); return; }
+    if (t.dataset.route) { state.mapRoute = Number(t.dataset.route); render(); return; }
+    if ('compare' in t.dataset) { state.compare = !state.compare; render(); return; }
+    if ('rv' in t.dataset) { state.routeView = !state.routeView; render(); return; }
+    if (t.dataset.export) { toast(`Would download this route picture as a ${esc(t.dataset.export)}, with the header.`); return; }
+    if (t.dataset.open) {
+      const ep = EP.get(t.dataset.open); const e = EQ.get(ep.eq);
+      if (e.kind === 'switch' && state.view === 'physical' && e.id !== state.eq) {
+        state.eq = e.id; state.port = ep.id; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+        toast(`Opened ${b(e.name)} · ${esc(portText(ep.id))} in Physical.`);
+        return;
+      }
+      toast(`Would open ${b(e.name)} · ${esc(portText(ep.id))} in Physical.`);
+    }
+  });
+
+  render();
+})();
+</script>

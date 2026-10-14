@@ -61,8 +61,6 @@ export interface Marks {
   highlightNeighbors: string[]
   dimmedCards: string[]
   splitPairs: string[]
-  nodeBoxes: string[]
-  rackBoxes: string[]
   /** The route view is what the map draws. */
   routeView: boolean
 }
@@ -85,8 +83,6 @@ export const marks = (page: Page): Promise<Marks> =>
       highlightNeighbors: list('data-highlight-neighbors'),
       dimmedCards: list('data-dimmed-cards'),
       splitPairs: list('data-split-pairs'),
-      nodeBoxes: list('data-node-boxes'),
-      rackBoxes: list('data-rack-boxes'),
       routeView: el.getAttribute('data-route-view') === 'true',
     }
   })

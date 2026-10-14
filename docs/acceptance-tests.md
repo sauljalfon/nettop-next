@@ -96,7 +96,7 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | F02 | Open Main Campus | Only its three nodes, freely arranged (saved positions or the default), with cable summary lines between them that count real cables (Building A ↔ North Sub-main 3, North Sub-main ↔ Main Distribution 4); no central site card. Covered by "F02 a site shows only its nodes…" (`physical`), PHY-18 (dragging, saving once, reload, Reset layout, a failed save rolled back), PHY-19 (the line, its list, a row opens its endpoint), PHY-20 (the fit into the visible area), and the `connections` and `layout` unit tests (PHY-12, PHY-13) |
 | F03 | Open Main Distribution | Only its three fixture racks; owned equipment counts; selected route marks actual involved racks. Covered by "F03 a node shows only its own racks…" (`physical`) and the `inventory` and `explorerModel` unit tests |
 | F04 | Rack has a 3U HDF | One object spanning U4–U6, not three duplicate pieces of equipment. Covered by "F04 a 3U HDF is one object over U4–U6…" (`rack`) and the `elevation` unit tests |
-| F05 | Conceptual endpoint → Physical | Correct site/node/rack/chassis/subpanel/position/side is opened. Covered by "F05 a conceptual endpoint opens the exact place in Physical…" (`views`: the inspector header, a Positions row, a hop) and the inspector model unit tests |
+| F05 | Conceptual endpoint → Physical | Correct site/node/rack/chassis/subpanel/position/side is opened. Covered by "F05 a conceptual endpoint opens the exact place in Physical…" (`views`: the inspector header, a Positions row, a walk sheet row) and the inspector model unit tests |
 | F06 | HDF-01 3C/5 rear → front | Same position; A02/PANEL-A rear versus A03/HDF-02 2B/3 front. Covered by "F06 HDF-01 3C/5 rear…" (`equipment`), PHY-10 (`views`) and the `detail` and `equipmentModel` unit tests |
 | F07 | HDF-02 2B/3 front → rear | A03/HDF-01 front versus A04/AGG-03 port 1. Covered by "F07 HDF-02 2B/3 front…" (`equipment`) |
 | F08 | Inspect peer equipment and return | Same route, equipment identities, context, and useful previous view. Covered by "F08 Go to peer opens the far equipment…" (`equipment`: Back restores the exact endpoint and side) and PHY-10 and PHY-11 (`views`: back on the map with the same route, positions and viewport) |
@@ -108,15 +108,15 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 
 | ID | Scenario | Where it runs |
 | --- | --- | --- |
-| TR-01 | Hop rows keep their label on one line with the icon beside it, in both views | `trail` |
-| TR-02 | Hop and link labels are readable (cable ID or "bridge") | `hops.test.ts` |
-| TR-03 | In Physical the results panel opens as one line and its expanded hop list scrolls | `trail` |
+| TR-01 | Walk sheet rows keep their name on one line with the icon beside it, in both views | `trail` |
+| TR-02 | Endpoint labels are readable (structure, never the stored label) | `hops.test.ts` |
+| TR-03 | In Physical the results panel opens as one line and its expanded walk sheet scrolls | `trail` |
 | TR-04 | The trail shows the route's steps; chips, Prev and Next open the exact endpoint; Back returns | `trail`, `trail.test.ts` |
 | TR-05, TR-06 | The trace is rerun across Installed ↔ Plan; a missing route falls back to the first with a note | `trace-switch`, `traceSession.test.ts` |
 | RK-01, RK-02 | A 42U rack fits the visible height at 1440×900 and 1280×720 without scrolling; faceplates per kind and their states | `faceplates`, `cabinet.test.ts` |
 | PB-01 to PB-03 | Odd-over-even switch ports; one legend swatch per network; arrow keys, Home/End and Enter with one tab stop | `faceplates`, `equipmentModel.test.ts`, `faceNav.test.ts` |
 | PB-04, PB-05 | The HDF is one dark chassis with 16 modules; jack sizes (44 px switch and panel, 34 px HDF) | `hdfplate` |
-| PD-01, PD-02 | The port detail card draws the connection chain, each box opening its place; a switch port and a free side | `hdfplate`, `equipmentModel.test.ts` |
+| PD-01, PD-02 | The port detail card draws the connection chain for a position, each box opening its place; a switch port shows its walk sheet instead | `hdfplate`, `equipmentModel.test.ts` |
 | SR-01, SR-02 | Explore finds a cable by ID and a port by label, in Physical and in Conceptual | `search-sheets`, `portSearch.test.ts` |
 | PR-01, PR-02 | The rack and equipment sheets download as one-page PDFs with the header, table and text layer | `search-sheets`, `sheets.test.ts` |
 | SC-01 | The campus fixture validates, is deterministic, has the realistic shape, and every sampled access switch reaches one distribution device on its network | `internal/scalefixture` (Go) |
@@ -125,6 +125,17 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | SC-04 | A route change keeps untouched cards and lines as the same objects; a test fails if the projection gains a field the comparison does not read | `reuse.test.ts` |
 | PHY-13 | Above 12 unsaved nodes the layout is layered by cable distance; far fewer lines cross a third card than in the grid | `connections.test.ts`, `center.test.ts` |
 | — | The zoom controls are a compact box (under 60 px wide) in the map and on a site screen | `physical` |
+
+## Explanatory paths (2026-10-14)
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| WS-01 | The selected route reads as a walk sheet in the results (map and Physical): place headers in order, one row per equipment with its in/out text, cables by label or short ID, "leaves …" notes, the end line, every name isolated; a row selects that equipment, its icon opens Physical | `walk-sheet`, `hops-find`, `sheet.test.ts`, `follow.test.ts` |
+| WS-02 | A selected switch port in Physical shows its walk sheet instead of the chain, ending at an AGG/BB or "No cable is connected to this port."; a row opens that endpoint; a position keeps the chain. Another switch, a free end and a loop are unit-tested only (the fixture has none from a switch port) | `walk-sheet`, `equipment`, `hdfplate`, `follow.test.ts`, `sheet.test.ts` |
+| WS-03 | An access switch's page lists its uplinks (AGG first, cables, via); a line selects that port; those jacks carry the uplink mark | `walk-sheet`, `uplinks.test.ts` |
+| WS-04 | The inspector shows the same uplinks; a line runs Find AGG / BB from that port | `walk-sheet` |
+| WS-05 | An AGG or BB page says paths end there and makes no trace request; the mismatch line is unit-tested only | `walk-sheet`, `uplinks.test.ts` |
+| POL-22 and the route-view specs | Route view is a picture over the map: steps in route order, sites and nodes with each cable's gap, a cross-site path; a step opens Physical; another route redraws; turning it off restores the map exactly; PNG/PDF hold the whole picture | `route-view`, `export`, `diagram.test.ts`, `exportRoute.test.ts` |
 
 ## M5–M7 — Editing, persistence, scale, and governance
 

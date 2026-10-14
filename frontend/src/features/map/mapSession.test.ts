@@ -309,17 +309,6 @@ describe('POL-22 route view state', () => {
     expect(session.routeView()).toBe(false)
   })
 
-  it('keeps its own viewport, and asks for a fresh fit every time it is entered', () => {
-    const session = createMapSession()
-    session.setRouteView(true)
-    expect(session.routeViewport()).toBeUndefined()
-    session.setRouteViewport({ x: 1, y: 2, zoom: 0.5 })
-    expect(session.routeViewport()).toEqual({ x: 1, y: 2, zoom: 0.5 })
-    session.setRouteView(false)
-    session.setRouteView(true)
-    expect(session.routeViewport()).toBeUndefined()
-  })
-
   it('leaves the full map exactly as it was: positions, viewport, pins, highlight and split pairs', () => {
     const session = createMapSession()
     session.setPosition('EDGE-17', { x: 5, y: 6 })
@@ -335,7 +324,6 @@ describe('POL-22 route view state', () => {
       split: session.splitPairs(),
     }
     session.setRouteView(true)
-    session.setRouteViewport({ x: 99, y: 99, zoom: 2 })
     session.setRouteView(false)
     expect(session.positions()).toEqual(before.positions)
     expect(session.viewport()).toEqual(before.viewport)

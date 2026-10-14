@@ -40,9 +40,10 @@ import { sameCardData, sameEdge } from './reuse'
 import { visibleArea } from './viewArea'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession, type Viewport } from './mapSession'
+import RouteDiagram from '../paths/RouteDiagram'
+import type { Sheet } from '../paths/sheet'
 import { ClearHighlight, ResetLayout } from './MapControls'
 import { reconciledPosition } from './reconcile'
-import { CARD_WIDTH, fitIds, outlineBoxes, routeKey } from './routeView'
 import { SPLIT_GAP, splitPath } from './splitPath'
 import { shouldClearOnEscape } from './keys'
 import { stackIndex } from './stacking'
@@ -51,8 +52,7 @@ import './map.css'
 
 type CardNode = Node<MapCardData, 'equipment'>
 type PreviewNode = Node<{ name: string; onConfigure: () => void }, 'preview'>
-type OutlineNode = Node<{ label: string; kind: 'node' | 'rack' }, 'outline'>
-type MapNode = CardNode | PreviewNode | OutlineNode
+type MapNode = CardNode | PreviewNode
 
 const Actions = createContext<{
   onPort: (id: string) => void
@@ -318,52 +318,9 @@ function edgeColor(data: MapFlowEdge['data'] | undefined): string {
   return data?.color ?? '#9bacc0'
 }
 const edgeTypes = { map: MapEdge }
-/** A dashed box behind a run of cards in the route view: a drawing aid only. */
-const Outline = memo(function Outline({ data }: NodeProps<OutlineNode>) {
-  return (
-    <div className={`route-outline ${data.kind}`}>
-      <span className="route-outline-label">{data.label}</span>
-    </div>
-  )
-})
 const nodeTypes = {
   equipment: EquipmentCard,
   preview: Preview,
-  outline: Outline,
-}
-
-/**
- * The route view's dashed boxes, sized from the cards' measured rectangles (a
- * card is as tall as its facets make it), so they follow a dragged card. They
- * sit behind everything, take no clicks, and never feed the route.
- */
-function outlines(
-  model: ReturnType<typeof projectMap>['routeView'],
-  nodes: readonly MapNode[],
-): OutlineNode[] {
-  if (!model) return []
-  return outlineBoxes(model, (id) => {
-    const n = nodes.find((x) => x.id === id)
-    return (
-      n && {
-        x: n.position.x,
-        y: n.position.y,
-        width: n.measured?.width ?? CARD_WIDTH,
-        height: n.measured?.height ?? 130,
-      }
-    )
-  }).map((box) => ({
-    id: box.id,
-    type: 'outline' as const,
-    position: { x: box.rect.x, y: box.rect.y },
-    width: box.rect.width,
-    height: box.rect.height,
-    zIndex: box.kind === 'node' ? -2 : -1,
-    draggable: false,
-    selectable: false,
-    focusable: false,
-    data: { label: box.label, kind: box.kind },
-  }))
 }
 
 export interface PendingEquipment {
@@ -380,6 +337,10 @@ interface Props {
   installedLinkIDs: ReadonlySet<string>
   selected: string
   route?: Route
+  /** The selected route as a walk sheet (shared with the results); the route view draws it. */
+  routeSheet?: Sheet
+  /** A step of the route view was clicked: open its endpoint in Physical. */
+  onRouteStep?: (endpointId: string) => void
   /** Presentation filter; undefined is All networks. */
   networkId?: string
   onSelect: (id: string) => void
@@ -457,6 +418,8 @@ function Canvas({
   installedLinkIDs,
   selected,
   route,
+  routeSheet,
+  onRouteStep,
   networkId,
   onSelect,
   onPort,
@@ -479,19 +442,13 @@ function Canvas({
   const highlight = useSyncExternalStore(session.subscribe, session.highlight)
   const split = useSyncExternalStore(session.subscribe, session.splitPairs)
   const routeViewOn = useSyncExternalStore(session.subscribe, session.routeView)
-  // The route view needs a route; without one the full map is what is drawn.
-  const active = routeViewOn && !!route
-  const activeRef = useRef(active)
-  activeRef.current = active
-  // The route view keeps its own viewport; the full map's is never overwritten.
-  const record = useCallback(
-    (v: Viewport) =>
-      activeRef.current ? session.setRouteViewport(v) : session.setViewport(v),
-    [session],
-  )
+  // The route view is a layer over the map and needs a route; the map under it
+  // is never touched, so turning it off leaves exactly what was there.
+  const active = routeViewOn && !!routeSheet
   useEffect(() => {
-    if (routeViewOn && !route) session.setRouteView(false)
-  }, [routeViewOn, route, session])
+    if (routeViewOn && !routeSheet) session.setRouteView(false)
+  }, [routeViewOn, routeSheet, session])
+  const record = useCallback((v: Viewport) => session.setViewport(v), [session])
   const layoutVersion = useSyncExternalStore(
     session.subscribe,
     session.layoutVersion,
@@ -506,7 +463,6 @@ function Canvas({
         installedIDs,
         installedLinkIDs,
         index,
-        routeView: active,
       }),
     // Manual facets and the highlight are read through the session; they are dependencies so changes re-project.
     [
@@ -520,7 +476,6 @@ function Canvas({
       manual,
       highlight,
       split,
-      active,
       layoutVersion,
     ],
   )
@@ -554,18 +509,9 @@ function Canvas({
   // A layout reset drops dragged positions and fits once, then everything else
   // (trace, pins, highlight, filter) carries on untouched.
   const appliedVersion = useRef(layoutVersion)
-  const appliedActive = useRef(active)
-  const key = routeKey(route)
-  const appliedKey = useRef(key)
   const [fitToken, setFitToken] = useState(0)
   useEffect(() => {
-    const switched = appliedActive.current !== active
-    appliedActive.current = active
-    // Another route while the route view is on is laid out afresh, like entering it.
-    const rerouted = active && appliedKey.current !== key
-    appliedKey.current = key
-    const entering = switched || rerouted
-    const reset = appliedVersion.current !== layoutVersion || entering
+    const reset = appliedVersion.current !== layoutVersion
     appliedVersion.current = layoutVersion
     setNodes((previous) => {
       const existing = new Map(previous.map((n) => [n.id, n]))
@@ -586,18 +532,14 @@ function Canvas({
         return { ...n, position, measured: prior?.measured }
       })
     })
-    if (switched && !active) {
-      // Back to the full map: its viewport comes back from the session untouched.
-      const saved = session.viewport()
-      if (saved) void flow.setViewport(saved)
-      else setFitToken((t) => t + 1)
-    } else if (entering && graph.routeView) {
-      // Entering the route view, or choosing another route in it: fit once to the route and its boxes, in the
-      // part of the canvas the drawers and the results overlay leave free.
-      session.requestFit(fitIds(graph.routeView))
-    } else if (reset) setFitToken((t) => t + 1) // a layout reset: fit the full map once
+    if (reset) setFitToken((t) => t + 1) // a layout reset: fit the full map once
   }, [graph.nodes, layoutVersion])
   const surface = useRef<HTMLDivElement>(null)
+  // Under the route view the map is not reachable: no tab stops, no clicks.
+  useEffect(() => {
+    const map = surface.current?.querySelector<HTMLElement>('.react-flow')
+    if (map) map.inert = active
+  }, [active])
   const nodesRef = useRef(nodes)
   nodesRef.current = nodes
   /** Fits the whole map by its cards' positions (no measuring: off-screen cards are not drawn yet). */
@@ -644,8 +586,7 @@ function Canvas({
   const onNodesChange = useCallback(
     (changes: NodeChange<MapNode>[]) =>
       setNodes((previous) => {
-        // The outlines are not in this state; their measurements must not
-        // replace it (that would restart every pending view request).
+        // Only the cards in this state; anything else React Flow reports is ignored.
         const known = new Set(previous.map((n) => n.id))
         const mine = changes.filter((c) => !('id' in c) || known.has(c.id))
         return mine.length ? applyNodeChanges(mine, previous) : previous
@@ -687,9 +628,8 @@ function Canvas({
           onConfigure: onConfigurePreview,
         },
       })
-    for (const outline of outlines(graph.routeView, nodes)) cards.push(outline)
     return cards
-  }, [nodes, selected, preview, onConfigurePreview, graph.routeView])
+  }, [nodes, selected, preview, onConfigurePreview])
   const actions = useMemo(
     () => ({ onPort, onToggleSplit: session.toggleSplit }),
     [onPort, session],
@@ -721,9 +661,7 @@ function Canvas({
       data-highlight-neighbors={graph.marks.highlightNeighbors.join(' ')}
       data-dimmed-cards={graph.marks.dimmedCards.join(' ')}
       data-split-pairs={graph.marks.splitPairs.join(' ')}
-      data-node-boxes={graph.marks.nodeBoxes.join(' ')}
-      data-rack-boxes={graph.marks.rackBoxes.join(' ')}
-      data-route-view={graph.marks.routeView}
+      data-route-view={active}
     >
       <Actions.Provider value={actions}>
         <ReactFlow<MapNode>
@@ -740,26 +678,17 @@ function Canvas({
             if (node.type === 'equipment') onSelect(node.id)
           }}
           onNodeDragStop={(_, node) => {
-            // Dragging in the route view stays local to the canvas.
-            if (node.type === 'equipment' && !active)
+            if (node.type === 'equipment')
               session.setPosition(node.id, node.position)
           }}
           onInit={() => {
-            if (active) {
-              // Mounted with the route view on and nothing recorded yet.
-              if (!session.routeViewport() && graph.routeView)
-                session.requestFit(fitIds(graph.routeView))
-              return
-            }
             if (!session.needsFit()) return
             void fitMap().then(() => {
               if (session.needsFit()) record(flow.getViewport())
             })
           }}
           onMoveEnd={(_, viewport) => record(viewport)}
-          defaultViewport={
-            active ? session.routeViewport() : session.viewport()
-          }
+          defaultViewport={session.viewport()}
           onDragOver={(event) => {
             if (canEdit) {
               event.preventDefault()
@@ -792,11 +721,10 @@ function Canvas({
           // Stacking is ours (stackIndex): a selected card is raised with the rest.
           elevateNodesOnSelect={false}
           deleteKeyCode={null}
-          // The route view has few cards, and all must be measured to be fitted.
-          onlyRenderVisibleElements={!active}
+          onlyRenderVisibleElements
         >
           <Background color="#ccd5df" gap={24} size={1} />
-          <Controls showInteractive={false} />
+          {!active && <Controls showInteractive={false} />}
           <Panel position="top-right" className="map-tools">
             {!active && highlight && (
               <ClearHighlight onClear={() => session.setHighlight(undefined)} />
@@ -805,6 +733,16 @@ function Canvas({
           </Panel>
         </ReactFlow>
       </Actions.Provider>
+      {active && routeSheet && (
+        <div className="route-layer" data-testid="route-layer">
+          <RouteDiagram
+            // Another route redraws from the left.
+            key={`${routeSheet.title.from.equipmentId}:${routeSheet.title.from.port}>${routeSheet.end.at?.equipmentId}:${routeSheet.end.at?.port}`}
+            sheet={routeSheet}
+            onStep={onRouteStep ?? (() => undefined)}
+          />
+        </div>
+      )}
       <div className="board-caption">
         <strong>
           {graph.nodes.length} of {snapshot.equipment.length} equipment ·{' '}

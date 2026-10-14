@@ -1,5 +1,7 @@
 import { Crosshair, GitFork } from 'lucide-react'
 import type { ReactNode } from 'react'
+import type { Sheet } from '../paths/sheet'
+import WalkSheet from '../paths/WalkSheet'
 import type { ChainItem, DetailModel } from './equipmentModel'
 
 /**
@@ -7,11 +9,13 @@ import type { ChainItem, DetailModel } from './equipmentModel'
  * chips, two icon actions, and the connection drawn top to bottom (this side's
  * far end, the cable, this endpoint, the bridge, the other side, its cable and
  * far end). A far end opens that place, the other side switches sides, and the
- * selected endpoint is the highlighted box.
+ * selected endpoint is the highlighted box. A switch port shows its walk sheet
+ * instead.
  */
 export default function EndpointDetail({
   model,
   chain,
+  walkSheet,
   routeName,
   networkColor,
   onGoToPeer,
@@ -24,6 +28,8 @@ export default function EndpointDetail({
   children?: ReactNode
   model?: DetailModel
   chain: ChainItem[]
+  /** A switch port's path, shown in place of the chain. */
+  walkSheet?: Sheet
   /** The selected route's destination, when this endpoint is on the route. */
   routeName?: string
   networkColor?: string
@@ -88,58 +94,65 @@ export default function EndpointDetail({
         <p className="phys-muted">Fiber pair {model.fiberPair}</p>
       )}
 
-      <div className="chain" data-testid="chain">
-        {(() => {
-          const at = chain.findIndex(
-            (i) => i.kind === 'box' && i.role === 'self',
-          )
-          const before = chain.slice(0, at)
-          const after = chain.slice(at + 1)
-          const render = (item: ChainItem, i: number) =>
-            item.kind === 'link' ? (
-              <div
-                key={i}
-                className="chain-link"
-                data-testid="chain-link"
-                data-link={item.link}
-                data-on-route={item.onRoute}
-              >
-                <span className="chain-line" />
-                <small>{item.label}</small>
-              </div>
-            ) : (
-              <ChainBox
-                key={i}
-                item={item}
-                onOpen={() =>
-                  item.endpointId &&
-                  (item.action === 'switch'
-                    ? onSwitch(item.endpointId)
-                    : onGoToPeer(item.endpointId))
-                }
-              />
+      {walkSheet ? (
+        <>
+          <p className="phys-label detail-path">Path</p>
+          <WalkSheet sheet={walkSheet} onRow={onGoToPeer} />
+        </>
+      ) : (
+        <div className="chain" data-testid="chain">
+          {(() => {
+            const at = chain.findIndex(
+              (i) => i.kind === 'box' && i.role === 'self',
             )
-          return (
-            <>
-              {/* This side's cable and far end; absent when this side has no cable. */}
-              {before[0]?.kind === 'box' && before[0].role === 'far' ? (
-                <div className="chain-group" data-testid="external-cable">
-                  {before.map(render)}
+            const before = chain.slice(0, at)
+            const after = chain.slice(at + 1)
+            const render = (item: ChainItem, i: number) =>
+              item.kind === 'link' ? (
+                <div
+                  key={i}
+                  className="chain-link"
+                  data-testid="chain-link"
+                  data-link={item.link}
+                  data-on-route={item.onRoute}
+                >
+                  <span className="chain-line" />
+                  <small>{item.label}</small>
                 </div>
               ) : (
-                before.map(render)
-              )}
-              {chain[at] && render(chain[at], at)}
-              {/* The same position's other side, with its cable and far end. */}
-              {after.length > 0 && (
-                <div className="chain-group" data-testid="internal-peer">
-                  {after.map((item, i) => render(item, at + 1 + i))}
-                </div>
-              )}
-            </>
-          )
-        })()}
-      </div>
+                <ChainBox
+                  key={i}
+                  item={item}
+                  onOpen={() =>
+                    item.endpointId &&
+                    (item.action === 'switch'
+                      ? onSwitch(item.endpointId)
+                      : onGoToPeer(item.endpointId))
+                  }
+                />
+              )
+            return (
+              <>
+                {/* This side's cable and far end; absent when this side has no cable. */}
+                {before[0]?.kind === 'box' && before[0].role === 'far' ? (
+                  <div className="chain-group" data-testid="external-cable">
+                    {before.map(render)}
+                  </div>
+                ) : (
+                  before.map(render)
+                )}
+                {chain[at] && render(chain[at], at)}
+                {/* The same position's other side, with its cable and far end. */}
+                {after.length > 0 && (
+                  <div className="chain-group" data-testid="internal-peer">
+                    {after.map((item, i) => render(item, at + 1 + i))}
+                  </div>
+                )}
+              </>
+            )
+          })()}
+        </div>
+      )}
       {children}
     </aside>
   )

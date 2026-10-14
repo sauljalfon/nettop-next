@@ -264,7 +264,7 @@ test('F05 a conceptual endpoint opens the exact place in Physical: from the insp
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await page
-    .getByRole('button', { name: /^Show in Physical: HDF-02 · 2B\/3 front/ })
+    .getByRole('button', { name: 'Show in Physical: HDF-02', exact: true })
     .first()
     .click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-02:sp-2B:3:f')
@@ -272,7 +272,7 @@ test('F05 a conceptual endpoint opens the exact place in Physical: from the insp
   // In Physical the icon is there too, and does the same as clicking the row.
   await expandResults(page)
   await page
-    .getByRole('button', { name: /^Show in Physical: HDF-01 · 3C\/5 rear/ })
+    .getByRole('button', { name: 'Show in Physical: HDF-01', exact: true })
     .first()
     .click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:r')

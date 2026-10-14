@@ -1,0 +1,327 @@
+/* The route picture. Look: docs/history/demos/explanatory-paths-demo.html (version 3,
+   "Route view"). Steps in one node sit close together inside the node's box; nodes are far
+   apart inside their site's frame; the trace is one thick line with arrows. */
+.rd-scroll {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.rd {
+  --r-ink: #26344b;
+  --r-surface: #fff;
+  --r-line: #e1e7ee;
+  --r-muted: #6b7a90;
+  --r-purple: #6454c6;
+  --r-purple-soft: #f0edfa;
+  --r-teal: #108b79;
+  --r-amber: #b97a0b;
+  --r-amber-soft: #fdf3dc;
+  --r-bb: #2f6fb5;
+  --r-bb-soft: #e6f0fa;
+  --r-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --trace: #5b47d6;
+  --trace-glow: rgba(91, 71, 214, 0.22);
+  display: flex;
+  align-items: stretch;
+  width: max-content;
+  padding: 4px 2px;
+  color: var(--r-ink);
+  background: var(--r-surface);
+}
+.rd-site {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 14px;
+  border: 1.5px dashed #c3cbe0;
+  border-radius: 18px;
+  background: #f5f7fc;
+}
+.rd-site-head,
+.rd-node-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.rd-site-head {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--r-ink);
+}
+.rd-site-head small,
+.rd-node-head small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  color: var(--r-muted);
+  text-transform: uppercase;
+}
+.rd-site-row {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+}
+.rd-node {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 14px;
+  border: 1.5px solid #d5dbe8;
+  border-radius: 14px;
+  background: var(--r-surface);
+  box-shadow: 0 1px 3px rgba(20, 30, 50, 0.06);
+}
+.rd-node-head {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--r-ink);
+}
+.rd-node-row {
+  display: flex;
+  align-items: stretch;
+}
+.rd-card {
+  box-sizing: border-box;
+  flex: none;
+  width: 188px;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--r-line);
+  border-radius: 12px;
+  background: var(--r-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rd-card:hover {
+  border-color: #c5bdf0;
+}
+.rd-card.first {
+  border: 2px solid var(--r-teal);
+  background: #f6fbfa;
+}
+.rd-card.dest {
+  border: 2px solid var(--r-purple);
+  background: var(--r-purple-soft);
+}
+.rd-card.dest.bbdest {
+  border-color: var(--r-bb);
+  background: var(--r-bb-soft);
+}
+.rd-card.free {
+  border: 2px dashed var(--r-amber);
+}
+.rd-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rd-num {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--trace);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.rd-top .u {
+  margin-left: auto;
+  font-family: var(--r-mono);
+  font-size: 11px;
+  color: var(--r-muted);
+}
+.rd-top .walk-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: #f7f9fb;
+  border: 1px solid var(--r-line);
+  color: var(--r-muted);
+  white-space: nowrap;
+}
+.rd-top .walk-tag.agg {
+  background: var(--r-purple-soft);
+  border-color: #ddd6f6;
+  color: var(--r-purple);
+}
+.rd-top .walk-tag.bb {
+  background: var(--r-bb-soft);
+  border-color: #cfe0f3;
+  color: var(--r-bb);
+}
+.rd-rack {
+  font-size: 11.5px;
+  color: var(--r-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rd-name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.rd-pins {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  margin-top: auto;
+}
+.rd .pin {
+  position: relative;
+  padding: 2px 7px;
+  border: 1px solid #cfc6f4;
+  border-radius: 5px;
+  background: #efecfb;
+  color: #2e2470;
+  font-family: var(--r-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.rd .pin.in {
+  margin-right: auto;
+  padding-left: 12px;
+}
+.rd .pin.out {
+  margin-left: auto;
+  padding-right: 12px;
+}
+.rd .pin.in::before,
+.rd .pin.out::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--trace);
+  box-shadow: 0 0 0 3px var(--trace-glow);
+}
+.rd .pin.in::before {
+  left: -18px;
+}
+.rd .pin.out::after {
+  right: -18px;
+}
+.rd .pin.stop {
+  margin-left: auto;
+  border-color: #f0dca8;
+  background: var(--r-amber-soft);
+  color: var(--r-amber);
+  font-family: inherit;
+}
+/* A cable: the wire sits at the pins' height, measured from the bottom of its row. */
+.rd-cable {
+  --y: 21px;
+  position: relative;
+  flex: none;
+}
+.rd-cable.in-node {
+  width: 104px;
+}
+.rd-cable.node-gap {
+  --y: 37px;
+  width: 210px;
+}
+.rd-cable.site-gap {
+  --y: 53px;
+  width: 240px;
+}
+.rd-cable .wire {
+  position: absolute;
+  left: 4px;
+  right: 8px;
+  bottom: calc(var(--y) - 3px);
+  height: 6px;
+  border-radius: 3px;
+  background: var(--trace);
+  box-shadow: 0 0 0 4px var(--trace-glow);
+  overflow: hidden;
+}
+.rd-cable .wire::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.55) 0 8px,
+    transparent 8px 22px
+  );
+  animation: rd-flow 1.1s linear infinite;
+}
+@keyframes rd-flow {
+  from {
+    transform: translateX(-22px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.rd-cable .arrow {
+  position: absolute;
+  right: 0;
+  bottom: calc(var(--y) - 8px);
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 12px solid var(--trace);
+}
+.rd-cable .clabel {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--y) + 10px);
+  transform: translateX(-50%);
+  max-width: calc(100% - 8px);
+  padding: 3px 8px;
+  border: 1.5px solid #cfc6f4;
+  border-radius: 6px;
+  background: var(--r-surface);
+  color: #2e2470;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rd-cable .clabel.id {
+  border-style: dashed;
+  color: var(--r-muted);
+  font-family: var(--r-mono);
+  font-weight: 500;
+}
+.rd-cable .cleave {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--y) - 28px);
+  transform: translateX(-50%);
+  max-width: calc(100% - 8px);
+  padding: 2px 8px;
+  border: 1px solid #f0dca8;
+  border-radius: 6px;
+  background: var(--r-amber-soft);
+  color: var(--r-amber);
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rd-cable .wire::before {
+    animation: none;
+  }
+}

@@ -7,6 +7,10 @@ import DuplicateEquipment from '../planning/DuplicateEquipment'
 import EndpointEdit from '../planning/EndpointEdit'
 import type { PlanEdit } from '../planning/editing'
 import PortDetails from '../details/PortDetails'
+import { followPort } from '../paths/follow'
+import UplinksSummary from '../paths/UplinksSummary'
+import { useUplinks } from '../paths/useUplinks'
+import { buildSheet } from '../paths/sheet'
 import EndpointDetail from './EndpointDetail'
 import type { ElevationRow } from './elevation'
 import {
@@ -47,6 +51,7 @@ export default function EquipmentPage({
   onFixed,
   installedIds,
   installedLinkIds,
+  planId,
 }: {
   /** Set in a current plan: Delete…, Connect… and Disconnect…. */
   edit?: PlanEdit
@@ -54,6 +59,8 @@ export default function EquipmentPage({
   onFixed: (message: string) => Promise<void>
   installedIds: ReadonlySet<string>
   installedLinkIds: ReadonlySet<string>
+  /** The open plan's ID, for the uplinks request. */
+  planId?: string
   snapshot: Snapshot
   index: SnapshotIndex
   inv: Inventory
@@ -73,6 +80,11 @@ export default function EquipmentPage({
   routeName?: string
 }) {
   const equipment = index.equipment.get(location.equipmentId ?? '')
+  const uplinks = useUplinks(snapshot, index, equipment, planId)
+  const uplinkIds = useMemo(
+    () => new Set(uplinks.data?.lines.map((l) => l.startEndpointId)),
+    [uplinks.data],
+  )
   // In a plan, a click on a free jack also asks where its cable goes.
   const [popover, setPopover] = useState<{
     endpointId: string
@@ -92,6 +104,16 @@ export default function EquipmentPage({
         : [],
     [index, snapshot.networks, location.endpointId, marks],
   )
+  // A switch port shows the path it leads to; panel and HDF positions keep the chain.
+  const walkSheet = useMemo(() => {
+    const id = location.endpointId
+    const owner = id
+      ? index.equipment.get(index.owner.get(id) ?? '')
+      : undefined
+    return id && owner?.kind === 'switch'
+      ? buildSheet(index, snapshot.networks, followPort(index, id))
+      : undefined
+  }, [index, snapshot.networks, location.endpointId])
   if (!equipment) return null
   const side = face.kind === 'switch' ? undefined : (location.side ?? 'front')
   const meta = faceMeta(equipment, {
@@ -116,54 +138,65 @@ export default function EquipmentPage({
         colors={colors}
         onOpen={onOpenEquipment}
       />
-      <FaceView
-        equipment={equipment}
-        face={face}
-        side={side}
-        meta={meta}
-        networks={snapshot.networks}
-        colors={colors}
-        tooltip={(cell, ordinal) =>
-          endpointTooltip(index, equipment, cell, ordinal, side)
-        }
-        onSelect={(id, event) => {
-          onSelectEndpoint(id)
-          setPopover(
-            edit && event && !index.cabled.has(id)
-              ? {
-                  endpointId: id,
-                  anchor: event.currentTarget.getBoundingClientRect(),
-                }
-              : undefined,
-          )
-        }}
-        onSide={onSide}
-        onPrint={onPrint}
-        proposed={
-          snapshot.context === 'planned' && !installedIds.has(equipment.id)
-        }
-        editSlot={
-          edit && (
-            <>
-              <DuplicateEquipment
-                snapshot={snapshot}
-                index={index}
-                equipmentId={equipment.id}
-                edit={edit}
-                where="page"
-              />
-              <DeleteEquipment
-                snapshot={snapshot}
-                index={index}
-                equipmentId={equipment.id}
-                proposed={!installedIds.has(equipment.id)}
-                edit={edit}
-                where="page"
-              />
-            </>
-          )
-        }
-      />
+      <div className="equipment-main">
+        {equipment.kind === 'switch' && (
+          <UplinksSummary
+            equipment={equipment}
+            state={uplinks}
+            selectedEndpointId={location.endpointId}
+            onSelect={onSelectEndpoint}
+          />
+        )}
+        <FaceView
+          uplinkIds={uplinkIds}
+          equipment={equipment}
+          face={face}
+          side={side}
+          meta={meta}
+          networks={snapshot.networks}
+          colors={colors}
+          tooltip={(cell, ordinal) =>
+            endpointTooltip(index, equipment, cell, ordinal, side)
+          }
+          onSelect={(id, event) => {
+            onSelectEndpoint(id)
+            setPopover(
+              edit && event && !index.cabled.has(id)
+                ? {
+                    endpointId: id,
+                    anchor: event.currentTarget.getBoundingClientRect(),
+                  }
+                : undefined,
+            )
+          }}
+          onSide={onSide}
+          onPrint={onPrint}
+          proposed={
+            snapshot.context === 'planned' && !installedIds.has(equipment.id)
+          }
+          editSlot={
+            edit && (
+              <>
+                <DuplicateEquipment
+                  snapshot={snapshot}
+                  index={index}
+                  equipmentId={equipment.id}
+                  edit={edit}
+                  where="page"
+                />
+                <DeleteEquipment
+                  snapshot={snapshot}
+                  index={index}
+                  equipmentId={equipment.id}
+                  proposed={!installedIds.has(equipment.id)}
+                  edit={edit}
+                  where="page"
+                />
+              </>
+            )
+          }
+        />
+      </div>
       {popover && edit && (
         <ConnectPopover
           key={popover.endpointId}
@@ -176,6 +209,7 @@ export default function EquipmentPage({
       <EndpointDetail
         model={detail}
         chain={chain}
+        walkSheet={walkSheet}
         routeName={routeName}
         networkColor={
           detail?.networkId ? colors.get(detail.networkId) : undefined

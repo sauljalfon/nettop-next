@@ -65,51 +65,48 @@ describe('POL-27 file names', () => {
 })
 
 describe('POL-27 capture size', () => {
-  const cards = [
-    { x: 0, y: 0, width: 240, height: 150 },
-    { x: 1440, y: 0, width: 240, height: 190 },
-  ]
+  const wide = { width: 1680, height: 190 }
 
-  it('wraps the bounds with padding and adds the header band', () => {
-    const l = captureLayout(cards)
+  it('wraps the diagram with padding and adds the header band', () => {
+    const l = captureLayout(wide)
     expect(l.width).toBe(1680 + 2 * EXPORT.padding)
     expect(l.routeHeight).toBe(190 + 2 * EXPORT.padding)
     expect(l.height).toBe(l.routeHeight + EXPORT.headerHeight)
     expect(l.headerHeight).toBe(EXPORT.headerHeight)
   })
 
-  it('moves the route so its bounds start one padding in', () => {
-    const l = captureLayout([{ x: 300, y: -52, width: 100, height: 100 }])
-    expect(l.translate.y).toBe(EXPORT.padding + 52)
-    // Narrow content is centered in the minimum width the header needs.
+  it('puts the diagram one padding in from the top-left of the route area', () => {
+    const l = captureLayout(wide)
+    expect(l.offset).toEqual({ x: EXPORT.padding, y: EXPORT.padding })
+  })
+
+  it('centers narrow content in the minimum width the header needs', () => {
+    const l = captureLayout({ width: 100, height: 100 })
     expect(l.width).toBe(EXPORT.minWidth)
-    expect(l.translate.x).toBe(
-      EXPORT.padding - 300 + (EXPORT.minWidth - (100 + 2 * EXPORT.padding)) / 2,
+    expect(l.offset.x).toBe(
+      EXPORT.padding + (EXPORT.minWidth - (100 + 2 * EXPORT.padding)) / 2,
+    )
+  })
+
+  it('is at least as wide as the diagram, even when the page shows only part of it', () => {
+    expect(captureLayout({ width: 3000, height: 300 }).width).toBeGreaterThan(
+      3000,
     )
   })
 
   it('exports at pixel ratio 2, so the image has twice the size', () => {
-    const l = captureLayout(cards)
+    const l = captureLayout(wide)
     expect(l.ratio).toBe(2)
     expect(l.pixelWidth).toBe(l.width * 2)
     expect(l.pixelHeight).toBe(l.height * 2)
   })
 
   it('lowers the ratio so no side exceeds the safe maximum', () => {
-    const huge = [{ x: 0, y: 0, width: 9000, height: 300 }]
-    const l = captureLayout(huge)
+    const l = captureLayout({ width: 9000, height: 300 })
     expect(l.ratio).toBeLessThan(2)
     expect(l.pixelWidth).toBeLessThanOrEqual(EXPORT.maxSide)
     expect(l.pixelHeight).toBeLessThanOrEqual(EXPORT.maxSide)
     // Still the same picture: the aspect ratio is kept.
     expect(l.pixelWidth / l.pixelHeight).toBeCloseTo(l.width / l.height, 1)
-  })
-
-  it('uses the outline boxes too when they are in the bounds', () => {
-    const box = { x: -24, y: -52, width: 648, height: 251 }
-    const withBox = captureLayout([...cards, box])
-    const without = captureLayout(cards)
-    expect(withBox.width).toBeGreaterThan(without.width)
-    expect(withBox.routeHeight).toBeGreaterThan(without.routeHeight)
   })
 })

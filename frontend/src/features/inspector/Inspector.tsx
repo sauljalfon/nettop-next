@@ -30,6 +30,8 @@ import {
   inspectorLocation,
 } from './model'
 import Overview from './Overview'
+import UplinksSummary from '../paths/UplinksSummary'
+import { useUplinks } from '../paths/useUplinks'
 import PortTable from './PortTable'
 import './inspector.css'
 
@@ -58,6 +60,8 @@ interface Props {
   /** After a direct fix: refetch and toast. */
   onFixed: (message: string) => Promise<void>
   installedLinkIDs?: ReadonlySet<string>
+  /** The open plan's ID, for the uplinks request. */
+  planId?: string
   /** The plan placement form, shown on the Overview tab when a plan is open. */
   children?: ReactNode
 }
@@ -85,6 +89,7 @@ export default function Inspector({
   edit,
   onFixed,
   installedLinkIDs,
+  planId,
   children,
 }: Props) {
   const forMe =
@@ -106,6 +111,7 @@ export default function Inspector({
     setTab(next)
     tabRefs.current[next]?.focus()
   }
+  const uplinks = useUplinks(snapshot, index, equipment, planId)
   const header = inspectorHeader(snapshot, index, equipment, installedIDs)
   const location = inspectorLocation(index, equipment.id)
   const groups = useMemo(
@@ -280,6 +286,15 @@ export default function Inspector({
               location.rack
                 ? `${location.rack.name} · U${equipment.unit}`
                 : undefined
+            }
+            uplinks={
+              equipment.kind === 'switch' && (
+                <UplinksSummary
+                  equipment={equipment}
+                  state={uplinks}
+                  onSelect={onFindFromHere}
+                />
+              )
             }
             groups={groups}
             networkName={networkName}

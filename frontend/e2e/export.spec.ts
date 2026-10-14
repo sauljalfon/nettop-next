@@ -44,24 +44,12 @@ async function download(page: Page, format: 'PNG' | 'PDF') {
   }
 }
 
-/** The capture layout the export should have, from the drawn cards and boxes. */
+/** The capture layout the export should have: from the diagram's full size, not what shows. */
 const expectedLayout = async (page: Page) =>
   captureLayout(
-    await page.evaluate(() =>
-      [...document.querySelectorAll<HTMLElement>('.react-flow__node')].map(
-        (el) => {
-          const at = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(
-            el.style.transform,
-          )!
-          return {
-            x: Number(at[1]),
-            y: Number(at[2]),
-            width: el.offsetWidth,
-            height: el.offsetHeight,
-          }
-        },
-      ),
-    ),
+    await page
+      .getByTestId('route-diagram')
+      .evaluate((el) => ({ width: el.scrollWidth, height: el.scrollHeight })),
   )
 
 test('POL-27 PNG export downloads a non-empty image of the route, named for it, at twice its size', async ({
@@ -69,7 +57,7 @@ test('POL-27 PNG export downloads a non-empty image of the route, named for it, 
 }) => {
   await routeViewOn(page)
   const layout = await expectedLayout(page)
-  const port = await settledViewport(page) // after the route view's fit
+  const port = await settledViewport(page)
   const { name, bytes } = await download(page, 'PNG')
   expect(name).toBe('route-EDGE-17-Port-1-AGG-03-Port-1.png')
   expect(bytes.length).toBeGreaterThan(20_000)
@@ -78,6 +66,13 @@ test('POL-27 PNG export downloads a non-empty image of the route, named for it, 
   expect(bytes.readUInt32BE(16)).toBe(layout.pixelWidth)
   expect(bytes.readUInt32BE(20)).toBe(layout.pixelHeight)
   expect(layout.ratio).toBe(2)
+  // The whole diagram, not the part in view: wider than the box that scrolls it.
+  const shown = await page
+    .locator('.rd-scroll')
+    .evaluate((el) => ({ view: el.clientWidth, full: el.scrollWidth }))
+  expect(shown.full).toBeGreaterThan(shown.view)
+  expect(layout.width).toBeGreaterThanOrEqual(shown.full)
+  expect(bytes.readUInt32BE(16)).toBeGreaterThan(shown.view * 2)
   // Exporting leaves the page as it was: the same view, no leftover header.
   expect(await settledViewport(page)).toBe(port)
   await expectMarks(page, { routeView: true })

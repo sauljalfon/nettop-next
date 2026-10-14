@@ -41,6 +41,8 @@ import './physical.css'
 
 interface Props {
   snapshot: Snapshot
+  /** The open plan's ID (the uplinks request needs it). */
+  planId?: string
   index: SnapshotIndex
   /** The selected route; its marks are the only trace information used here. */
   route?: Route
@@ -85,6 +87,7 @@ interface Props {
  */
 export default function PhysicalExplorer({
   snapshot,
+  planId,
   index,
   route,
   networkId,
@@ -422,6 +425,7 @@ export default function PhysicalExplorer({
             onFixed={onFixed}
             installedIds={installedIds}
             installedLinkIds={installedLinkIDs}
+            planId={planId}
             routeName={
               trailTitle.replace(/^Route ?/, '').replace(/:$/, '') || undefined
             }

@@ -66,6 +66,8 @@ import {
   type MapView,
 } from '../features/map/MapControls'
 import MapResults from '../features/map/MapResults'
+import { walkOfRoute } from '../features/paths/follow'
+import { buildSheet } from '../features/paths/sheet'
 import MapTraceError from '../features/map/MapTraceError'
 import LibraryItems from '../features/planning/LibraryItems'
 import { locationTree } from '../features/patching/patching'
@@ -662,6 +664,14 @@ function Workspace({
     traceMutation.data?.revision === snapshot.revision
       ? traceMutation.data.routes[routeIndex]
       : undefined
+  // One walk sheet for the selected route: the results panel and the route view both read it.
+  const routeSheet = useMemo(
+    () =>
+      route
+        ? buildSheet(index, snapshot.networks, walkOfRoute(index, route))
+        : undefined,
+    [index, snapshot.networks, route],
+  )
   // On mount (a context switch) and whenever the topology revision changes, the
   // remembered trace is run again against this snapshot.
   useEffect(() => {
@@ -744,6 +754,14 @@ function Workspace({
       onViewChange('physical')
     },
     [index, onViewChange],
+  )
+  // A step of the route view or a row's Server button: that endpoint, in Physical.
+  const showStepInPhysical = useCallback(
+    (endpointId: string) => {
+      const owner = index.owner.get(endpointId)
+      if (owner) showInPhysical(owner, endpointId)
+    },
+    [index, showInPhysical],
   )
   const openEndpointPhysical = useCallback(
     (endpointId: string) => {
@@ -908,6 +926,7 @@ function Workspace({
   )
   const drawerEquipment = equipment && (
     <Inspector
+      planId={plan?.id}
       onFixed={onFixed}
       snapshot={snapshot}
       index={index}
@@ -955,6 +974,8 @@ function Workspace({
           installedLinkIDs={installedLinkIDs}
           selected={selected}
           route={route}
+          routeSheet={routeSheet}
+          onRouteStep={showStepInPhysical}
           networkId={networkId}
           onSelect={select}
           onPort={traceFromPort}
@@ -965,6 +986,7 @@ function Workspace({
         />
       ) : (
         <PhysicalExplorer
+          planId={plan?.id}
           onFixed={onFixed}
           snapshot={snapshot}
           index={index}
@@ -1156,7 +1178,7 @@ function Workspace({
       {traceMutation.data?.revision === snapshot.revision && (
         <MapResults
           snapshot={snapshot}
-          index={index}
+          sheet={routeSheet}
           note={routeFellBack ? ROUTE_NOT_HERE : undefined}
           result={traceMutation.data}
           routeIndex={routeIndex}
@@ -1168,10 +1190,7 @@ function Workspace({
             select(port.equipmentId)
             mapSession.requestCenter(port.equipmentId)
           }}
-          onShowInPhysical={(endpointId) => {
-            const owner = snapshot.endpoints.find((p) => p.id === endpointId)
-            if (owner) showInPhysical(owner.equipmentId, endpointId)
-          }}
+          onShowInPhysical={showStepInPhysical}
           onClear={() => clearTrace()}
           routeView={routeView}
           onRouteView={mapSession.setRouteView}

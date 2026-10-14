@@ -1,0 +1,551 @@
+<title>Net-Top Map Overview Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: the app's header over a full-width map canvas. Overview: node cards inside site frames,
+   one line per node pair with the cable count, columns by cable distance (access left, AGG/BB right).
+   Focus: one device in the middle with what is cabled to it, access side left, core side right.
+   Single light theme, matching Net-Top and the earlier demos. */
+:root {
+  --bg: #f2f5f8;
+  --surface: #ffffff;
+  --sunk: #f7f9fb;
+  --ink: #26344b;
+  --muted: #6b7a90;
+  --line: #e1e7ee;
+  --purple: #6454c6;
+  --purple-soft: #f0edfa;
+  --teal: #108b79;
+  --teal-soft: #e3f4f1;
+  --amber: #b97a0b;
+  --amber-soft: #fdf3dc;
+  --bb: #2f6fb5;
+  --bb-soft: #e6f0fa;
+  --wire: #9aa8bb;
+  --site-a: #eef1fb;
+  --site-b: #fbf1ec;
+  --font: Inter, "Noto Sans Hebrew", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid #a99bed; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+bdi { unicode-bidi: isolate; }
+[hidden] { display: none !important; }
+
+.app-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; font-size: 16px; letter-spacing: -0.2px; }
+.brand span { color: var(--purple); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 6px 11px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.seg button.on { background: var(--purple-soft); color: var(--purple); font-weight: 600; }
+.seg button:disabled { cursor: default; }
+.chip-env { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #8a5a00; background: var(--amber-soft); padding: 3px 8px; border-radius: 5px; }
+
+.wrap { max-width: 1400px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; display: grid; gap: 16px; }
+.banner { display: grid; gap: 6px; padding: 12px 14px; background: var(--purple-soft); border: 1px solid #ddd6f6; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+.banner strong { color: var(--purple); }
+.banner ol { margin: 0; padding-left: 20px; }
+
+/* Canvas */
+.stage { position: relative; height: 720px; max-height: 80vh; min-height: 460px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: radial-gradient(circle, #d8dfe8 1px, transparent 1.2px) 0 0 / 22px 22px, var(--sunk); touch-action: none; cursor: grab; }
+.stage.panning { cursor: grabbing; }
+.world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.wires { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.wires line { stroke: var(--wire); stroke-linecap: round; }
+.wires line.hot { stroke: var(--purple); }
+.wires .count rect { fill: var(--surface); stroke: var(--line); }
+.wires .count text { fill: var(--muted); font: 600 11px var(--font); }
+.wires .count.hot rect { stroke: var(--purple); }
+.wires .count.hot text { fill: var(--purple); }
+
+.site { position: absolute; border-radius: 16px; border: 1px dashed #c9d1de; pointer-events: none; }
+.site.a { background: var(--site-a); }
+.site.b { background: var(--site-b); }
+.site span { position: absolute; left: 12px; top: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.4px; color: var(--muted); }
+
+.ncard { position: absolute; width: 196px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 1px 3px rgba(20, 30, 50, 0.08); padding: 9px 11px; display: grid; gap: 4px; cursor: pointer; user-select: none; }
+.ncard:hover { border-color: #c5bdf0; }
+.ncard.dragging { box-shadow: 0 10px 24px rgba(20, 30, 50, 0.18); cursor: grabbing; z-index: 5; }
+.ncard.open { width: 280px; z-index: 4; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft), 0 10px 24px rgba(20, 30, 50, 0.14); }
+.ncard.dim { opacity: 0.45; }
+.ncard .nname { font-weight: 650; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.ncard .nname .pin { margin-left: auto; font-size: 11px; color: var(--muted); }
+.ncard .nmeta { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-variant-numeric: tabular-nums; }
+.tag { display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 650; padding: 1px 6px; border-radius: 5px; background: var(--sunk); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.tag.agg { background: var(--purple-soft); border-color: #ddd6f6; color: var(--purple); }
+.tag.bb { background: var(--bb-soft); border-color: #cfe0f3; color: var(--bb); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.eqlist { display: grid; gap: 2px; margin-top: 4px; border-top: 1px solid var(--line); padding-top: 6px; }
+.eqlist .rack { font-size: 11px; color: var(--muted); font-weight: 600; padding: 4px 2px 2px; }
+.eqrow { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: none; padding: 4px 6px; border-radius: 6px; text-align: left; font-size: 13px; }
+.eqrow:hover { background: var(--purple-soft); }
+.eqrow .u { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+
+.fcard { position: absolute; width: 230px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 1px 3px rgba(20, 30, 50, 0.08); padding: 12px 14px; display: grid; gap: 5px; text-align: left; }
+.fcard:hover { border-color: #c5bdf0; }
+.fcard.center { width: 270px; border: 2px solid var(--purple); box-shadow: 0 0 0 4px var(--purple-soft), 0 10px 24px rgba(20, 30, 50, 0.12); }
+.fcard .fname { font-size: 16px; font-weight: 700; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fcard .fplace { font-size: 12px; color: var(--muted); }
+.fcard .fports { font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.fcard .hop { font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; }
+
+/* Toolbar over the canvas */
+.toolbar { position: absolute; left: 12px; top: 12px; right: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; pointer-events: none; }
+.toolbar > * { pointer-events: auto; }
+.panel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 2px 8px rgba(20, 30, 50, 0.08); }
+.crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-inline: 6px; font-size: 13px; }
+.crumb button { border: 0; background: none; padding: 2px 4px; color: var(--purple); font-weight: 600; border-radius: 5px; }
+.crumb b { font-weight: 650; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 5px 10px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.primary { background: var(--purple); border-color: var(--purple); color: #fff; }
+.search { border: 1px solid var(--line); border-radius: 7px; padding: 5px 10px; font-size: 12px; width: 220px; max-width: 60vw; background: var(--surface); }
+.spacer { flex: 1; }
+.status { position: absolute; left: 12px; bottom: 12px; font-size: 12px; color: var(--muted); background: rgba(255, 255, 255, 0.85); padding: 4px 8px; border-radius: 6px; }
+.legend { position: absolute; right: 12px; bottom: 12px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); background: rgba(255, 255, 255, 0.85); padding: 4px 8px; border-radius: 6px; }
+
+.notes { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; font-size: 13px; line-height: 1.6; }
+.notes h2 { margin: 0 0 6px; font-size: 14px; }
+.notes ul { margin: 0 0 10px; padding-left: 20px; }
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 9px 14px; border-radius: 8px; background: var(--ink); color: #fff; font-size: 13px; box-shadow: 0 6px 20px rgba(20, 30, 50, 0.25); z-index: 20; }
+</style>
+
+<header class="app-head">
+  <div class="brand">net<span>top</span></div>
+  <div class="seg" aria-label="View"><button type="button" class="on" disabled>Conceptual</button><button type="button" disabled>Physical</button></div>
+  <div class="seg" aria-label="Network"><button type="button" class="on" disabled>All networks</button></div>
+  <div class="seg" aria-label="Context"><button class="on" type="button" disabled>Installed</button><button type="button" disabled>Plan</button></div>
+  <span class="chip-env">DEMO</span>
+</header>
+
+<main class="wrap">
+  <section class="banner" aria-label="About this demo">
+    <div><strong>Proposed conceptual map for real data.</strong> Fictional data that lives only in this page. Card positions are kept in this browser only to show how a reload would look.</div>
+    <ol>
+      <li>The map opens on <b>nodes</b>, grouped by site: access buildings on the left, sub-mains in the middle, the AGG/BB rooms on the right. Each line is one pair of nodes with its cable count.</li>
+      <li><b>Click a node</b> to open its equipment in place. <b>Drag a node</b> to arrange the map; the position would be saved for everyone.</li>
+      <li>Click a piece of equipment (or search for it) to <b>Focus</b> on it: only what is cabled to it, in large cards. <b>+1 hop</b> widens it; click a card to move the focus.</li>
+    </ol>
+  </section>
+
+  <section class="stage" id="stage" aria-label="Conceptual map">
+    <div class="world" id="world">
+      <div id="sites"></div>
+      <svg class="wires" id="wires" width="1" height="1" aria-hidden="true"></svg>
+      <div id="cards"></div>
+    </div>
+    <div class="toolbar">
+      <div class="panel" id="crumbPanel"></div>
+      <div class="spacer"></div>
+      <div class="panel">
+        <input class="search" id="search" list="eqNames" placeholder="Find equipment or node…" aria-label="Find equipment or node">
+        <datalist id="eqNames"></datalist>
+      </div>
+      <div class="panel" id="toolPanel"></div>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="notes" aria-label="What changes from today">
+    <h2>What changes from today</h2>
+    <ul>
+      <li>The map no longer opens on every piece of equipment in long rows. It opens on nodes, so a campus of hundreds of devices starts as a few dozen readable cards.</li>
+      <li>Columns follow cable distance from the AGG/BB rooms, not the role of each device, so a building's switches and panels stay together inside their node.</li>
+      <li>A line between two nodes is a summary of real cables (the number is the cable count). It never feeds a trace.</li>
+      <li>Focus shows one device and only what is cabled to it, with the access side on the left and the core side on the right. It is laid out automatically and is not saved.</li>
+      <li>Node positions you drag in the overview are saved on the server, shared with everyone, and kept after a reload, like node positions on the site screen in Physical. <b>Reset arrangement</b> returns to the automatic layout.</li>
+      <li>A trace still highlights in place: in the overview the nodes and lines on the route are marked; in Focus the route's cards are marked. The walk sheet stays in the results panel.</li>
+    </ul>
+  </section>
+</main>
+
+<div id="toastHost"></div>
+
+<script>
+(() => {
+  // ---------- Fictional inventory ----------
+  const SITES = [ { id: 'main', name: 'קמפוס מרכזי', cls: 'a' }, { id: 'dr', name: 'אתר גיבוי', cls: 'b' } ];
+  const NODES = [];
+  const EQUIP = [];
+  const LINKS = []; // [eqA, eqB, count, label]
+  const node = (id, name, site) => NODES.push({ id, name, site });
+  const eq = (id, name, kind, role, nodeId, rack, unit) => EQUIP.push({ id, name, kind, role, node: nodeId, rack, unit });
+  const link = (a, b, count, label) => LINKS.push([a, b, count, label]);
+
+  node('core', 'חדר תקשורת ראשי', 'main');
+  eq('agg03', 'AGG-03', 'switch', 'agg', 'core', 'ארון ליבה 01', 30);
+  eq('agg04', 'AGG-04', 'switch', 'agg', 'core', 'ארון ליבה 02', 30);
+  eq('bb01', 'BB-01', 'switch', 'bb', 'core', 'ארון ליבה 01', 36);
+  for (let i = 1; i <= 4; i++) eq(`hdfM${i}`, `HDF-ראשי-0${i}`, 'hdf', 'passive', 'core', i <= 2 ? 'ארון ליבה 01' : 'ארון ליבה 02', i % 2 ? 2 : 10);
+  link('hdfM1', 'agg03', 16); link('hdfM2', 'agg03', 12); link('hdfM3', 'agg04', 16); link('hdfM4', 'agg04', 8);
+  link('hdfM1', 'bb01', 4); link('hdfM3', 'bb01', 4);
+
+  node('nsm', 'תת-ראשי צפון', 'main');
+  eq('hdfN1', 'HDF-צפון-01', 'hdf', 'passive', 'nsm', 'ארון 3', 4);
+  eq('hdfN2', 'HDF-צפון-02', 'hdf', 'passive', 'nsm', 'ארון 3', 10);
+  link('hdfN1', 'hdfN2', 24); link('hdfN1', 'hdfM1', 48); link('hdfN2', 'hdfM2', 24);
+  node('ssm', 'תת-ראשי דרום', 'main');
+  eq('hdfS1', 'HDF-דרום-01', 'hdf', 'passive', 'ssm', 'ארון 1', 4);
+  eq('hdfS2', 'HDF-דרום-02', 'hdf', 'passive', 'ssm', 'ארון 1', 10);
+  link('hdfS1', 'hdfS2', 12); link('hdfS1', 'hdfM3', 48); link('hdfS2', 'hdfM4', 24);
+
+  const BUILDINGS = [
+    ['b10', 'בניין 10 – מנהלה', 2, 'hdfN1'], ['b11', 'בניין 11', 1, 'hdfN1'], ['b12', 'בניין 12 – מעבדות', 3, 'hdfN2'],
+    ['b14', 'בניין 14', 1, 'hdfN2'], ['b15', 'בניין 15 – ספרייה', 2, 'hdfS1'], ['b16', 'בניין 16', 2, 'hdfM2'],
+    ['b18', 'בניין 18 – מעונות', 3, 'hdfS1'], ['b20', 'בניין 20', 1, 'hdfS2'], ['b21', 'בניין 21 – חניון', 1, 'hdfS2'],
+  ];
+  for (const [id, name, switches, up] of BUILDINGS) {
+    const n = id.slice(1);
+    node(id, name, 'main');
+    eq(`${id}cp`, `פאנל נחושת ${n}`, 'panel', 'passive', id, 'ארון 1', 40);
+    eq(`${id}hdf`, `HDF-${n}`, 'hdf', 'passive', id, 'ארון 1', 2);
+    for (let s = 1; s <= switches; s++) {
+      const sid = `${id}sw${s}`;
+      eq(sid, `EDGE-${n}-קומה${s}`, 'switch', 'access', id, 'ארון 1', 38 - s * 2);
+      link(sid, `${id}cp`, 24 + s * 6);
+      link(sid, `${id}hdf`, 2);
+    }
+    link(`${id}hdf`, up, up === 'hdfM2' ? 12 : 8 + switches * 4, up === 'hdfM2' ? 'ישיר לליבה' : undefined);
+  }
+  link('b14sw1', 'b12cp', 1, 'בין בניינים 12-14');
+
+  node('drs', 'חדר שרתים DR', 'dr');
+  eq('bb02', 'BB-02', 'switch', 'bb', 'drs', 'R1', 20);
+  eq('hdfDR', 'HDF-DR-01', 'hdf', 'passive', 'drs', 'R1', 3);
+  node('dro', 'DR – משרדים', 'dr');
+  eq('drcp', 'פאנל DR', 'panel', 'passive', 'dro', 'ארון קיר', 6);
+  eq('drsw', 'EDGE-DR-01', 'switch', 'access', 'dro', 'ארון קיר', 2);
+  link('hdfDR', 'bb02', 4); link('hdfM4', 'hdfDR', 12, 'DR-קו-1'); link('hdfDR', 'drcp', 12); link('drsw', 'drcp', 24);
+
+  const EQ = new Map(EQUIP.map((e) => [e.id, e]));
+  const ND = new Map(NODES.map((n) => [n.id, n]));
+  const SITE = new Map(SITES.map((s) => [s.id, s]));
+  const adj = new Map(EQUIP.map((e) => [e.id, []]));
+  for (const [a, b, count, label] of LINKS) { adj.get(a).push({ to: b, count, label }); adj.get(b).push({ to: a, count, label }); }
+
+  // ---------- Node graph and cable distance ----------
+  const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  const nodePairs = new Map();
+  for (const [a, b, count] of LINKS) {
+    const na = EQ.get(a).node, nb = EQ.get(b).node;
+    if (na === nb) continue;
+    const k = pairKey(na, nb);
+    const p = nodePairs.get(k) || { a: na, b: nb, count: 0 };
+    p.count += count; nodePairs.set(k, p);
+  }
+  const nodeAdj = new Map(NODES.map((n) => [n.id, []]));
+  for (const p of nodePairs.values()) { nodeAdj.get(p.a).push(p.b); nodeAdj.get(p.b).push(p.a); }
+  const bfs = (starts, nbrs) => {
+    const d = new Map(starts.map((s) => [s, 0]));
+    const q = [...starts];
+    while (q.length) { const x = q.shift(); for (const y of nbrs(x)) if (!d.has(y)) { d.set(y, d.get(x) + 1); q.push(y); } }
+    return d;
+  };
+  const coreNodes = NODES.filter((n) => EQUIP.some((e) => e.node === n.id && (e.role === 'agg' || e.role === 'bb'))).map((n) => n.id);
+  const nodeDist = bfs(coreNodes, (n) => nodeAdj.get(n));
+  const coreEq = EQUIP.filter((e) => e.role === 'agg' || e.role === 'bb').map((e) => e.id);
+  const eqDist = bfs(coreEq, (e) => adj.get(e).map((x) => x.to));
+
+  // ---------- Automatic overview layout ----------
+  const CW = 196, CH = 70;
+  function autoLayout() {
+    // Columns by cable distance (core on the right). Within a column, nodes sit near the nodes
+    // they are cabled to in the column to their right, which keeps lines short and uncrossed.
+    const maxD = Math.max(...nodeDist.values());
+    const pos = new Map();
+    let y0 = 60;
+    for (const site of SITES) {
+      const cols = new Map();
+      for (const n of NODES.filter((n) => n.site === site.id)) {
+        const c = maxD - (nodeDist.get(n.id) ?? maxD);
+        if (!cols.has(c)) cols.set(c, []);
+        cols.get(c).push(n);
+      }
+      let rows = 0;
+      for (const c of [...cols.keys()].sort((x, y) => y - x)) {
+        const list = cols.get(c);
+        const key = (n) => {
+          const ys = nodeAdj.get(n.id).map((m) => pos.get(m)).filter(Boolean).filter((p) => p.x > 40 + c * 300).map((p) => p.y);
+          return ys.length ? ys.reduce((a, v) => a + v, 0) / ys.length : Infinity;
+        };
+        list.sort((x, y) => key(x) - key(y) || x.name.localeCompare(y.name, 'he'));
+        list.forEach((n, i) => pos.set(n.id, { x: 40 + c * 300, y: y0 + i * 100 }));
+        rows = Math.max(rows, list.length);
+      }
+      y0 += rows * 100 + 70;
+    }
+    return pos;
+  }
+
+  // ---------- State ----------
+  const STORE = 'nettop-demo-map-positions';
+  const load = () => { try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch { return {}; } };
+  const save = (obj) => { try { localStorage.setItem(STORE, JSON.stringify(obj)); } catch { /* the demo keeps working without storage */ } };
+  const saved = load();
+  const auto = autoLayout();
+  const posOf = (id) => saved[id] || auto.get(id);
+  const state = { mode: 'overview', open: null, focus: null, hops: 1, history: [] };
+  const view = { tx: 0, ty: 0, k: 1 };
+
+  // ---------- Text helpers ----------
+  const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const b = (s) => `<bdi>${esc(s)}</bdi>`;
+  const roleTag = (e) => e.role === 'agg' ? '<span class="tag agg">AGG</span>' : e.role === 'bb' ? '<span class="tag bb">BB</span>' : e.kind === 'hdf' ? '<span class="tag">HDF</span>' : e.kind === 'panel' ? '<span class="tag">Panel</span>' : '<span class="tag">Access</span>';
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+  // ---------- Overview ----------
+  function nodeCard(n) {
+    const p = posOf(n.id);
+    const list = EQUIP.filter((e) => e.node === n.id);
+    const sw = list.filter((e) => e.kind === 'switch');
+    const pas = list.length - sw.length;
+    const roles = [...new Set(sw.filter((e) => e.role !== 'access').map((e) => e.role))]
+      .map((r) => (r === 'agg' ? '<span class="tag agg">AGG</span>' : '<span class="tag bb">BB</span>')).join('');
+    const open = state.open === n.id;
+    let body = '';
+    if (open) {
+      const racks = [...new Set(list.map((e) => e.rack))];
+      body = `<div class="eqlist">${racks.map((r) => `<div class="rack">${b(r)}</div>` + list.filter((e) => e.rack === r).sort((x, y) => y.unit - x.unit).map((e) =>
+        `<button type="button" class="eqrow" data-focus="${e.id}">${b(e.name)} ${roleTag(e)}<span class="u">U${e.unit}</span></button>`).join('')).join('')}</div>`;
+    }
+    return `<div class="ncard ${open ? 'open' : ''}" data-node="${n.id}" style="left:${p.x}px;top:${p.y}px" role="button" tabindex="0" aria-expanded="${open}" aria-label="${esc(n.name)}">
+      <div class="nname">${b(n.name)}${saved[n.id] ? '<span class="pin" title="Arranged by hand">●</span>' : ''}</div>
+      <div class="nmeta">${plural(sw.length, 'switch', 'switches')} · ${plural(pas, 'passive', 'passives')} ${roles}</div>
+      ${body}
+    </div>`;
+  }
+
+  function siteFrames() {
+    return SITES.map((s) => {
+      const ps = NODES.filter((n) => n.site === s.id).map((n) => posOf(n.id));
+      const x0 = Math.min(...ps.map((p) => p.x)) - 20, y0 = Math.min(...ps.map((p) => p.y)) - 36;
+      const x1 = Math.max(...ps.map((p) => p.x)) + CW + 20, y1 = Math.max(...ps.map((p) => p.y)) + CH + 20;
+      return `<div class="site ${s.cls}" style="left:${x0}px;top:${y0}px;width:${x1 - x0}px;height:${y1 - y0}px"><span>${b(s.name)}</span></div>`;
+    }).join('');
+  }
+
+  function overviewWires() {
+    let out = '';
+    for (const p of nodePairs.values()) {
+      const a = posOf(p.a), z = posOf(p.b);
+      const ax = a.x + CW / 2, ay = a.y + CH / 2, zx = z.x + CW / 2, zy = z.y + CH / 2;
+      const hot = state.open && (p.a === state.open || p.b === state.open);
+      const w = Math.min(7, 1.2 + Math.log2(p.count));
+      out += `<line x1="${ax}" y1="${ay}" x2="${zx}" y2="${zy}" stroke-width="${w}" class="${hot ? 'hot' : ''}"/>`;
+      const mx = (ax + zx) / 2, my = (ay + zy) / 2, label = String(p.count), tw = label.length * 7 + 12;
+      out += `<g class="count ${hot ? 'hot' : ''}"><title>${esc(ND.get(p.a).name)} ↔ ${esc(ND.get(p.b).name)} · ${p.count} cables</title><rect x="${mx - tw / 2}" y="${my - 9}" width="${tw}" height="18" rx="9"/><text x="${mx}" y="${my + 4}" text-anchor="middle">${label}</text></g>`;
+    }
+    return out;
+  }
+
+  // ---------- Focus ----------
+  function focusLayout() {
+    // Columns by distance to the nearest AGG/BB compared with the focus: the access side left,
+    // the core side right, the same distance in the focus column above and below it.
+    const center = state.focus;
+    const near = bfs([center], (e) => adj.get(e).map((x) => x.to));
+    const shown = [...near].filter(([, d]) => d <= state.hops).map(([id]) => id);
+    const base = eqDist.get(center) ?? 0;
+    const cols = new Map();
+    for (const id of shown) {
+      const c = Math.max(-3, Math.min(3, base - (eqDist.get(id) ?? base)));
+      if (!cols.has(c)) cols.set(c, []);
+      cols.get(c).push(id);
+    }
+    const pos = new Map();
+    const H = 150;
+    for (const [c, ids] of cols) {
+      const others = ids.filter((id) => id !== center).sort((x, y) => near.get(x) - near.get(y) || EQ.get(x).name.localeCompare(EQ.get(y).name, 'he'));
+      if (c === 0) {
+        pos.set(center, { x: 0, y: 0 });
+        others.forEach((id, i) => pos.set(id, { x: 20, y: (i % 2 ? -1 : 1) * H * (Math.floor(i / 2) + 1) }));
+      } else {
+        const start = -((others.length - 1) * H) / 2;
+        others.forEach((id, i) => pos.set(id, { x: c * 330, y: start + i * H }));
+      }
+    }
+    return { pos, near, shown };
+  }
+
+  function focusCard(id, near, p) {
+    const e = EQ.get(id);
+    const n = ND.get(e.node);
+    const d = near.get(id);
+    const toCenter = adj.get(id).find((x) => x.to === state.focus);
+    const ports = id === state.focus
+      ? `${plural(adj.get(id).reduce((s, x) => s + x.count, 0), 'cable', 'cables')} to ${plural(adj.get(id).length, 'device', 'devices')}`
+      : toCenter ? `${plural(toCenter.count, 'cable', 'cables')} to ${b(EQ.get(state.focus).name)}${toCenter.label ? ` · ${b(toCenter.label)}` : ''}` : '';
+    return `<button type="button" class="fcard ${id === state.focus ? 'center' : ''}" data-focus="${id}" style="left:${p.x}px;top:${p.y}px">
+      ${id === state.focus ? '<span class="hop">Focus</span>' : `<span class="hop">${d} hop${d === 1 ? '' : 's'}</span>`}
+      <span class="fname">${b(e.name)} ${roleTag(e)}</span>
+      <span class="fplace">${b(SITE.get(n.site).name)} › ${b(n.name)} › ${b(e.rack)} · U${e.unit}</span>
+      ${ports ? `<span class="fports">${ports}</span>` : ''}
+    </button>`;
+  }
+
+  function focusWires(pos, shown) {
+    const set = new Set(shown);
+    let out = '';
+    const W = 230, H = 84;
+    const center = (id) => { const p = pos.get(id); const w = id === state.focus ? 270 : W; return { x: p.x + w / 2, y: p.y + H / 2 }; };
+    for (const [a, z, count, label] of LINKS) {
+      if (!set.has(a) || !set.has(z)) continue;
+      const A = center(a), Z = center(z);
+      const hot = a === state.focus || z === state.focus;
+      out += `<line x1="${A.x}" y1="${A.y}" x2="${Z.x}" y2="${Z.y}" stroke-width="${Math.min(6, 1.5 + Math.log2(count))}" class="${hot ? 'hot' : ''}"/>`;
+      const text = count === 1 && label ? label : `${count}`;
+      const mx = (A.x + Z.x) / 2, my = (A.y + Z.y) / 2, tw = Math.max(26, text.length * 7 + 12);
+      out += `<g class="count ${hot ? 'hot' : ''}"><title>${count} cables${label ? ` · ${esc(label)}` : ''}</title><rect x="${mx - tw / 2}" y="${my - 9}" width="${tw}" height="18" rx="9"/><text x="${mx}" y="${my + 4}" text-anchor="middle">${esc(text)}</text></g>`;
+    }
+    return out;
+  }
+
+  // ---------- Render ----------
+  const $ = (id) => document.getElementById(id);
+  function applyView() { $('world').style.transform = `translate(${view.tx}px, ${view.ty}px) scale(${view.k})`; }
+
+  function render() {
+    if (state.mode === 'overview') {
+      $('sites').innerHTML = siteFrames();
+      $('wires').innerHTML = overviewWires();
+      $('cards').innerHTML = NODES.map(nodeCard).join('');
+      $('crumbPanel').innerHTML = `<div class="crumb"><b>Overview</b> · ${plural(NODES.length, 'node', 'nodes')} in ${plural(SITES.length, 'site', 'sites')} · ${EQUIP.length} equipment</div>`;
+      $('toolPanel').innerHTML = `<button type="button" class="btn" data-act="fit">Fit</button><button type="button" class="btn" data-act="reset" ${Object.keys(saved).length ? '' : 'disabled'}>Reset arrangement</button>`;
+      $('status').innerHTML = Object.keys(saved).length ? `${plural(Object.keys(saved).length, 'node', 'nodes')} arranged by hand · saved for everyone` : 'Automatic layout · drag a node to arrange it';
+      $('legend').innerHTML = '<span>Line: cables between two nodes</span><span>● arranged by hand</span>';
+    } else {
+      const { pos, near, shown } = focusLayout();
+      $('sites').innerHTML = '';
+      $('wires').innerHTML = focusWires(pos, shown);
+      $('cards').innerHTML = shown.map((id) => focusCard(id, near, pos.get(id))).join('');
+      const e = EQ.get(state.focus), n = ND.get(e.node);
+      $('crumbPanel').innerHTML = `<div class="crumb"><button type="button" data-act="overview">Overview</button>›<button type="button" data-act="node" data-node="${n.id}">${b(n.name)}</button>›<b>${b(e.name)}</b></div>`;
+      const max = Math.max(...near.values());
+      $('toolPanel').innerHTML = `<button type="button" class="btn" data-act="back" ${state.history.length ? '' : 'disabled'}>Back</button><button type="button" class="btn" data-act="less" ${state.hops <= 1 ? 'disabled' : ''}>−1 hop</button><button type="button" class="btn primary" data-act="more" ${state.hops >= Math.min(4, max) ? 'disabled' : ''}>+1 hop</button><button type="button" class="btn" data-act="fit">Fit</button>`;
+      $('status').innerHTML = `Focus · ${plural(state.hops, 'hop', 'hops')} · ${plural(shown.length - 1, 'device', 'devices')} cabled to ${b(e.name)} · laid out automatically, not saved`;
+      $('legend').innerHTML = '<span>← access side</span><span>core side (AGG / BB) →</span>';
+    }
+    applyView();
+  }
+
+  function fit() {
+    const cards = [...$('cards').children];
+    if (!cards.length) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const c of cards) {
+      const x = parseFloat(c.style.left), y = parseFloat(c.style.top);
+      x0 = Math.min(x0, x); y0 = Math.min(y0, y - 40); x1 = Math.max(x1, x + c.offsetWidth); y1 = Math.max(y1, y + c.offsetHeight);
+    }
+    const st = $('stage').getBoundingClientRect();
+    const padTop = 64, pad = 30;
+    const k = Math.min(1.1, (st.width - pad * 2) / (x1 - x0), (st.height - padTop - pad * 2) / (y1 - y0));
+    view.k = Math.max(0.3, k);
+    view.tx = (st.width - (x1 - x0) * view.k) / 2 - x0 * view.k;
+    view.ty = padTop + (st.height - padTop - (y1 - y0) * view.k) / 2 - y0 * view.k;
+    applyView();
+  }
+
+  let toastTimer;
+  function toast(html) {
+    $('toastHost').innerHTML = `<div class="toast" role="status">${html}</div>`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $('toastHost').innerHTML = ''; }, 3000);
+  }
+
+  function focusOn(id, { push = true } = {}) {
+    if (push && state.mode === 'focus' && state.focus !== id) state.history.push(state.focus);
+    state.mode = 'focus'; state.focus = id; render(); fit();
+  }
+
+  // ---------- Pointer: drag nodes, pan the canvas ----------
+  let drag = null;
+  $('stage').addEventListener('pointerdown', (ev) => {
+    if (ev.target.closest('.toolbar, button, input')) return;
+    const card = ev.target.closest('.ncard');
+    if (card && state.mode === 'overview') {
+      const id = card.dataset.node, p = posOf(id);
+      drag = { kind: 'node', id, card, sx: ev.clientX, sy: ev.clientY, x: p.x, y: p.y, moved: false };
+    } else {
+      drag = { kind: 'pan', sx: ev.clientX, sy: ev.clientY, tx: view.tx, ty: view.ty };
+      $('stage').classList.add('panning');
+    }
+    $('stage').setPointerCapture(ev.pointerId);
+  });
+  $('stage').addEventListener('pointermove', (ev) => {
+    if (!drag) return;
+    const dx = ev.clientX - drag.sx, dy = ev.clientY - drag.sy;
+    if (drag.kind === 'pan') { view.tx = drag.tx + dx; view.ty = drag.ty + dy; applyView(); return; }
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true;
+    drag.card.classList.add('dragging');
+    const x = Math.round(drag.x + dx / view.k), y = Math.round(drag.y + dy / view.k);
+    saved[drag.id] = { x, y };
+    drag.card.style.left = `${x}px`; drag.card.style.top = `${y}px`;
+    $('wires').innerHTML = overviewWires();
+    $('sites').innerHTML = siteFrames();
+  });
+  $('stage').addEventListener('pointerup', () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    $('stage').classList.remove('panning');
+    if (d.kind !== 'node') return;
+    if (d.moved) {
+      save(saved); render();
+      toast(`Position of ${b(ND.get(d.id).name)} saved. Everyone sees this arrangement.`);
+    } else {
+      state.open = state.open === d.id ? null : d.id; render();
+    }
+  });
+  $('stage').addEventListener('wheel', (ev) => {
+    ev.preventDefault();
+    const st = $('stage').getBoundingClientRect();
+    const mx = ev.clientX - st.left, my = ev.clientY - st.top;
+    const k = Math.max(0.3, Math.min(2, view.k * (ev.deltaY < 0 ? 1.1 : 0.9)));
+    view.tx = mx - ((mx - view.tx) / view.k) * k; view.ty = my - ((my - view.ty) / view.k) * k; view.k = k;
+    applyView();
+  }, { passive: false });
+
+  document.addEventListener('keydown', (ev) => {
+    const card = ev.target.closest && ev.target.closest('.ncard');
+    if (card && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); state.open = state.open === card.dataset.node ? null : card.dataset.node; render(); }
+  });
+
+  document.addEventListener('click', (ev) => {
+    const t = ev.target.closest('button');
+    if (!t) return;
+    if (t.dataset.focus) { focusOn(t.dataset.focus); return; }
+    switch (t.dataset.act) {
+      case 'fit': fit(); break;
+      case 'reset': for (const k of Object.keys(saved)) delete saved[k]; save(saved); render(); fit(); toast('Arrangement reset to the automatic layout for everyone.'); break;
+      case 'overview': state.mode = 'overview'; state.history = []; render(); fit(); break;
+      case 'node': state.mode = 'overview'; state.history = []; state.open = t.dataset.node; render(); fit(); break;
+      case 'more': state.hops++; render(); fit(); break;
+      case 'less': state.hops--; render(); fit(); break;
+      case 'back': focusOn(state.history.pop(), { push: false }); break;
+    }
+  });
+
+  // ---------- Search ----------
+  $('eqNames').innerHTML = [...EQUIP.map((e) => e.name), ...NODES.map((n) => n.name)].map((n) => `<option value="${esc(n)}"></option>`).join('');
+  $('search').addEventListener('change', (ev) => {
+    const q = ev.target.value.trim();
+    const e = EQUIP.find((x) => x.name === q);
+    const n = NODES.find((x) => x.name === q);
+    if (e) { state.history = []; focusOn(e.id, { push: false }); }
+    else if (n) { state.mode = 'overview'; state.open = n.id; render(); fit(); }
+    else if (q) toast(`Nothing is named ${b(q)}.`);
+    ev.target.value = '';
+  });
+
+  render();
+  requestAnimationFrame(fit);
+  window.addEventListener('resize', fit);
+})();
+</script>

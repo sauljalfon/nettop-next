@@ -80,6 +80,8 @@ interface Props {
   editSlot?: ReactNode
   /** Patching marks per endpoint; absent everywhere else. */
   decorate?: (endpointId: string) => JackMark | undefined
+  /** Jacks whose port reaches an AGG or BB (the uplinks summary); marked purple. */
+  uplinkIds?: ReadonlySet<string>
   /** False hides the legend (the patching screen has its own). */
   legend?: boolean
 }
@@ -108,6 +110,7 @@ export default function FaceView({
   proposed,
   editSlot,
   decorate,
+  uplinkIds,
   legend: showLegend = true,
 }: Props) {
   const networkName = (id?: string) => networks.find((n) => n.id === id)?.name
@@ -151,6 +154,7 @@ export default function FaceView({
   ) => {
     const look = cellLook(cell)
     const mark = cell.endpointId ? decorate?.(cell.endpointId) : undefined
+    const uplink = !!cell.endpointId && !!uplinkIds?.has(cell.endpointId)
     const style =
       look.fill === 'cabled' && !mark?.tone
         ? {
@@ -172,6 +176,8 @@ export default function FaceView({
         data-selected={look.selected}
         data-network={cell.networkId ?? ''}
         data-tone={mark?.tone}
+        data-uplink={uplink ? 'true' : undefined}
+        aria-description={uplink ? 'reaches an AGG or BB' : undefined}
         data-port-state={cell.portState}
         data-pair={mark?.badge}
         title={[tooltip(cell, ordinal), mark?.note].filter(Boolean).join(' · ')}
@@ -379,6 +385,11 @@ export default function FaceView({
           <span>
             <i className="fill-route" /> on the selected route
           </span>
+          {uplinkIds && uplinkIds.size > 0 && (
+            <span data-testid="legend-uplink">
+              <i className="uplink-mark" /> reaches an AGG or BB
+            </span>
+          )}
           <span>
             <i className="is-selected" /> selected
           </span>

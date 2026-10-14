@@ -1,0 +1,316 @@
+/* The walk sheet. Look: docs/history/demos/explanatory-paths-demo.html. */
+.walk-sheet {
+  --w-ink: #26344b;
+  --w-sunk: #f7f9fb;
+  --w-surface: #ffffff;
+  --w-purple-soft: #f0edfa;
+  --w-bb: #2f6fb5;
+  --w-bb-soft: #e6f0fa;
+  --w-amber: #b97a0b;
+  --w-amber-soft: #fdf3dc;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 4px 0 8px;
+}
+.map-results.physical .walk-sheet {
+  max-height: 196px;
+  overflow-y: auto;
+}
+.walk-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.walk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.walk-place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: var(--w-sunk);
+  border: 1px solid var(--line);
+  border-radius: 8px 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.walk-sep {
+  opacity: 0.6;
+}
+.walk-place b {
+  color: var(--w-ink);
+  font-weight: 600;
+}
+.walk-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-inline: 1px solid var(--line);
+  background: var(--w-surface);
+}
+.walk-place + .walk-step {
+  border-top: 0;
+}
+.walk-step:has(+ .walk-cable),
+.walk-step:last-child {
+  border-bottom: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+}
+.walk-step:has(+ .walk-step) {
+  border-bottom: 1px dashed var(--line);
+}
+.walk-step-btn {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 2px 10px;
+  padding: 9px 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  border-radius: inherit;
+  cursor: pointer;
+}
+.walk-step-btn:hover {
+  background: #fafbfd;
+}
+.walk-step .row-action {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+}
+.walk-unit {
+  grid-row: span 2;
+  align-self: start;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--muted);
+  padding-top: 2px;
+}
+.walk-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-weight: 600;
+  min-width: 0;
+  color: var(--w-ink);
+}
+.walk-name bdi {
+  overflow-wrap: anywhere;
+}
+.walk-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--w-sunk);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.walk-tag.agg {
+  background: var(--w-purple-soft);
+  border-color: #ddd6f6;
+  color: var(--purple);
+}
+.walk-tag.bb {
+  background: var(--w-bb-soft);
+  border-color: #cfe0f3;
+  color: var(--w-bb);
+}
+.walk-io {
+  font-size: 13px;
+  color: var(--w-ink);
+  font-variant-numeric: tabular-nums;
+}
+.walk-step.dest .walk-step-btn {
+  background: var(--w-purple-soft);
+}
+.walk-step.dest.bbdest .walk-step-btn {
+  background: var(--w-bb-soft);
+}
+.walk-stop {
+  color: var(--w-amber);
+  font-weight: 600;
+}
+.walk-cable {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  padding: 2px 10px;
+}
+.walk-line {
+  justify-self: center;
+  width: 2px;
+  min-height: 30px;
+  background: repeating-linear-gradient(
+    var(--purple) 0 6px,
+    transparent 6px 9px
+  );
+}
+.walk-what {
+  align-self: center;
+  display: grid;
+  gap: 2px;
+  padding-block: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.walk-what b {
+  color: var(--w-ink);
+  font-weight: 600;
+}
+.walk-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  border-bottom: 1px dotted var(--muted);
+  cursor: help;
+}
+.walk-leave {
+  color: var(--w-amber);
+  font-weight: 600;
+}
+.walk-end {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid var(--line);
+  background: var(--w-sunk);
+}
+.walk-end.dest {
+  background: var(--w-purple-soft);
+  border-color: #ddd6f6;
+}
+.walk-end.bbdest {
+  background: var(--w-bb-soft);
+  border-color: #cfe0f3;
+}
+.walk-end.free {
+  background: var(--w-amber-soft);
+  border-color: #f0dca8;
+}
+
+/* The uplinks summary. Look: docs/history/demos/explanatory-paths-demo.html. */
+.uplinks {
+  --u-purple: #6454c6;
+  --u-purple-soft: #f0edfa;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  min-width: 0;
+  margin-bottom: 12px;
+  container-type: inline-size;
+}
+.uplinks-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  background: #f7f9fb;
+  border-bottom: 1px solid var(--line);
+}
+.uplinks-head h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.uplinks-head small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.uplink {
+  display: grid;
+  grid-template-columns: 72px minmax(0, auto) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.uplink:hover {
+  background: #fafbfd;
+}
+.uplink[aria-pressed='true'] {
+  background: var(--u-purple-soft);
+  box-shadow: inset 3px 0 0 var(--u-purple);
+}
+.uplink-port {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+}
+.uplink-dest {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.uplink-tag {
+  margin-left: 4px;
+  padding: 0 6px;
+  border: 1px solid #ddd6f6;
+  border-radius: 999px;
+  background: var(--u-purple-soft);
+  color: var(--u-purple);
+  font-size: 11px;
+  font-weight: 600;
+}
+.uplink-tag.bb {
+  border-color: #c5dcf2;
+  background: #e6f0fa;
+  color: #2f6fb5;
+}
+.uplink-count {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.uplink-via {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.uplinks-empty,
+.uplinks-note {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+@container (max-width: 560px) {
+  .uplink {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+  .uplink-count {
+    grid-column: 2;
+  }
+  .uplink-via {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}

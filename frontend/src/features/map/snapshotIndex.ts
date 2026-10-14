@@ -29,6 +29,13 @@ export interface SnapshotIndex {
     string,
     { linkId: string; farEndpointId: string }
   >
+  /** Cable links by ID. */
+  cableById: ReadonlyMap<string, Link>
+  /** Each bridged position side's stored internal bridge and the side at its other end. */
+  bridgeByEndpoint: ReadonlyMap<
+    string,
+    { linkId: string; otherEndpointId: string }
+  >
   racks: ReadonlyMap<string, { id: string; name: string; nodeId: string }>
   /** Cable links only, in snapshot order. */
   cables: readonly Link[]
@@ -81,8 +88,19 @@ export function indexSnapshot(s: Snapshot): SnapshotIndex {
     add(a, l.id, b)
     add(b, l.id, a)
   }
+  const bridgeByEndpoint = new Map<
+    string,
+    { linkId: string; otherEndpointId: string }
+  >()
+  for (const l of s.links) {
+    if (l.kind !== 'internal') continue
+    bridgeByEndpoint.set(l.a, { linkId: l.id, otherEndpointId: l.b })
+    bridgeByEndpoint.set(l.b, { linkId: l.id, otherEndpointId: l.a })
+  }
   return {
     owner,
+    bridgeByEndpoint,
+    cableById: new Map(cables.map((l) => [l.id, l])),
     cables,
     cablesByEquipment,
     cableByEndpoint,

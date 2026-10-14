@@ -321,18 +321,21 @@ test('PD-02 a switch port is port → cable → far end; a side with no cable is
   await expect(detail(page)).toContainText('EDGE-17')
   await expect(detail(page)).toContainText('Network A')
   await expect(detail(page)).not.toContainText('Fiber pair')
-  expect(await roles(page)).toEqual(['far', 'cable', 'self'])
-  await expect(chain(page).nth(0)).toContainText('PANEL-A')
-  await expect(chain(page).nth(1)).toContainText('cable-a01')
-  await chain(page).nth(0).getByRole('button').click() // Go to peer
+  // A switch port shows its walk sheet, not the chain.
+  const walk = detail(page).getByTestId('walk-sheet')
+  await expect(detail(page).getByTestId('chain')).toHaveCount(0)
+  await expect(walk.getByTestId('walk-row').nth(1)).toContainText('PANEL-A')
+  await expect(walk.getByTestId('walk-cable').first()).toHaveAttribute(
+    'data-link',
+    'cable-a01',
+  )
+  await walk.getByTestId('walk-row').nth(1).click() // opens PANEL-A's front
   await expectMark(page, 'data-selected-endpoint', 'panel-a:1:f')
 
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await endpoint(page, 'edge-17:p4').click()
-  expect(await roles(page)).toEqual(['none', 'self'])
-  await expect(chain(page).nth(0)).toContainText('no cable')
-  await expect(chain(page).nth(0)).toHaveCSS('border-top-style', 'dashed')
-  await expect(chain(page).nth(0).getByRole('button')).toHaveCount(0)
+  await expect(walk.getByTestId('walk-end')).toHaveAttribute('data-end', 'none')
+  await expect(walk.getByTestId('walk-row')).toHaveCount(1)
 
   // A free position: no cable on either side, the bridge between them.
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'panel-a')

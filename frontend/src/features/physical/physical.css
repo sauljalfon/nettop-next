@@ -71,6 +71,9 @@
   letter-spacing: 1.4px;
   color: #8390a4;
 }
+.phys-label.detail-path {
+  margin: 14px 0 6px;
+}
 .phys-counts {
   font-size: 12px;
   color: #4b5a72;
@@ -1315,4 +1318,38 @@
     transparent 0 3px,
     rgba(180, 35, 24, 0.7) 3px 5px
   );
+}
+
+/* A jack whose port reaches an AGG or BB: a purple dot in the corner, drawn over
+   the fill so it shows with the network color, the route fill and the ring. */
+.face-cell[data-uplink='true']::after,
+.face-legend i.uplink-mark {
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  background: #6454c6;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #6454c6;
+}
+.face-cell[data-uplink='true']::after {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  content: '';
+}
+.face-legend i.uplink-mark {
+  border-width: 2px;
+}
+
+/* The face with the uplinks summary above it. */
+.equipment-main {
+  display: grid;
+  flex: 1;
+  gap: 12px;
+  min-width: 0;
+  max-width: 900px;
+}
+.equipment-main .uplinks {
+  margin-bottom: 0;
 }
