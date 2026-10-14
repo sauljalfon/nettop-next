@@ -1,19 +1,20 @@
 # Net-Top Next
 
-Build the approved pathfinding-centered infrastructure manager. Start at `docs/README.md` and `docs/agent-handoff.md`, then read `docs/architecture.md`, `docs/ui-spec.md`, `docs/implementation-plan.md`, and `docs/current-status.md`. Use `docs/acceptance-example.md` and `docs/acceptance-tests.md` for exact routes and verification. The current nested-canvas prototype is not the final conceptual-map contract.
+Build the pathfinding-centered infrastructure manager. Start at [docs/README.md](docs/README.md); where the project is and what to work on is only in [docs/status.md](docs/status.md); the process is [docs/way-of-work.md](docs/way-of-work.md); decisions are in [docs/decisions.md](docs/decisions.md).
 
 - Backend: Go, standard HTTP library; frontend: React, TypeScript, React Flow.
 - Keep traversal independent of HTTP, storage, and canvas state.
 - Installed topology, proposed topology, and visual layout are separate concepts.
-- Do not infer connectivity from screen positions or aggregation roles from names.
+- Do not infer connectivity from screen positions or roles from names.
 - Active devices own exactly one network. Passive panels/HDFs remain shared; bridge only the same subpanel/local position across front/rear.
 - Find all reachable AGG and BB routes; stop at active endpoints, retain BB results when AGGs exist, and preserve actual roles.
 - Conceptual and physical views share endpoint identities and trace context. Conceptual is a connected map; physical uses site/node/rack/port drill-down.
-- Write failing tests before changing domain rules. Test behavior, not internal implementation details.
-- Keep changes in small working checkpoints. Run Go tests, frontend tests, type checking, and production build before handoff.
+- Write failing tests before changing behaviour. Test behaviour, not internal implementation details.
+- Work one item at a time, in small working checkpoints, with an approved design first and a review after each (way-of-work.md). Implement only the current item named in docs/status.md; later roadmap items are not implicit scope.
+- Run Go tests, frontend tests, type checking, and the production build before handoff.
 - Never present sample data, an in-memory preview, or a local layout edit as a persisted installation.
-- Do not introduce backend persistence or authentication implicitly; use the architecture roadmap and explicit migrations.
-- Keep API contracts, migrations, and status docs synchronized with completed checkpoints. Implement only the next checkpoint in docs/implementation-plan.md (currently P2, the data-entry fixes; then the explanatory paths, the conceptual map for real data, and M5b step 14 — see "P2 scope" in the plan); later items are not implicit scope.
-- Mockup exploration is complete. Do not add generated demos/screenshots as substitutes for implementing and testing the agreed workflow.
-- Preserve the distinction between locked user decisions, fictional test data, and unresolved implementation inputs. Consult `docs/design-decisions.md` before reviving a superseded approach and `docs/backend-contract-notes.md` before assuming the current API already supports the target model.
-- No automatic commits or remote publishing.
+- Do not introduce backend persistence or authentication implicitly; schema changes are explicit, reviewed migrations.
+- Keep the API contract (`api/openapi.yaml`, `frontend/src/shared/types.ts`), migrations and docs in step with what runs, in the same change. One fact lives in one document (way-of-work.md, "Keeping the docs true").
+- A clickable demo is design material for the owner to approve (D30); it never replaces implementing and testing the agreed behaviour.
+- Preserve the difference between locked decisions, fictional test data and open questions. Check docs/decisions.md before reviving a superseded approach.
+- No automatic commits or remote publishing: commit, merge and push only when the owner asks.

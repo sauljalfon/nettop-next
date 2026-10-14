@@ -3,7 +3,7 @@ security: []
 info:
   title: Net-Top Next API
   version: 0.6.0
-  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing (point-to-point and Find AGG / BB). Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/implementation-plan.md. Networks can be created and renamed, and Physical site-screen node positions are saved and shared; both are presentation or reference data and never change a topology revision. The only way installed topology changes is recording a draft (POST /plans/{id}/record). Names and detail fields of installed objects can be corrected directly (PATCH /installed/{kind}/{id}); each changed field is written to the change log, and the topology revision does not change.
+  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing (point-to-point and Find AGG / BB). Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/status.md. Networks can be created and renamed, and Physical site-screen node positions are saved and shared; both are presentation or reference data and never change a topology revision. The only way installed topology changes is recording a draft (POST /plans/{id}/record). Names and detail fields of installed objects can be corrected directly (PATCH /installed/{kind}/{id}); each changed field is written to the change log, and the topology revision does not change.
 servers:
   - url: http://127.0.0.1:8080/api
 paths:

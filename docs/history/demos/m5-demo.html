@@ -1,0 +1,1435 @@
+<title>Net-Top M5 Editing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: app shell (header, demo strip, tool rail | main | right drawer), the same light look as the app and the M4 demo. Single light theme on purpose: the app has no dark mode. */
+:root {
+  --bg: #f2f5f8; --surface: #ffffff; --ink: #26344b; --ink-2: #3d4a60; --muted: #5f6b80; --faint: #9aa6b8;
+  --line: #e1e7ee; --line-2: #d5dde7; --accent: #2f6fdb; --brand: #6454c6; --teal: #108b79;
+  --prop-ink: #8a5a00; --prop-bg: #fbefd2; --prop-line: #d9a441;
+  --warn-ink: #6b4a00; --warn-bg: #fff6e5; --warn-line: #f1d9a6;
+  --danger: #b42318; --danger-bg: #fdf0ef; --danger-line: #f0c7c3;
+  --ok-ink: #0b6b5d; --ok-bg: #dff3ee;
+  --rack: #1f2735; --rack-2: #2b3445;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+:focus-visible { outline: 3px solid #a99bed; outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mono { font-family: var(--mono); }
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* Header */
+.top { display: flex; align-items: center; gap: 14px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand strong { font-size: 18px; letter-spacing: -0.01em; }
+.brand strong span { color: var(--brand); }
+.brand small { color: var(--muted); font-size: 12px; }
+.seg { display: flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { padding: 7px 12px; border: 0; background: var(--surface); font-weight: 600; font-size: 13px; }
+.seg button + button { border-left: 1px solid var(--line-2); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.nets { display: flex; gap: 6px; flex-wrap: wrap; }
+.net-chip { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); font-size: 12px; font-weight: 600; }
+.net-chip.on { background: var(--c); border-color: var(--c); color: #fff; }
+.ctx { display: flex; align-items: center; gap: 8px; }
+.ctx select { padding: 6px 8px; border: 1px solid var(--prop-line); border-radius: 8px; background: var(--prop-bg); color: var(--prop-ink); font-weight: 600; font-size: 13px; }
+.top .spacer { flex: 1; }
+.count { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+
+/* Demo strip */
+.demo-strip { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; padding: 7px 16px; background: #eef0fb; border-bottom: 1px solid #dcdff3; font-size: 12px; color: #464a74; }
+.demo-strip strong { letter-spacing: .06em; font-size: 11px; }
+.demo-strip .tour { display: flex; gap: 6px; flex-wrap: wrap; }
+.demo-strip button { padding: 3px 9px; border-radius: 999px; border: 1px solid #c9cdee; background: #fff; font-size: 12px; color: #3b3f6b; }
+.demo-strip button:hover { border-color: var(--brand); }
+.demo-strip .sim { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn-ink); }
+
+/* Body */
+.body { flex: 1; display: flex; position: relative; min-height: 0; }
+.rail { width: 64px; flex: none; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; padding-top: 12px; gap: 8px; }
+.rail button { width: 52px; padding: 8px 0 6px; border: 1px solid transparent; border-radius: 10px; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--ink-2); }
+.rail button[aria-expanded="true"] { background: #efecfb; border-color: #d9d3f5; color: var(--brand); }
+main { flex: 1; min-width: 0; padding: 18px 22px 48px; }
+.drawer-r { width: 410px; flex: none; background: var(--surface); border-left: 1px solid var(--line); min-width: 0; }
+.drawer-l { position: absolute; left: 64px; top: 0; bottom: 0; width: min(330px, calc(100% - 64px)); background: var(--surface); border-right: 1px solid var(--line); box-shadow: 8px 0 24px rgba(38,52,75,.10); z-index: 5; overflow-y: auto; }
+.dh { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
+.dh h2 { margin: 0; font-size: 16px; }
+.dh p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.x { border: 0; background: none; font-size: 20px; line-height: 1; padding: 2px 8px; color: var(--muted); }
+.db { padding: 14px 16px 24px; display: grid; gap: 14px; }
+@media (max-width: 960px) {
+  .drawer-r { position: absolute; right: 0; top: 0; bottom: 0; width: min(410px, 100%); z-index: 6; box-shadow: -8px 0 24px rgba(38,52,75,.14); overflow-y: auto; }
+  main { padding: 16px 16px 48px; }
+}
+
+/* Buttons and small pieces */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); font-weight: 600; font-size: 13px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.ghost-danger { color: var(--danger); border-color: var(--danger-line); }
+.btn.small { padding: 4px 9px; font-size: 12px; }
+.btn.block { width: 100%; justify-content: center; }
+.link { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; text-align: left; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.eyebrow { display: flex; gap: 6px; align-items: center; font-size: 11px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+.tag-proposed { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--prop-ink); background: var(--prop-bg); border-radius: 4px; padding: 1px 6px; }
+.tag-recorded { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--ok-ink); background: var(--ok-bg); border-radius: 4px; padding: 1px 6px; }
+.tag-new { font-size: 10px; font-weight: 700; letter-spacing: .05em; color: #5b4bb7; border: 1px dashed #a99bed; border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+.badge-net { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--c); color: var(--c); font-size: 11px; font-weight: 600; background: var(--surface); white-space: nowrap; }
+.chip-state { padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.chip-state.available, .chip-state.active { background: var(--ok-bg); color: var(--ok-ink); }
+.chip-state.reserved, .chip-state.maintenance, .chip-state.testing { background: var(--prop-bg); color: var(--prop-ink); }
+.chip-state.disabled, .chip-state.inactive { background: #eceff3; color: #5f6b80; }
+.chip-state.faulty { background: var(--danger-bg); color: var(--danger); }
+.hint { font-size: 12px; color: var(--muted); }
+.plan-banner { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 14px; border: 1px dashed var(--prop-line); background: #fffaf0; border-radius: 10px; font-size: 13px; color: var(--warn-ink); }
+
+/* Forms, confirms, notices */
+.form { display: grid; gap: 10px; }
+.f { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 500; }
+.f input, .f select, .f textarea, .search { border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; background: var(--surface); color: var(--ink); font-size: 13px; min-width: 0; width: 100%; }
+.f textarea { min-height: 70px; resize: vertical; }
+.f2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.err { color: var(--danger); font-size: 12px; font-weight: 500; }
+.confirm { border: 1px solid var(--danger-line); background: var(--danger-bg); border-radius: 10px; padding: 12px; display: grid; gap: 8px; font-size: 13px; color: var(--ink); }
+.confirm ul { margin: 0; padding-left: 18px; }
+.confirm .cut { font-size: 12px; color: var(--ink-2); }
+.notice { border: 1px solid var(--warn-line); background: var(--warn-bg); border-radius: 10px; padding: 12px; display: grid; gap: 8px; font-size: 13px; color: var(--warn-ink); }
+.notice.info { border-color: #e2def5; background: #f8f6fc; color: #4f4a6e; }
+.section-label { font-size: 11px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; margin: 0; }
+
+/* Physical */
+.crumbs { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.crumbs nav { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; font-size: 15px; }
+.crumbs nav .sep { color: var(--faint); }
+.crumbs nav .link { font-weight: 500; padding: 2px 3px; }
+.crumbs nav b { padding: 2px 3px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px; display: grid; gap: 4px; box-shadow: 0 1px 2px rgba(38,52,75,.05); }
+.card.proposed { border: 1.5px dashed var(--prop-line); background: #fffdf8; }
+.card-main { border: 0; background: none; text-align: left; padding: 12px 12px 6px; display: grid; gap: 4px; border-radius: 10px; }
+.card-main:hover { background: #f7f9fc; }
+.card-title { font-size: 18px; font-weight: 700; }
+.card-meta { color: var(--ink-2); font-size: 13px; }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.card-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 0 12px 10px; }
+.card.adder { border: 1.5px dashed var(--line-2); background: transparent; box-shadow: none; padding: 14px; }
+.adder-btn { border: 0; background: none; min-height: 110px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-weight: 600; border-radius: 10px; }
+.adder-btn:hover { background: var(--surface); color: var(--accent); }
+.mini { display: grid; gap: 1px; background: var(--rack-2); padding: 5px; border-radius: 6px; margin: 6px 0 2px; }
+.mini span { border-radius: 2px; font-size: 9px; font-weight: 700; padding: 0 5px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; }
+.layout-rack { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.elev { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 2px 6px; background: var(--rack); padding: 12px; border-radius: 10px; width: 420px; max-width: 100%; }
+.unum { color: #8a97ab; font-family: var(--mono); font-size: 11px; display: flex; align-items: center; justify-content: flex-end; grid-column: 1; }
+.slot { grid-column: 2; border: 1px dashed #3a4558; border-radius: 4px; color: #6b7890; font-size: 11px; display: flex; align-items: center; padding-left: 8px; }
+.req { grid-column: 2; border-radius: 5px; border: 1px solid #c7d2e0; background: #e8eefb; display: flex; flex-direction: column; justify-content: center; padding: 0 10px; text-align: left; color: var(--ink); }
+.req.proposed { border: 2px dashed var(--prop-line); background: #fdf6e7; }
+.req.sel { box-shadow: 0 0 0 3px #e3a21a; }
+.req small { font-size: 11px; color: var(--ink-2); }
+.eq-layout { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; min-width: 0; }
+.face { background: #f6f8fb; border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; display: grid; gap: 6px; }
+.face .prow { display: flex; gap: 5px; }
+.port { width: 34px; height: 30px; flex: none; border-radius: 5px; border: 1px solid #b8c4d3; background-color: #fff; font: 600 11px var(--mono); padding: 0; }
+.port.sel { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ink); }
+.port.muted { opacity: .35; }
+.st-reserved { background-image: repeating-linear-gradient(45deg, transparent 0 4px, rgba(180,110,9,.45) 4px 6px); }
+.st-disabled { background-image: repeating-linear-gradient(90deg, transparent 0 5px, rgba(95,107,128,.45) 5px 6px); }
+.st-faulty { background-image: repeating-linear-gradient(-45deg, transparent 0 3px, rgba(180,35,24,.6) 3px 5px); }
+.hdf-grid { display: grid; grid-template-columns: 22px repeat(4, minmax(104px, 1fr)); gap: 8px; min-width: 470px; }
+.blk { border: 1px solid var(--line); border-radius: 8px; padding: 6px; background: var(--surface); }
+.blk .port { width: 100%; height: 24px; }
+.blk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #b8c4d3; display: inline-block; background-color: #fff; }
+.detail { flex: 1 1 280px; max-width: 360px; display: grid; gap: 0; }
+.detail .sec { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; display: grid; gap: 6px; }
+.kv { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 4px 10px; font-size: 13px; margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.pick-list { display: grid; gap: 2px; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.pick-list button { border: 0; background: none; text-align: left; padding: 6px 8px; border-radius: 6px; font-size: 13px; }
+.pick-list button:hover, .pick-list button[aria-selected="true"] { background: #eef3fd; }
+.stale-card { max-width: 620px; margin: 40px auto; }
+
+/* Inspector */
+.insp-head { display: grid; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line); }
+.insp-head h2 { margin: 0; font-size: 22px; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); padding: 0 12px; }
+.tabs button { border: 0; background: none; padding: 9px 10px; font-weight: 600; font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--brand); }
+.hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.hist li { border-top: 1px dashed var(--line); padding: 8px 0; font-size: 13px; display: grid; gap: 2px; }
+.hist li:first-child { border-top: 0; }
+.hist time { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.hist .chg { color: var(--ink-2); }
+.hist del { color: var(--danger); text-decoration: line-through; }
+.hist ins { color: var(--ok-ink); text-decoration: none; font-weight: 600; }
+
+/* Tables */
+.table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); max-height: 560px; }
+table.t { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.t th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 7px 10px; border-bottom: 1px solid var(--line); background: #f8fafc; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+.t th button { border: 0; background: none; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; display: inline-flex; gap: 4px; align-items: center; }
+.t td { padding: 6px 10px; border-bottom: 1px solid #eef2f6; white-space: nowrap; }
+.t tr:hover td { background: #f7f9fc; }
+.t tr.proposed td { background: #fffaf0; }
+.t .acts { display: flex; gap: 4px; }
+
+/* Changes drawer */
+.plan-row { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.plan-row .top-line { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.grp h3 { margin: 6px 0 4px; font-size: 11px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.chg-row { display: flex; gap: 8px; align-items: flex-start; padding: 7px 0; border-top: 1px dashed var(--line); font-size: 13px; }
+.chg-row .what { flex: 1; min-width: 0; }
+.chg-row .why { display: block; font-size: 12px; color: var(--danger); }
+.review-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px; }
+.callout { font-weight: 700; color: var(--ink); }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 30; max-width: calc(100% - 32px); box-shadow: 0 8px 24px rgba(38,52,75,.25); font-size: 13px; }
+.csv { width: 100%; min-height: 160px; font: 12px/1.5 var(--mono); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px; background: #fbfcfe; }
+.conc-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+.conc-col h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+.conc-card { width: 100%; text-align: left; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); padding: 10px 12px; display: grid; gap: 4px; margin-bottom: 10px; }
+.conc-card.proposed { border-style: dashed; border-color: var(--prop-line); }
+.conc-card.sel { box-shadow: 0 0 0 3px #b8a9e466; border-color: var(--brand); }
+.conc-card.muted { opacity: .4; }
+@media (prefers-reduced-motion: no-preference) { .toast { animation: rise .2s ease-out; } @keyframes rise { from { transform: translate(-50%, 8px); opacity: 0; } } }
+
+/* Inventory: portal-style resource list (own tokens; light only, like the app) */
+main.flush { padding: 0; }
+.az { --az-blue: #0078d4; --az-blue-h: #106ebe; --az-ink: #323130; --az-ink-2: #605e5c; --az-line: #edebe9; --az-line-2: #e1dfdd; --az-hover: #f3f2f1; --az-sel: #deecf9; --az-bg: #faf9f8; --az-input: #8a8886;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif; font-size: 13px; color: var(--az-ink); background: #fff; min-height: calc(100vh - 100px); }
+.az .az-link { border: 0; background: none; padding: 0; color: var(--az-blue); font: inherit; cursor: pointer; text-align: left; }
+.az .az-link:hover { color: var(--az-blue-h); text-decoration: underline; }
+.az-crumb { display: flex; gap: 8px; align-items: center; padding: 12px 24px 0; font-size: 12px; color: var(--az-ink-2); }
+.az-title { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 2px 24px 14px; }
+.az-title h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+.az-sub { color: var(--az-ink-2); font-size: 12px; }
+.az-wrap { display: flex; flex-wrap: wrap; border-top: 1px solid var(--az-line); }
+.az-menu { flex: 1 1 200px; max-width: 220px; border-right: 1px solid var(--az-line); padding: 6px 0 16px; }
+.az-menu h3 { margin: 12px 16px 4px; font-size: 12px; font-weight: 600; color: var(--az-ink-2); }
+.az-menu button { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 8px 16px; font: inherit; color: var(--az-ink); text-align: left; cursor: pointer; }
+.az-menu button:hover { background: var(--az-hover); }
+.az-menu button[aria-current="page"] { background: var(--az-line); font-weight: 600; }
+.az-menu .num { margin-left: auto; color: var(--az-ink-2); font-size: 12px; font-weight: 400; }
+.az-main { flex: 999 1 560px; min-width: 0; padding-bottom: 24px; }
+.az-cmd { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; padding: 4px 16px; min-height: 44px; border-bottom: 1px solid var(--az-line); }
+.az-cmd button { display: inline-flex; align-items: center; gap: 6px; height: 32px; border: 0; background: none; padding: 0 8px; font: inherit; color: var(--az-ink); border-radius: 2px; cursor: pointer; }
+.az-cmd button:hover:not(:disabled) { background: var(--az-hover); }
+.az-cmd button:disabled { opacity: .4; }
+.az-cmd .sepv { width: 1px; height: 20px; background: var(--az-line-2); margin: 0 6px; }
+.az-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px 16px 4px; }
+.az-search { display: flex; align-items: center; gap: 6px; height: 32px; width: 260px; max-width: 100%; padding: 0 8px; border: 1px solid var(--az-input); border-radius: 2px; background: #fff; }
+.az-search:focus-within { border-color: var(--az-blue); box-shadow: inset 0 0 0 1px var(--az-blue); }
+.az-search input { border: 0; outline: 0; flex: 1; min-width: 0; font: inherit; color: var(--az-ink); background: none; }
+.az-pill-wrap { position: relative; }
+.az-pill { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 12px; border: 1px solid transparent; border-radius: 14px; background: var(--az-hover); font: inherit; color: var(--az-ink); cursor: pointer; }
+.az-pill:hover { background: var(--az-line-2); }
+.az-pill b { font-weight: 600; }
+.az-pill.on { background: var(--az-sel); border-color: #b3d6f2; }
+.az-pop { position: absolute; top: 34px; left: 0; z-index: 15; width: 260px; max-width: calc(100vw - 32px); background: #fff; border-radius: 2px; padding: 14px; display: grid; gap: 8px; box-shadow: 0 6.4px 14.4px rgba(0,0,0,.13), 0 1.2px 3.6px rgba(0,0,0,.11); }
+.az-pop-t { font-size: 14px; font-weight: 600; }
+.az-op { display: flex; justify-content: space-between; align-items: center; color: var(--az-ink-2); }
+.az-opv { border: 1px solid var(--az-line-2); border-radius: 2px; padding: 2px 10px; color: var(--az-ink); }
+.az-lbl { font-weight: 600; font-size: 12px; color: var(--az-ink); }
+.az-checks { display: grid; gap: 6px; max-height: 210px; overflow-y: auto; }
+.az-checks label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.az-checks.big { max-height: none; gap: 10px; }
+.az input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--az-blue); cursor: pointer; }
+.az-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 16px 10px; color: var(--az-ink-2); font-size: 12px; }
+.az-meta b { color: var(--az-ink); font-weight: 600; }
+.az-meta select { height: 28px; padding: 0 6px; border: 1px solid var(--az-input); border-radius: 2px; font: inherit; color: var(--az-ink); background: #fff; }
+.az-table-wrap { overflow: auto; margin: 0 16px; max-height: 620px; }
+table.az-t { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.az-t th { position: sticky; top: 0; z-index: 2; background: #fff; text-align: left; font-weight: 600; padding: 0 12px; height: 36px; border-bottom: 1px solid var(--az-line-2); white-space: nowrap; }
+.az-t th button { border: 0; background: none; padding: 0; font: inherit; color: inherit; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.az-t .sorti { color: var(--az-ink-2); font-size: 11px; font-weight: 400; }
+.az-t .sorti.on { color: var(--az-ink); }
+.az-t td { padding: 0 12px; height: 40px; border-bottom: 1px solid var(--az-line); white-space: nowrap; }
+.az-t tbody tr:hover td { background: var(--az-hover); }
+.az-t tr.sel td { background: var(--az-sel); }
+.az-t .ck { width: 40px; padding: 0 4px 0 12px; }
+.az-t th.more, .az-t td.more { width: 44px; position: relative; }
+.az-more { border: 0; background: none; width: 32px; height: 28px; border-radius: 2px; font-size: 16px; line-height: 1; color: var(--az-ink); cursor: pointer; }
+.az-more:hover, .az-more[aria-expanded="true"] { background: var(--az-line-2); }
+.az-rowmenu { position: absolute; right: 8px; top: 34px; z-index: 12; min-width: 200px; background: #fff; border-radius: 2px; padding: 4px 0; display: grid; box-shadow: 0 6.4px 14.4px rgba(0,0,0,.13), 0 1.2px 3.6px rgba(0,0,0,.11); }
+.az-rowmenu button { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 8px 14px; font: inherit; color: var(--az-ink); text-align: left; cursor: pointer; }
+.az-rowmenu button:hover { background: var(--az-hover); }
+.az-name { display: inline-flex; align-items: center; gap: 8px; }
+.az-st { display: inline-flex; align-items: center; gap: 6px; }
+.az-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.az-dim { color: var(--az-ink-2); }
+.az-t tr.grp-row td { background: var(--az-bg); height: 34px; }
+.az-grp { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--az-ink); display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+.az-empty { padding: 24px 12px !important; height: auto !important; color: var(--az-ink-2); }
+.az-pager { display: flex; gap: 12px; align-items: center; padding: 14px 16px 0; color: var(--az-ink-2); }
+.az-note { margin: 12px 16px 0; color: var(--az-ink-2); font-size: 12px; max-width: 70ch; }
+.az-btn { height: 32px; padding: 0 16px; border: 1px solid var(--az-input); border-radius: 2px; background: #fff; font: inherit; font-weight: 600; color: var(--az-ink); cursor: pointer; }
+.az-btn:hover:not(:disabled) { background: var(--az-hover); }
+.az-btn.primary { background: var(--az-blue); border-color: var(--az-blue); color: #fff; }
+.az-btn.primary:hover { background: var(--az-blue-h); }
+.az-btn:disabled { opacity: .45; cursor: default; }
+.az-scrim { position: fixed; inset: 0; z-index: 24; background: rgba(0,0,0,.2); }
+.az-pane { position: fixed; top: 0; right: 0; bottom: 0; z-index: 25; width: min(440px, 100%); background: #fff; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.18); }
+.az-pane-h { display: flex; justify-content: space-between; align-items: flex-start; padding: 20px 24px 12px; }
+.az-pane-h h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.az-pane-b { flex: 1; overflow-y: auto; padding: 0 24px 16px; display: grid; gap: 14px; align-content: start; }
+.az-pane-b p { margin: 0; line-height: 1.5; }
+.az-field { display: grid; gap: 4px; }
+.az-pane-f { display: flex; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--az-line); }
+@media (max-width: 700px) {
+  .az-menu { max-width: none; border-right: 0; border-bottom: 1px solid var(--az-line); display: flex; flex-wrap: wrap; padding: 4px 8px; }
+  .az-menu h3 { display: none; }
+  .az-menu button { width: auto; padding: 8px 10px; }
+  .az-crumb, .az-title { padding-left: 16px; padding-right: 16px; }
+}
+</style>
+
+<div id="app" class="app"></div>
+
+<script>
+'use strict';
+var NETC = { A: '#2f6fdb', B: '#9a4fc7' };
+var BLOCKS = ['A', 'B', 'C', 'D'];
+var TODAY = '10 Oct 2026';
+var GROUPS = ['Containers added', 'Equipment added', 'Moved', 'Removed', 'Cables connected', 'Cables disconnected'];
+var ICON = {
+  layers: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg>',
+  plus: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  map: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
+  rack: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h6"/></svg>',
+  table: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
+  trash: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  back: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
+  dl: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>'
+};
+
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function jattr(o) { return esc(JSON.stringify(o)); }
+function find(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
+function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+function clock() { var d = new Date(); return TODAY + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+
+/* ---------- Fixture (the fictional acceptance example) ---------- */
+function det(manufacturer, model, serial, ip, status, description) { return { manufacturer: manufacturer, model: model, serial: serial, ip: ip, status: status || 'active', description: description || '' }; }
+function sw(id, name, role, net, rack, unit, d) { return { id: id, name: name, kind: 'switch', role: role, net: net, rack: rack, unit: unit, h: 1, ports: 24, det: d }; }
+var CABLES = [
+  ['A01', 'edge-17:1', 'panel-a:1:f', 'A', 'A03-0801'], ['A02', 'panel-a:1:r', 'hdf-01:3C:5:r', 'A', ''], ['A03', 'hdf-01:3C:5:f', 'hdf-02:2B:3:f', 'A', 'SM-CORE-17'], ['A04', 'hdf-02:2B:3:r', 'agg-03:1', 'A', ''],
+  ['A05', 'edge-17:2', 'panel-a:2:f', 'A', 'A03-0802'], ['A06', 'panel-a:2:r', 'hdf-01:1A:2:r', 'A', ''], ['A07', 'hdf-01:1A:2:f', 'hdf-02:1D:2:f', 'A', 'SM-CORE-04'], ['A08', 'hdf-02:1D:2:r', 'agg-08:1', 'A', ''],
+  ['A09', 'edge-17:3', 'panel-a:3:f', 'A', 'A03-0803'], ['A10', 'panel-a:3:r', 'hdf-01:2D:4:r', 'A', ''], ['A11', 'hdf-01:2D:4:f', 'hdf-02:3A:1:f', 'A', 'SM-CORE-22'], ['A12', 'hdf-02:3A:1:r', 'bb-01:1', 'A', ''],
+  ['B01', 'edge-22:1', 'panel-dr:1:f', 'B', 'DR-0801'], ['B02', 'panel-dr:1:r', 'hdf-01:3C:2:r', 'B', ''], ['B03', 'hdf-01:3C:2:f', 'hdf-02:2B:6:f', 'B', 'DR-CORE-01'], ['B04', 'hdf-02:2B:6:r', 'agg-12:1', 'B', '']
+];
+function seedInstalled() {
+  return {
+    rev: 1,
+    sites: [{ id: 'main', name: 'Main Campus' }, { id: 'dr', name: 'DR Site' }],
+    nodes: [{ id: 'bldg-a', name: 'Building A', siteId: 'main' }, { id: 'north', name: 'North Sub-main', siteId: 'main' }, { id: 'core', name: 'Main Distribution', siteId: 'main' }, { id: 'dr-acc', name: 'DR Access', siteId: 'dr' }, { id: 'dr-dist', name: 'DR Distribution', siteId: 'dr' }],
+    racks: [{ id: 'a03', name: 'Rack A03', nodeId: 'bldg-a', units: 12 }, { id: 'sm01', name: 'Rack SM01', nodeId: 'north', units: 12 }, { id: 'core01', name: 'Rack Core 01', nodeId: 'core', units: 12 }, { id: 'core02', name: 'Rack Core 02', nodeId: 'core', units: 12 }, { id: 'core03', name: 'Rack Core 03', nodeId: 'core', units: 12 }, { id: 'dr01', name: 'Rack DR01', nodeId: 'dr-acc', units: 12 }, { id: 'dr02', name: 'Rack DR02', nodeId: 'dr-dist', units: 12 }],
+    eq: [
+      sw('edge-17', 'EDGE-17', 'ACCESS', 'A', 'a03', 8, det('Cisco', 'C9200-24P', 'FOC2412X1AB', '10.10.3.17')),
+      { id: 'panel-a', name: 'PANEL-A', kind: 'panel', role: 'PASSIVE', rack: 'a03', unit: 11, h: 1, ports: 24, det: det('Panduit', 'CP24BLY', '', '') },
+      { id: 'hdf-01', name: 'HDF-01', kind: 'hdf', role: 'PASSIVE', rack: 'sm01', unit: 4, h: 3, rows: 4, det: det('Corning', 'CCH-04U', 'CRN-77120', '') },
+      { id: 'hdf-02', name: 'HDF-02', kind: 'hdf', role: 'PASSIVE', rack: 'core01', unit: 4, h: 3, rows: 3, det: det('Corning', 'CCH-04U', 'CRN-77121', '') },
+      sw('agg-03', 'AGG-03', 'AGG', 'A', 'core01', 8, det('Cisco', 'C9300-24S', 'FDO2231X0AB', '10.10.0.3')),
+      sw('agg-08', 'AGG-08', 'AGG', 'A', 'core02', 8, det('Cisco', 'C9300-24S', 'FDO2231X0C7', '10.10.0.8')),
+      sw('agg-15', 'AGG-15', 'AGG', 'A', 'core02', 6, det('Cisco', 'C9300-24S', 'FDO2304X1D2', '10.10.0.15')),
+      sw('bb-01', 'BB-01', 'BB', 'A', 'core03', 8, det('Cisco', 'C9500-24Y4C', 'FDO2240X0E1', '10.10.0.1')),
+      sw('edge-22', 'EDGE-22', 'ACCESS', 'B', 'dr01', 8, det('Cisco', 'C9200-24P', 'FOC2420X2F9', '10.20.3.22', 'maintenance', 'Fan tray replacement booked')),
+      { id: 'panel-dr', name: 'PANEL-DR', kind: 'panel', role: 'PASSIVE', rack: 'dr01', unit: 11, h: 1, ports: 24, det: det('Panduit', 'CP24BLY', '', '') },
+      sw('agg-12', 'AGG-12', 'AGG', 'B', 'dr02', 8, det('Cisco', 'C9300-24S', 'FDO2311X0A4', '10.20.0.12'))
+    ],
+    cables: CABLES.map(function (c) { return { id: c[0], a: c[1], b: c[2], net: c[3], label: c[4], status: 'active' }; }),
+    ports: { 'edge-17:20': { state: 'reserved', description: 'Held for CCTV camera 4' }, 'edge-17:23': { state: 'faulty', description: 'Bent pins, module to replace' }, 'agg-03:24': { state: 'disabled', description: 'Shut until the licence arrives' } }
+  };
+}
+function seedPlans() {
+  return [
+    { id: 'expansion', name: 'Expansion', base: 1, status: 'draft', changes: [
+      { t: 'add_eq', eq: { id: 'edge-18', name: 'EDGE-18', kind: 'switch', role: 'ACCESS', net: 'A', rack: 'a03', unit: 5, h: 1, ports: 24, det: det('Cisco', 'C9200-24P', '', '') } },
+      { t: 'add_cable', c: { id: 'C-0417', a: 'edge-18:1', b: 'panel-a:4:f', net: 'A', label: '', status: 'active' } }
+    ] },
+    { id: 'dr-refresh', name: 'DR rack refresh', base: 1, status: 'draft', changes: [
+      { t: 'add_rack', r: { id: 'dr03', name: 'Rack DR03', nodeId: 'dr-dist', units: 12 } },
+      { t: 'move', eq: 'agg-12', rack: 'dr03', unit: 8, from: 'Rack DR02 U8' }
+    ] }
+  ];
+}
+function seedRecorded() {
+  return [{ id: 'core-uplinks', name: 'Core uplinks', recordedAt: '2 Oct 2026 17:05', note: 'Patched the BB-01 uplink through HDF-02 3A; link lights verified', lines: ['Cables connected · A11 · HDF-01 2D / 4 front ↔ HDF-02 3A / 1 front', 'Cables connected · A12 · HDF-02 3A / 1 rear ↔ BB-01 port 1'], touched: ['hdf-01', 'hdf-02', 'bb-01'] }];
+}
+function seedLog() {
+  return [
+    { at: '8 Oct 2026 16:42', eq: 'agg-03', target: 'AGG-03', field: 'Serial number', old: '', now: 'FDO2231X0AB', note: 'Asset audit' },
+    { at: '8 Oct 2026 16:44', eq: 'agg-03', target: 'AGG-03', field: 'IP address', old: '10.10.0.30', now: '10.10.0.3', note: 'Asset audit' },
+    { at: '9 Oct 2026 09:10', eq: 'edge-17', target: 'EDGE-17 port 23', field: 'Port state', old: 'available', now: 'faulty', note: 'Bent pins, module to replace' }
+  ];
+}
+
+var installed, plans, recorded, changeLog, NAMES, seq, simulated, toastTimer;
+var state;
+function freshState() {
+  return { view: 'physical', ctx: 'installed', planId: 'expansion', net: 'all', loc: { level: 'sites' }, hist: [], side: 'front',
+    drawer: null, left: null, insp: null, inspTab: 'overview', confirm: null, form: null, connect: null, review: false, note: '', noteErr: '',
+    checked: {}, newDraft: null, openRecorded: null,
+    inv: invDefault(), toast: '' };
+}
+function reg(id, name) { NAMES[id] = name; }
+function reset() {
+  installed = seedInstalled(); plans = seedPlans(); recorded = seedRecorded(); changeLog = seedLog();
+  NAMES = {}; seq = 500; simulated = false;
+  installed.sites.concat(installed.nodes, installed.racks, installed.eq).forEach(function (x) { reg(x.id, x.name); });
+  reg('edge-18', 'EDGE-18'); reg('dr03', 'Rack DR03');
+  state = freshState();
+}
+function nm(id) { return NAMES[id] || id; }
+
+/* ---------- Endpoints ---------- */
+function parseEp(k) { var p = k.split(':'); if (p.length === 2) return { eq: p[0], pos: +p[1] }; if (p.length === 3) return { eq: p[0], pos: +p[1], side: p[2] }; return { eq: p[0], blk: p[1], pos: +p[2], side: p[3] }; }
+function mirror(k) { var p = parseEp(k); if (!p.side) return null; var s = p.side === 'f' ? 'r' : 'f'; return p.blk ? p.eq + ':' + p.blk + ':' + p.pos + ':' + s : p.eq + ':' + p.pos + ':' + s; }
+function sideWord(s) { return s === 'f' ? 'front' : 'rear'; }
+function shortLabel(k) { var p = parseEp(k); if (!p.side) return 'port ' + p.pos; return (p.blk ? p.blk + ' / ' : '') + p.pos + ' ' + sideWord(p.side); }
+function epLabel(k) { return nm(parseEp(k).eq) + ' · ' + shortLabel(k); }
+function endpoints(e) {
+  var out = [], p, s, r, b;
+  if (e.kind === 'switch') { for (p = 1; p <= e.ports; p++) out.push(e.id + ':' + p); return out; }
+  if (e.kind === 'panel') { ['f', 'r'].forEach(function (sd) { for (p = 1; p <= e.ports; p++) out.push(e.id + ':' + p + ':' + sd); }); return out; }
+  ['f', 'r'].forEach(function (sd) { for (r = 1; r <= e.rows; r++) BLOCKS.forEach(function (bl) { for (p = 1; p <= 6; p++) out.push(e.id + ':' + r + bl + ':' + p + ':' + sd); }); });
+  return out;
+}
+function eqOf(S, k) { return find(S.eq, parseEp(k).eq); }
+function epValid(S, k) {
+  var p = parseEp(k), e = find(S.eq, p.eq);
+  if (!e) return false;
+  if (e.kind === 'switch') return !p.side && p.pos >= 1 && p.pos <= e.ports;
+  if (e.kind === 'panel') return !p.blk && !!p.side && p.pos >= 1 && p.pos <= e.ports;
+  var row = parseInt(p.blk, 10);
+  return !!p.blk && row >= 1 && row <= e.rows && p.pos >= 1 && p.pos <= 6;
+}
+function cableAt(S, k) { for (var i = 0; i < S.cables.length; i++) { var c = S.cables[i]; if (c.a === k || c.b === k) return c; } return null; }
+function farOf(c, k) { return c.a === k ? c.b : c.a; }
+function walk(S, k) {
+  var cur = k;
+  for (var i = 0; i < 40; i++) {
+    var e = eqOf(S, cur); if (!e) return null;
+    if (e.kind === 'switch') return cur;
+    var m = mirror(cur), c = cableAt(S, m);
+    if (!c) return null;
+    cur = farOf(c, m);
+  }
+  return null;
+}
+function netOf(S, k) {
+  var c = cableAt(S, k); if (c && c.net) return c.net;
+  var e = eqOf(S, k); if (e && e.kind === 'switch') return e.net || null;
+  var m = mirror(k); var c2 = m && cableAt(S, m); return c2 ? c2.net : null;
+}
+function circuitsCut(S, cableIds) {
+  var out = {}, list = [];
+  cableIds.forEach(function (id) {
+    var c = find(S.cables, id); if (!c) return;
+    var x = walk(S, c.a), y = walk(S, c.b);
+    if (!x || !y) return;
+    if (eqOf(S, y).role === 'ACCESS' && eqOf(S, x).role !== 'ACCESS') { var t = x; x = y; y = t; }
+    var key = [x, y].sort().join('|');
+    if (!out[key]) { out[key] = 1; list.push(epLabel(x) + ' → ' + epLabel(y)); }
+  });
+  return list;
+}
+function portDefaults(e) {
+  if (e.kind === 'switch') return e.role === 'ACCESS' ? { type: 'copper', connector: 'RJ45', speed: '1G' } : { type: 'fiber', connector: 'SFP+', speed: '10G' };
+  if (e.kind === 'panel') return { type: 'copper', connector: 'RJ45', speed: '' };
+  return { type: 'fiber', connector: 'LC', speed: '10G' };
+}
+function portDet(S, k) { var e = eqOf(S, k), o = Object.assign({ state: 'available', description: '' }, portDefaults(e)); return Object.assign(o, S.ports[k] || {}); }
+
+/* ---------- Plan overlay: apply, check ---------- */
+function rackProblem(S, rackId, unit, h, ignore) {
+  var r = find(S.racks, rackId);
+  if (!r) return nm(rackId) + ' no longer exists';
+  if (!(unit >= 1) || unit + h - 1 > r.units) return r.name + ' has units 1–' + r.units + '; ' + plural(h, 'unit') + ' from U' + unit + ' does not fit';
+  for (var i = 0; i < S.eq.length; i++) { var e = S.eq[i]; if (e.id !== ignore && e.rack === rackId && e.unit < unit + h && unit < e.unit + e.h) return 'U' + unit + (h > 1 ? '–' + (unit + h - 1) : '') + ' in ' + r.name + ' is taken by ' + e.name; }
+  return '';
+}
+function sameName(a, b) { return a.trim().toLowerCase() === b.trim().toLowerCase(); }
+function step(S, ch) {
+  var e, r, n, c, i, pr;
+  switch (ch.t) {
+    case 'add_site':
+      if (S.sites.some(function (x) { return sameName(x.name, ch.site.name); })) return 'A site named ' + ch.site.name + ' already exists';
+      S.sites.push(clone(ch.site)); S.proposed[ch.site.id] = 1; return '';
+    case 'add_node':
+      if (!find(S.sites, ch.node.siteId)) return 'Site ' + nm(ch.node.siteId) + ' no longer exists';
+      if (S.nodes.some(function (x) { return x.siteId === ch.node.siteId && sameName(x.name, ch.node.name); })) return 'A node named ' + ch.node.name + ' already exists in this site';
+      S.nodes.push(clone(ch.node)); S.proposed[ch.node.id] = 1; return '';
+    case 'add_rack':
+      if (!find(S.nodes, ch.r.nodeId)) return 'Node ' + nm(ch.r.nodeId) + ' no longer exists';
+      if (S.racks.some(function (x) { return x.nodeId === ch.r.nodeId && sameName(x.name, ch.r.name); })) return 'A rack named ' + ch.r.name + ' already exists in this node';
+      S.racks.push(clone(ch.r)); S.proposed[ch.r.id] = 1; return '';
+    case 'add_eq':
+      pr = rackProblem(S, ch.eq.rack, ch.eq.unit, ch.eq.h); if (pr) return pr;
+      if (S.eq.some(function (x) { return sameName(x.name, ch.eq.name); })) return 'Equipment named ' + ch.eq.name + ' already exists';
+      S.eq.push(clone(ch.eq)); S.proposed[ch.eq.id] = 1; return '';
+    case 'move':
+      e = find(S.eq, ch.eq); if (!e) return nm(ch.eq) + ' no longer exists';
+      pr = rackProblem(S, ch.rack, ch.unit, e.h, e.id); if (pr) return pr;
+      e.rack = ch.rack; e.unit = ch.unit; S.moved[e.id] = 1; return '';
+    case 'del_eq':
+      e = find(S.eq, ch.id); if (!e) return nm(ch.id) + ' no longer exists';
+      S.eq = S.eq.filter(function (x) { return x !== e; });
+      S.cables = S.cables.filter(function (x) { return parseEp(x.a).eq !== e.id && parseEp(x.b).eq !== e.id; });
+      return '';
+    case 'disc':
+      c = find(S.cables, ch.id); if (!c) return 'Cable ' + ch.id + ' no longer exists';
+      S.cables = S.cables.filter(function (x) { return x !== c; }); return '';
+    case 'del_rack':
+      r = find(S.racks, ch.id); if (!r) return nm(ch.id) + ' no longer exists';
+      if (S.eq.some(function (x) { return x.rack === r.id; })) return r.name + ' still holds equipment';
+      S.racks = S.racks.filter(function (x) { return x !== r; }); return '';
+    case 'del_node':
+      n = find(S.nodes, ch.id); if (!n) return nm(ch.id) + ' no longer exists';
+      if (S.racks.some(function (x) { return x.nodeId === n.id; })) return n.name + ' still has racks';
+      S.nodes = S.nodes.filter(function (x) { return x !== n; }); return '';
+    case 'del_site':
+      n = find(S.sites, ch.id); if (!n) return nm(ch.id) + ' no longer exists';
+      if (S.nodes.some(function (x) { return x.siteId === n.id; })) return n.name + ' still has nodes';
+      S.sites = S.sites.filter(function (x) { return x !== n; }); return '';
+    case 'add_cable':
+      c = ch.c;
+      for (i = 0; i < 2; i++) {
+        var k = i ? c.b : c.a;
+        if (!epValid(S, k)) return epLabel(k) + ' no longer exists';
+        var o = cableAt(S, k); if (o) return epLabel(k) + ' is already cabled (' + o.id + ')';
+      }
+      S.cables.push(clone(c)); S.proposed[c.id] = 1; return '';
+  }
+  return 'Unknown change';
+}
+function applyChanges(base, changes) {
+  var S = clone(base); S.proposed = {}; S.moved = {};
+  var conflicts = [];
+  changes.forEach(function (ch, i) { var r = step(S, ch); if (r) conflicts.push({ i: i, reason: r }); });
+  return { S: S, conflicts: conflicts };
+}
+function plan() { return plans.find(function (p) { return p.id === state.planId && p.status === 'draft'; }) || null; }
+function drafts() { return plans.filter(function (p) { return p.status === 'draft'; }); }
+function isStale(p) { return p.base !== installed.rev; }
+function current() {
+  if (state.ctx === 'planned') {
+    var p = plan();
+    if (p) {
+      if (isStale(p)) return { S: decorate(installed), plan: p, stale: true };
+      return { S: applyChanges(installed, p.changes).S, plan: p, stale: false };
+    }
+  }
+  return { S: decorate(installed), plan: null, stale: false };
+}
+function decorate(S) { var o = clone(S); o.proposed = {}; o.moved = {}; return o; }
+function idx(S) { var cab = {}; S.cables.forEach(function (c) { cab[c.a] = c; cab[c.b] = c; }); return { cab: cab }; }
+
+/* ---------- Describing changes ---------- */
+function describe(ch) {
+  switch (ch.t) {
+    case 'add_site': return { g: 'Containers added', text: 'Site · ' + ch.site.name, go: { act: 'go', loc: { level: 'site', site: ch.site.id } } };
+    case 'add_node': return { g: 'Containers added', text: 'Node · ' + ch.node.name + ' in ' + nm(ch.node.siteId), go: { act: 'go', loc: { level: 'node', site: ch.node.siteId, node: ch.node.id } } };
+    case 'add_rack': return { g: 'Containers added', text: 'Rack · ' + ch.r.name + ' (' + ch.r.units + 'U) in ' + nm(ch.r.nodeId), go: { act: 'go-rack', id: ch.r.id } };
+    case 'add_eq': return { g: 'Equipment added', text: ch.eq.name + ' · ' + (ch.eq.kind === 'hdf' ? 'HDF, ' + ch.eq.rows + ' rows' : ch.eq.role.toLowerCase() + ' ' + ch.eq.kind) + ' · ' + nm(ch.eq.rack) + ' U' + ch.eq.unit + (ch.eq.h > 1 ? '–' + (ch.eq.unit + ch.eq.h - 1) : ''), go: { act: 'show-phys', id: ch.eq.id } };
+    case 'move': return { g: 'Moved', text: nm(ch.eq) + ' · ' + ch.from + ' → ' + nm(ch.rack) + ' U' + ch.unit, go: { act: 'show-phys', id: ch.eq } };
+    case 'del_eq': return { g: 'Removed', text: ch.name + ' with ' + plural(ch.cables, 'cable'), go: null };
+    case 'del_rack': case 'del_node': case 'del_site': return { g: 'Removed', text: { del_rack: 'Rack', del_node: 'Node', del_site: 'Site' }[ch.t] + ' · ' + ch.name, go: null };
+    case 'add_cable': return { g: 'Cables connected', text: ch.c.id + ' · ' + epLabel(ch.c.a) + ' ↔ ' + epLabel(ch.c.b), go: { act: 'open-ep', k: ch.c.a } };
+    case 'disc': return { g: 'Cables disconnected', text: ch.id + ' · ' + ch.a + ' ↔ ' + ch.b, go: null };
+  }
+  return { g: 'Other', text: ch.t, go: null };
+}
+function goAttrs(go) {
+  if (!go) return '';
+  if (go.act === 'go') return 'data-act="go" data-loc="' + jattr(go.loc) + '"';
+  if (go.act === 'open-ep') return 'data-act="open-ep" data-k="' + esc(go.k) + '"';
+  return 'data-act="' + go.act + '" data-id="' + esc(go.id) + '"';
+}
+
+/* ---------- Plan edits (mirror Plan.Remove in the backend) ---------- */
+function tryAdd(ch) {
+  var p = plan(); if (!p) return 'Open a draft first';
+  var test = applyChanges(installed, p.changes.concat([ch]));
+  var bad = test.conflicts.filter(function (c) { return c.i === p.changes.length; });
+  if (bad.length) return bad[0].reason;
+  p.changes.push(ch); return '';
+}
+function touches(ch, eqId) { return ch.t === 'add_cable' && (parseEp(ch.c.a).eq === eqId || parseEp(ch.c.b).eq === eqId); }
+function planDeleteEq(id, S) {
+  var p = plan(), e = find(S.eq, id);
+  var own = p.changes.findIndex(function (ch) { return ch.t === 'add_eq' && ch.eq.id === id; });
+  if (own >= 0) {
+    p.changes = p.changes.filter(function (ch) { return !(ch.t === 'add_eq' && ch.eq.id === id) && !touches(ch, id) && !(ch.t === 'move' && ch.eq === id); });
+    return 'Removed the proposed ' + e.name + ' from the plan';
+  }
+  var cables = S.cables.filter(function (c) { return parseEp(c.a).eq === id || parseEp(c.b).eq === id; });
+  p.changes = p.changes.filter(function (ch) { return !touches(ch, id) && !(ch.t === 'move' && ch.eq === id) && !(ch.t === 'disc' && ch.eqs && ch.eqs.indexOf(id) >= 0); });
+  p.changes.push({ t: 'del_eq', id: id, name: e.name, cables: cables.filter(function (c) { return !S.proposed[c.id]; }).length });
+  return e.name + ' is removed in this plan';
+}
+function planDisconnect(id, S) {
+  var p = plan(), c = find(S.cables, id);
+  var own = p.changes.findIndex(function (ch) { return ch.t === 'add_cable' && ch.c.id === id; });
+  if (own >= 0) { p.changes.splice(own, 1); return 'Removed the proposed cable ' + id + ' from the plan'; }
+  p.changes.push({ t: 'disc', id: id, a: epLabel(c.a), b: epLabel(c.b), eqs: [parseEp(c.a).eq, parseEp(c.b).eq] });
+  return 'Cable ' + id + ' is disconnected in this plan';
+}
+function planDeleteContainer(kind, id) {
+  var p = plan(), key = { site: 'add_site', node: 'add_node', rack: 'add_rack' }[kind];
+  var own = p.changes.findIndex(function (ch) { return ch.t === key && (ch.site || ch.node || ch.r).id === id; });
+  if (own >= 0) { p.changes.splice(own, 1); return 'Removed the proposed ' + nm(id) + ' from the plan'; }
+  var err = tryAdd({ t: 'del_' + kind, id: id, name: nm(id) });
+  return err ? '!' + err : nm(id) + ' is removed in this plan';
+}
+function settle(p) {
+  var dropped = 0, guard = 0;
+  while (guard++ < 20) {
+    var r = applyChanges(installed, p.changes);
+    if (!r.conflicts.length) break;
+    var bad = r.conflicts.map(function (c) { return c.i; });
+    p.changes = p.changes.filter(function (_, i) { return bad.indexOf(i) < 0; });
+    dropped += bad.length;
+  }
+  return dropped;
+}
+
+/* ---------- Navigation ---------- */
+function placeOf(S, eqId) { var e = find(S.eq, eqId); if (!e) return null; var r = find(S.racks, e.rack), n = r && find(S.nodes, r.nodeId); return n ? { rack: r.id, node: n.id, site: n.siteId } : null; }
+function resolveLoc(S, L) {
+  L = Object.assign({}, L);
+  if (L.eq) { var pl = placeOf(S, L.eq); if (pl) { L.rack = pl.rack; L.node = pl.node; L.site = pl.site; if (L.ep && !epValid(S, L.ep)) delete L.ep; } else { delete L.eq; delete L.ep; L.level = 'rack'; } }
+  if (L.rack && !find(S.racks, L.rack)) { delete L.rack; delete L.eq; delete L.ep; L.level = 'node'; }
+  if (L.node && !find(S.nodes, L.node)) { delete L.node; delete L.rack; delete L.eq; delete L.ep; L.level = 'site'; }
+  if (L.site && !find(S.sites, L.site)) { L = { level: 'sites' }; }
+  return L;
+}
+function go(loc) { state.hist.push(state.loc); state.loc = loc; state.view = 'physical'; state.confirm = null; state.connect = null; state.form = null; }
+function openEq(S, id, ep) { var pl = placeOf(S, id); if (!pl) return; var L = { level: 'equipment', site: pl.site, node: pl.node, rack: pl.rack, eq: id }; if (ep) L.ep = ep; go(L); if (ep) { var p = parseEp(ep); if (p.side) state.side = p.side === 'f' ? 'front' : 'rear'; } }
+
+/* ---------- Rendering helpers ---------- */
+function netBadges(list) {
+  var counts = {};
+  list.forEach(function (e) { if (e.net) counts[e.net] = (counts[e.net] || 0) + 1; });
+  return Object.keys(counts).sort().map(function (n) { return '<span class="badge-net" style="--c:' + NETC[n] + '">Network ' + n + ' · ' + counts[n] + ' active</span>'; }).join('');
+}
+function netBadge(n) { return n ? '<span class="badge-net" style="--c:' + NETC[n] + '">Network ' + n + '</span>' : '<span class="hint">no network</span>'; }
+function stateChip(s) { return '<span class="chip-state ' + esc(s) + '">' + esc(s) + '</span>'; }
+function propTag(on) { return on ? '<span class="tag-proposed">PROPOSED</span>' : ''; }
+function newTag() { return '<span class="tag-new" title="Not in the M5 plan yet; proposed in this demo">NEW IDEA</span>'; }
+function eqInScope(S, level, id) {
+  return S.eq.filter(function (e) { var p = placeOf(S, e.id); if (!p) return false; return level === 'site' ? p.site === id : level === 'node' ? p.node === id : p.rack === id; });
+}
+
+function renderHeader(cur) {
+  var p = cur.plan, ctx = state.ctx;
+  var views = [['conceptual', 'Conceptual'], ['physical', 'Physical'], ['inventory', 'Inventory']];
+  var h = '<header class="top"><div class="brand"><strong>net<span>top</span></strong><small>M5 demo · fictional acceptance data</small></div>';
+  h += '<div class="seg" role="group" aria-label="View">' + views.map(function (v) { return '<button aria-pressed="' + (state.view === v[0]) + '" data-act="view" data-v="' + v[0] + '">' + v[1] + '</button>'; }).join('') + '</div>';
+  h += '<div class="nets" role="group" aria-label="Show network">' + ['all', 'A', 'B'].map(function (n) { return '<button class="net-chip' + (state.net === n ? ' on' : '') + '" style="--c:' + (n === 'all' ? '#26344b' : NETC[n]) + '" aria-pressed="' + (state.net === n) + '" data-act="net" data-v="' + n + '">' + (n === 'all' ? 'All networks' : 'Network ' + n) + '</button>'; }).join('') + '</div>';
+  h += '<div class="ctx"><div class="seg" role="group" aria-label="Topology"><button aria-pressed="' + (ctx === 'installed') + '" data-act="ctx" data-v="installed">Installed</button><button aria-pressed="' + (ctx === 'planned') + '" data-act="ctx" data-v="planned">Plan</button></div>';
+  if (ctx === 'planned' && p) {
+    h += '<label class="sr-only" for="plan-select">Draft</label><select id="plan-select" data-change="plan">' + drafts().map(function (d) { return '<option value="' + d.id + '"' + (d.id === p.id ? ' selected' : '') + '>' + esc(d.name) + (isStale(d) ? ' · behind Installed' : '') + '</option>'; }).join('') + '</select>';
+  }
+  h += '</div><span class="spacer"></span>';
+  h += '<button class="btn" data-act="drawer" data-v="changes" aria-expanded="' + (state.drawer === 'changes') + '">' + ICON.layers + 'Changes' + (ctx === 'planned' && p ? ' <span class="count">' + p.changes.length + '</span>' : '') + '</button>';
+  return h + '</header>';
+}
+function renderStrip() {
+  var tour = [['1', 'Delete with preview'], ['2', 'Disconnect · connect'], ['3', 'Add site / node / rack'], ['4', 'HDF form'], ['5', 'Record as installed'], ['6', 'Stale draft'], ['7', 'Details · history'], ['8', 'Inventory']];
+  return '<div class="demo-strip"><strong>TRY</strong><div class="tour">' + tour.map(function (t) { return '<button data-act="tour" data-v="' + t[0] + '">' + t[0] + ' · ' + t[1] + '</button>'; }).join('') + '</div>' +
+    '<span class="spacer" style="flex:1"></span><button class="sim" data-act="simulate"' + (simulated ? ' disabled' : '') + '>Simulate: a colleague records “Retire PANEL-A”</button><button data-act="reset">Reset demo</button></div>';
+}
+function planBanner(cur) {
+  if (state.ctx !== 'planned' || !cur.plan || cur.stale) return '';
+  return '<div class="plan-banner"><span class="tag-proposed">PLAN</span><strong>' + esc(cur.plan.name) + '</strong> · ' + plural(cur.plan.changes.length, 'change') + '. Changes are proposals; Installed is untouched until you record them. <button class="link" data-act="drawer" data-v="changes">Review changes</button></div>';
+}
+function staleCard(cur) {
+  return '<div class="panel stale-card"><div class="notice"><strong>Installed changed since this draft.</strong><span>“' + esc(cur.plan.name) + '” was drawn on an older Installed, so it can’t be shown here. <b>Update draft</b> re-checks every change on the current Installed and either moves the draft there or lists what no longer fits. Nothing is changed automatically.</span><div class="row"><button class="btn primary" data-act="rebase">Update draft</button><button class="btn" data-act="drawer" data-v="changes">Open Changes</button><button class="btn" data-act="ctx" data-v="installed">View Installed</button></div></div></div>';
+}
+function inPlan(cur) { return state.ctx === 'planned' && cur.plan && !cur.stale; }
+
+/* ---------- Physical ---------- */
+function renderPhysical(cur) {
+  var S = cur.S, L = state.loc = resolveLoc(S, state.loc);
+  var crumbs = [{ label: 'Sites', loc: { level: 'sites' } }];
+  if (L.site) crumbs.push({ label: nm(L.site), loc: { level: 'site', site: L.site } });
+  if (L.node) crumbs.push({ label: nm(L.node), loc: { level: 'node', site: L.site, node: L.node } });
+  if (L.rack) crumbs.push({ label: nm(L.rack), loc: { level: 'rack', site: L.site, node: L.node, rack: L.rack } });
+  if (L.eq) crumbs.push({ label: nm(L.eq), loc: { level: 'equipment', site: L.site, node: L.node, rack: L.rack, eq: L.eq } });
+  if (L.ep) crumbs.push({ label: shortLabel(L.ep) });
+  var h = '<div class="crumbs"><button class="btn" data-act="back"' + (state.hist.length ? '' : ' disabled') + '>' + ICON.back + 'Back</button><nav aria-label="Breadcrumb">' +
+    crumbs.map(function (c, i) { var last = i === crumbs.length - 1; return (i ? '<span class="sep">›</span>' : '') + (last ? '<b>' + esc(c.label) + '</b>' : '<button class="link" data-act="go" data-loc="' + jattr(c.loc) + '">' + esc(c.label) + '</button>'); }).join('') + '</nav></div>';
+  if (L.level === 'sites') h += renderSites(cur);
+  else if (L.level === 'site') h += renderSite(cur, L);
+  else if (L.level === 'node') h += renderNode(cur, L);
+  else if (L.level === 'rack') h += renderRack(cur, L);
+  else h += renderEquipment(cur, L);
+  return h;
+}
+function containerFoot(cur, kind, id, empty) {
+  if (!inPlan(cur)) return '';
+  var c = state.confirm;
+  if (c && c.kind === 'del-container' && c.id === id) {
+    return '<div class="card-foot"><div class="confirm" style="width:100%"><span>Remove <b>' + esc(nm(id)) + '</b> in this plan? It is empty after this plan.</span><div class="row"><button class="btn danger small" data-act="del-container-do" data-kind="' + kind + '" data-id="' + id + '">Remove in plan</button><button class="btn small" data-act="confirm-cancel">Cancel</button></div></div></div>';
+  }
+  return '<div class="card-foot">' + (empty ? '<button class="btn small ghost-danger" data-act="del-container-ask" data-kind="' + kind + '" data-id="' + id + '">' + ICON.trash + 'Delete</button>' : '<span class="hint">Delete is available once it is empty</span>') + '</div>';
+}
+function adderCard(cur, kind, label, parent) {
+  if (!inPlan(cur)) return '';
+  var f = state.form;
+  if (f && f.kind === 'add-' + kind) {
+    return '<div class="card adder" style="border-color:var(--prop-line);background:#fffdf8"><form class="form" data-submit="add-do"><span class="eyebrow">New ' + kind + ' <span class="tag-proposed">PROPOSED</span></span>' +
+      '<label class="f" for="f-name">Name<input id="f-name" data-bind="form.name" value="' + esc(f.name) + '" autocomplete="off" placeholder="' + { site: 'e.g. North Campus', node: 'e.g. Building B', rack: 'e.g. Rack B01' }[kind] + '"></label>' +
+      (kind === 'rack' ? '<label class="f" for="f-units">Height (units, 1–60)<input id="f-units" type="number" min="1" max="60" data-bind="form.units" value="' + esc(f.units) + '"></label>' : '') +
+      (f.error ? '<span class="err" role="alert">' + esc(f.error) + '</span>' : '') +
+      '<div class="row"><button class="btn primary" type="submit">Add ' + kind + ' to plan</button><button class="btn" type="button" data-act="form-cancel">Cancel</button></div></form></div>';
+  }
+  return '<div class="card adder"><button class="adder-btn" data-act="add-form" data-kind="' + kind + '" data-parent="' + esc(parent || '') + '">' + ICON.plus + label + '</button></div>';
+}
+function installedHint(cur, what) { return state.ctx === 'installed' ? '<p class="hint" style="margin-top:14px">Installed is read-only. Open a plan to ' + what + '.</p>' : ''; }
+function renderSites(cur) {
+  var S = cur.S;
+  var cards = S.sites.map(function (s) {
+    var nodes = S.nodes.filter(function (n) { return n.siteId === s.id; }), racks = S.racks.filter(function (r) { var n = find(S.nodes, r.nodeId); return n && n.siteId === s.id; }), eqs = eqInScope(S, 'site', s.id);
+    return '<div class="card' + (S.proposed[s.id] ? ' proposed' : '') + '"><button class="card-main" data-act="go" data-loc="' + jattr({ level: 'site', site: s.id }) + '"><span class="eyebrow">Site ' + propTag(S.proposed[s.id]) + '</span><span class="card-title">' + esc(s.name) + '</span><span class="card-meta">' + plural(nodes.length, 'node') + ' · ' + plural(racks.length, 'rack') + ' · ' + eqs.length + ' equipment</span><span class="badges">' + netBadges(eqs) + '</span></button>' + containerFoot(cur, 'site', s.id, nodes.length === 0) + '</div>';
+  }).join('');
+  return planBanner(cur) + '<div class="grid">' + cards + adderCard(cur, 'site', 'Add site') + '</div>' + installedHint(cur, 'add a site, node or rack');
+}
+function renderSite(cur, L) {
+  var S = cur.S;
+  var cards = S.nodes.filter(function (n) { return n.siteId === L.site; }).map(function (n) {
+    var racks = S.racks.filter(function (r) { return r.nodeId === n.id; }), eqs = eqInScope(S, 'node', n.id);
+    return '<div class="card' + (S.proposed[n.id] ? ' proposed' : '') + '"><button class="card-main" data-act="go" data-loc="' + jattr({ level: 'node', site: L.site, node: n.id }) + '"><span class="eyebrow">Node ' + propTag(S.proposed[n.id]) + '</span><span class="card-title" style="font-size:16px">' + esc(n.name) + '</span><span class="card-meta">' + plural(racks.length, 'rack') + ' · ' + eqs.length + ' equipment</span><span class="badges">' + netBadges(eqs) + '</span></button>' + containerFoot(cur, 'node', n.id, racks.length === 0) + '</div>';
+  }).join('');
+  return planBanner(cur) + '<p class="hint" style="margin:0 0 12px">The site screen keeps its saved node layout and cable lines; this demo shows the nodes as a grid to focus on adding and deleting.</p><div class="grid">' + cards + adderCard(cur, 'node', 'Add node', L.site) + '</div>' + installedHint(cur, 'add a node');
+}
+function miniRack(S, r) {
+  var px = Math.max(3, Math.min(9, Math.floor(110 / r.units))), rows = 'grid-template-rows:repeat(' + r.units + ',' + px + 'px)' + (px < 8 ? ';font-size:0' : '');
+  return '<span class="mini" style="' + rows + '">' + S.eq.filter(function (e) { return e.rack === r.id; }).map(function (e) {
+    var top = r.units - (e.unit + e.h - 1) + 1;
+    return '<span style="grid-row:' + top + ' / span ' + e.h + ';background:' + (S.proposed[e.id] ? '#fdf6e7' : '#e8eefb') + ';color:#26344b;' + (S.proposed[e.id] ? 'outline:1px dashed #d9a441;outline-offset:-1px;' : '') + '">' + esc(e.name) + '</span>';
+  }).join('') + '</span>';
+}
+function renderNode(cur, L) {
+  var S = cur.S;
+  var cards = S.racks.filter(function (r) { return r.nodeId === L.node; }).map(function (r) {
+    var eqs = S.eq.filter(function (e) { return e.rack === r.id; }), used = eqs.reduce(function (n, e) { return n + e.h; }, 0);
+    return '<div class="card' + (S.proposed[r.id] ? ' proposed' : '') + '"><button class="card-main" data-act="go" data-loc="' + jattr({ level: 'rack', site: L.site, node: L.node, rack: r.id }) + '"><span class="eyebrow">Rack ' + propTag(S.proposed[r.id]) + '</span><span class="card-title" style="font-size:16px">' + esc(r.name) + '</span><span class="card-meta">' + eqs.length + ' equipment · ' + used + ' of ' + r.units + 'U used</span>' + miniRack(S, r) + '</button>' + containerFoot(cur, 'rack', r.id, eqs.length === 0) + '</div>';
+  }).join('');
+  return planBanner(cur) + '<div class="grid">' + cards + adderCard(cur, 'rack', 'Add rack', L.node) + '</div>' + installedHint(cur, 'add a rack');
+}
+function renderRack(cur, L) {
+  var S = cur.S, r = find(S.racks, L.rack), rowPx = r.units > 16 ? 20 : 34;
+  var occ = {}, eqs = S.eq.filter(function (e) { return e.rack === r.id; });
+  eqs.forEach(function (e) { for (var u = e.unit; u < e.unit + e.h; u++) occ[u] = 1; });
+  var g = '<div class="elev" style="grid-template-rows:repeat(' + r.units + ',' + rowPx + 'px)">';
+  for (var u = r.units; u >= 1; u--) {
+    var row = r.units - u + 1;
+    g += '<span class="unum" style="grid-row:' + row + '">' + u + '</span>';
+    if (!occ[u]) g += '<span class="slot" style="grid-row:' + row + '">' + (inPlan(cur) ? 'free · drop from the library' : 'free') + '</span>';
+  }
+  eqs.forEach(function (e) {
+    var top = r.units - (e.unit + e.h - 1) + 1, muted = state.net !== 'all' && e.net && e.net !== state.net;
+    g += '<button class="req' + (S.proposed[e.id] ? ' proposed' : '') + (state.insp === e.id ? ' sel' : '') + '" style="grid-row:' + top + ' / span ' + e.h + (muted ? ';opacity:.4' : '') + (e.net ? ';box-shadow:inset 4px 0 0 ' + NETC[e.net] : '') + '" data-act="open-eq" data-id="' + e.id + '"><span style="font-weight:700">' + esc(e.name) + ' ' + propTag(S.proposed[e.id]) + '</span><small>' + (e.kind === 'hdf' ? 'HDF · ' + e.rows + ' rows · ' + e.h + 'U' : e.role + ' · ' + e.kind) + (S.moved[e.id] ? ' · moved here' : '') + '</small></button>';
+  });
+  g += '</div>';
+  var side = '<div style="max-width:340px;display:grid;gap:10px;font-size:13px;color:var(--ink-2)"><p style="margin:0"><b>' + esc(r.name) + '</b> · ' + r.units + 'U · ' + eqs.length + ' equipment</p>';
+  if (inPlan(cur)) {
+    var c = state.confirm;
+    if (c && c.kind === 'del-container' && c.id === r.id) side += '<div class="confirm"><span>Remove <b>' + esc(r.name) + '</b> in this plan? It is empty after this plan.</span><div class="row"><button class="btn danger small" data-act="del-container-do" data-kind="rack" data-id="' + r.id + '">Remove in plan</button><button class="btn small" data-act="confirm-cancel">Cancel</button></div></div>';
+    else side += eqs.length ? '<span class="hint">Delete the rack once it is empty: move or delete its equipment first.</span>' : '<button class="btn ghost-danger" style="justify-self:start" data-act="del-container-ask" data-kind="rack" data-id="' + r.id + '">' + ICON.trash + 'Delete rack</button>';
+    side += '<button class="btn" style="justify-self:start" data-act="left" data-v="library">' + ICON.plus + 'Equipment library</button>';
+  }
+  side += '<p class="hint" style="margin:0">Dashed with PROPOSED = only in this plan. Click equipment to open its face.</p></div>';
+  return planBanner(cur) + '<div class="layout-rack">' + g + side + '</div>';
+}
+function deletePreview(S, id) {
+  var e = find(S.eq, id), cables = S.cables.filter(function (c) { return parseEp(c.a).eq === id || parseEp(c.b).eq === id; });
+  return { e: e, cables: cables.map(function (c) { return c.id; }), endpoints: endpoints(e).length, circuits: circuitsCut(S, cables.map(function (c) { return c.id; })) };
+}
+function deleteConfirm(cur, id, where) {
+  var S = cur.S, d = deletePreview(S, id), prop = S.proposed[id];
+  var unit = d.e.kind === 'switch' ? 'ports' : 'positions';
+  var h = '<div class="confirm" role="group" aria-label="Confirm delete"><span><b>Delete ' + esc(d.e.name) + '?</b> ' + (prop ? 'It is only in this plan, so its addition is dropped' : 'Removes ' + esc(d.e.name)) + ', its ' + d.endpoints + ' ' + unit + (d.e.kind === 'switch' ? '' : ' and their front/rear bridges') + (d.cables.length ? ' and ' + plural(d.cables.length, 'cable') + ' (' + d.cables.join(', ') + ')' : '') + '.</span>';
+  if (d.circuits.length) h += '<span class="cut">Cuts ' + plural(d.circuits.length, 'circuit') + ':</span><ul class="cut">' + d.circuits.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ul>';
+  else h += '<span class="cut">No circuit runs through it.</span>';
+  h += '<span class="cut">Installed is unchanged until the plan is recorded.</span><div class="row"><button class="btn danger small" data-act="del-eq-do" data-id="' + id + '">Delete in plan</button><button class="btn small" data-act="confirm-cancel">Cancel</button></div></div>';
+  return h;
+}
+function renderEquipment(cur, L) {
+  var S = cur.S, e = find(S.eq, L.eq), ix = idx(S), plan_ = inPlan(cur);
+  var r = find(S.racks, e.rack);
+  var strip = '<div style="width:150px;flex:none"><p class="hint" style="margin:0 0 6px">' + esc(r.name) + '</p>' + miniRackButtons(S, r, e.id) + '</div>';
+  var head = '<div class="row" style="justify-content:space-between;margin-bottom:12px"><div><span class="eyebrow">' + (e.kind === 'hdf' ? 'HDF' : e.role + ' · ' + e.kind) + ' ' + propTag(S.proposed[e.id]) + '</span><span style="display:block;font-size:20px;font-weight:700">' + esc(e.name) + '</span><span class="hint">' + esc(nm(placeOf(S, e.id).site)) + ' / ' + esc(nm(r.nodeId)) + ' / ' + esc(r.name) + ' U' + e.unit + (e.h > 1 ? '–' + (e.unit + e.h - 1) : '') + '</span></div><div class="row">' +
+    '<button class="btn small" data-act="inspect" data-id="' + e.id + '">Inspector</button><button class="btn small" data-act="open-inv" data-id="' + e.id + '">' + ICON.table + 'Open in inventory</button>' +
+    (plan_ ? '<button class="btn small ghost-danger" data-act="del-eq-ask" data-id="' + e.id + '" data-where="page">' + ICON.trash + 'Delete…</button>' : '') + '</div></div>';
+  var conf = state.confirm && state.confirm.kind === 'del-eq' && state.confirm.where === 'page' && state.confirm.id === e.id ? '<div style="margin-bottom:12px">' + deleteConfirm(cur, e.id) + '</div>' : '';
+  var face = '';
+  if (e.kind !== 'switch') face += '<div class="row" style="margin-bottom:10px"><div class="seg" role="group" aria-label="Side"><button aria-pressed="' + (state.side === 'front') + '" data-act="side" data-v="front">Front</button><button aria-pressed="' + (state.side === 'rear') + '" data-act="side" data-v="rear">Rear</button></div></div>';
+  var sd = state.side === 'rear' ? 'r' : 'f';
+  if (e.kind === 'switch') {
+    var odd = '', even = '';
+    for (var p = 1; p <= e.ports; p++) { var b = portBtn(S, ix, e.id + ':' + p, p); if (p % 2) odd += b; else even += b; }
+    face += '<div class="face"><div class="prow">' + odd + '</div><div class="prow">' + even + '</div></div>';
+  } else if (e.kind === 'panel') {
+    var r1 = '', r2 = '';
+    for (var q = 1; q <= e.ports; q++) { var bb = portBtn(S, ix, e.id + ':' + q + ':' + sd, q); if (q <= 12) r1 += bb; else r2 += bb; }
+    face += '<div class="face"><div class="prow">' + r1 + '</div><div class="prow">' + r2 + '</div></div>';
+  } else {
+    var g = '<div class="face"><div class="hdf-grid"><span></span>' + BLOCKS.map(function (bk) { return '<span style="text-align:center;font-weight:700;color:var(--muted)">' + bk + '</span>'; }).join('');
+    for (var row = 1; row <= e.rows; row++) {
+      g += '<span style="align-self:center;font-weight:700;color:var(--muted);text-align:center">' + row + '</span>';
+      BLOCKS.forEach(function (bk) {
+        var ps = ''; for (var x = 1; x <= 6; x++) ps += portBtn(S, ix, e.id + ':' + row + bk + ':' + x + ':' + sd, x);
+        g += '<div class="blk"><span class="mono" style="display:block;font-size:11px;font-weight:700;margin-bottom:4px">' + row + bk + '</span><div class="blk-grid">' + ps + '</div></div>';
+      });
+    }
+    face += g + '</div></div>';
+  }
+  var legend = '<div class="legend" style="margin-top:12px"><span><i></i>free</span><span><i style="background:#2f6fdb;border-color:#2f6fdb"></i>cabled · Network A</span><span><i style="background:#9a4fc7;border-color:#9a4fc7"></i>cabled · Network B</span><span><i style="outline:2px dashed #c98a12;outline-offset:1px"></i>proposed cable</span><span><i class="st-reserved"></i>reserved</span><span><i class="st-disabled"></i>disabled</span><span><i class="st-faulty"></i>faulty</span></div>';
+  return planBanner(cur) + '<div class="eq-layout">' + strip + '<section class="panel" style="flex:999 1 520px">' + head + conf + face + legend + '</section>' + renderDetail(cur, L, ix) + '</div>';
+}
+function miniRackButtons(S, r, selId) {
+  return '<div class="mini" style="grid-template-rows:repeat(' + r.units + ',18px)">' + S.eq.filter(function (e) { return e.rack === r.id; }).map(function (e) {
+    var top = r.units - (e.unit + e.h - 1) + 1;
+    return '<button data-act="open-eq" data-id="' + e.id + '" style="grid-row:' + top + ' / span ' + e.h + ';border:0;border-radius:3px;font-size:10px;font-weight:700;text-align:left;padding:0 6px;background:' + (S.proposed[e.id] ? '#fdf6e7' : '#e8eefb') + ';' + (e.id === selId ? 'outline:2px solid #ffd166;outline-offset:-2px;' : '') + '">' + esc(e.name) + '</button>';
+  }).join('') + '</div>';
+}
+function portBtn(S, ix, k, n) {
+  var c = ix.cab[k], st = portDet(S, k).state, net = c ? c.net : null, sel = state.loc.ep === k;
+  var muted = state.net !== 'all' && net && net !== state.net;
+  var style = '';
+  if (net) style += 'background-color:' + NETC[net] + ';color:#fff;border-color:' + NETC[net] + ';';
+  else if (c) style += 'background-color:#8a97ab;color:#fff;';
+  if (c && S.proposed[c.id]) style += 'outline:2px dashed #c98a12;outline-offset:1px;';
+  var aria = epLabel(k) + (c ? ', cable ' + c.id : ', free') + (st !== 'available' ? ', ' + st : '');
+  return '<button class="port st-' + st + (sel ? ' sel' : '') + (muted ? ' muted' : '') + '" style="' + style + '" data-act="open-ep" data-k="' + esc(k) + '" aria-label="' + esc(aria) + '" title="' + esc(aria) + '">' + n + '</button>';
+}
+function renderDetail(cur, L, ix) {
+  var S = cur.S;
+  if (!L.ep) return '<aside class="panel detail" aria-label="Endpoint detail"><p style="margin:0;color:var(--muted)">Select a port or position to see its details, its cable and far end' + (inPlan(cur) ? ', and to disconnect or connect it in this plan' : '') + '.</p></aside>';
+  var k = L.ep, e = eqOf(S, k), c = ix.cab[k], pd = portDet(S, k), net = netOf(S, k), plan_ = inPlan(cur);
+  var h = '<aside class="panel detail" aria-label="Endpoint detail"><span class="hint">' + esc(e.name) + '</span><span class="mono" style="font-size:22px;font-weight:700">' + esc(shortLabel(k)) + '</span><span class="row" style="margin-top:6px">' + netBadge(net) + stateChip(pd.state) + '</span>';
+  // Port details (M5b)
+  h += '<div class="sec"><span class="section-label">Port details</span>';
+  if (state.form && state.form.kind === 'port' && state.form.k === k) {
+    var f = state.form;
+    h += '<form class="form" data-submit="port-save"><div class="f2"><label class="f" for="pf-state">State<select id="pf-state" data-bind="form.state">' + ['available', 'reserved', 'disabled', 'faulty'].map(function (s) { return '<option' + (f.state === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></label><label class="f" for="pf-speed">Speed<input id="pf-speed" data-bind="form.speed" value="' + esc(f.speed) + '" placeholder="e.g. 10G"></label></div>' +
+      '<label class="f" for="pf-desc">Description<input id="pf-desc" data-bind="form.description" value="' + esc(f.description) + '"></label><label class="f" for="pf-note">Why (optional, kept in history)<input id="pf-note" data-bind="form.note" value="' + esc(f.note) + '"></label>' +
+      '<span class="hint">A port state is data: it never changes a trace.</span><div class="row"><button class="btn primary small" type="submit">Save fix</button><button class="btn small" type="button" data-act="form-cancel">Cancel</button></div></form>';
+  } else {
+    h += '<dl class="kv"><dt>Type</dt><dd>' + esc(pd.type) + '</dd><dt>Connector</dt><dd>' + esc(pd.connector) + '</dd><dt>Speed</dt><dd>' + esc(pd.speed || '—') + '</dd><dt>State</dt><dd>' + stateChip(pd.state) + '</dd><dt>Description</dt><dd>' + esc(pd.description || '—') + '</dd></dl>';
+    h += state.ctx === 'installed' ? '<button class="btn small" style="justify-self:start" data-act="port-edit" data-k="' + esc(k) + '">Edit port details</button>' : '<span class="hint">Port details are fixed directly on Installed; they never change topology.</span>';
+  }
+  h += '</div><div class="sec"><span class="section-label">External cable</span>';
+  if (c) {
+    h += '<span><b>Cable ' + esc(c.id) + '</b>' + (c.label ? ' · <span class="mono">' + esc(c.label) + '</span>' : '') + ' ' + propTag(S.proposed[c.id]) + '</span><span>→ ' + esc(epLabel(farOf(c, k))) + '</span><div class="row"><button class="btn small primary" data-act="open-ep" data-k="' + esc(farOf(c, k)) + '">Go to peer</button>' +
+      (plan_ ? '<button class="btn small ghost-danger" data-act="disc-ask" data-id="' + esc(c.id) + '" data-where="detail">Disconnect…</button>' : '') + '</div>';
+    if (state.confirm && state.confirm.kind === 'disc' && state.confirm.id === c.id && state.confirm.where === 'detail') h += discConfirm(cur, c.id);
+  } else {
+    h += '<span class="hint">No cable on this ' + (e.kind === 'switch' ? 'port' : 'side') + '.</span>';
+    if (plan_) h += connectBox(cur, k);
+  }
+  if (state.ctx === 'installed') h += '<span class="hint">Open a plan to connect or disconnect.</span>';
+  h += '</div>';
+  var m = mirror(k);
+  if (m) { var mc = ix.cab[m]; h += '<div class="sec"><span class="section-label">Internal peer (same position)</span><span>' + esc(shortLabel(m)) + '</span><span class="hint">' + (mc ? 'Cable ' + mc.id + ' → ' + esc(epLabel(farOf(mc, m))) : 'No cable on that side') + '</span><button class="btn small" style="justify-self:start" data-act="open-ep" data-k="' + esc(m) + '">Show ' + sideWord(parseEp(m).side) + '</button></div>'; }
+  return h + '</aside>';
+}
+function discConfirm(cur, id) {
+  var cut = circuitsCut(cur.S, [id]), prop = cur.S.proposed[id];
+  return '<div class="confirm"><span><b>Disconnect ' + esc(id) + '?</b> ' + (prop ? 'It is only in this plan, so the proposed cable is dropped.' : 'The cable is removed in this plan.') + '</span>' + (cut.length ? '<span class="cut">Cuts ' + cut.map(esc).join('; ') + '.</span>' : '<span class="cut">No complete circuit runs through it.</span>') + '<div class="row"><button class="btn danger small" data-act="disc-do" data-id="' + esc(id) + '">Disconnect in plan</button><button class="btn small" data-act="confirm-cancel">Cancel</button></div></div>';
+}
+function connectBox(cur, k) {
+  var cn = state.connect;
+  if (!cn || cn.k !== k) return '<button class="btn small primary" style="justify-self:start" data-act="connect-open" data-k="' + esc(k) + '">Connect…</button>';
+  var S = cur.S, ix = idx(S), q = (cn.q || '').trim().toLowerCase(), list = [];
+  S.eq.forEach(function (e) { endpoints(e).forEach(function (x) { if (x !== k && !ix.cab[x] && parseEp(x).eq !== parseEp(k).eq) { var lab = epLabel(x); if (!q || lab.toLowerCase().indexOf(q) >= 0) list.push(x); } }); });
+  var shown = list.slice(0, 8);
+  var h = '<div class="form" style="border:1px solid var(--line);border-radius:10px;padding:10px"><label class="f" for="cn-q">Far end: a free port or position<input id="cn-q" role="combobox" aria-expanded="true" aria-controls="cn-list" data-bind="connect.q" data-live value="' + esc(cn.q || '') + '" placeholder="Type a name, e.g. AGG-15 port 3" autocomplete="off"></label>';
+  h += '<div class="pick-list" id="cn-list" role="listbox">' + (shown.length ? shown.map(function (x) { return '<button role="option" aria-selected="' + (cn.pick === x) + '" data-act="connect-pick" data-k="' + esc(x) + '">' + esc(epLabel(x)) + '</button>'; }).join('') : '<span class="hint" style="padding:6px">No free port matches.</span>') + '</div>';
+  h += '<span class="hint">' + list.length + ' free match' + (list.length === 1 ? '' : 'es') + (list.length > 8 ? ', showing 8' : '') + '. Sibling ports on the same equipment are not offered.</span>';
+  if (cn.err) h += '<span class="err" role="alert">' + esc(cn.err) + '</span>';
+  h += '<div class="row"><button class="btn primary small" data-act="connect-do"' + (cn.pick ? '' : ' disabled') + '>Connect' + (cn.pick ? ' to ' + esc(epLabel(cn.pick)) : '') + '</button><button class="btn small" data-act="connect-cancel">Cancel</button></div></div>';
+  return h;
+}
+
+/* ---------- Inspector ---------- */
+function renderInspector(cur) {
+  var S = cur.S, e = find(S.eq, state.insp);
+  if (!e) { state.insp = null; return ''; }
+  var pl = placeOf(S, e.id), plan_ = inPlan(cur), ix = idx(S);
+  var h = '<aside class="drawer-r" aria-label="Inspector"><div class="insp-head"><div class="row" style="justify-content:space-between"><span class="eyebrow">' + (e.kind === 'hdf' ? 'HDF' : e.role + ' · ' + e.kind) + ' ' + propTag(S.proposed[e.id]) + '</span><button class="x" aria-label="Close inspector" data-act="insp-close">×</button></div>';
+  h += '<h2>' + esc(e.name) + '</h2><span class="row">' + netBadge(e.net) + stateChip(e.det.status) + '</span><span class="hint">' + esc(nm(pl.site)) + ' / ' + esc(nm(pl.node)) + ' / ' + esc(nm(pl.rack)) + ' U' + e.unit + '</span>';
+  h += '<div class="row"><button class="btn small" data-act="show-map" data-id="' + e.id + '">' + ICON.map + 'Show on map</button><button class="btn small" data-act="show-phys" data-id="' + e.id + '">' + ICON.rack + 'Show in Physical</button><button class="btn small" data-act="open-inv" data-id="' + e.id + '">' + ICON.table + 'Open in inventory</button>' + (plan_ ? '<button class="btn small ghost-danger" data-act="del-eq-ask" data-id="' + e.id + '" data-where="insp">' + ICON.trash + 'Delete…</button>' : '') + '</div>';
+  if (state.confirm && state.confirm.kind === 'del-eq' && state.confirm.where === 'insp' && state.confirm.id === e.id) h += deleteConfirm(cur, e.id);
+  h += '</div><div class="tabs" role="tablist">' + [['overview', 'Overview'], ['ports', e.kind === 'switch' ? 'Ports' : 'Positions'], ['history', 'History']].map(function (t) { return '<button role="tab" aria-selected="' + (state.inspTab === t[0]) + '" data-act="insp-tab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div><div class="db">';
+  if (state.inspTab === 'overview') h += inspOverview(cur, e, ix);
+  else if (state.inspTab === 'ports') h += inspPorts(cur, e, ix);
+  else h += inspHistory(e);
+  return h + '</div></aside>';
+}
+function inspOverview(cur, e, ix) {
+  var S = cur.S, d = e.det, f = state.form, editable = state.ctx === 'installed' || (inPlan(cur) && S.proposed[e.id]);
+  var h = '';
+  if (f && f.kind === 'details' && f.id === e.id) {
+    h += '<form class="form" data-submit="details-save"><span class="section-label">' + (state.ctx === 'installed' ? 'Fix details on Installed' : 'Details of the proposed ' + esc(e.name)) + '</span>' +
+      '<label class="f" for="d-name">Name<input id="d-name" data-bind="form.name" value="' + esc(f.name) + '"></label>' +
+      '<div class="f2"><label class="f" for="d-man">Manufacturer<input id="d-man" data-bind="form.manufacturer" value="' + esc(f.manufacturer) + '"></label><label class="f" for="d-model">Model<input id="d-model" data-bind="form.model" value="' + esc(f.model) + '"></label></div>' +
+      '<div class="f2"><label class="f" for="d-serial">Serial number<input id="d-serial" data-bind="form.serial" value="' + esc(f.serial) + '" class="mono"></label>' + (e.kind === 'switch' ? '<label class="f" for="d-ip">IP address<input id="d-ip" data-bind="form.ip" value="' + esc(f.ip) + '" class="mono"></label>' : '<span></span>') + '</div>' +
+      '<label class="f" for="d-status">Status<select id="d-status" data-bind="form.status">' + ['active', 'inactive', 'maintenance'].map(function (s) { return '<option' + (f.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></label>' +
+      '<label class="f" for="d-desc">Description<textarea id="d-desc" data-bind="form.description">' + esc(f.description) + '</textarea></label>' +
+      (state.ctx === 'installed' ? '<label class="f" for="d-note">Why (optional, kept in history)<input id="d-note" data-bind="form.note" value="' + esc(f.note) + '" placeholder="e.g. Asset audit"></label><span class="hint">A fix changes no topology. Drafts stay valid, and each changed field is written to the history.</span>' : '<span class="hint">Saved in the plan with the proposed equipment.</span>') +
+      (f.error ? '<span class="err" role="alert">' + esc(f.error) + '</span>' : '') +
+      '<div class="row"><button class="btn primary" type="submit">' + (state.ctx === 'installed' ? 'Save fix' : 'Save in plan') + '</button><button class="btn" type="button" data-act="form-cancel">Cancel</button></div></form>';
+  } else {
+    h += '<div class="row" style="justify-content:space-between"><span class="section-label">Details</span>' + (editable ? '<button class="btn small" data-act="details-edit" data-id="' + e.id + '">Edit details</button>' : '') + '</div>';
+    h += '<dl class="kv"><dt>Manufacturer</dt><dd>' + esc(d.manufacturer || '—') + '</dd><dt>Model</dt><dd>' + esc(d.model || '—') + '</dd><dt>Serial number</dt><dd class="mono">' + esc(d.serial || '—') + '</dd>' + (e.kind === 'switch' ? '<dt>IP address</dt><dd class="mono">' + esc(d.ip || '—') + '</dd>' : '') + '<dt>Status</dt><dd>' + stateChip(d.status) + '</dd><dt>Description</dt><dd>' + esc(d.description || '—') + '</dd></dl>';
+    if (!editable) h += '<span class="hint">Details of installed equipment are fixed on Installed, without a plan: a fix changes no topology and keeps drafts valid.</span>';
+  }
+  var counts = {}, total = 0;
+  endpoints(e).forEach(function (k) { var c = ix.cab[k]; if (c) { total++; counts[c.net || '—'] = (counts[c.net || '—'] || 0) + 1; } });
+  h += '<span class="section-label">Cabled by network</span><div class="row">' + (total ? Object.keys(counts).sort().map(function (n) { return n === '—' ? '<span class="hint">' + counts[n] + ' without network</span>' : '<span class="badge-net" style="--c:' + NETC[n] + '">Network ' + n + ' · ' + counts[n] + '</span>'; }).join('') : '<span class="hint">Nothing cabled yet.</span>') + '</div>';
+  return h;
+}
+function inspPorts(cur, e, ix) {
+  var S = cur.S, plan_ = inPlan(cur);
+  var conf = state.confirm && state.confirm.kind === 'disc' && state.confirm.where === 'insp' ? discConfirm(cur, state.confirm.id) : '';
+  var rows = endpoints(e).filter(function (k) { return e.kind === 'switch' || ix.cab[k] || portDet(S, k).state !== 'available'; });
+  var h = conf + '<div class="table-wrap" style="max-height:440px"><table class="t"><thead><tr><th>' + (e.kind === 'switch' ? 'Port' : 'Position') + '</th><th>Cable</th><th>Far end</th><th>State</th>' + (plan_ ? '<th><span class="sr-only">Actions</span></th>' : '') + '</tr></thead><tbody>';
+  h += rows.map(function (k) {
+    var c = ix.cab[k], st = portDet(S, k).state;
+    return '<tr' + (c && S.proposed[c.id] ? ' class="proposed"' : '') + '><td><button class="link mono" data-act="open-ep" data-k="' + esc(k) + '">' + esc(shortLabel(k)) + '</button></td><td class="mono">' + (c ? esc(c.id) + (S.proposed[c.id] ? ' ' + propTag(true) : '') : '<span class="hint">free</span>') + '</td><td>' + (c ? esc(epLabel(farOf(c, k))) : '') + '</td><td>' + (st === 'available' ? '' : stateChip(st)) + '</td>' + (plan_ ? '<td>' + (c ? '<button class="btn small ghost-danger" data-act="disc-ask" data-id="' + esc(c.id) + '" data-where="insp">Disconnect</button>' : '') + '</td>' : '') + '</tr>';
+  }).join('');
+  h += '</tbody></table></div>';
+  if (e.kind !== 'switch') h += '<span class="hint">Showing cabled positions and those with a state; the face in Physical shows all ' + endpoints(e).length + '.</span>';
+  return h;
+}
+function inspHistory(e) {
+  var rows = changeLog.filter(function (x) { return x.eq === e.id; }).slice().reverse();
+  var recs = recorded.filter(function (r) { return r.touched.indexOf(e.id) >= 0; });
+  var h = '<span class="section-label">Direct fixes</span>';
+  h += rows.length ? '<ul class="hist">' + rows.map(function (x) { return '<li><time>' + esc(x.at) + '</time><span><b>' + esc(x.target) + '</b> · ' + esc(x.field) + '</span><span class="chg">' + (x.old ? '<del>' + esc(x.old) + '</del> → ' : '(empty) → ') + '<ins>' + esc(x.now || '(empty)') + '</ins></span>' + (x.note ? '<span class="hint">“' + esc(x.note) + '”</span>' : '') + '</li>'; }).join('') + '</ul>' : '<span class="hint">No direct fixes yet.</span>';
+  h += '<span class="section-label">Recorded plans</span>';
+  h += recs.length ? '<ul class="hist">' + recs.map(function (r) { return '<li><time>' + esc(r.recordedAt) + '</time><span><b>' + esc(r.name) + '</b> <span class="tag-recorded">RECORDED</span></span><span class="hint">“' + esc(r.note) + '”</span></li>'; }).join('') + '</ul>' : '<span class="hint">No recorded plan has changed it.</span>';
+  return h;
+}
+
+/* ---------- Changes drawer ---------- */
+function renderChanges(cur) {
+  var h = '<aside class="drawer-r" aria-label="Changes and plans"><div class="dh"><div><h2>Changes &amp; plans</h2><p>Proposals stay separate from installed infrastructure</p></div><button class="x" aria-label="Close changes" data-act="drawer" data-v="changes">×</button></div><div class="db">';
+  if (state.ctx === 'installed' || !cur.plan) h += changesInstalled();
+  else if (state.review) h += reviewStep(cur);
+  else h += changesPlan(cur);
+  return h + '</div></aside>';
+}
+function changesInstalled() {
+  var h = '<span class="section-label">Drafts</span>';
+  var ds = drafts();
+  h += ds.length ? ds.map(function (p) { return '<div class="plan-row"><div class="top-line"><b>' + esc(p.name) + '</b>' + (isStale(p) ? '<span class="chip-state reserved">Installed changed</span>' : '<span class="chip-state active">current</span>') + '</div><span class="hint">' + plural(p.changes.length, 'change') + '</span><button class="btn small" style="justify-self:start" data-act="open-plan" data-id="' + p.id + '">Open in Plan</button></div>'; }).join('') : '<span class="hint">No drafts.</span>';
+  if (state.newDraft) {
+    h += '<form class="form" data-submit="new-draft-do"><label class="f" for="nd-name">Draft name<input id="nd-name" data-bind="newDraft.name" value="' + esc(state.newDraft.name) + '" placeholder="e.g. Building B fit-out"></label>' + (state.newDraft.error ? '<span class="err" role="alert">' + esc(state.newDraft.error) + '</span>' : '') + '<div class="row"><button class="btn primary small" type="submit">Create draft</button><button class="btn small" type="button" data-act="new-draft-cancel">Cancel</button></div></form>';
+  } else h += '<button class="btn" style="justify-self:start" data-act="new-draft">' + ICON.plus + 'New draft</button>';
+  h += '<span class="section-label" style="margin-top:6px">Recorded plans · read-only</span>';
+  h += recorded.length ? recorded.slice().reverse().map(function (r) {
+    var open = state.openRecorded === r.id;
+    return '<div class="plan-row"><div class="top-line"><b>' + esc(r.name) + '</b><span class="tag-recorded">RECORDED</span></div><span class="hint">Recorded on ' + esc(r.recordedAt) + ' · “' + esc(r.note) + '”</span><button class="link" style="justify-self:start;font-size:12px" data-act="toggle-recorded" data-id="' + r.id + '" aria-expanded="' + open + '">' + (open ? 'Hide' : 'Show') + ' ' + plural(r.lines.length, 'change') + '</button>' + (open ? '<ul style="margin:0;padding-left:18px;font-size:12px;color:var(--ink-2)">' + r.lines.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
+  }).join('') : '<span class="hint">Nothing recorded yet.</span>';
+  return h;
+}
+function grouped(changes, withUndo) {
+  var groups = {};
+  changes.forEach(function (ch, i) { var d = describe(ch); (groups[d.g] = groups[d.g] || []).push({ d: d, i: i }); });
+  return GROUPS.filter(function (g) { return groups[g]; }).map(function (g) {
+    return '<div class="grp"><h3>' + g + ' · ' + groups[g].length + '</h3>' + groups[g].map(function (x) {
+      return '<div class="chg-row"><span class="what">' + (x.d.go ? '<button class="link" ' + goAttrs(x.d.go) + '>' + esc(x.d.text) + '</button>' : esc(x.d.text)) + '</span>' + (withUndo ? '<button class="btn small" data-act="undo-change" data-i="' + x.i + '" aria-label="Undo: ' + esc(x.d.text) + '">Undo</button>' : '') + '</div>';
+    }).join('') + '</div>';
+  }).join('');
+}
+function changesPlan(cur) {
+  var p = cur.plan, h = '<div class="row" style="justify-content:space-between"><div><span class="eyebrow">Draft</span><b style="font-size:16px">' + esc(p.name) + '</b></div><span class="hint">' + plural(p.changes.length, 'change') + '</span></div>';
+  if (cur.stale) {
+    h += '<div class="notice"><strong>Installed changed since this draft.</strong><span>Update draft re-checks every change on the current Installed. If they all still fit, the draft moves there; otherwise each change that no longer fits is listed and nothing is changed.</span><button class="btn primary" style="justify-self:start" data-act="rebase">Update draft</button></div>';
+    if (state.checked[p.id]) {
+      var conf = applyChanges(installed, p.changes).conflicts;
+      if (conf.length) {
+        h += '<div class="confirm" style="background:#fff"><span class="callout">' + plural(conf.length, 'change') + ' no longer fit' + (conf.length === 1 ? 's' : '') + ' the current Installed:</span>' + conf.map(function (c) { var d = describe(p.changes[c.i]); return '<div class="chg-row"><span class="what">' + (d.go ? '<button class="link" ' + goAttrs(d.go) + '>' + esc(d.text) + '</button>' : esc(d.text)) + '<span class="why">' + esc(c.reason) + '</span></span><button class="btn small" data-act="drop-change" data-i="' + c.i + '">Drop</button></div>'; }).join('') + '<span class="row hint">' + newTag() + ' Dropping a change from the list is not in the M5 plan yet: without it, a conflicting draft can be neither updated nor edited.</span></div>';
+      } else h += '<div class="notice info"><span>All changes fit the current Installed now. Press <b>Update draft</b> to move the draft there.</span></div>';
+    }
+    h += '<span class="section-label">Changes in this draft</span>' + (grouped(p.changes, false) || '<span class="hint">No changes.</span>');
+    return h;
+  }
+  h += p.changes.length ? grouped(p.changes, true) + '<span class="row hint">' + newTag() + ' Undo on a line is not in the M5 plan yet; today a removal can’t be taken back.</span>' : '<div class="notice info"><span>No changes yet. Add equipment from the library, or use Add site, Add node and Add rack in Physical.</span></div>';
+  h += '<button class="btn primary block" data-act="review"' + (p.changes.length ? '' : ' disabled') + '>Record as installed…</button><span class="hint">Recording is a separate, explicit step with a note. Saving a change never records it.</span>';
+  return h;
+}
+function reviewStep(cur) {
+  var p = cur.plan;
+  var h = '<div><span class="eyebrow">Review</span><b style="font-size:16px">Record “' + esc(p.name) + '” as installed</b></div>';
+  h += '<div class="review-list">' + grouped(p.changes, false) + '</div>';
+  h += '<div class="notice"><strong>Only record what is physically done.</strong><span>Recording updates Installed for everyone in one step and makes this plan read-only. Other drafts will show “Installed changed” and need Update draft.</span></div>';
+  h += '<form class="form" data-submit="record-do"><label class="f" for="rec-note">Note (required)<textarea id="rec-note" data-bind="note" placeholder="e.g. Installed EDGE-18 in A03 U5, patched port 1 to PANEL-A 4">' + esc(state.note) + '</textarea></label>' + (state.noteErr ? '<span class="err" role="alert">' + esc(state.noteErr) + '</span>' : '') +
+    '<div class="row"><button class="btn primary" type="submit">Record ' + plural(p.changes.length, 'change') + '</button><button class="btn" type="button" data-act="review-cancel">Back to changes</button></div></form>';
+  return h;
+}
+
+/* ---------- Library ---------- */
+function renderLibrary(cur) {
+  var h = '<aside class="drawer-l" aria-label="Equipment library"><div class="dh"><div><h2>Equipment library</h2><p>Drag onto a rack, or add an HDF with its form</p></div><button class="x" aria-label="Close library" data-act="left" data-v="library">×</button></div><div class="db">';
+  if (!inPlan(cur)) h += '<div class="notice info"><span>' + (cur.stale ? 'This draft is behind Installed. Update it first.' : 'Open a plan to add equipment. Nothing you add is installed until the plan is recorded.') + '</span></div>';
+  h += '<div class="plan-row"><b>Access switch · 24 ports</b><span class="hint">Drag onto a free rack unit (as today).</span></div><div class="plan-row"><b>Patch panel · 24 positions</b><span class="hint">Drag onto a free rack unit (as today).</span></div>';
+  var f = state.form;
+  if (f && f.kind === 'hdf') {
+    var racks = cur.S.racks;
+    h += '<form class="plan-row form" data-submit="hdf-do" style="border-color:var(--prop-line);background:#fffdf8"><span class="eyebrow">New HDF <span class="tag-proposed">PROPOSED</span></span>' +
+      '<label class="f" for="h-name">Name<input id="h-name" data-bind="form.name" value="' + esc(f.name) + '"></label>' +
+      '<div class="f2"><label class="f" for="h-rows">Rows (1–32)<input id="h-rows" type="number" min="1" max="32" data-bind="form.rows" value="' + esc(f.rows) + '"></label><label class="f" for="h-h">Height (U)<input id="h-h" type="number" min="1" max="12" data-bind="form.h" value="' + esc(f.h) + '"></label></div>' +
+      '<div class="f2"><label class="f" for="h-rack">Rack<select id="h-rack" data-bind="form.rack">' + racks.map(function (r) { return '<option value="' + r.id + '"' + (f.rack === r.id ? ' selected' : '') + '>' + esc(r.name) + '</option>'; }).join('') + '</select></label><label class="f" for="h-unit">Lowest unit<input id="h-unit" type="number" min="1" data-bind="form.unit" value="' + esc(f.unit) + '"></label></div>' +
+      '<span class="hint">Each row has blocks A–D with 6 positions, front and rear. ' + (parseInt(f.rows, 10) > 0 ? (parseInt(f.rows, 10) * 4 * 6) + ' positions per side.' : '') + '</span>' +
+      (f.error ? '<span class="err" role="alert">' + esc(f.error) + '</span>' : '') +
+      '<div class="row"><button class="btn primary small" type="submit">Add HDF to plan</button><button class="btn small" type="button" data-act="form-cancel">Cancel</button></div></form>';
+  } else {
+    h += '<div class="plan-row"><b>HDF · high-density fiber frame</b><span class="hint">Rows of A–D blocks; set the rows, height and place.</span><button class="btn small primary" style="justify-self:start" data-act="hdf-form"' + (inPlan(cur) ? '' : ' disabled') + '>' + ICON.plus + 'Add HDF…</button></div>';
+  }
+  return h + '</div></aside>';
+}
+
+/* ---------- Inventory (portal-style resource list) ---------- */
+var INV_COLS = {
+  equipment: [['name', 'Name'], ['kind', 'Kind'], ['role', 'Role'], ['net', 'Network'], ['site', 'Site'], ['node', 'Node'], ['rack', 'Rack'], ['unit', 'U'], ['manufacturer', 'Manufacturer'], ['model', 'Model'], ['serial', 'Serial number'], ['ip', 'IP address'], ['status', 'Status']],
+  ports: [['port', 'Port'], ['equipment', 'Equipment'], ['net', 'Network'], ['type', 'Type'], ['connector', 'Connector'], ['speed', 'Speed'], ['state', 'State'], ['cable', 'Cable'], ['far', 'Far end'], ['site', 'Site']],
+  cables: [['id', 'Cable'], ['a', 'A end'], ['b', 'B end'], ['net', 'Network'], ['label', 'Label'], ['status', 'Status']]
+};
+var INV_FILTERS = {
+  equipment: [['site', 'Site'], ['node', 'Node'], ['net', 'Network'], ['kind', 'Kind'], ['role', 'Role'], ['status', 'Status']],
+  ports: [['equipment', 'Equipment'], ['site', 'Site'], ['net', 'Network'], ['state', 'State'], ['type', 'Type']],
+  cables: [['net', 'Network'], ['status', 'Status']]
+};
+var INV_GROUPS = {
+  equipment: [['site', 'Site'], ['node', 'Node'], ['net', 'Network'], ['kind', 'Kind'], ['status', 'Status']],
+  ports: [['equipment', 'Equipment'], ['site', 'Site'], ['state', 'State']],
+  cables: [['net', 'Network'], ['status', 'Status']]
+};
+var PAGE = 50, LAST_ROWS = {}, LAST_PAGE_KEYS = [];
+function invDefault() { return { tab: 'equipment', q: '', f: {}, sort: { key: 'name', dir: 1 }, group: '', page: 1, sel: {}, pop: null, menu: null, pane: null, hidden: { equipment: { ip: true }, ports: { site: true }, cables: {} }, collapsed: {} }; }
+var AZI = {
+  switch: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20"><rect x="1.5" y="5" width="17" height="10" rx="1.5" fill="#0078d4"/><g fill="#fff"><rect x="4" y="8.5" width="2.2" height="3"/><rect x="7.6" y="8.5" width="2.2" height="3"/><rect x="11.2" y="8.5" width="2.2" height="3"/><rect x="14.8" y="8.5" width="1.4" height="3"/></g></svg>',
+  panel: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20"><rect x="1.5" y="5" width="17" height="10" rx="1.5" fill="#5c2d91"/><g fill="#fff"><circle cx="5" cy="10" r="1.3"/><circle cx="8.3" cy="10" r="1.3"/><circle cx="11.6" cy="10" r="1.3"/><circle cx="14.9" cy="10" r="1.3"/></g></svg>',
+  hdf: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20"><rect x="2" y="2" width="16" height="16" rx="1.5" fill="#008575"/><path d="M2 7.5h16M2 12.5h16M7.5 2v16M12.5 2v16" stroke="#fff" stroke-width="1.2"/></svg>',
+  port: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1.5" fill="#0078d4"/><path d="M6.5 8h7v5h-7z" fill="#fff"/><path d="M8.5 13v-2M11.5 13v-2" stroke="#0078d4" stroke-width="1.2"/></svg>',
+  cable: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M3 15c4 0 4-10 8-10s3 6 6 6" stroke="#0078d4" stroke-width="2" stroke-linecap="round"/><circle cx="3" cy="15" r="2" fill="#0078d4"/><circle cx="17" cy="11" r="2" fill="#0078d4"/></svg>',
+  plus: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0078d4" stroke-width="1.6" stroke-linecap="round"><path d="M10 3v14M3 10h14"/></svg>',
+  refresh: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0078d4" stroke-width="1.6" stroke-linecap="round"><path d="M16 10a6 6 0 1 1-1.8-4.3M16 3v3.5h-3.5"/></svg>',
+  export: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0078d4" stroke-width="1.6" stroke-linecap="round"><path d="M10 3v9M6 8l4 4 4-4M4 16h12"/></svg>',
+  columns: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0078d4" stroke-width="1.6"><rect x="3" y="4" width="14" height="12" rx="1"/><path d="M8 4v12M13 4v12"/></svg>',
+  info: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0078d4" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.5v.1"/></svg>',
+  map: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0078d4" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3"/></svg>',
+  rack: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0078d4" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><path d="M7 6.5h6M7 10h6M7 13.5h6"/></svg>',
+  trash: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#a4262c" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 5.5h13M8.5 9v5M11.5 9v5M5 5.5l.8 11h8.4l.8-11M7.5 5.5V3h5v2.5"/></svg>',
+  unlink: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#a4262c" stroke-width="1.6" stroke-linecap="round"><path d="M8 6.5 9.5 5a3.2 3.2 0 0 1 4.5 4.5L12.5 11M12 13.5 10.5 15A3.2 3.2 0 0 1 6 10.5L7.5 9M3 3l14 14"/></svg>',
+  edit: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0078d4" stroke-width="1.6" stroke-linejoin="round"><path d="M4 16l1-4 8-8 3 3-8 8-4 1Z"/></svg>',
+  search: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#605e5c" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4.5 4.5"/></svg>'
+};
+function azStatus(v) {
+  var good = { active: 1, available: 1 }, warn = { maintenance: 1, reserved: 1, testing: 1 }, bad = { faulty: 1 }, icon;
+  if (good[v]) icon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#57a300"/><path d="M4.6 8.3l2.2 2.2 4.6-4.8" stroke="#fff" stroke-width="1.6" fill="none"/></svg>';
+  else if (warn[v]) icon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><path d="M8 1.5 15 14H1Z" fill="#d47500"/><path d="M8 6v4M8 11.8v.1" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  else if (bad[v]) icon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#d13438"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#fff" stroke-width="1.6"/></svg>';
+  else icon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#8a8886"/><path d="M4.8 8h6.4" stroke="#fff" stroke-width="1.6"/></svg>';
+  return '<span class="az-st">' + icon + esc(v ? v.charAt(0).toUpperCase() + v.slice(1) : '') + '</span>';
+}
+function valText(key, v) { return key === 'net' ? (v ? 'Network ' + v : 'No network') : v; }
+function invRows(S, tab) {
+  var ix = idx(S);
+  if (tab === 'equipment') return S.eq.map(function (e) { var p = placeOf(S, e.id); return { _key: e.id, _id: e.id, _type: e.kind, _prop: !!S.proposed[e.id], name: e.name, kind: e.kind, role: e.role, net: e.net || '', site: nm(p.site), node: nm(p.node), rack: nm(p.rack), unit: e.unit, manufacturer: e.det.manufacturer, model: e.det.model, serial: e.det.serial, ip: e.det.ip, status: e.det.status }; });
+  if (tab === 'ports') {
+    var out = [];
+    S.eq.forEach(function (e) { var p = placeOf(S, e.id); endpoints(e).forEach(function (k) { var c = ix.cab[k], d = portDet(S, k); out.push({ _key: k, _id: e.id, _k: k, _type: 'port', _cable: c ? c.id : '', _prop: !!(c && S.proposed[c.id]), port: shortLabel(k), equipment: e.name, net: netOf(S, k) || '', type: d.type, connector: d.connector, speed: d.speed, state: d.state, cable: c ? c.id : '', far: c ? epLabel(farOf(c, k)) : '', site: nm(p.site) }); }); });
+    return out;
+  }
+  return S.cables.map(function (c) { return { _key: c.id, _id: parseEp(c.a).eq, _k: c.a, _type: 'cable', _cable: c.id, _prop: !!S.proposed[c.id], id: c.id, a: epLabel(c.a), b: epLabel(c.b), net: c.net || '', label: c.label, status: c.status }; });
+}
+function visibleCols(tab) { var hid = state.inv.hidden[tab] || {}; return INV_COLS[tab].filter(function (c, i) { return i === 0 || !hid[c[0]]; }); }
+function invFiltered(S) {
+  var inv = state.inv, rows = invRows(S, inv.tab), q = inv.q.trim().toLowerCase();
+  var keys = INV_COLS[inv.tab].map(function (c) { return c[0]; });
+  rows = rows.filter(function (r) {
+    for (var k in inv.f) { var vals = inv.f[k]; if (vals && vals.length && vals.indexOf(String(r[k])) < 0) return false; }
+    return !q || keys.some(function (k) { return String(valText(k, r[k])).toLowerCase().indexOf(q) >= 0; });
+  });
+  var s = inv.sort;
+  if (keys.indexOf(s.key) >= 0) rows.sort(function (a, b) { var x = a[s.key], y = b[s.key]; return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * s.dir; });
+  return rows;
+}
+function optsFor(S, key) { return invRows(S, state.inv.tab).map(function (r) { return String(r[key]); }).filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); }); }
+function azCell(r, c, i, tab) {
+  var v = r[c[0]];
+  if (i === 0) {
+    var icon = tab === 'equipment' ? AZI[r._type] : AZI[r._type];
+    var link = tab === 'equipment' ? '<button class="az-link" data-act="inspect" data-id="' + esc(r._id) + '">' + esc(v) + '</button>' : '<button class="az-link" data-act="open-ep" data-k="' + esc(r._k) + '">' + esc(v) + '</button>';
+    return '<span class="az-name">' + icon + link + (r._prop ? propTag(true) : '') + '</span>';
+  }
+  if (c[0] === 'net') return v ? '<span class="az-st"><i class="az-dot" style="background:' + NETC[v] + '"></i>Network ' + esc(v) + '</span>' : '<span class="az-dim">—</span>';
+  if (c[0] === 'status' || c[0] === 'state') return azStatus(v);
+  if (c[0] === 'equipment' && tab === 'ports') return '<button class="az-link" data-act="inspect" data-id="' + esc(r._id) + '">' + esc(v) + '</button>';
+  if (v === '' || v == null) return '<span class="az-dim">—</span>';
+  return esc(v);
+}
+function azRowMenu(r, tab, cur) {
+  var plan_ = inPlan(cur), items = [];
+  if (tab === 'equipment') {
+    items.push(['inspect', 'data-id="' + esc(r._id) + '"', AZI.info, 'Open details'], ['show-map', 'data-id="' + esc(r._id) + '"', AZI.map, 'Show on map'], ['show-phys', 'data-id="' + esc(r._id) + '"', AZI.rack, 'Show in Physical'], ['open-inv', 'data-id="' + esc(r._id) + '"', AZI.port, 'View its ports']);
+    if (plan_) items.push(['az-delete-one', 'data-id="' + esc(r._id) + '"', AZI.trash, 'Delete…']);
+  } else {
+    items.push(['open-ep', 'data-k="' + esc(r._k) + '"', AZI.rack, 'Show in Physical'], ['inspect', 'data-id="' + esc(r._id) + '"', AZI.info, 'Open equipment details']);
+    if (tab === 'ports' && state.ctx === 'installed') items.push(['az-editport-one', 'data-k="' + esc(r._k) + '"', AZI.edit, 'Edit port details']);
+    if (plan_ && r._cable) items.push(['az-disc-one', 'data-id="' + esc(r._cable) + '" data-k="' + esc(r._k) + '"', AZI.unlink, 'Disconnect…']);
+  }
+  return '<div class="az-rowmenu" role="menu">' + items.map(function (it) { return '<button role="menuitem" data-act="' + it[0] + '" ' + it[1] + '>' + it[2] + '<span>' + it[3] + '</span></button>'; }).join('') + '</div>';
+}
+function azPill(S, f) {
+  var inv = state.inv, vals = inv.f[f[0]] || [], open = inv.pop && inv.pop.key === f[0];
+  var txt = !vals.length ? 'all' : vals.length === 1 ? valText(f[0], vals[0]) : vals.length + ' selected';
+  var h = '<div class="az-pill-wrap"><button class="az-pill' + (vals.length ? ' on' : '') + '" data-act="az-pop" data-v="' + f[0] + '" aria-expanded="' + !!open + '">' + f[1] + ' <b>==</b> ' + esc(txt) + '</button>';
+  if (open) {
+    var opts = optsFor(S, f[0]), pend = inv.pop.vals;
+    h += '<div class="az-pop" role="dialog" aria-label="Filter ' + f[1] + '"><b class="az-pop-t">' + f[1] + '</b><div class="az-op"><span>Operator</span><span class="az-opv">==</span></div><span class="az-lbl">Value</span><div class="az-checks"><label><input type="checkbox" data-act="az-pop-all"' + (pend.length === opts.length ? ' checked' : '') + '> Select all</label>' +
+      opts.map(function (v) { return '<label><input type="checkbox" data-act="az-pop-toggle" data-v="' + esc(v) + '"' + (pend.indexOf(v) >= 0 ? ' checked' : '') + '> ' + esc(valText(f[0], v)) + '</label>'; }).join('') +
+      '</div><div class="row"><button class="az-btn primary" data-act="az-pop-apply">Apply</button><button class="az-btn" data-act="az-pop-cancel">Cancel</button></div></div>';
+  }
+  return h + '</div>';
+}
+function renderInventory(cur) {
+  var S = cur.S, inv = state.inv, tab = inv.tab, plan_ = inPlan(cur);
+  var rows = invFiltered(S), cols = visibleCols(tab);
+  var counts = { equipment: S.eq.length, ports: invRows(S, 'ports').length, cables: S.cables.length };
+  LAST_ROWS = {}; rows.forEach(function (r) { LAST_ROWS[r._key] = r; });
+  var selKeys = Object.keys(inv.sel).filter(function (k) { return inv.sel[k] && LAST_ROWS[k]; });
+  var one = selKeys.length === 1 ? LAST_ROWS[selKeys[0]] : null;
+  var h = '<div class="az">';
+  h += '<div class="az-crumb"><button class="az-link" data-act="view" data-v="physical">Net-Top</button><span aria-hidden="true">›</span><span>Inventory</span></div>';
+  h += '<div class="az-title"><h1>Inventory</h1><span class="az-sub">' + (state.ctx === 'planned' && cur.plan ? 'Plan · ' + esc(cur.plan.name) + ' · proposed objects are marked' : 'Installed') + '</span></div>';
+  h += '<div class="az-wrap"><nav class="az-menu" aria-label="Inventory lists"><h3>Lists</h3>' + [['equipment', 'Equipment', AZI.switch], ['ports', 'Ports and positions', AZI.port], ['cables', 'Cables', AZI.cable]].map(function (t) {
+    return '<button data-act="inv-tab" data-v="' + t[0] + '"' + (tab === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span><span class="num">' + counts[t[0]] + '</span></button>';
+  }).join('') + '<h3>Views</h3><button data-act="view" data-v="physical">' + AZI.rack + '<span>Physical explorer</span></button><button data-act="view" data-v="conceptual">' + AZI.map + '<span>Conceptual map</span></button></nav>';
+
+  var cmd = function (act, icon, label, enabled, extra) { return '<button data-act="' + act + '"' + (enabled === false ? ' disabled' : '') + (extra || '') + '>' + icon + '<span>' + label + '</span></button>'; };
+  h += '<section class="az-main"><div class="az-cmd" role="toolbar" aria-label="Commands">';
+  if (tab === 'equipment') h += cmd('az-add', AZI.plus, 'Add', plan_, plan_ ? '' : ' title="Open a plan to add equipment"');
+  h += cmd('az-refresh', AZI.refresh, 'Refresh') + cmd('az-pane', AZI.export, 'Export to CSV', true, ' data-v="csv"') + cmd('az-pane', AZI.columns, 'Edit columns', true, ' data-v="cols"') + '<span class="sepv" aria-hidden="true"></span>';
+  if (tab === 'equipment') h += cmd('az-open', AZI.info, 'Open details', !!one) + cmd('az-map', AZI.map, 'Show on map', !!one) + cmd('az-phys', AZI.rack, 'Show in Physical', !!one) + (plan_ ? cmd('az-delete', AZI.trash, 'Delete', !!one) : '');
+  else h += cmd('az-phys', AZI.rack, 'Show in Physical', !!one) + (tab === 'ports' && state.ctx === 'installed' ? cmd('az-editport', AZI.edit, 'Edit port details', !!one) : '') + (plan_ ? cmd('az-disc', AZI.unlink, 'Disconnect', !!(one && one._cable)) : '');
+  h += '</div>';
+
+  var anyFilter = inv.q || Object.keys(inv.f).some(function (k) { return inv.f[k] && inv.f[k].length; });
+  h += '<div class="az-filters"><label class="az-search" for="inv-q">' + AZI.search + '<span class="sr-only">Filter for any field</span><input id="inv-q" type="search" data-bind="inv.q" data-live value="' + esc(inv.q) + '" placeholder="Filter for any field..." autocomplete="off"></label>' +
+    INV_FILTERS[tab].map(function (f) { return azPill(S, f); }).join('') + (anyFilter ? '<button class="az-link" data-act="inv-clear">Reset filters</button>' : '') + '</div>';
+
+  var grouped = !!inv.group, pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  if (inv.page > pages) inv.page = pages;
+  var start = grouped ? 0 : (inv.page - 1) * PAGE, pageRows = grouped ? rows : rows.slice(start, start + PAGE);
+  LAST_PAGE_KEYS = pageRows.map(function (r) { return r._key; });
+  h += '<div class="az-meta"><span>' + (rows.length ? 'Showing ' + (start + 1) + ' to ' + (start + pageRows.length) + ' of ' + rows.length + ' records.' : 'No records.') + (selKeys.length ? ' <b>' + selKeys.length + ' selected.</b>' : '') + '</span><span style="flex:1"></span><label for="inv-group">Group by</label><select id="inv-group" data-bind="inv.group" data-live><option value="">No grouping</option>' +
+    INV_GROUPS[tab].map(function (g) { return '<option value="' + g[0] + '"' + (inv.group === g[0] ? ' selected' : '') + '>' + g[1] + '</option>'; }).join('') + '</select></div>';
+
+  var allSel = LAST_PAGE_KEYS.length && LAST_PAGE_KEYS.every(function (k) { return inv.sel[k]; });
+  h += '<div class="az-table-wrap"><table class="az-t"><thead><tr><th class="ck"><input type="checkbox" aria-label="Select all rows on this page" data-act="az-sel-all"' + (allSel ? ' checked' : '') + '></th>' +
+    cols.map(function (c) { var s = inv.sort.key === c[0]; return '<th aria-sort="' + (s ? (inv.sort.dir > 0 ? 'ascending' : 'descending') : 'none') + '"><button data-act="inv-sort" data-v="' + c[0] + '">' + c[1] + '<span class="sorti' + (s ? ' on' : '') + '" aria-hidden="true">' + (s ? (inv.sort.dir > 0 ? '↑' : '↓') : '↑↓') + '</span></button></th>'; }).join('') + '<th class="more"><span class="sr-only">More actions</span></th></tr></thead><tbody>';
+  var rowHtml = function (r) {
+    var sel = !!inv.sel[r._key];
+    return '<tr class="' + (sel ? 'sel' : '') + (r._prop ? ' prop' : '') + '"><td class="ck"><input type="checkbox" aria-label="Select ' + esc(r[cols[0][0]]) + '" data-act="az-sel" data-v="' + esc(r._key) + '"' + (sel ? ' checked' : '') + '></td>' +
+      cols.map(function (c, i) { return '<td>' + azCell(r, c, i, tab) + '</td>'; }).join('') +
+      '<td class="more"><button class="az-more" aria-label="More actions for ' + esc(r[cols[0][0]]) + '" aria-haspopup="menu" aria-expanded="' + (inv.menu === r._key) + '" data-act="az-menu" data-v="' + esc(r._key) + '">…</button>' + (inv.menu === r._key ? azRowMenu(r, tab, cur) : '') + '</td></tr>';
+  };
+  if (!pageRows.length) h += '<tr><td colspan="' + (cols.length + 2) + '" class="az-empty">No records match. Change the filters or <button class="az-link" data-act="inv-clear">reset them</button>.</td></tr>';
+  else if (grouped) {
+    var order = [], groups = {};
+    pageRows.forEach(function (r) { var g = String(r[inv.group]); if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(r); });
+    order.sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); });
+    order.forEach(function (g) {
+      var key = inv.group + ':' + g, closed = !!inv.collapsed[key];
+      h += '<tr class="grp-row"><td colspan="' + (cols.length + 2) + '"><button class="az-grp" data-act="az-collapse" data-v="' + esc(key) + '" aria-expanded="' + !closed + '"><span aria-hidden="true">' + (closed ? '›' : '⌄') + '</span>' + esc(valText(inv.group, g) || '(empty)') + ' <span class="az-dim">(' + groups[g].length + ')</span></button></td></tr>';
+      if (!closed) h += groups[g].map(rowHtml).join('');
+    });
+  } else h += pageRows.map(rowHtml).join('');
+  h += '</tbody></table></div>';
+  if (!grouped) h += '<div class="az-pager"><button class="az-btn" data-act="az-page" data-v="-1"' + (inv.page <= 1 ? ' disabled' : '') + '>‹ Previous</button><span>Page ' + inv.page + ' of ' + pages + '</span><button class="az-btn" data-act="az-page" data-v="1"' + (inv.page >= pages ? ' disabled' : '') + '>Next ›</button></div>';
+  h += '<p class="az-note">' + (grouped ? 'Grouped lists show every record. ' : '') + 'In the app the table renders only the rows on screen, so 10,000 rows stay responsive. Names open the inspector; the row menu opens the same object on the map and in Physical.</p></section></div>';
+
+  if (inv.pane) {
+    var title, body, foot;
+    if (inv.pane === 'csv') {
+      title = 'Export to CSV';
+      body = '<p>The file holds exactly the records and columns shown: <b>' + plural(rows.length, 'record') + '</b>, ' + plural(cols.length, 'column') + ', with the current filters, search and sort.</p><div class="az-field"><span class="az-lbl">File name</span><span class="mono">inventory-' + tab + '-2026-10-10.csv</span></div><label class="az-field" for="csv-text"><span class="az-lbl">Preview</span><textarea id="csv-text" class="csv" readonly>' + esc(toCsv(rows, cols)) + '</textarea></label><p class="az-dim">In the app, Download saves the file. In this demo you can copy it.</p>';
+      foot = '<button class="az-btn primary" data-act="csv-copy">Copy CSV</button><button class="az-btn" data-act="az-pane-close">Close</button>';
+    } else {
+      title = 'Edit columns';
+      body = '<p>Choose the columns for ' + esc(tab) + '. The first column is always shown. The CSV export follows this choice.</p><div class="az-checks big">' + INV_COLS[tab].map(function (c, i) { var on = i === 0 || !(inv.hidden[tab] || {})[c[0]]; return '<label><input type="checkbox" data-act="az-col-toggle" data-v="' + c[0] + '"' + (on ? ' checked' : '') + (i === 0 ? ' disabled' : '') + '> ' + c[1] + '</label>'; }).join('') + '</div>';
+      foot = '<button class="az-btn primary" data-act="az-pane-close">Done</button>';
+    }
+    h += '<div class="az-scrim" data-act="az-pane-close"></div><aside class="az-pane" role="dialog" aria-label="' + title + '"><div class="az-pane-h"><h2>' + title + '</h2><button class="x" aria-label="Close" data-act="az-pane-close">×</button></div><div class="az-pane-b">' + body + '</div><div class="az-pane-f">' + foot + '</div></aside>';
+  }
+  return h + '</div>';
+}
+function csvCell(v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function toCsv(rows, cols) { return [cols.map(function (c) { return csvCell(c[1]); }).join(',')].concat(rows.map(function (r) { return cols.map(function (c) { return csvCell(c[0] === 'net' ? valText('net', r.net) : r[c[0]]); }).join(','); })).join('\n'); }
+function selectedRow() { var inv = state.inv, ks = Object.keys(inv.sel).filter(function (k) { return inv.sel[k] && LAST_ROWS[k]; }); return ks.length === 1 ? LAST_ROWS[ks[0]] : null; }
+function invAct(name, fn) { ACT[name] = fn; }
+function installInventoryActions() {
+  invAct('inv-tab', function (d) { var hidden = state.inv.hidden; state.inv = invDefault(); state.inv.hidden = hidden; state.inv.tab = d.v; state.inv.sort = { key: INV_COLS[d.v][0][0], dir: 1 }; });
+  invAct('inv-sort', function (d) { var s = state.inv.sort; if (s.key === d.v) s.dir = -s.dir; else { s.key = d.v; s.dir = 1; } });
+  invAct('inv-clear', function () { state.inv.f = {}; state.inv.q = ''; state.inv.page = 1; });
+  invAct('az-pop', function (d) { var inv = state.inv; if (inv.pop && inv.pop.key === d.v) { inv.pop = null; return; } var cur = inv.f[d.v] || []; inv.pop = { key: d.v, vals: cur.length ? cur.slice() : optsFor(current().S, d.v) }; inv.menu = null; });
+  invAct('az-pop-toggle', function (d) { var p = state.inv.pop, i = p.vals.indexOf(d.v); if (i >= 0) p.vals.splice(i, 1); else p.vals.push(d.v); });
+  invAct('az-pop-all', function () { var p = state.inv.pop, opts = optsFor(current().S, p.key); p.vals = p.vals.length === opts.length ? [] : opts; });
+  invAct('az-pop-apply', function () { var inv = state.inv, p = inv.pop, opts = optsFor(current().S, p.key); inv.f[p.key] = p.vals.length === 0 || p.vals.length === opts.length ? [] : p.vals.slice(); inv.pop = null; inv.page = 1; });
+  invAct('az-pop-cancel', function () { state.inv.pop = null; });
+  invAct('az-sel', function (d) { state.inv.sel[d.v] = !state.inv.sel[d.v]; });
+  invAct('az-sel-all', function () { var inv = state.inv, all = LAST_PAGE_KEYS.length && LAST_PAGE_KEYS.every(function (k) { return inv.sel[k]; }); LAST_PAGE_KEYS.forEach(function (k) { inv.sel[k] = !all; }); });
+  invAct('az-menu', function (d) { state.inv.menu = state.inv.menu === d.v ? null : d.v; state.inv.pop = null; });
+  invAct('az-page', function (d) { state.inv.page += +d.v; });
+  invAct('az-collapse', function (d) { state.inv.collapsed[d.v] = !state.inv.collapsed[d.v]; });
+  invAct('az-refresh', function () { toast('Refreshed · ' + (state.ctx === 'installed' ? 'Installed' : 'Plan') + ' as of ' + clock()); });
+  invAct('az-pane', function (d) { state.inv.pane = d.v; state.inv.menu = null; state.inv.pop = null; });
+  invAct('az-pane-close', function () { state.inv.pane = null; });
+  invAct('az-col-toggle', function (d) { var h = state.inv.hidden[state.inv.tab] = state.inv.hidden[state.inv.tab] || {}; h[d.v] = !h[d.v]; });
+  invAct('az-add', function () { state.left = 'library'; });
+  invAct('az-open', function () { var r = selectedRow(); if (r) ACT.inspect({ id: r._id }); });
+  invAct('az-map', function () { var r = selectedRow(); if (r) ACT['show-map']({ id: r._id }); });
+  invAct('az-phys', function () { var r = selectedRow(); if (!r) return; if (r._k) ACT['open-ep']({ k: r._k }); else ACT['show-phys']({ id: r._id }); });
+  invAct('az-delete', function () { var r = selectedRow(); if (r) ACT['az-delete-one']({ id: r._id }); });
+  invAct('az-delete-one', function (d) { ACT.inspect({ id: d.id }); state.confirm = { kind: 'del-eq', id: d.id, where: 'insp' }; state.inv.menu = null; });
+  invAct('az-editport', function () { var r = selectedRow(); if (r) ACT['az-editport-one']({ k: r._k }); });
+  invAct('az-editport-one', function (d) { ACT['open-ep']({ k: d.k }); ACT['port-edit']({ k: d.k }); state.inv.menu = null; });
+  invAct('az-disc', function () { var r = selectedRow(); if (r && r._cable) ACT['az-disc-one']({ id: r._cable, k: r._k }); });
+  invAct('az-disc-one', function (d) { ACT['open-ep']({ k: d.k }); state.confirm = { kind: 'disc', id: d.id, where: 'detail' }; state.inv.menu = null; });
+  invAct('open-inv', function (d) { var name = nm(d.id), hidden = state.inv.hidden; state.view = 'inventory'; state.inv = invDefault(); state.inv.hidden = hidden; state.inv.tab = 'ports'; state.inv.sort = { key: 'port', dir: 1 }; state.inv.f = { equipment: [name] }; state.insp = null; state.drawer = null; });
+}
+
+/* ---------- Conceptual (stand-in) ---------- */
+function renderConceptual(cur) {
+  var S = cur.S;
+  var col = function (title, list) { return '<div class="conc-col"><h3>' + title + '</h3>' + list.map(function (e) { var muted = state.net !== 'all' && e.net && e.net !== state.net; return '<button class="conc-card' + (S.proposed[e.id] ? ' proposed' : '') + (state.insp === e.id ? ' sel' : '') + (muted ? ' muted' : '') + '" data-act="inspect" data-id="' + e.id + '"><span class="eyebrow">' + (e.kind === 'hdf' ? 'HDF' : e.role) + ' ' + propTag(S.proposed[e.id]) + '</span><b>' + esc(e.name) + '</b><span class="row">' + (e.net ? netBadge(e.net) : '<span class="hint">passive</span>') + '</span></button>'; }).join('') + '</div>'; };
+  return planBanner(cur) + '<p class="hint" style="margin:0 0 14px">Stand-in for the conceptual map, which M5 does not change. Click a card to open the inspector, where editing happens (Delete…, Disconnect, Edit details, History, Open in inventory).</p><div class="conc-cols">' +
+    col('Access', S.eq.filter(function (e) { return e.role === 'ACCESS'; })) + col('Passive', S.eq.filter(function (e) { return e.role === 'PASSIVE'; })) + col('Aggregation and backbone', S.eq.filter(function (e) { return e.role === 'AGG' || e.role === 'BB'; })) + '</div>';
+}
+
+/* ---------- Main render ---------- */
+function render() {
+  var ae = document.activeElement, focusId = ae && ae.id, selStart = null;
+  try { selStart = ae && ae.selectionStart; } catch (err) { selStart = null; }
+  if (state.ctx === 'planned' && !plan()) { var ds = drafts(); if (ds.length) state.planId = ds[0].id; else state.ctx = 'installed'; }
+  var cur = current();
+  var main = '';
+  if (state.ctx === 'planned' && cur.stale) main = staleCard(cur);
+  else if (state.view === 'physical') main = renderPhysical(cur);
+  else if (state.view === 'inventory') main = renderInventory(cur);
+  else main = renderConceptual(cur);
+  var right = state.drawer === 'changes' ? renderChanges(cur) : (state.insp ? renderInspector(cur) : '');
+  var html = renderHeader(cur) + renderStrip() + '<div class="body"><nav class="rail" aria-label="Workspace tools"><button aria-expanded="' + (state.left === 'library') + '" data-act="left" data-v="library">' + ICON.plus + '<span>Library</span></button></nav>' +
+    (state.left === 'library' ? renderLibrary(cur) : '') + '<main' + (state.view === 'inventory' && !cur.stale ? ' class="flush"' : '') + '>' + main + '</main>' + right + '</div>' + (state.toast ? '<div class="toast" role="status">✓ ' + esc(state.toast) + '</div>' : '');
+  document.getElementById('app').innerHTML = html;
+  if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus(); try { if (selStart != null && el.setSelectionRange) el.setSelectionRange(selStart, selStart); } catch (err) { /* number inputs */ } } }
+}
+function toast(msg) { state.toast = msg; clearTimeout(toastTimer); toastTimer = setTimeout(function () { state.toast = ''; render(); }, 4200); }
+
+/* ---------- Actions ---------- */
+function setPath(path, val) { var parts = path.split('.'), o = state; for (var i = 0; i < parts.length - 1; i++) { if (o[parts[i]] == null) o[parts[i]] = {}; o = o[parts[i]]; } o[parts[parts.length - 1]] = val; }
+var ACT = {
+  view: function (d) { state.view = d.v; state.csv = false; },
+  net: function (d) { state.net = d.v; },
+  ctx: function (d) {
+    if (d.v === 'planned' && !drafts().length) { state.drawer = 'changes'; state.newDraft = { name: '' }; return; }
+    state.ctx = d.v; state.confirm = null; state.connect = null; state.form = null; state.review = false;
+  },
+  drawer: function (d) { state.drawer = state.drawer === d.v ? null : d.v; if (state.drawer) state.insp = null; state.review = false; },
+  left: function (d) { state.left = state.left === d.v ? null : d.v; if (!state.left && state.form && state.form.kind === 'hdf') state.form = null; },
+  back: function () { if (state.hist.length) { state.loc = state.hist.pop(); state.confirm = null; state.connect = null; } },
+  go: function (d) { go(JSON.parse(d.loc)); },
+  'go-rack': function (d) { var S = current().S, r = find(S.racks, d.id); if (!r) return; var n = find(S.nodes, r.nodeId); go({ level: 'rack', site: n.siteId, node: n.id, rack: r.id }); },
+  'open-eq': function (d) { openEq(current().S, d.id); state.side = 'front'; },
+  'open-ep': function (d) { var S = current().S, p = parseEp(d.k); if (!find(S.eq, p.eq)) return; openEq(S, p.eq, d.k); },
+  side: function (d) { state.side = d.v; var L = state.loc; if (L.ep && parseEp(L.ep).side) { var want = d.v === 'rear' ? 'r' : 'f'; if (parseEp(L.ep).side !== want) L.ep = mirror(L.ep); } },
+  inspect: function (d) { state.insp = d.id; state.drawer = null; state.inspTab = 'overview'; state.form = null; state.confirm = null; },
+  'insp-close': function () { state.insp = null; state.form = null; state.confirm = null; },
+  'insp-tab': function (d) { state.inspTab = d.v; state.form = null; },
+  'show-phys': function (d) { var S = current().S; if (find(S.eq, d.id)) openEq(S, d.id); },
+  'show-map': function (d) { state.view = 'conceptual'; state.insp = d.id; state.drawer = null; state.inspTab = 'overview'; },
+  'open-inv': function (d) { state.view = 'inventory'; state.inv.tab = 'ports'; state.inv.f = { eq: d.id }; state.inv.q = ''; state.csv = false; },
+  'confirm-cancel': function () { state.confirm = null; },
+  'del-eq-ask': function (d) { state.confirm = { kind: 'del-eq', id: d.id, where: d.where }; },
+  'del-eq-do': function (d) { var cur = current(); var msg = planDeleteEq(d.id, cur.S); state.confirm = null; if (state.insp === d.id) state.insp = null; toast(msg); },
+  'disc-ask': function (d) { state.confirm = { kind: 'disc', id: d.id, where: d.where }; },
+  'disc-do': function (d) { var msg = planDisconnect(d.id, current().S); state.confirm = null; toast(msg); },
+  'connect-open': function (d) { state.connect = { k: d.k, q: '', pick: null }; },
+  'connect-pick': function (d) { state.connect.pick = d.k; state.connect.err = ''; },
+  'connect-cancel': function () { state.connect = null; },
+  'connect-do': function () {
+    var cn = state.connect, S = current().S; if (!cn || !cn.pick) return;
+    var id = 'C-' + (++seq), net = netOf(S, cn.k) || netOf(S, cn.pick) || (function () { var x = walk(S, cn.k) || walk(S, cn.pick); return x ? eqOf(S, x).net : null; })();
+    var err = tryAdd({ t: 'add_cable', c: { id: id, a: cn.k, b: cn.pick, net: net, label: '', status: 'active' } });
+    if (err) { cn.err = err; return; }
+    state.connect = null; toast('Cable ' + id + ' connects ' + epLabel(cn.k) + ' to ' + epLabel(cn.pick) + ' in this plan');
+  },
+  'add-form': function (d) { state.form = { kind: 'add-' + d.kind, parent: d.parent, name: '', units: '42', error: '' }; state.confirm = null; },
+  'form-cancel': function () { state.form = null; },
+  'add-do': function () {
+    var f = state.form, name = (f.name || '').trim(), kind = f.kind.slice(4), id = kind + '-' + (++seq), ch;
+    if (!name || name.length > 100) { f.error = 'Enter a name of 1–100 characters.'; return; }
+    if (kind === 'site') ch = { t: 'add_site', site: { id: id, name: name } };
+    else if (kind === 'node') ch = { t: 'add_node', node: { id: id, name: name, siteId: f.parent } };
+    else { var u = parseInt(f.units, 10); if (!(u >= 1 && u <= 60)) { f.error = 'A rack has 1–60 units.'; return; } ch = { t: 'add_rack', r: { id: id, name: name, nodeId: f.parent, units: u } }; }
+    var err = tryAdd(ch); if (err) { f.error = err; return; }
+    reg(id, name); state.form = null; toast(name + ' is added to the plan');
+  },
+  'del-container-ask': function (d) { state.confirm = { kind: 'del-container', id: d.id }; },
+  'del-container-do': function (d) { var msg = planDeleteContainer(d.kind, d.id); state.confirm = null; toast(msg.charAt(0) === '!' ? msg.slice(1) : msg); },
+  'hdf-form': function () { var S = current().S, L = state.loc; state.form = { kind: 'hdf', name: 'HDF-03', rows: '4', h: '3', rack: L.rack || 'sm01', unit: '1', error: '' }; },
+  'hdf-do': function () {
+    var f = state.form, rows = parseInt(f.rows, 10), h = parseInt(f.h, 10), unit = parseInt(f.unit, 10), name = (f.name || '').trim();
+    if (!name) { f.error = 'Enter a name.'; return; }
+    if (!(rows >= 1 && rows <= 32)) { f.error = 'An HDF has 1–32 rows.'; return; }
+    if (!(h >= 1 && h <= 12)) { f.error = 'Height must be 1–12 units.'; return; }
+    var id = 'hdf-' + (++seq);
+    var err = tryAdd({ t: 'add_eq', eq: { id: id, name: name, kind: 'hdf', role: 'PASSIVE', rack: f.rack, unit: unit, h: h, rows: rows, det: det('', '', '', '') } });
+    if (err) { f.error = err; return; }
+    reg(id, name); state.form = null; state.left = null;
+    var S = current().S; openEq(S, id); toast(name + ' (' + rows + ' rows, ' + rows * 24 + ' positions per side) is added to ' + nm(f.rack) + ' in this plan');
+  },
+  review: function () { state.review = true; state.note = ''; state.noteErr = ''; },
+  'review-cancel': function () { state.review = false; },
+  'record-do': function () {
+    var p = plan(), note = (state.note || '').trim();
+    if (!note) { state.noteErr = 'Add a note: what was done, and by whom if useful.'; return; }
+    if (note.length > 500) { state.noteErr = 'Keep the note under 500 characters.'; return; }
+    if (isStale(p)) { state.noteErr = 'Installed changed since this draft; update the draft first.'; return; }
+    var r = applyChanges(installed, p.changes); if (r.conflicts.length) { state.noteErr = r.conflicts[0].reason; return; }
+    var lines = p.changes.map(function (ch) { var d = describe(ch); return d.g + ' · ' + d.text; });
+    var touched = []; p.changes.forEach(function (ch) { if (ch.eq) touched.push(ch.eq.id || ch.eq); if (ch.c) { touched.push(parseEp(ch.c.a).eq, parseEp(ch.c.b).eq); } if (ch.eqs) touched = touched.concat(ch.eqs); });
+    var S = r.S; delete S.proposed; delete S.moved; S.rev = installed.rev + 1; installed = S;
+    p.status = 'recorded';
+    recorded.push({ id: p.id, name: p.name, recordedAt: clock(), note: note, lines: lines, touched: touched });
+    var n = p.changes.length;
+    state.review = false; state.note = ''; state.ctx = 'installed'; state.confirm = null; state.connect = null; state.form = null;
+    var others = drafts().length;
+    toast('Recorded ' + plural(n, 'change') + ' from “' + p.name + '”. Installed is updated' + (others ? '; ' + plural(others, 'other draft') + ' now need' + (others === 1 ? 's' : '') + ' Update draft' : '') + '.');
+  },
+  rebase: function () {
+    var p = plan(); if (!p) return;
+    var r = applyChanges(installed, p.changes);
+    if (r.conflicts.length) { state.checked[p.id] = true; state.drawer = 'changes'; state.insp = null; toast(plural(r.conflicts.length, 'change') + ' no longer fit' + (r.conflicts.length === 1 ? 's' : '') + '. The draft is unchanged.'); return; }
+    p.base = installed.rev; delete state.checked[p.id]; toast('“' + p.name + '” now sits on the current Installed; all ' + plural(p.changes.length, 'change') + ' still fit.');
+  },
+  'drop-change': function (d) { var p = plan(); p.changes.splice(+d.i, 1); },
+  'undo-change': function (d) { var p = plan(); var ch = p.changes.splice(+d.i, 1)[0]; var extra = settle(p); toast('Undid: ' + describe(ch).text + (extra ? ' (and ' + plural(extra, 'change') + ' that depended on it)' : '')); },
+  'open-plan': function (d) { state.planId = d.id; state.ctx = 'planned'; state.review = false; },
+  'new-draft': function () { state.newDraft = { name: '' }; },
+  'new-draft-cancel': function () { state.newDraft = null; },
+  'new-draft-do': function () {
+    var nd = state.newDraft, name = (nd.name || '').trim();
+    if (!name) { nd.error = 'Enter a name.'; return; }
+    var id = 'plan-' + (++seq); plans.push({ id: id, name: name, base: installed.rev, status: 'draft', changes: [] });
+    state.newDraft = null; state.planId = id; state.ctx = 'planned'; toast('Draft “' + name + '” created');
+  },
+  'toggle-recorded': function (d) { state.openRecorded = state.openRecorded === d.id ? null : d.id; },
+  'details-edit': function (d) { var e = find(current().S.eq, d.id); state.form = Object.assign({ kind: 'details', id: e.id, name: e.name, note: '', error: '' }, clone(e.det)); },
+  'details-save': function () {
+    var f = state.form, S = current().S, e = find(S.eq, f.id), name = (f.name || '').trim();
+    if (!name) { f.error = 'A name is required.'; return; }
+    var serial = (f.serial || '').trim();
+    var all = installed.eq.concat(state.ctx === 'planned' && plan() ? plan().changes.filter(function (c) { return c.t === 'add_eq'; }).map(function (c) { return c.eq; }) : []);
+    var dup = serial && all.find(function (x) { return x.id !== e.id && x.det.serial === serial; });
+    if (dup) { f.error = 'Serial ' + serial + ' is already used by ' + dup.name + '.'; return; }
+    var nameDup = all.find(function (x) { return x.id !== e.id && sameName(x.name, name); });
+    if (nameDup) { f.error = 'Another equipment is named ' + nameDup.name + '.'; return; }
+    if (f.ip && !/^\d{1,3}(\.\d{1,3}){3}$/.test(f.ip.trim())) { f.error = 'Enter an IPv4 address such as 10.10.0.3, or leave it empty.'; return; }
+    var fields = [['name', 'Name'], ['manufacturer', 'Manufacturer'], ['model', 'Model'], ['serial', 'Serial number'], ['ip', 'IP address'], ['status', 'Status'], ['description', 'Description']];
+    if (state.ctx === 'installed') {
+      var target = find(installed.eq, e.id), n = 0, stamp = clock();
+      fields.forEach(function (fl) {
+        var old = fl[0] === 'name' ? target.name : target.det[fl[0]], now = (f[fl[0]] || '').trim();
+        if (old !== now) { n++; changeLog.push({ at: stamp, eq: e.id, target: target.name, field: fl[1], old: old, now: now, note: (f.note || '').trim() }); if (fl[0] === 'name') target.name = now; else target.det[fl[0]] = now; }
+      });
+      reg(e.id, target.name); state.form = null;
+      toast(n ? 'Saved ' + plural(n, 'fix', 'fixes') + ' to ' + target.name + '. Topology unchanged; drafts stay valid.' : 'Nothing changed');
+    } else {
+      var ch = plan().changes.find(function (c) { return c.t === 'add_eq' && c.eq.id === e.id; });
+      ch.eq.name = name; fields.forEach(function (fl) { if (fl[0] !== 'name') ch.eq.det[fl[0]] = (f[fl[0]] || '').trim(); });
+      reg(e.id, name); state.form = null; toast('Details of the proposed ' + name + ' are saved in the plan');
+    }
+  },
+  'port-edit': function (d) { var S = current().S, pd = portDet(S, d.k); state.form = { kind: 'port', k: d.k, state: pd.state, speed: pd.speed, description: pd.description, note: '' }; },
+  'port-save': function () {
+    var f = state.form, k = f.k, S = installed, pd = portDet(S, k), stamp = clock(), n = 0, e = eqOf(S, k);
+    [['state', 'Port state'], ['speed', 'Speed'], ['description', 'Description']].forEach(function (fl) {
+      var now = (f[fl[0]] || '').trim(); if (pd[fl[0]] !== now) { n++; changeLog.push({ at: stamp, eq: e.id, target: epLabel(k).replace(' · ', ' '), field: fl[1], old: pd[fl[0]], now: now, note: (f.note || '').trim() }); S.ports[k] = Object.assign({}, S.ports[k] || {}); S.ports[k][fl[0]] = now; }
+    });
+    state.form = null; toast(n ? 'Saved ' + plural(n, 'fix', 'fixes') + ' to ' + epLabel(k) + '. Traces are unchanged.' : 'Nothing changed');
+  },
+  'inv-tab': function (d) { state.inv.tab = d.v; state.inv.f = {}; state.inv.sort = { key: INV_COLS[d.v][0][0], dir: 1 }; state.csv = false; },
+  'inv-sort': function (d) { var s = state.inv.sort; if (s.key === d.v) s.dir = -s.dir; else { s.key = d.v; s.dir = 1; } },
+  'inv-clear-eq': function () { delete state.inv.f.eq; },
+  'inv-clear': function () { state.inv.f = {}; state.inv.q = ''; },
+  csv: function () { state.csv = !state.csv; },
+  'csv-copy': function () {
+    var ta = document.getElementById('csv-text'); if (!ta) return;
+    var done = function () { toast('CSV copied'); render(); };
+    try { navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); toast('Select-all done: press Ctrl+C or ⌘C'); render(); }); } catch (err) { ta.select(); }
+    return 'async';
+  },
+  simulate: function () {
+    if (simulated) return;
+    var cables = installed.cables.filter(function (c) { return parseEp(c.a).eq === 'panel-a' || parseEp(c.b).eq === 'panel-a'; });
+    installed = clone(installed);
+    installed.eq = installed.eq.filter(function (e) { return e.id !== 'panel-a'; });
+    installed.cables = installed.cables.filter(function (c) { return cables.every(function (x) { return x.id !== c.id; }); });
+    installed.rev += 1; simulated = true;
+    recorded.push({ id: 'retire-panel-a', name: 'Retire PANEL-A', recordedAt: clock(), note: 'PANEL-A removed during the A03 refit (recorded by a colleague)', lines: ['Removed · PANEL-A with ' + plural(cables.length, 'cable')], touched: ['panel-a', 'edge-17', 'hdf-01'] });
+    toast('A colleague recorded “Retire PANEL-A”. Your drafts are now behind Installed.');
+  },
+  reset: function () { reset(); toast('Demo reset'); },
+  tour: function (d) {
+    var keep = state.toast; var t = d.v;
+    var toPlan = function (id) { var p = plans.find(function (x) { return x.id === id && x.status === 'draft'; }); if (!p) { reset(); } state.ctx = 'planned'; state.planId = id; state.drawer = null; state.left = null; state.insp = null; state.form = null; state.confirm = null; state.connect = null; state.review = false; };
+    if (t === '1') { if (simulated) reset(); toPlan('expansion'); state.view = 'physical'; openEq(current().S, 'panel-a'); state.confirm = { kind: 'del-eq', id: 'panel-a', where: 'page' }; }
+    if (t === '2') { if (simulated) reset(); toPlan('expansion'); state.view = 'physical'; openEq(current().S, 'edge-17', 'edge-17:2'); }
+    if (t === '3') { toPlan('dr-refresh'); if (isStale(plan())) { reset(); toPlan('dr-refresh'); } state.view = 'physical'; state.loc = { level: 'sites' }; state.hist = []; }
+    if (t === '4') { if (simulated) reset(); toPlan('expansion'); state.view = 'physical'; var S = current().S; openEq(S, 'hdf-01'); state.loc = { level: 'rack', site: 'main', node: 'north', rack: 'sm01' }; state.left = 'library'; ACT['hdf-form'](); state.form.unit = '8'; }
+    if (t === '5') { if (simulated) reset(); toPlan('expansion'); state.view = 'physical'; state.drawer = 'changes'; }
+    if (t === '6') { if (!plans.find(function (x) { return x.id === 'expansion' && x.status === 'draft'; })) reset(); if (!simulated) ACT.simulate(); toPlan('expansion'); state.drawer = 'changes'; }
+    if (t === '7') { state.ctx = 'installed'; state.view = 'conceptual'; state.insp = 'agg-03'; state.inspTab = 'history'; state.drawer = null; state.form = null; }
+    if (t === '8') { state.view = 'inventory'; state.inv = invDefault(); state.insp = null; state.drawer = null; }
+    if (keep && t !== '6') state.toast = keep;
+  }
+};
+document.addEventListener('click', function (ev) {
+  var inv = state.inv, closed = false;
+  if ((inv.menu || inv.pop) && !ev.target.closest('.az-pop,.az-rowmenu,[data-act="az-pop"],[data-act="az-menu"]')) { inv.menu = null; inv.pop = null; closed = true; }
+  var el = ev.target.closest('[data-act]'); if (!el || el.disabled) { if (closed) render(); return; }
+  var fn = ACT[el.dataset.act]; if (!fn) return;
+  ev.preventDefault();
+  if (fn(el.dataset) !== 'async') render();
+});
+document.addEventListener('submit', function (ev) { ev.preventDefault(); var fn = ACT[ev.target.dataset.submit]; if (fn) { fn({}); render(); } });
+document.addEventListener('input', function (ev) { var el = ev.target; if (!el.dataset || !el.dataset.bind) return; setPath(el.dataset.bind, el.value); if (el.dataset.live !== undefined) render(); });
+document.addEventListener('change', function (ev) {
+  var el = ev.target;
+  if (el.dataset && el.dataset.change === 'plan') { state.planId = el.value; state.review = false; state.confirm = null; state.connect = null; state.form = null; render(); }
+});
+installInventoryActions();
+reset();
+state.view = 'physical';
+render();
+</script>

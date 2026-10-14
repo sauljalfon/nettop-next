@@ -86,7 +86,7 @@ Result fields (all modes return `context`, `revision` (the revision that was tra
 
 Source network: a device or device-port start uses the device's network. A panel or HDF start uses the network of the access device on the same circuit, in either direction; with no access device (or access devices on different networks) it is unresolved, every reached destination is a route with its own network, and the outcome is `unresolved_network`. A circuit with no external cable at all is `disconnected`. Rack, node, site, and HDF subpanel/position/side are resolved by the client from the snapshot it loads; the response carries stable IDs only. See `api/openapi.yaml` for the schemas.
 
-Baseline errors: malformed request/context 400; missing plan, site or network 404; duplicate network name 409; revision conflict 409; invalid domain operation 422; persistence failure 500; unhealthy database 503. An unreachable valid physical trace is a result, not a fabricated missing-endpoint error. A stored plan whose overlay fails validation is refused, but currently surfaces as 500 (see [current-status.md](current-status.md)).
+Baseline errors: malformed request/context 400; missing plan, site or network 404; duplicate network name 409; revision conflict 409; invalid domain operation 422; persistence failure 500; unhealthy database 503. An unreachable valid physical trace is a result, not a fabricated missing-endpoint error. A stored plan whose overlay fails validation is refused, but currently surfaces as 500 (see [status.md](status.md)).
 
 ## 3. Schema facts and migration risks
 
@@ -119,7 +119,7 @@ The chosen design is an explicit subpanel entity with position and side kept on 
 
 ## 4. Contract items: resolved and still open
 
-Resolved in M1, M2 and M4 (see §2, §3, and [current-status.md](current-status.md) for the exact behavior):
+Resolved in M1, M2 and M4 (see §2, §3, and [status.md](status.md) for the exact behavior):
 
 | Item | Resolution |
 | --- | --- |

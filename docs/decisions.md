@@ -1,0 +1,81 @@
+# Decisions
+
+Every decision that still binds, in one place, each with its date. Code, tests and other docs refer to them by number ("locked 6", "D20"). A decision changes only when the owner approves; the change is written here with its date, and superseded text is marked, not silently replaced. The reasoning behind the early design (D01–D14) is kept at the end.
+
+## Locked decisions
+
+Set at the end of the design review (2026-10-03). Do not reopen without the owner.
+
+1. **Two views of the same network:** Conceptual and Physical. Network selection and Installed/Plan context are independent controls.
+   *Amended 2026-10-08:* an **Inventory** table is a third header choice next to Conceptual and Physical. It lists the same inventory (equipment, ports, cables) with filters and CSV export; it is not a third drawing of the network. The network selector and Installed/Plan apply to all three.
+2. **Conceptual is a connected equipment map:** actual cable links, free arrangement, small location labels, optional light grouping. It is not a nested inventory tree, a concept-only ownership graph, or a separate linear trace strip.
+3. **Tracing highlights that same map:** equipment positions, viewport and surrounding context are kept; missing or relevant detail is revealed, never a replacement layout.
+   *Amended 2026-10-06 (2 and 3):* an opt-in **route view** (a toggle in the results overlay) shows only the active route left to right with node and rack outlines, and exports it as PNG or PDF. It is session-only, never changes the full map, and turning it off restores the map exactly. Tracing on the map itself still highlights in place.
+4. **Physical uses the useful legacy navigation:** sites → site → node (owned rack previews) → rack elevation → equipment → exact ports, with breadcrumbs and direct links that keep the selected trace.
+   *Amended 2026-10-06:* inside a site, Physical shows only the site's **node cards**, arranged freely by drag, with positions **saved on the server** (shared, kept across reloads; a presentation table, never topology or plans), joined by **cable summary lines** (one line per node pair, counted from real cable records). Not a floor plan; the lines never feed traversal. The Sites level stays a card grid.
+5. **One network per active device:** devices have explicit membership. Passive panels, HDF chassis and subpanels can carry several networks through different positions.
+6. **Exact passive continuity:** unordered external cables plus front/rear continuity only at the same subpanel/local position. No implicit cross-position or cross-subpanel connection and no sibling switch-port transit. *Since 2026-10-11:* a port's state (reserved, disabled, faulty) and every detail field are data and never change a trace.
+7. **AGG and BB are both terminal destinations:** keep actual roles, show both kinds of reachable route, AGG listed first. Finding an AGG never suppresses a BB route from another starting port. Never continue from AGG to BB through active equipment.
+8. **HDF design:** four columns A–D, variable rows (1–32, set by the user), six local positions per row/column subpanel, two side endpoints per position. The HDF parent is kept on the map.
+9. **HDF presentation:** compact overview; a selected trace reveals only its positions automatically; manual expansion reveals other positions; Physical shows the full grid. Automatic and manual expansion are separate state.
+10. **Plans are proposals:** installed topology, plan overlays and layout coordinates are separate. Recording a plan as installed is an explicit action with a note, never a side effect of saving; approval is not evidence of installation.
+11. **Scale through focus and summaries:** scoped data, actual-cable bundles, search, selective endpoint detail. Backend tracing is never limited to what the canvas shows.
+    *Amended 2026-10-06:* the location focus and boundary summaries were replaced by the **node/site highlight**; bounded neighbourhoods and scoped data move to M6 with measured budgets (see [roadmap.md](roadmap.md)).
+
+Roles: `access`, `aggregation`, `backbone` (shown as BB) for switches, `passive` for panels and HDFs. Names such as AGG-03 are display names; roles are never inferred from names.
+
+## Decisions since the design review
+
+| # | Date | Decision |
+| --- | --- | --- |
+| D15 | 2026-10-03 | **First slice and data.** Read, trace and inspect first; development uses clearly labeled fictional fixtures (the acceptance example, later the generated campus); HDF rows and rack height are entered by the user. |
+| D16 | 2026-10-08 | **No legacy import.** Production starts empty and the real network is entered through the app. *2026-10-10:* entered **by hand with bulk tools** (Connect a range, Duplicate, Copy rack layout), in batches of one draft per building or node, recorded once physically confirmed. A spreadsheet import may come later through the same draft and record path, only if the network is much larger than a few thousand cables. |
+| D17 | 2026-10-08 | **Two edit paths.** Physical changes (add, move, connect, disconnect, delete, new containers) go only through a plan and **Record as installed**. Corrections that change no topology (names, detail fields, port state, cable label) are **direct fixes** on installed data: each changed field is written to the change log, the topology revision never moves, and drafts stay valid. |
+| D18 | 2026-10-08 | **Deleting equipment** in a plan lists the cables that go with it and the circuits they cut, asks to confirm, and removes them together. A rack, node or site can be removed only when empty. |
+| D19 | 2026-10-08/10 | **Stale drafts are explicit.** A draft behind Installed shows "Installed changed since this draft" and **Update draft**, which moves it or lists every conflict; nothing is half-applied or automatic. **Drop** and **Undo** remove one change (`remove_change`), the one command a stale draft accepts. |
+| D20 | 2026-10-10 | **Recording.** A review step checks first, requires a note and a **Recorded by** name (free text until M7), records once (a repeated request shows the recorded plan), and stores which objects the plan changed for History. A recorded plan is read-only. |
+| D21 | 2026-10-10 | **Bulk tools are ordinary plan commands**, sent as one all-or-nothing `batch` (1–500 commands); Undo stays per change. |
+| D22 | 2026-10-10 | **Look of M5:** the clickable M5 demo is the approved look for the editing UI, the Changes drawer, the details UI and the inventory (see roadmap §3 for the inventory's portal-style list). |
+| D23 | 2026-10-11 | **Detail fields:** the legacy field set, all optional, flat strings. Equipment status `active | inactive | maintenance`; port type `copper | fiber`; port state `available | reserved | disabled | faulty`; cable status `active | inactive | testing`; rack type `standard | wall-mount | open-frame`; connector and speed are free text with suggestions; IP address must parse; serial number unique among filled values (ignoring case). |
+| D24 | 2026-10-11 | **Real interface names:** a switch is made of 1–8 port groups (`Gi1/0/{n}` patterns), 1–96 ports; port order and grouping are **stored** (`position`, `portGroup`), never parsed from labels. |
+| D25 | 2026-10-10/11 | **Copies** (Duplicate, Copy rack layout) copy kind, role, network, height and the port layout (labels, order, type, connector, speed); never cables, serial number, IP address, status, description, port state or notes. *2026-10-13:* Duplicate lets the user change the copies' names, network and port group details before sending. |
+| D26 | 2026-10-11 | **Starting a database:** `db migrate` then `db init` (an empty installed root, safe to repeat); `seed` is development-only and refuses an initialized database. `APP_ENV` (`dev`, `test`, `prod`) is required; the header shows DEV or TEST, nothing in production. |
+| D27 | 2026-10-06 | **Networks** are created and renamed, never deleted (until M7 decides who may). Names 1–64 characters, unique ignoring case. Colors follow creation order, so a rename never changes a color. |
+| D28 | 2026-10-12/13 | **Choosing a place:** every form picks a far end or a rack as Site › Node › Rack (› Equipment), never one long list; a form starts at the dropped or open rack, else the node or site open in Physical with no rack chosen. |
+| D29 | 2026-10-13 | **Renaming in a plan** is its own command (`rename_equipment`) for equipment the plan adds, with its own Changes line and Undo; installed equipment is renamed by a direct fix. Name length counts characters, not bytes. |
+| D30 | 2026-10-12 | **Clickable demos before new screens.** A new screen or a new way of working starts with a clickable demo on data like the owner's, approved before any plan. Demos are design material kept in `docs/history/demos/`; they never stand in for implementing and testing the agreed behaviour. (This replaces the 2026-10-03 rule "mockup exploration is complete; do not regenerate demos", which was about re-opening the design review.) |
+| D31 | 2026-10-14 | **One document per question** and the routine in [way-of-work.md](way-of-work.md). Status lives only in status.md; finished material moves to `docs/history/`. |
+
+The production infrastructure has its own recorded answers in [infrastructure.md](infrastructure.md) §2.
+
+## Background: the design review (2026-10-03)
+
+The reasoning behind the locked decisions. Where a later decision changed one, the text says so.
+
+**D01 — New project, Go backend, new frontend.** Legacy NetTop was architecturally inconsistent but its network concepts were worth keeping, so this is a separate project: a modular Go monolith (`net/http`, PostgreSQL/pgx) and React/TypeScript/React Flow. Legacy is a source of behaviour and edge cases, not a structure to reproduce. Keep the transaction and checksummed-migration discipline.
+
+**D02 — Pathfinding is foundational.** Exact endpoint-to-endpoint tracing and AGG discovery were required from the start (BB was added as another destination). Reliable physical tracing comes before an attractive diagram.
+
+**D03 — Whiteboard plus physical rack experience.** The first implementation had large permanent forms, tiny labels, nested containers and drag lag, and was rejected. What stayed: a full-page canvas, on-demand tools, contextual selection, readable controls, direct drag feedback, and keeping the viewport and state during saves.
+
+**D04 — Two genuinely different views.** Conceptual explains connectivity; Physical locates the exact installation. Switching views keeps the selected equipment, endpoint, network, plan and trace. *Superseded:* Conceptual as a nested site/node/rack drawing.
+
+**D05 — Map connectivity, not an ownership-only mind map.** Connected equipment and cables, visible branches and cross-links, optional location groups, compact metadata. Notes, ownership arrows, layout proximity and group membership never create physical continuity.
+
+**D06 — Trace the existing map.** A separate horizontal trace strip was rejected: the owner wants to see connections on the map itself. A hop panel may explain a route but never replaces the map. *Amended 2026-10-06:* the opt-in route view (locked 3).
+
+**D07 — HDF: compact parent, selective subpanel detail.** Approved by the owner: "A compact HDF parent on the map, automatically revealing the subpanels and positions used by the selected trace. Manual expansion exposes more connections, and Physical shows the complete grid."
+
+**D08 — Legacy site/node flow is worth keeping**, with better breadcrumbs, state restoration and direct endpoint navigation, and without stacks of rack drawers or modals. *Amended 2026-10-06:* the site screen of locked 4.
+
+**D09 — Scale means focused exploration.** Hundreds of devices and tens of thousands of connections: summarized overviews, search, bounded neighbourhoods, cable bundles, selective HDF detail; traversal independent of display. Measure real costs; static illustrations are not benchmarks. *Amended 2026-10-06:* locked 11.
+
+**D10 — Main campus, distribution centre, passive corridors.** A large campus with a dense main distribution node (BB and AGG); nodes reach it directly, via sub-main nodes or through several nodes, normally through passive panels. DR has a smaller LAN. Never infer a tree from ownership or force every path through the centre.
+
+**D11 — Multiple networks and multiple AGGs.** An active device belongs to one network; a panel can carry several. Membership is explicit and separate from location; passive network context is per circuit and may be mixed inside one HDF subpanel. Filtering never hides shared infrastructure a trace needs. Reachability comes from cables, not membership.
+
+**D12 — BB is a valid destination, not a transit shortcut.** The owner chose "Show both physical routes": all reachable AGG and BB endpoint routes, AGG first, actual roles kept, stop at active endpoints. *Superseded:* AGG-only priority that hides BB, or continuing through active equipment toward BB.
+
+**D13 — Installed, planned and diagram state are distinct.** A revisioned installed topology plus validated plan overlays, with layout coordinates independent of both. Unplaced previews are local and not traceable. Layout undo never undoes a recorded installation.
+
+**D14 — Design frozen, implementation handed over (2026-10-03).** The design demos were retired and implementation started from the tested foundation. (D30 later made clickable demos part of designing new screens.)

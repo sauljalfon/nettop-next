@@ -1,6 +1,6 @@
 # Acceptance and regression matrix
 
-Use meaningful red → green tests to verify the approved product. This is a target matrix, not a statement that these cases already pass. Existing executable tests characterize the baseline described in [current-status.md](current-status.md).
+The behaviour cases and their IDs. Most are implemented as tests (Go, Vitest or Playwright, named by these IDs); which tests cover a finished item is in its step table in [history/implementation-plan-m1-to-p2.md](history/implementation-plan-m1-to-p2.md), and newer cases are listed with their item. Write each case as a failing test first.
 
 The full multi-network input is [acceptance-example.md](acceptance-example.md). Build these cases against real domain/engine/repository/API behavior; do not substitute prerecorded UI result fixtures for end-to-end tests.
 

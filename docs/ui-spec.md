@@ -1,85 +1,54 @@
-# Approved UI and workflow specification
+# UI specification
 
-Status: target experience agreed during design review. Static mockups have been retired; the existing application is a foundation, not a finished implementation of this specification.
+What every screen must keep true: the intent, the rules and the look. How each screen is built today (exact sizes, labels, test marks) is in [status.md](status.md); the decisions behind it are in [decisions.md](decisions.md). New screens start from a clickable demo the owner approves (D30); approved demos are in [history/demos/](history/demos/).
 
-For the design evolution and why previous layouts were rejected, see [design-decisions.md](design-decisions.md). Use [acceptance-example.md](acceptance-example.md) for the exact shared-HDF/multiple-destination walkthrough and [acceptance-tests.md](acceptance-tests.md) for cross-view acceptance cases.
+## 1. Character
 
-## 1. Two views, one selected network and trace
+A calm, spacious technical workspace: a light neutral canvas, restrained borders and shadows, compact equipment cards, clear labels and few accents. The network and the task in hand dominate, not permanent forms or dashboards.
 
-The primary switch is **Conceptual / Physical**. The independent context controls are **Network selection** and **Installed / Plan**.
+- **Readable:** real text and control sizes with clear contrast (the early prototype's tiny, pale text was rejected), visible keyboard focus, and a non-drag way to do everything that can be dragged.
+- **Calm:** tools open on demand and overlay the canvas; nothing permanently shrinks or pushes the map. Inline confirms and forms, no stacks of modals. Escape closes a confirm, form, popover or pane, and focus returns to the button that opened it.
+- **Truthful:** a summary says what it counts (real cables); a colour never replaces a label (roles, sides and states are written, BB is labelled BB); proposed objects are marked PROPOSED (dashed); a preview is never shown as installed.
+- **Stable:** saving, refetching, tracing, filtering or switching context never resets the viewport or the selection, never refits and never remounts. Objects are reconciled by stable ID.
+- **Colours follow meaning, never an ID:** each network has one stable colour by creation order (grey when unresolved); the selected route is teal; a highlight is amber; free endpoints are white.
+- Theme tokens, the font and equipment silhouettes are design-system choices, not requirements; the portal-style tokens of the inventory live in one shared stylesheet (roadmap §3).
 
-Both views share stable equipment/endpoint IDs, physical ownership, network context, and selected trace results. Switching views must preserve the relevant equipment, port, plan, and route. Diagram coordinates do not affect physical placement.
+## 2. Shell
 
-### Conceptual map
+- A compact header: workspace title, **Conceptual / Physical** (and Inventory later), the **network selector** (All networks, one network, **Manage networks…**), and **Installed / Plan** (the draft picker). They are independent; switching one never changes another. A DEV or TEST badge outside production.
+- A tool rail: **Add** (the equipment library), **Explore** (the location tree and search), **Trace**, **Inspect**, **Changes**. Each opens a drawer over the canvas and closes independently.
+- Selecting equipment opens the **inspector**: a sticky header (identity, network and Installed/Proposed badges, the cabling meter, the location breadcrumb, Show on map, Show in Physical, Find AGG / BB for switches), then Overview (details, placement, Edit details), Ports/Positions (a compact table with row actions) and History (direct fixes and recorded plans).
+- The **results overlay** of a trace is expandable, lists every AGG/BB route (AGG first) and the mismatches, and never takes the canvas permanently.
 
-- A full-page, connected equipment-and-cable map with free arrangement.
-- Default objects: active devices, standard panels, and compact HDF parents. Actual cable connections join equipment at real endpoint references.
-- It is not a fixed ownership tree, nested physical inventory drawing, or separate horizontal route strip.
-- Use small type/role badges and site/node/rack location labels. Optional light location grouping can help organization without forcing the graph into hierarchy layout.
-- Network selection filters active devices while retaining the passive equipment/circuits needed to explain their physical routes. Shared passive equipment may show several network badges.
-- A trace changes highlighting and relevant detail **on the existing map**. Equipment positions and viewport remain stable; other connections remain visible, bundled, or visually quieter.
-- Core/main-distribution views can be anchored and focused. An anchor does not imply that every cable route must pass through it.
+## 3. Conceptual map (locked 2, 3, 9, 11)
 
-*Built (M3.1):*
-- **Cables.** One line per card pair and network, in that network's color (one stable palette color per network, grey when unresolved). Its width grows with the number of parallel cables, and a count pill at its midpoint shows the count. Hovering the line or the pill lists the cable IDs; clicking splits it into one line per cable, each labeled with its ID, and clicking again joins it. The route's teal and the highlight's amber override the network color. Lines attached to specific positions stay one per cable.
-- **Cards** are compact (icon, name, role, location, "N of M cabled", network badges, route and pinned facets); selecting one never changes its size.
-- **Route view.** A toggle in the map results overlay shows only the active route, laid out left to right in hop order, inside dashed node boxes ("Site / Node") and lighter rack boxes where two or more consecutive cards share a rack. It has its own viewport; turning it off restores the full map exactly. The outlines are drawing aids and never part of a trace.
-- **Export.** PNG and PDF of the route view (enabled only while it is on), at twice the size, under a header with start → end, the mode, the network, and Installed or the plan's name, plus the date.
+- A full-page map of **equipment connected by real cables**, freely arranged; positions are the user's (session today; saved on the server in roadmap §2). Not an ownership tree, not a nested inventory, not a route strip.
+- Cards are compact: name, kind/role, location label, "N of M cabled", network badges (one for an active device; one per circuit network for a passive one), and facets. Panels and HDFs are single objects; front and rear are sides of one object.
+- Cables attach to exact endpoints. Parallel cables between two cards on one network are one line whose width and count show how many; it lists the cable IDs and splits into one line per cable on demand. Lines are drawing aids, never traversal.
+- **The network filter** shows one network's active devices plus the passive equipment that carries its circuits; it never changes what a trace finds.
+- **A trace highlights the map in place:** the route is teal, cards and the viewport do not move, other cables stay visible and quieter. The route's cards are shown even where the filter or a highlight would hide them.
+- **HDF states:** compact by default; the selected route reveals only its positions automatically (tagged "route", the parent name always visible, each used position separately); positions pinned by the user (only from the inspector) stay until unpinned and survive route changes. Automatic and manual detail are separate state. Counts keep subpanels, positions, cabled positions and networks apart.
+- **Highlight a location:** a site or node from Explore or the inspector highlights its equipment, the cables leaving it and their far ends, fading the rest; it is independent of the trace.
+- **Route view** (opt-in, locked 3 amendment): only the active route, left to right in hop order, inside node and rack outlines, exportable as PNG and PDF; turning it off restores the map exactly.
+- **Readable at real size** is roadmap §2: an overview by node, a focus on one device's neighbourhood, and a saved arrangement.
 
-### Physical explorer
+## 4. Physical explorer (locked 4, 8, 9)
 
 ```text
-Sites → selected site → physical node → rack elevation → equipment → exact ports
+Sites → site → node → rack → equipment → exact port or position (front/rear)
 ```
 
-- Sites have visual cards with name/location and inventory counts.
-- Opening a site shows its physical nodes as cards the user **arranges freely by drag** (positions saved on the server, shared, never physical coordinates), joined by **cable summary lines**: one line per pair of nodes with cables between them, with a count, the cable IDs on hover and a list of the cables on click. Each node card opens its racks. *(Amended 2026-10-06: replaces "site centered with its nodes around it"; see [agent-handoff.md](agent-handoff.md).)*
-- Node views show only their owned rack previews, equipment/occupancy counts, and active-trace highlights.
-- Rack views show real units and configured equipment height; one 3U asset is one object spanning three units.
-- Equipment inspection shows a device port bank, standard panel positions, or the complete HDF grid.
-- Provide clickable breadcrumbs and a persistent/expandable navigator. Back navigation restores the prior selection/view, not a stack of nested modals.
-- Physical inventory may include other networks. Make the difference between complete physical inventory and selected trace/network scope explicit.
-- A location navigator is not a geographic map or measured floor plan. Optional actual photos/floor plans require real layout data.
+- Always the **complete physical inventory**; a one-line scope note says so. A chosen network or route only marks things (other networks muted, never hidden; the route teal).
+- **Sites:** cards with truthful counts and network badges. **A site:** only its node cards, arranged freely and saved on the server, joined by cable summary lines that count real cables and list them; a large site starts arranged by cable distance (access → passive → AGG/BB). **A node:** its own rack previews (a mini elevation each), searchable when there are many. **A rack:** a cabinet that fits the screen, real U numbers, one block per equipment spanning its height. **Equipment:** a faceplate (a switch's banks per port group, odd jacks above even; a panel's positions; the full HDF grid in row-major blocks A–D), with Front | Rear for passive equipment.
+- **Endpoint detail:** the external cable and its far end (Go to peer), the internal peer on the other side (Switch to front/rear, keeping the position), Find AGG / BB from here, Show on map; port details and their state (reserved, disabled, faulty jacks are hatched, with a readable number).
+- **Navigation:** clickable breadcrumbs and an in-app Back that restores the exact location, endpoint and side; Show in Physical from the inspector, its rows and every hop; switching back to Conceptual finds the map exactly as it was. A selected route shows as a trail of steps across levels.
+- Not a geographic map or floor plan; real photos or plans need real data.
 
-*Built (M4):*
-- **Navigation.** Sites → site → node → rack → equipment, with clickable breadcrumbs and an in-app **Back** over a session-only history (no router, nothing in the URL; a reload starts at Sites). A one-line scope note under the breadcrumbs says the inventory is complete and which network, if any, is only marked: other networks' devices are muted, never hidden. Explore navigates Physical while it is shown. The results overlay is the map's, without the route view and export. **Show in Physical** is on the inspector header and rows and on every hop; **Conceptual** returns to the map exactly as it was.
-- **Sites** are a card grid (name, "N nodes · N racks · N equipment", network badges, a teal "on route" pill). **A site** shows only its node cards, dragged freely and saved on the server (once per drop), joined by cable lines with a count circle, a hover list of cable IDs and a click list of the cables whose ends open the equipment; "N cables inside" and "N cables to <site>" are on the card; Reset layout (inline confirm); the screen fits into the visible area once per site per session. **A node** shows 200 px rack previews with a mini elevation, a search above 12 racks, and drops in a plan.
-- **A rack** is the full elevation (a 420 px dark cabinet, U12…U1, "Available" for free units, one block per equipment spanning its height, teal route, an amber ring for the selected one, a dashed PROPOSED block, muted other networks). In a plan, free units accept library and existing-equipment drops.
-- **The equipment page** has a rack strip on the left, the face in the middle and the endpoint detail on the right. The face is a port bank (rows of 12), a panel's positions, or the HDF grid with a Front | Rear control. Endpoints are buttons named by state; fill follows the state (white free, the circuit network's color cabled, teal on the route, a dark ring when selected).
+## 5. Find AGG / BB (locked 7)
 
-*Built (M4.1):*
-- **Trace in Physical.** A route selected in either view shows as a one-line **trail** under the breadcrumbs (one chip per equipment visit with its exact port or position and side change, "step N of M", ‹ Prev / Next ›); each opens that endpoint on its equipment page and Back returns. In Physical the results panel opens as one summary line and its expanded hop list scrolls. Hop rows read "HDF-01 · 3C/5 front" with a cable ID or "bridge" for links. The trace is kept across Installed ↔ Plan (rerun in the new context, the same route reselected if it exists).
-- **Large sites.** Above 12 unsaved nodes the site screen is arranged in columns by cable distance (nodes with access equipment, passive corridors, then AGG/BB), cards keep a readable zoom (at least 0.6), and the view starts at the top. Saved positions win.
-- **Rack and faceplates.** The rack is a dark cabinet with rails and a faceplate per kind, fitted to the visible height (a 42U rack without page scrolling); switch ports are odd over even, jacks about 44 px (HDF about 34 px) on a dark chassis, one legend swatch per network present, and a 32-row HDF scrolls inside its card. Arrow keys, Home/End and Enter move and select on a face (one tab stop).
-- **Port detail card** (right, about 300 px): the connection drawn as a chain of clickable boxes (far end, cable, this endpoint, bridge, the other side, cable, far end) with route hops in teal.
-- **Search and sheets.** Explore also finds cables and ports (Ports and Cables lists, at most 50), opening the endpoint in Physical or selecting it in Conceptual. "Print sheet" on a rack or an equipment page downloads a one-page PDF; it changes nothing.
-- **Zoom controls** are a compact box in both views; nothing else spans the canvas bottom.
-
-## 2. Workspace shell
-
-- Compact header and tool rail; the conceptual map takes the remaining page.
-- Add/library, Explorer/search, Inspector, Trace results, and Changes open on demand.
-- Tools overlay the conceptual canvas instead of repeatedly shrinking or pushing it down.
-- Open the inspector on equipment/endpoint selection; allow it to close independently.
-- Trace results are expandable and list all matching AGG/BB destinations.
-- Use readable controls and clear text contrast. Avoid miniature forms or exposing every backend operation permanently around the board.
-- The physical work area can use the navigator + main detail + contextual inspector layout appropriate to its level.
-
-*Built (M3.1):* the inspector has a sticky header (identity, cabling meter, location breadcrumb, **Show on map**, **Find AGG / BB** for switches), an **Overview** tab (placement, cabled counts per network, the placement form in a plan) and a **Ports / Positions** tab: a compact table of far end, cable ID and network per row, collapsible HDF subpanels, and always-visible row actions (find AGG / BB from here, pin). The Pathfinding form (trace mode, Start, Destination) is only in the Trace drawer; its Start and Destination are searchable. The results overlay lists each route's ordered hops, and clicking a hop centers its card.
-
-## 3. AGG / BB interaction
-
-Action: **Find AGG / BB**, from selected active equipment or an exact port.
-
-- Display all reachable matching physical endpoint routes; AGG first, BB still available.
-- Each result shows destination name/actual role/network, starting port, hop/cable/bridge information, and stopping outcome.
-- Several AGGs in one network do not imply several reachable routes from every device. Unreachable equipment must not be presented as a result.
-- Selecting another result changes route highlighting, starting endpoint focus, and HDF detail, not the overall map layout.
-- Physical traversal stops at the selected AGG/BB endpoint, with no continuation through its other ports.
-- Exact port-to-port tracing remains available as a separate action.
-- Show cross-network mismatch diagnostics and traversal truncation clearly.
-
-Example acceptance flow:
+- Started from a switch (all ports), a port or position row, a facet, or the Trace drawer; exact port-to-port tracing stays in the Trace drawer.
+- Every reachable route is listed with destination, actual role, network, start port and its length (cables, bridges); AGG first, BB never dropped; mismatches separately as "on another network"; truncation said plainly. An unreachable device is never a result.
+- Choosing another route changes the highlight and the revealed positions, never the layout. Each route expands to its explanation (today a hop list; the **walk sheet** of roadmap §1 replaces it: steps by place, cables by label, bridges folded into rows, right-to-left names kept readable).
 
 ```text
 EDGE-17 / Network A
@@ -88,74 +57,15 @@ EDGE-17 / Network A
   port 3 → BB-01
 ```
 
-All results remain available while switching among them.
+## 6. Editing and plans (locked 10, D17–D22, D28, D29)
 
-## 4. HDF display states
+- **Everything that changes topology happens in a plan** (the header's Plan): add containers (in Physical, at their level), add equipment (library items by drag or Add… forms, HDF form), move (rack drops or the placement form), connect (the patching screen), disconnect, delete (with a preview of the cables and circuits it cuts), and the bulk tools (Connect a range, Duplicate with overrides, Copy rack layout). Installed shows a hint instead of editing.
+- **Choosing a place** is always Site › Node › Rack (› Equipment), starting where the user is (D28); never one long list.
+- **Corrections** (names, details, port state, cable label) of installed objects are direct fixes from Edit details, with an optional note kept in History; in a plan, the same form edits and renames what the plan adds.
+- **The Changes drawer** lists a draft's changes grouped and in names, each linking to its object and each with Undo; **Record as installed…** opens a review (check first, then the list, "Only record what is physically done.", a required note and Recorded by). A stale draft says "Installed changed since this draft" with Update draft, lists conflicts with Drop, and is never drawn as a map. Recorded plans are read-only.
+- **Server refusals appear inline, in the server's words and in names.**
+- Live dragging never updates app-wide state or calls the API per pointer move; a drag saves once at the drop. An empty-canvas drop is an unsaved preview until it gets a rack.
 
-### Overview
+## 7. Acceptance
 
-One compact HDF object identifies its parent chassis, physical location, row/column capacity, and connection summary. Do not populate the whole canvas with hundreds of detached subpanels. Any summary anchors retain references to exact endpoints/cables; they are not graph vertices that permit arbitrary transit.
-
-### Selected trace
-
-- Automatically reveal only the subpanels, local positions, and front/rear endpoints used by the selected route.
-- Keep the parent HDF name visible.
-- Do not rearrange other equipment or pretend front/rear are separate panels.
-- If the route uses several positions on the same HDF, show each independently.
-- Clearing/changing a trace removes only automatically revealed detail. Preserve manually expanded detail.
-
-### Manual expansion
-
-Reveal additional connected subpanels/positions, with search/filtering when needed. Preserve cable identity and endpoint occupancy. Other networks' circuits must be recognizable as such; they are not connected internally to the selected circuit.
-
-*Built (M3, M3.1):* a facet is tagged "route" when it comes from the selected route and "pinned" when the user chose it; a position that is both shows once with both tags. Cards have no connections list: pins are made only in the inspector, whose **Positions** table lists a panel's or HDF's positions (cabled ones by default above 48, with a Cabled / Free / All filter and label search that ignores case and the spacing around the slash) and pins one with the pin icon on its row.
-
-### Physical grid
-
-- Four fixed columns A–D, configurable rows, one labeled subpanel per block.
-- Six local positions per block, front/rear inspection, occupancy and circuit-network context.
-- Selecting the conceptual endpoint opens its exact physical subpanel/position/side.
-- Front/rear switching preserves position and shows the appropriate external cable and its peer endpoint.
-- The matching bridge connects only the opposite side of that position. No implicit cross-subpanel or sibling-position links.
-- An HDF block can contain Network A on position 5 and Network B on position 2. Do not assign one exclusive network to the entire block.
-- Fiber-pair display labels remain secondary to the local position identity.
-
-*Built (M4):* the HDF face shows columns A–D and every configured row in row-major order, each block labeled ("3C") with its six positions in a 3 × 2 layout and a 2 px teal border on a block that holds a route position. The Front | Rear control keeps the position and selects its other-side endpoint (through the per-snapshot bridge lookup, not a mirror of the letters). The endpoint detail shows the label, side, circuit network and the fiber pair as secondary text, the external cable (cable ID, far endpoint, far equipment and its "Site / Node / Rack", **Go to peer**), the internal peer (the other side and its cable, **Switch to front/rear**), **Find AGG / BB from here** and **Show on map**. Selecting an endpoint and switching sides replace the location; **Go to peer** adds a history entry, so Back restores the exact endpoint and side. Network A's 3C/5 and Network B's 3C/2 are separate positions of one block, both always drawn.
-
-## 5. Editing and drag/drop
-
-- Moving equipment within the conceptual map changes presentation coordinates.
-- Dropping new equipment on empty canvas creates an unsaved, unplaced preview. It is excluded from backend tracing until configured and saved.
-- Dropping onto a rack/explicit assignment target proposes physical ownership/placement. Show destination context and distinguish this from a diagram move.
-- Rack-unit drops preview the full equipment height, valid targets, collision/capacity feedback, and the proposed destination.
-- Dropping existing equipment onto another rack proposes a revision-checked placement change; installed data remains unchanged.
-- Always provide a non-drag equivalent for creation, assignment, connection, and placement.
-- Live dragging must not update root application state or call the API per pointer movement. Persist positions at an appropriate completed/debounced boundary.
-- Saving changes keeps zoom/pan and selection. Route/detail refresh must reconcile objects by stable IDs rather than remount the workspace.
-- Undo diagram layout separately from plan commands. Undoing layout cannot reverse a recorded installation.
-
-## 6. Exploration at scale
-
-- Whole-network overview: summarize locations/corridors and boundary cable bundles.
-- Focused view: selected node/rack/equipment and bounded neighbors.
-- Exact detail: selected equipment endpoints or the active trace.
-- Search is a primary entry point for equipment, HDF subpanel, and endpoint identities.
-- “Show how this node reaches distribution” reveals the actual passive corridor rather than expanding every campus device.
-- Summary links must identify what they count (physical boundary cables, not inferred reachability). Expand to real detail.
-
-*Built (M3.1):* there is no location focus and there are no boundary cards. Clicking a **site or node name in the Explore drawer** (or the site or node link in the inspector) **highlights** the equipment located there, every cable leaving it, and the far-end cards (lighter), fading everything else to about 30% and fitting the view once, with **Clear highlight** and Esc to clear it. It is independent of the trace and of the network filter (the highlighted part is shown even where the filter would hide it). Cards on a selected route are shown even outside the network filter or the highlight, and hide again when the trace is cleared.
-- Hidden/collapsed/filtered equipment remains part of backend physical tracing. Load the exact objects needed to explain results.
-- Large-network visuals are not proof of performance; measure real datasets and rendering costs.
-
-## 7. Review and acceptance
-
-The final flow must allow a user to:
-
-1. Choose a network and find equipment.
-2. Inspect every reachable AGG and BB route.
-3. Understand the exact passive panels/HDF positions on the map.
-4. Locate the same endpoint physically through site/node/rack navigation or a direct contextual action.
-5. Switch sides, inspect the correct cable peer, and return to the selected conceptual route.
-6. Plan a change, preview its physical trace, and keep installed infrastructure distinct.
-
-Prefer one complete, tested workflow over isolated CRUD screens or another cycle of alternative mockups.
+The whole flow must let a user: choose a network and find equipment; inspect every reachable AGG and BB route; understand the exact passive panels and HDF positions on the map; find the same endpoint physically; switch sides, follow the cable peer and return to the route; and plan a change, check its trace, and record it as installed only when it is physically done. The fictional data for this is [acceptance-example.md](acceptance-example.md); the cases are [acceptance-tests.md](acceptance-tests.md); the walkthrough is the smoke flow in [testing.md](testing.md).
