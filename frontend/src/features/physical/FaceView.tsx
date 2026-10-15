@@ -17,6 +17,9 @@ import {
 } from './equipmentModel'
 import { moveFocus, navCells } from './faceNav'
 import type { FaceEndpoint } from './faces'
+import Name from '../../shared/ui/Name'
+import PlacePath from '../../shared/ui/PlacePath'
+import Chip from '../../shared/ui/Chip'
 
 const PER_ROW = 12
 
@@ -59,7 +62,9 @@ interface Props {
   equipment: Equipment
   face: Face
   side?: 'front' | 'rear'
-  meta: string
+  meta: ReactNode
+  /** The equipment's site, node and rack, shown after the meta line. */
+  place?: string[]
   networks: readonly Network[]
   colors: ReadonlyMap<string, string>
   /** The tooltip of one endpoint ("port 3 · cable-a09 → PANEL-A 3 front"). */
@@ -100,6 +105,7 @@ export default function FaceView({
   face,
   side,
   meta,
+  place,
   networks,
   colors,
   tooltip,
@@ -221,22 +227,34 @@ export default function FaceView({
       <header className="face-head">
         <div>
           <h2>
-            {equipment.name}
+            <Name text={equipment.name} />
             {proposed && (
-              <em className="proposed-tag" data-testid="proposed-tag">
-                PROPOSED
-              </em>
+              <Chip
+                kind="proposed"
+                className="proposed-tag"
+                testId="proposed-tag"
+              >
+                Proposed
+              </Chip>
             )}
             {onPrint && !printing && (
-              <button className="outline-button print-button" onClick={onPrint}>
+              <button className="btn print-button" onClick={onPrint}>
                 Print sheet
               </button>
             )}
           </h2>
-          <p>{meta}</p>
+          <p>
+            {meta}
+            {place && place.length > 0 && (
+              <>
+                {meta && ' · '}
+                <PlacePath parts={place} />
+              </>
+            )}
+          </p>
         </div>
         {face.kind !== 'switch' && !printing && (
-          <div className="side-switch" role="group" aria-label="Side">
+          <div className="seg side-switch" role="group" aria-label="Side">
             {(['front', 'rear'] as const).map((s) => (
               <button
                 key={s}
@@ -260,6 +278,10 @@ export default function FaceView({
             data-kind="switch"
             data-banks={face.banks.length}
           >
+            <PlateHead
+              name={equipment.name}
+              meta={`${face.rows.reduce((n, r) => n + r.length, 0)} ports`}
+            />
             {layoutPlate(face.banks).map((row, r) => (
               <div key={r} className="plate-bank-row" data-testid="bank-row">
                 {row.map((unit, u) => (
@@ -305,6 +327,10 @@ export default function FaceView({
 
         {face.kind === 'panel' && (
           <div className="faceplate" data-kind="panel">
+            <PlateHead
+              name={equipment.name}
+              meta={`${face.face.positions.length} positions`}
+            />
             <div className="plate-strip">
               {chunks(face.face.positions).map((row) =>
                 row.map((cell) =>
@@ -320,6 +346,7 @@ export default function FaceView({
 
         {face.kind === 'hdf' && (
           <div className="faceplate" data-kind="hdf">
+            <PlateHead name={equipment.name} meta={side ?? 'front'} />
             <div className="hdf-scroll">
               <div className="hdf-grid">
                 <span />
@@ -364,7 +391,7 @@ export default function FaceView({
       </div>
 
       {showLegend && (
-        <footer className="face-legend" aria-label="Legend">
+        <footer className="face-legend legend" aria-label="Legend">
           <span>
             <i className="fill-free" /> free
           </span>
@@ -396,5 +423,19 @@ export default function FaceView({
         </footer>
       )}
     </section>
+  )
+}
+
+/**
+ * The head line of a faceplate: the name on a label strip and a short note in
+ * mono. Drawn from data attributes (CSS content), so the name is not repeated
+ * as text next to the title above; the strip isolates it like <bdi>.
+ */
+function PlateHead({ name, meta }: { name: string; meta: string }) {
+  return (
+    <div className="plate-head" aria-hidden="true">
+      <span className="tape plate-name" data-name={name} />
+      <span className="plate-meta" data-meta={meta} />
+    </div>
   )
 }

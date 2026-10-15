@@ -6,6 +6,7 @@ import { colorOf, networkColors } from '../map/networkColors'
 import { activeDeviceCounts, validateNetworkName } from './model'
 import '../inspector/inspector.css'
 import './networks.css'
+import Name from '../../shared/ui/Name'
 
 /** Message for a failed save: the server's own text for 409/422, else a generic one. */
 function failure(error: unknown) {
@@ -201,7 +202,9 @@ function NetworkRow({
           </td>
         ) : (
           <>
-            <td className="col-label network-name">{network.name}</td>
+            <td className="col-label network-name">
+              <Name text={network.name} />
+            </td>
             <td className="network-count">
               {count} {count === 1 ? 'device' : 'devices'}
             </td>

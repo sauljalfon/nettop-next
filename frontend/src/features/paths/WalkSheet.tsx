@@ -8,8 +8,9 @@ import {
   type PlaceItem,
   type RowItem,
   type Sheet,
-  type TextPiece,
 } from './sheet'
+import Name from '../../shared/ui/Name'
+import Pieces from '../../shared/ui/Pieces'
 import './paths.css'
 
 interface Props {
@@ -18,21 +19,6 @@ interface Props {
   onRow: (endpointId: string) => void
   /** When given, each row also gets a Server button to show its endpoint in Physical. */
   onShowInPhysical?: (endpointId: string) => void
-}
-
-/** Text pieces with every name isolated in <bdi>, so digits beside it keep their order. */
-function Pieces({ pieces }: { pieces: TextPiece[] }) {
-  return (
-    <>
-      {pieces.map((p, i) =>
-        'name' in p ? (
-          <bdi key={i}>{p.name}</bdi>
-        ) : (
-          <Fragment key={i}>{p.text}</Fragment>
-        ),
-      )}
-    </>
-  )
 }
 
 function Place({ item }: { item: PlaceItem }) {
@@ -52,10 +38,10 @@ function Place({ item }: { item: PlaceItem }) {
           )}
           {p.bold ? (
             <b>
-              <bdi>{p.name}</bdi>
+              <Name text={p.name} />
             </b>
           ) : (
-            <bdi>{p.name}</bdi>
+            <Name text={p.name} />
           )}
         </Fragment>
       ))}
@@ -88,7 +74,7 @@ function Row({
       >
         <span className="walk-unit">U{item.unit}</span>
         <span className="walk-name">
-          <bdi>{item.name}</bdi>
+          <Name text={item.name} />
           <span className={`walk-tag ${item.tag.toLowerCase()}`}>
             {item.tag}
           </span>
@@ -128,7 +114,7 @@ function Cable({ item }: { item: CableItem }) {
           <span>
             cable{' '}
             <b>
-              <bdi>{item.label}</bdi>
+              <Name text={item.label} />
             </b>
           </span>
         ) : (

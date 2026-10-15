@@ -69,7 +69,7 @@ export function ResetLayout({ onReset }: { onReset: () => void }) {
   if (!confirming)
     return (
       <button
-        className="map-tool"
+        className="map-tool btn"
         aria-label="Reset layout"
         onClick={() => setConfirming(true)}
       >
@@ -80,6 +80,7 @@ export function ResetLayout({ onReset }: { onReset: () => void }) {
     <span className="map-tool confirm" role="group" aria-label="Confirm reset">
       <span>Reset layout?</span>
       <button
+        className="btn primary"
         aria-label="Reset"
         onClick={() => {
           setConfirming(false)
@@ -88,7 +89,11 @@ export function ResetLayout({ onReset }: { onReset: () => void }) {
       >
         Reset
       </button>
-      <button aria-label="Cancel reset" onClick={() => setConfirming(false)}>
+      <button
+        className="btn quiet"
+        aria-label="Cancel reset"
+        onClick={() => setConfirming(false)}
+      >
         Cancel
       </button>
     </span>
@@ -98,7 +103,11 @@ export function ResetLayout({ onReset }: { onReset: () => void }) {
 /** Shown only while a location is highlighted; clears it, never the trace. */
 export function ClearHighlight({ onClear }: { onClear: () => void }) {
   return (
-    <button className="map-tool" aria-label="Clear highlight" onClick={onClear}>
+    <button
+      className="map-tool btn"
+      aria-label="Clear highlight"
+      onClick={onClear}
+    >
       Clear highlight
     </button>
   )

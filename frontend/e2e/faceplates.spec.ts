@@ -40,7 +40,7 @@ test.beforeEach(async ({ page }) => {
   await fitted(page)
 })
 
-test('RK-01 a 12U rack labels every unit with every fifth bold; a 42U rack fits without scrolling and labels every fifth', async ({
+test('RK-01 a 12U rack labels every unit with every fifth bold, and a node preview of a 42U rack is a small fixed drawing', async ({
   page,
 }) => {
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
@@ -64,38 +64,7 @@ test('RK-01 a 12U rack labels every unit with every fifth bold; a 42U rack fits 
   const mini = await page.locator('.mini-rack').boundingBox()
   expect(mini!.height).toBeGreaterThanOrEqual(255)
   expect(mini!.height).toBeLessThanOrEqual(275)
-  await page.getByRole('button', { name: 'Open Rack T42', exact: true }).click()
-  await expectMark(page, 'data-physical-level', 'rack')
-
-  const unitPx = Number(
-    await page.locator('.rack-cabinet').getAttribute('data-unit-px'),
-  )
-  expect(unitPx).toBeGreaterThanOrEqual(14)
-  expect(unitPx).toBeLessThan(18) // compact: only every fifth unit is labeled
-  await expect(page.locator('.rack-cabinet .unit-label')).toHaveText([
-    'U40',
-    'U35',
-    'U30',
-    'U25',
-    'U20',
-    'U15',
-    'U10',
-    'U5',
-  ])
-  await expect(page.locator('.rack-cabinet .unit-label.strong')).toHaveCount(8)
-  // The page does not scroll: the rack level fits, and the cabinet is on screen.
-  const fits = await page.evaluate(() => {
-    const level = document.querySelector('.rack-level') as HTMLElement
-    const cab = document.querySelector('.rack-cabinet')!.getBoundingClientRect()
-    return {
-      scrolls: level.scrollHeight > level.clientHeight + 1,
-      inside: cab.bottom <= window.innerHeight,
-    }
-  })
-  expect(fits).toEqual({ scrolls: false, inside: true })
-  // Every unit is still a slot.
-  await expect(page.getByTestId('rack-slot-rack-t42-42')).toBeVisible()
-  await expect(page.getByTestId('rack-slot-rack-t42-1')).toBeVisible()
+  // The 42U rack itself is VP-03 (visual-pass.spec.ts).
 })
 
 test('RK-02 each kind of equipment has its own faceplate; the name and the small line show when there is room', async ({
@@ -135,7 +104,7 @@ test('RK-02 each kind of equipment has its own faceplate; the name and the small
   await page.setViewportSize({ width: 1440, height: 430 })
   await expect(page.locator('.rack-cabinet')).toHaveAttribute(
     'data-unit-px',
-    /^1[2-7]$/,
+    '26',
   )
   const edge = block(page, 'edge-17')
   await expect(edge).toContainText('EDGE-17')
@@ -143,32 +112,32 @@ test('RK-02 each kind of equipment has its own faceplate; the name and the small
   await expect(edge).toHaveAttribute('title', /access · Network A · 1U at U8/)
 })
 
-test('RK-02 states: route teal, selected amber ring, proposed dashed with a tag, other networks muted', async ({
+test('RK-02 states: route teal, selected paper ring, proposed dashed with a tag, other networks muted', async ({
   page,
 }) => {
   await traceAgg03(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await expect(block(page, 'edge-17')).toHaveCSS(
     'border-top-color',
-    'rgb(16, 139, 121)',
+    'rgb(15, 139, 122)',
   )
   await expect(block(page, 'panel-a')).toHaveCSS(
     'border-top-color',
-    'rgb(16, 139, 121)',
+    'rgb(15, 139, 122)',
   )
   await block(page, 'edge-17').click() // opens its page; Back returns with it selected
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expect(block(page, 'edge-17')).toHaveAttribute('data-selected', 'true')
   await expect(block(page, 'edge-17')).toHaveCSS(
-    'box-shadow',
-    /rgb\(227, 162, 26\)/,
+    'outline-color',
+    'rgb(255, 255, 255)',
   )
 
   await page.goto('/?plan=expansion')
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await expect(block(page, 'edge-18')).toHaveCSS('border-top-style', 'dashed')
-  await expect(block(page, 'edge-18')).toContainText('PROPOSED')
+  await expect(block(page, 'edge-18')).toContainText('Proposed')
   await page
     .getByRole('combobox', { name: 'Show network' })
     .selectOption({ label: 'Network B' })
@@ -181,7 +150,7 @@ test('PB-01 EDGE-17’s faceplate puts ports 1,3,5… on top and 2,4,6… below,
 }) => {
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'edge-17')
   const plate = page.locator('.faceplate[data-kind="switch"]')
-  await expect(plate).toHaveCSS('background-color', 'rgb(31, 39, 53)')
+  await expect(plate).toHaveCSS('background-color', 'rgb(31, 39, 49)')
   const [p1, p2, p3, p4] = await Promise.all(
     [1, 2, 3, 4].map((n) => box(page, `edge-17:p${n}`)),
   )
@@ -232,7 +201,7 @@ test('PB-01 a standard panel is a strip in the same style, rows of 12, with Fron
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'panel-a')
   await expect(page.locator('.faceplate[data-kind="panel"]')).toHaveCSS(
     'background-color',
-    'rgb(31, 39, 53)',
+    'rgb(31, 39, 49)',
   )
   await expect(endpoint(page, 'panel-a:1:f')).toHaveAttribute('data-row', '0')
   await expect(endpoint(page, 'panel-a:13:f')).toHaveAttribute('data-row', '1')
@@ -351,7 +320,7 @@ test('PB-03 on an HDF the arrows cross blocks, and the whole grid is one tab sto
   expect(await stops.getAttribute('data-endpoint-id')).toBe('hdf-01:sp-3C:5:r')
 })
 
-test('RK-01 a 42U cabinet stays clear of the results panel at the bottom of the page', async ({
+test('RK-01 a 42U cabinet scrolls clear of the results panel at the bottom of the page', async ({
   page,
 }) => {
   await traceAgg03(page)
@@ -359,42 +328,32 @@ test('RK-01 a 42U cabinet stays clear of the results panel at the bottom of the 
   await expectMark(page, 'data-physical-level', 'rack')
   const panel = page.getByLabel('Map trace results')
   await expect(panel).toBeVisible()
-  await expect
-    .poll(async () => {
-      const cab = (await page.locator('.rack-cabinet').boundingBox())!
-      const p = (await panel.boundingBox())!
-      return cab.y + cab.height <= p.y + 1
-    })
-    .toBe(true)
-  // Every unit of the rack, the lowest included, is above the panel's top edge.
-  const panelTop = (await panel.boundingBox())!.y
-  for (const unit of [1, 2, 3, 4, 20, 42]) {
-    const slot = (await page
-      .getByTestId(`rack-slot-rack-t42-${unit}`)
-      .boundingBox())!
-    expect(slot.y + slot.height, `U${unit}`).toBeLessThanOrEqual(panelTop + 1)
+  // Scrolled to the bottom, every unit, the lowest included, is above the panel's top edge.
+  const bottomClear = async () => {
+    await page
+      .locator('.rack-level')
+      .evaluate((el) => (el.scrollTop = el.scrollHeight))
+    const panelTop = (await panel.boundingBox())!.y
+    let worst = 0
+    for (const unit of [1, 2, 3, 4, 20, 42]) {
+      const slot = (await page
+        .getByTestId(`rack-slot-rack-t42-${unit}`)
+        .boundingBox())!
+      worst = Math.max(worst, slot.y + slot.height)
+    }
+    return worst <= panelTop + 1
   }
-  // Expanding the panel taller than the room leaves still no overlap once the cabinet re-fits.
+  await expect.poll(bottomClear).toBe(true)
+  // Expanding the panel leaves U1 clear once the rack level is scrolled again.
   await panel.getByRole('button', { name: 'Expand results' }).click()
-  await expect
-    .poll(async () => {
-      const cab = (await page.locator('.rack-cabinet').boundingBox())!
-      const p = (await panel.boundingBox())!
-      const level = await page.evaluate(() => {
-        const el = document.querySelector('.rack-level') as HTMLElement
-        return el.scrollHeight > el.clientHeight + 1
-      })
-      // Either it fits above the panel, or the page scrolls (the minimum unit height).
-      return cab.y + cab.height <= p.y + 1 || level
-    })
-    .toBe(true)
+  await expect.poll(bottomClear).toBe(true)
 })
 
 for (const size of [
   { width: 1440, height: 900 },
   { width: 1280, height: 720 },
 ]) {
-  test(`RK-01 at ${size.width}×${size.height} every unit of the 42U rack, U1 included, ends above the results panel, and nothing scrolls`, async ({
+  test(`RK-01 at ${size.width}×${size.height} U1 of the 42U rack ends above the results panel once scrolled to the bottom`, async ({
     page,
   }) => {
     await page.setViewportSize(size)
@@ -408,31 +367,22 @@ for (const size of [
       panel.getByRole('button', { name: 'Expand results' }),
     ).toBeVisible() // collapsed in Physical
     const check = async () => {
+      await page
+        .locator('.rack-level')
+        .evaluate((el) => (el.scrollTop = el.scrollHeight))
       const panelTop = (await panel.boundingBox())!.y
-      const slots = await Promise.all(
-        Array.from({ length: 42 }, (_, i) =>
-          page.getByTestId(`rack-slot-rack-t42-${i + 1}`).boundingBox(),
-        ),
+      const slot = (await page
+        .getByTestId('rack-slot-rack-t42-1')
+        .boundingBox())!
+      // The rack level scrolls, never the page around it.
+      const pageScrolls = await page.evaluate(
+        () => document.documentElement.scrollHeight > window.innerHeight + 1,
       )
-      const worst = Math.max(...slots.map((s) => s!.y + s!.height))
-      const scroll = await page.evaluate(() => {
-        const level = document.querySelector('.rack-level') as HTMLElement
-        return {
-          level: level.scrollHeight > level.clientHeight + 1,
-          page: document.documentElement.scrollHeight > window.innerHeight + 1,
-        }
-      })
-      return { endsAbove: worst <= panelTop + 1, scroll }
+      return slot.y + slot.height <= panelTop + 1 && !pageScrolls
     }
-    await expect.poll(check).toEqual({
-      endsAbove: true,
-      scroll: { level: false, page: false },
-    })
-    // Resizing the window re-fits it.
+    await expect.poll(check).toBe(true)
+    // Resizing the window keeps it so.
     await page.setViewportSize({ width: size.width, height: size.height - 60 })
-    await expect.poll(check).toEqual({
-      endsAbove: true,
-      scroll: { level: false, page: false },
-    })
+    await expect.poll(check).toBe(true)
   })
 }

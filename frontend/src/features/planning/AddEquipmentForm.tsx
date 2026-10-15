@@ -16,6 +16,8 @@ import PortDetailFields from './PortDetailFields'
 import type { PlanEdit } from './editing'
 import { useAsyncAction } from './useAsyncAction'
 import { useInlineDialog } from './useInlineDialog'
+import Chip from '../../shared/ui/Chip'
+import Field from '../../shared/ui/Field'
 import './editing.css'
 
 export interface EquipmentKind {
@@ -147,50 +149,58 @@ export default function AddEquipmentForm({
   return (
     <form
       {...dialog}
-      className="inline-form library-form"
+      className="inline-form proposes library-form"
       aria-label={`Add ${title}`}
       data-testid="equipment-form"
       noValidate
       onSubmit={submit}
     >
-      <span className="eyebrow">
-        NEW {title.toUpperCase()} <em className="proposed-tag">PROPOSED</em>
-      </span>
-      <label>
-        Name
-        <input
-          value={values.name}
-          autoComplete="off"
-          placeholder="e.g. EDGE-31"
-          onChange={(e) => set('name')(e.target.value)}
-        />
-      </label>
+      <div className="form-head">
+        <strong className="form-title">New {title.toLowerCase()}</strong>
+        <Chip kind="proposed" className="proposed-tag">
+          Proposed
+        </Chip>
+      </div>
+      <Field label="Name">
+        {(id) => (
+          <input
+            id={id}
+            type="text"
+            value={values.name}
+            autoComplete="off"
+            placeholder="e.g. EDGE-31"
+            onChange={(e) => set('name')(e.target.value)}
+          />
+        )}
+      </Field>
       {networkChoice(type.kind, networks) !== 'not-needed' && (
         <>
-          <label>
-            Network
-            <select
-              aria-label="Network"
-              value={values.networkId}
-              disabled={noNetworks}
-              onChange={(e) => set('networkId')(e.target.value)}
-            >
-              {noNetworks ? (
-                <option value="">No networks yet</option>
-              ) : (
-                <>
-                  <option value="" disabled>
-                    Choose the device&apos;s network
-                  </option>
-                  {networks.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.name}
+          <Field label="Network">
+            {(id) => (
+              <select
+                id={id}
+                aria-label="Network"
+                value={values.networkId}
+                disabled={noNetworks}
+                onChange={(e) => set('networkId')(e.target.value)}
+              >
+                {noNetworks ? (
+                  <option value="">No networks yet</option>
+                ) : (
+                  <>
+                    <option value="" disabled>
+                      Choose the device&apos;s network
                     </option>
-                  ))}
-                </>
-              )}
-            </select>
-          </label>
+                    {networks.map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.name}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            )}
+          </Field>
           {noNetworks && (
             <p className="hint" data-testid="no-networks-hint">
               A switch belongs to a network.{' '}
@@ -213,27 +223,33 @@ export default function AddEquipmentForm({
         rackId={values.rackId}
         onChange={set('rackId')}
       />
-      <label>
-        Unit
-        <input
-          type="number"
-          min={1}
-          value={values.unit}
-          onChange={(e) => set('unit')(e.target.value)}
-        />
-      </label>
-      {!groups && (
-        <label>
-          {type.kind === 'panel' ? 'Positions' : 'Ports'}
-          <input
-            type="number"
-            min={1}
-            max={type.kind === 'panel' ? 48 : MAX_SWITCH_PORTS}
-            value={values.ports}
-            onChange={(e) => set('ports')(e.target.value)}
-          />
-        </label>
-      )}
+      <div className="field-grid">
+        <Field label="Unit">
+          {(id) => (
+            <input
+              id={id}
+              type="number"
+              min={1}
+              value={values.unit}
+              onChange={(e) => set('unit')(e.target.value)}
+            />
+          )}
+        </Field>
+        {!groups && (
+          <Field label={type.kind === 'panel' ? 'Positions' : 'Ports'}>
+            {(id) => (
+              <input
+                id={id}
+                type="number"
+                min={1}
+                max={type.kind === 'panel' ? 48 : MAX_SWITCH_PORTS}
+                value={values.ports}
+                onChange={(e) => set('ports')(e.target.value)}
+              />
+            )}
+          </Field>
+        )}
+      </div>
       {type.kind === 'switch' && (
         <PortGroupRows
           rows={groups}
@@ -245,11 +261,11 @@ export default function AddEquipmentForm({
         />
       )}
       <EditError message={action.error} />
-      <div className="inline-row">
-        <button className="button primary" disabled={action.pending}>
+      <div className="form-actions">
+        <button className="btn primary lg" disabled={action.pending}>
           Add to plan
         </button>
-        <button type="button" className="button" onClick={onClose}>
+        <button type="button" className="btn lg" onClick={onClose}>
           Cancel
         </button>
       </div>
@@ -286,26 +302,32 @@ function PortGroupRows({
           data-testid="port-group-row"
         >
           <div className="group-line">
-            <label>
-              Count
-              <input
-                aria-label="Count"
-                inputMode="numeric"
-                className="count-input"
-                value={r.count}
-                onChange={(e) => change(i, { count: e.target.value })}
-              />
-            </label>
-            <label>
-              Names
-              <input
-                aria-label="Names"
-                placeholder="Gi1/0/{n}"
-                autoComplete="off"
-                value={r.names}
-                onChange={(e) => change(i, { names: e.target.value })}
-              />
-            </label>
+            <Field label="Count">
+              {(id) => (
+                <input
+                  id={id}
+                  type="text"
+                  aria-label="Count"
+                  inputMode="numeric"
+                  className="count-input"
+                  value={r.count}
+                  onChange={(e) => change(i, { count: e.target.value })}
+                />
+              )}
+            </Field>
+            <Field label="Names">
+              {(id) => (
+                <input
+                  id={id}
+                  type="text"
+                  aria-label="Names"
+                  placeholder="Gi1/0/{n}"
+                  autoComplete="off"
+                  value={r.names}
+                  onChange={(e) => change(i, { names: e.target.value })}
+                />
+              )}
+            </Field>
           </div>
           <div className="group-line">
             <PortDetailFields
@@ -314,7 +336,7 @@ function PortGroupRows({
             />
             <button
               type="button"
-              className="button ghost-danger"
+              className="btn danger-outline"
               aria-label={`Remove port group ${i + 1}`}
               onClick={() =>
                 onChange(
@@ -335,7 +357,7 @@ function PortGroupRows({
       {(rows?.length ?? 0) < MAX_PORT_GROUPS && (
         <button
           type="button"
-          className="button"
+          className="btn"
           onClick={() =>
             onChange(rows ? [...rows, emptyRow()] : rowsFromCount(ports))
           }

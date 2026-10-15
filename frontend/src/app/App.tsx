@@ -101,6 +101,8 @@ import HdfForm from '../features/planning/HdfForm'
 import { resolveLocation } from '../features/physical/location'
 import { searchEquipment } from '../features/map/search'
 import './styles.css'
+import Pieces from '../shared/ui/Pieces'
+import Name from '../shared/ui/Name'
 
 const ROUTE_NOT_HERE =
   'The selected route is not in this context; showing the first.'
@@ -304,11 +306,6 @@ export default function App() {
           </span>
           net<span>top</span>
         </div>
-        <span className="header-divider" />
-        <div className="workspace-title">
-          <strong>Network Studio</strong>
-          <small>Infrastructure workspace</small>
-        </div>
         <ViewSwitch view={view} onChange={setView} />
         <NetworkSelect
           networks={networks}
@@ -330,7 +327,8 @@ export default function App() {
             onClick={() => setMode('planned')}
           >
             <GitBranch size={14} />
-            Plan: {selectedPlan?.name ?? 'New draft'}
+            Plan:{' '}
+            {selectedPlan ? <Name text={selectedPlan.name} /> : 'New draft'}
           </button>
         </div>
         <button
@@ -388,7 +386,7 @@ export default function App() {
         <div className="workspace-message" role="alert">
           <h2>Cannot load the workspace</h2>
           <p>{error.message}</p>
-          <button className="button" onClick={() => void refresh()}>
+          <button className="btn" onClick={() => void refresh()}>
             Retry
           </button>
         </div>
@@ -501,7 +499,7 @@ export function DrawerPanel({
   children: React.ReactNode
 }) {
   return (
-    <aside className={`studio-drawer ${side}`} aria-label={title}>
+    <aside className={`studio-drawer drawer ${side}`} aria-label={title}>
       <header>
         <div>
           <h2>{title}</h2>
@@ -958,14 +956,6 @@ function Workspace({
   return (
     <main className="workspace-canvas">
       <PatchingHost snapshot={snapshot} index={index} edit={edit} />
-      {view === 'conceptual' && (
-        <div className="canvas-topline">
-          <div>
-            <span className="eyebrow">CONCEPTUAL MAP</span>
-            <h1>Connected infrastructure.</h1>
-          </div>
-        </div>
-      )}
       {view === 'conceptual' ? (
         <ConceptualMap
           snapshot={snapshot}
@@ -1118,7 +1108,7 @@ function Workspace({
                 />
               )}
               <button
-                className="button primary"
+                className="btn primary"
                 disabled={traceMutation.isPending || !start}
                 onClick={runTrace}
               >
@@ -1251,7 +1241,10 @@ function Explorer({
     () =>
       settled.trim()
         ? searchExplore(searchItems.get(), settled)
-        : searchExplore({ ports: [], cables: [], firstEnd: new Map() }, ''),
+        : searchExplore(
+            { ports: [], cables: [], firstEnd: new Map(), pieces: new Map() },
+            '',
+          ),
     [searchItems, settled],
   )
   const tree = useMemo(() => filterTree(snapshot, settled), [snapshot, settled])
@@ -1306,7 +1299,9 @@ function Explorer({
                   onClick={() => onChooseHit(row.openEndpointId)}
                 >
                   <span className="dot" />
-                  {row.label}
+                  <span>
+                    <Pieces pieces={row.pieces} />
+                  </span>
                 </button>
               ))}
               {group.more > 0 && (
@@ -1378,7 +1373,7 @@ const ExplorerTree = memo(
                     : onHighlight({ kind: 'site', id: site.id })
                 }
               >
-                {site.name}
+                <Name text={site.name} />
                 {!physical && (
                   <Highlighter
                     size={13}
@@ -1408,7 +1403,7 @@ const ExplorerTree = memo(
                         : onHighlight({ kind: 'node', id: node.id })
                     }
                   >
-                    {node.name}
+                    <Name text={node.name} />
                     {!physical && (
                       <Highlighter
                         size={13}
@@ -1425,7 +1420,7 @@ const ExplorerTree = memo(
                       onClick={() => onOpenRack(rack.id)}
                     >
                       <Server size={15} />
-                      {rack.name}
+                      <Name text={rack.name} />
                       <small>{rack.units}U ↗</small>
                     </button>
                     {equipment.map((e) => (
@@ -1443,7 +1438,7 @@ const ExplorerTree = memo(
                         onClick={() => onChoose(e.id)}
                       >
                         <span className="dot" />
-                        {e.name}
+                        <Name text={e.name} />
                         <small>U{e.unit}</small>
                       </button>
                     ))}

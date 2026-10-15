@@ -1,0 +1,971 @@
+<title>Net-Top Paper and Hardware</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Hebrew:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the real app frame (one-line header, tool rail, canvas, drawers over the canvas) at
+   desktop size, with a demo strip above it to switch screens and compare with today.
+   Paper = everything read or edited; Steel = equipment, with names on label-tape strips.
+   Colour only where it means something. Single light theme, like the app itself. */
+:root {
+  --floor: #eef1f3;      /* canvas behind everything */
+  --paper: #ffffff;      /* drawers, forms, lists, cards */
+  --paper-sunk: #f6f8f9; /* table heads, wells */
+  --ink: #1c2b3a;        /* text, primary actions, selection */
+  --ink-soft: #56636f;   /* secondary text (≥ 5.5:1 on paper) */
+  --rule: #d3dae1;       /* borders, dividers */
+  --rule-soft: #e6ebef;
+  --steel: #1f2731;      /* racks, faceplates, HDF chassis only */
+  --steel-2: #2a3440;
+  --steel-3: #3a4552;
+  --tape: #fbfbf8;       /* label-maker strips on hardware */
+  --tape-ink: #15202b;
+  --jack: #c9d2db;       /* a free jack's metal */
+  /* Meaning colours (locked): route teal, highlight amber, networks by creation order. */
+  --route: #0f8b7a;
+  --route-soft: #e2f3f0;
+  --amber: #d99a0b;
+  --amber-soft: #fdf3dc;
+  --proposed: #8a6100;
+  --proposed-soft: #fff6dd;
+  --danger: #b4361f;
+  --net-1: #2f6fdb;
+  --net-2: #9a4fc7;
+  --net-3: #c2542d;
+  --sans: "IBM Plex Sans", "IBM Plex Sans Hebrew", "Segoe UI", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  /* Type scale: 12 / 13 / 14 / 16 / 20 / 26 */
+  --t-xs: 12px; --t-sm: 13px; --t-md: 14px; --t-lg: 16px; --t-xl: 20px; --t-2xl: 26px;
+  --r-drawer: 10px; --r-control: 6px; --r-hw: 2px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--floor); color: var(--ink); font-family: var(--sans); font-size: var(--t-md); line-height: 1.45; }
+body { padding-block: 0 32px; padding-inline: 16px; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { text-wrap: balance; font-weight: 600; }
+bdi { unicode-bidi: isolate; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---------- Demo strip (not part of the app) ---------- */
+.demo-strip { max-width: 1440px; margin: 0 auto; padding-block: 18px 12px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+.demo-strip h1 { font-size: var(--t-xl); letter-spacing: -0.01em; }
+.demo-strip p { color: var(--ink-soft); font-size: var(--t-sm); max-width: 62ch; margin-top: 4px; }
+.demo-nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.demo-nav button { border: 1px solid var(--rule); background: var(--paper); border-radius: 999px; padding: 6px 12px; font-size: var(--t-sm); }
+.demo-nav button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.demo-nav .sep { width: 1px; height: 22px; background: var(--rule); margin-inline: 6px; }
+.demo-nav label { display: flex; gap: 6px; align-items: center; font-size: var(--t-sm); color: var(--ink-soft); }
+.frame-scroll { max-width: 1440px; margin: 0 auto; overflow-x: auto; border-radius: 12px; border: 1px solid var(--rule); box-shadow: 0 20px 50px -30px #1c2b3a55; }
+.notes { max-width: 1440px; margin: 16px auto 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 28px; font-size: var(--t-sm); color: var(--ink-soft); }
+.notes h3 { font-size: var(--t-sm); color: var(--ink); margin-bottom: 2px; }
+.notes p { min-width: 0; }
+
+/* ---------- App frame ---------- */
+.app { min-width: 1240px; height: 860px; position: relative; overflow: hidden; background: var(--floor); display: grid; grid-template-rows: 52px 1fr; }
+.today { position: absolute; inset: 0; z-index: 200; background: #fff; display: grid; place-items: center; overflow: auto; }
+.today img { max-height: 100%; width: auto; max-width: 100%; }
+.today .tag { position: absolute; top: 12px; left: 12px; background: var(--ink); color: #fff; font-size: var(--t-xs); padding: 4px 10px; border-radius: 999px; }
+
+.bar { display: flex; align-items: center; gap: 18px; padding-inline: 18px; background: var(--paper); border-bottom: 1px solid var(--rule); position: relative; z-index: 60; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: var(--t-lg); letter-spacing: -0.02em; }
+.brand svg { width: 22px; height: 22px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--r-control); padding: 2px; background: var(--paper-sunk); }
+.seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 4px; font-size: var(--t-sm); color: var(--ink-soft); }
+.seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); font-weight: 500; box-shadow: 0 0 0 1px var(--rule); }
+.bar .spacer { flex: 1; }
+.bar label.inline { display: flex; align-items: center; gap: 8px; font-size: var(--t-sm); color: var(--ink-soft); }
+select, input[type="text"], input[type="number"] { height: 34px; border: 1px solid var(--rule); border-radius: var(--r-control); background: var(--paper); padding: 0 10px; font-size: var(--t-md); width: 100%; }
+select:focus-visible, input:focus-visible { outline: none; border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.bar select { width: 170px; height: 30px; font-size: var(--t-sm); }
+.plan-pill { display: inline-flex; align-items: center; gap: 6px; }
+.plan-pill .dash { width: 10px; height: 10px; border: 1.5px dashed var(--proposed); border-radius: 2px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: var(--r-control); font-size: var(--t-sm); font-weight: 500; border: 1px solid var(--rule); background: var(--paper); white-space: nowrap; }
+.btn:hover { border-color: #b6c1cc; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.primary:hover { background: #2b3d50; }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--ink-soft); padding-inline: 8px; }
+.btn.quiet:hover { color: var(--ink); background: var(--paper-sunk); }
+.btn.lg { height: 36px; padding-inline: 16px; font-size: var(--t-md); }
+.count { font-family: var(--mono); font-size: var(--t-xs); background: var(--paper-sunk); border: 1px solid var(--rule); border-radius: 4px; padding: 0 5px; }
+.env { font-size: var(--t-xs); font-weight: 600; color: #7a5200; background: var(--amber-soft); border: 1px solid #ecd49a; border-radius: 4px; padding: 2px 6px; }
+
+.body { position: relative; overflow: hidden; }
+.rail { position: absolute; left: 14px; top: 14px; z-index: 50; display: flex; flex-direction: column; gap: 2px; padding: 4px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); }
+.rail button { width: 56px; height: 54px; border: 0; background: transparent; border-radius: var(--r-control); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: var(--t-xs); color: var(--ink-soft); }
+.rail button svg { width: 20px; height: 20px; }
+.rail button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.rail button:hover:not([aria-pressed="true"]) { background: var(--paper-sunk); color: var(--ink); }
+
+.screen { position: absolute; inset: 0; overflow: auto; padding: 16px 24px 24px 100px; }
+.screen[hidden] { display: none !important; }
+.screen.with-drawer { padding-right: 444px; }
+#s-inv.with-drawer { padding-right: 432px !important; } /* Physical pages keep clear of an open drawer */
+
+/* Drawers float: the only things with shadows. */
+.drawer { position: absolute; top: 14px; bottom: 14px; z-index: 55; width: 400px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); box-shadow: 0 18px 40px -18px #1c2b3a40, 0 2px 6px #1c2b3a12; display: flex; flex-direction: column; overflow: hidden; }
+.drawer.right { right: 16px; }
+.drawer.left { left: 88px; width: 380px; }
+.drawer header { padding: 16px 18px 12px; border-bottom: 1px solid var(--rule-soft); display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.drawer header h2 { font-size: var(--t-lg); }
+.drawer header p { color: var(--ink-soft); font-size: var(--t-sm); margin-top: 2px; }
+.drawer .scroll { overflow: auto; padding: 16px 18px 20px; display: flex; flex-direction: column; gap: 18px; }
+.x { width: 30px; height: 30px; border: 0; background: transparent; border-radius: var(--r-control); color: var(--ink-soft); display: grid; place-items: center; flex: none; }
+.x:hover { background: var(--paper-sunk); color: var(--ink); }
+
+/* Shared bits */
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: var(--t-sm); }
+.crumbs button { border: 0; background: none; padding: 2px 4px; border-radius: 4px; color: var(--ink-soft); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
+.crumbs button:hover { color: var(--ink); text-decoration-color: var(--ink); }
+.crumbs .sep { color: #9aa6b2; }
+.crumbs .here { font-weight: 600; padding: 2px 4px; }
+.scope { color: var(--ink-soft); font-size: var(--t-sm); }
+.path { color: var(--ink-soft); font-size: var(--t-sm); display: flex; flex-wrap: wrap; gap: 0 6px; }
+.path .sep { color: #9aa6b2; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper); font-size: var(--t-xs); color: var(--ink); white-space: nowrap; }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+.chip.proposed { border: 1.5px dashed var(--proposed); background: var(--proposed-soft); color: var(--proposed); font-weight: 600; }
+.chip.route { border-color: var(--route); background: var(--route-soft); color: #0a5f54; font-weight: 500; }
+.chip.role { background: var(--paper-sunk); }
+.meter { display: flex; align-items: center; gap: 10px; font-size: var(--t-sm); color: var(--ink-soft); }
+.meter .track { flex: 1; height: 4px; border-radius: 2px; background: var(--rule-soft); overflow: hidden; }
+.meter .fill { height: 100%; background: var(--ink); }
+.section-title { font-size: var(--t-sm); font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.section-title span { font-weight: 400; color: var(--ink-soft); }
+dl.kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; margin: 0; font-size: var(--t-sm); }
+dl.kv dt { color: var(--ink-soft); }
+dl.kv dd { margin: 0; min-width: 0; }
+.empty { color: #8b96a2; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--rule); }
+.tabs button { border: 0; background: none; padding: 8px 10px; font-size: var(--t-sm); color: var(--ink-soft); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); font-weight: 500; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--t-sm); color: var(--ink-soft); align-items: center; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.toast { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 90; background: var(--ink); color: var(--paper); padding: 10px 14px; border-radius: var(--r-control); font-size: var(--t-sm); box-shadow: 0 10px 30px -10px #1c2b3a80; }
+
+/* ---------- Conceptual map ---------- */
+.map-surface { position: absolute; inset: 0; background-color: var(--floor); background-image: radial-gradient(#cdd5dd 1px, transparent 1px); background-size: 22px 22px; }
+.map-surface svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.card { position: absolute; width: 240px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; text-align: left; }
+.card:hover { border-color: #a9b5c1; }
+.card.selected { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.card.on-route { border-color: var(--route); box-shadow: 0 0 0 1px var(--route); }
+.card.on-route.selected { box-shadow: 0 0 0 1px var(--route), 0 0 0 4px #1c2b3a33; }
+.card .top { display: flex; align-items: center; gap: 8px; }
+.card .kind { width: 22px; height: 22px; flex: none; border-radius: 4px; display: grid; place-items: center; background: var(--paper-sunk); color: var(--ink-soft); }
+.card .kind svg { width: 14px; height: 14px; }
+.card .name { font-weight: 600; font-size: var(--t-md); min-width: 0; flex: 1; line-height: 1.3; }
+.card .top { align-items: start; }
+.card .role { padding-top: 1px; }
+.card .role { font-size: var(--t-xs); color: var(--ink-soft); flex: none; }
+.card .path { font-size: var(--t-xs); line-height: 1.35; }
+.card .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--t-xs); color: var(--ink-soft); }
+.card .nets { display: flex; gap: 4px; flex-wrap: wrap; }
+.card .facet { margin-top: 2px; border-top: 1px dashed var(--rule); padding-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+.card .facet .chip { height: 20px; font-family: var(--mono); }
+.bundle { font-family: var(--mono); font-size: 11px; font-weight: 500; }
+.map-hint { position: absolute; left: 100px; bottom: 14px; font-size: var(--t-sm); color: var(--ink-soft); display: flex; gap: 18px; }
+.map-tools { position: absolute; right: 16px; top: 14px; display: flex; gap: 8px; }
+.results { position: absolute; left: 100px; bottom: 44px; width: 560px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); box-shadow: 0 18px 40px -18px #1c2b3a40; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; z-index: 40; }
+.results .row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--rule); border-radius: var(--r-control); font-size: var(--t-sm); cursor: pointer; background: var(--paper); text-align: left; }
+.results .row[aria-pressed="true"] { border-color: var(--route); background: var(--route-soft); }
+.results .row .len { color: var(--ink-soft); font-size: var(--t-xs); }
+.dest { font-weight: 600; }
+
+/* ---------- Physical pages ---------- */
+.page-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.page-head .row { display: flex; align-items: center; gap: 10px; }
+.back { height: 28px; }
+.title-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.title-row h2 { font-size: var(--t-xl); letter-spacing: -0.01em; }
+.title-row .meta { color: var(--ink-soft); font-size: var(--t-sm); }
+.title-row .end { margin-left: auto; display: flex; gap: 8px; }
+.two-col { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: start; }
+
+/* The rack: steel cabinet, real U numbers, one block per equipment, 1U never below 26px. */
+.cabinet { --u: 26px; width: 520px; background: var(--steel); border-radius: 6px; padding: 14px 14px 14px 0; display: grid; grid-template-columns: 46px 1fr 12px; position: relative; }
+.cabinet .rail-l, .cabinet .rail-r { background-image: repeating-linear-gradient(to bottom, transparent 0 9px, #11171e 9px 13px, transparent 13px var(--u)); }
+.cabinet .units { display: grid; grid-auto-rows: var(--u); position: relative; }
+.cabinet .unum { font-family: var(--mono); font-size: 11px; color: #8d9aa8; text-align: right; padding-right: 10px; line-height: var(--u); }
+.cabinet .unum.five { color: #c3ccd6; }
+.slot { border-top: 1px dashed #36414d; }
+.slot:last-child { border-bottom: 1px dashed #36414d; }
+.block { position: absolute; left: 0; right: 0; margin: 2px 0; background: var(--steel-3); border: 1px solid #4b5765; border-radius: var(--r-hw); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 6px; cursor: pointer; text-align: left; color: inherit; }
+.block:hover { border-color: #7d8a98; }
+.block .stripe { width: 4px; align-self: stretch; margin: 3px 0; border-radius: 1px; flex: none; }
+.tape { background: var(--tape); color: var(--tape-ink); border-radius: 2px; padding: 0 8px; height: 18px; line-height: 18px; font-size: 12.5px; font-weight: 500; box-shadow: inset 0 0 0 1px #00000014, 0 1px 0 #00000040; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 300px; }
+.block .ports { margin-left: auto; display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 4px); gap: 2px; flex: none; }
+.block .ports i { width: 5px; height: 4px; background: #8795a3; border-radius: 1px; }
+.block .ports i.used { background: #d6dde4; }
+.block .size { font-family: var(--mono); font-size: 11px; color: #a8b4c0; flex: none; }
+.block.tall { flex-direction: column; align-items: stretch; justify-content: center; gap: 6px; padding: 6px 8px 6px 14px; }
+.block.tall .rowline { display: flex; align-items: center; gap: 10px; }
+.block.tall .grid-hint { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.block.tall .grid-hint i { height: 8px; background: #4d5967; border-radius: 1px; }
+.block.selected { outline: 2px solid var(--paper); outline-offset: 1px; }
+.block.route { border-color: var(--route); box-shadow: inset 0 0 0 1px var(--route); }
+.block.proposed { border: 1.5px dashed #e3b84d; background: #3d3a2e; }
+.free-label { font-size: 11px; color: #6f7c8a; padding-left: 8px; line-height: var(--u); }
+.side-note { display: flex; flex-direction: column; gap: 14px; max-width: 420px; font-size: var(--t-sm); }
+.side-note .panel { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.contents { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.contents li button { width: 100%; display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; align-items: center; border: 0; background: none; text-align: left; padding: 6px 4px; border-radius: 4px; font-size: var(--t-sm); }
+.contents li button:hover { background: var(--paper-sunk); }
+.contents .u { font-family: var(--mono); color: var(--ink-soft); font-size: var(--t-xs); }
+.contents .nm { min-width: 0; }
+
+/* HDF chassis */
+.chassis { background: var(--steel); border-radius: 6px; padding: 14px 16px 16px; display: inline-flex; flex-direction: column; gap: 10px; }
+.chassis .head { display: flex; align-items: center; gap: 10px; }
+.chassis .head .side { font-size: var(--t-xs); color: #a8b4c0; margin-left: auto; }
+.hdf-grid { display: grid; grid-template-columns: 26px repeat(4, auto); gap: 8px 10px; align-items: center; }
+.hdf-grid .colh { font-family: var(--mono); font-size: var(--t-sm); color: #c3ccd6; text-align: center; }
+.hdf-grid .rowh { font-family: var(--mono); font-size: var(--t-sm); color: #c3ccd6; text-align: right; }
+.module { background: var(--steel-2); border: 1px solid #36414d; border-radius: 3px; padding: 4px 6px 6px; display: flex; flex-direction: column; gap: 3px; }
+.module .mlabel { font-family: var(--mono); font-size: 11px; color: #97a4b2; }
+.module .jacks { display: grid; grid-template-columns: repeat(3, 30px); gap: 4px; }
+.jk { width: 30px; height: 26px; border-radius: 2px; border: 0; background: var(--jack); color: #2a3440; font-family: var(--mono); font-size: 11.5px; font-weight: 500; position: relative; display: grid; place-items: end center; padding-bottom: 1px; }
+.jk::before { content: ""; position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 12px; height: 6px; border-radius: 1px; background: #8592a0; }
+.jk.used { color: #fff; }
+.jk.used::before { background: #ffffffa0; }
+.jk.route { background: var(--route); color: #fff; }
+.jk.route::before { background: #ffffffa0; }
+.jk.sel { outline: 2px solid var(--paper); outline-offset: 2px; }
+.jk:hover:not(.sel) { filter: brightness(1.08); }
+.jk.state { background-image: repeating-linear-gradient(45deg, #0000 0 4px, #00000030 4px 6px); }
+.hdf-layout { display: grid; grid-template-columns: auto minmax(280px, 1fr); gap: 24px; align-items: start; }
+.endpoint { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; position: sticky; top: 0; }
+.endpoint h3 { font-size: var(--t-lg); display: flex; align-items: baseline; gap: 8px; }
+.endpoint h3 small { font-weight: 400; color: var(--ink-soft); font-size: var(--t-sm); }
+.hop { display: grid; grid-template-columns: 14px 1fr; gap: 8px; font-size: var(--t-sm); }
+.hop .line { width: 2px; background: var(--rule); margin: 4px auto 0; border-radius: 1px; }
+.hop .line.cable { background: var(--net-1); }
+.hop p + p { color: var(--ink-soft); }
+.endpoint .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Switch faceplate */
+.faceplate { background: var(--steel); border-radius: 6px; padding: 10px 14px 14px; display: inline-flex; flex-direction: column; gap: 10px; }
+.faceplate .head { display: flex; align-items: center; gap: 10px; }
+.faceplate .head .model { font-size: var(--t-xs); color: #a8b4c0; margin-left: auto; font-family: var(--mono); }
+.bank { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 30px); gap: 5px; }
+.bank .jk { width: 36px; height: 30px; }
+.uplinks { width: 100%; border-collapse: collapse; font-size: var(--t-sm); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.uplinks th { text-align: left; font-weight: 500; color: var(--ink-soft); background: var(--paper-sunk); padding: 8px 12px; border-bottom: 1px solid var(--rule); font-size: var(--t-xs); }
+.uplinks td { padding: 9px 12px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+.uplinks tr:last-child td { border-bottom: 0; }
+.uplinks .via { color: var(--ink-soft); }
+.tag-agg { font-size: 11px; font-weight: 600; border: 1px solid var(--rule); border-radius: 4px; padding: 0 5px; color: var(--ink); background: var(--paper-sunk); }
+
+/* Library + HDF form */
+.lib-item { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); cursor: grab; }
+.lib-item .ico { width: 32px; height: 32px; border-radius: 6px; background: var(--paper-sunk); display: grid; place-items: center; color: var(--ink-soft); }
+.lib-item .ico svg { width: 18px; height: 18px; }
+.lib-item strong { font-weight: 600; display: block; font-size: var(--t-md); }
+.lib-item small { color: var(--ink-soft); font-size: var(--t-xs); }
+.lib-list { display: flex; flex-direction: column; gap: 8px; }
+form.hdf { border: 1.5px dashed #d8b45a; background: #fffcf3; border-radius: 8px; padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+form.hdf .full { grid-column: 1 / -1; }
+form.hdf .head { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+form.hdf .head strong { font-size: var(--t-md); }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: var(--t-xs); font-weight: 500; color: var(--ink); }
+.field .hint { font-size: var(--t-xs); color: var(--ink-soft); }
+.field .err { font-size: var(--t-xs); color: var(--danger); }
+.field input[aria-invalid="true"] { border-color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
+.place { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.place-label { grid-column: 1 / -1; font-size: var(--t-xs); font-weight: 500; margin-bottom: -6px; }
+.summary-line { grid-column: 1 / -1; font-size: var(--t-sm); color: var(--ink-soft); background: var(--paper); border: 1px solid var(--rule-soft); border-radius: var(--r-control); padding: 8px 10px; }
+.form-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+
+/* Map overview: sites as outlined areas, nodes as cards, one line per node pair with its cable count */
+.map-surface svg.wires { z-index: 1; }
+.node-card, .card { z-index: 2; }
+.site-frame { position: absolute; z-index: 0; border: 1px solid var(--rule); background: #f6f8f9cc; border-radius: 12px; }
+.site-frame > span { position: absolute; top: -11px; left: 14px; background: var(--floor); padding: 0 8px; font-size: var(--t-sm); font-weight: 600; }
+.site-frame > span small { font-weight: 400; color: var(--ink-soft); margin-inline-start: 6px; }
+.node-card { position: absolute; width: 230px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; text-align: left; }
+.node-card:hover { border-color: #a9b5c1; }
+.node-card.on-route { border-color: var(--route); box-shadow: 0 0 0 1px var(--route); }
+.node-card .nm { font-weight: 600; line-height: 1.3; }
+.node-card .ct { font-size: var(--t-xs); color: var(--ink-soft); }
+.node-card .nets { display: flex; flex-wrap: wrap; gap: 4px; }
+.map-modes { position: absolute; left: 100px; top: 14px; z-index: 30; display: flex; gap: 8px; align-items: center; }
+
+/* Inventory: the approved portal-style list (D22) drawn with the shared tokens */
+.inv { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 0; height: 100%; }
+.inv-menu { border-right: 1px solid var(--rule); background: var(--paper); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+.inv-menu h3 { font-size: var(--t-xs); color: var(--ink-soft); font-weight: 500; padding: 10px 8px 4px; }
+.inv-menu button { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; border: 0; background: none; padding: 7px 8px; border-radius: var(--r-control); font-size: var(--t-sm); text-align: left; }
+.inv-menu button svg { width: 16px; height: 16px; color: var(--ink-soft); }
+.inv-menu button:hover { background: var(--paper-sunk); }
+.inv-menu button[aria-current="page"] { background: var(--paper-sunk); font-weight: 600; box-shadow: inset 3px 0 0 var(--ink); }
+.inv-menu .n { font-size: var(--t-xs); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.inv-main { padding: 14px 20px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; overflow: auto; background: var(--paper); }
+.inv-title { display: flex; align-items: baseline; gap: 10px; }
+.inv-title h2 { font-size: var(--t-xl); }
+.inv-title span { color: var(--ink-soft); font-size: var(--t-sm); }
+.cmdbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; border-bottom: 1px solid var(--rule-soft); padding-bottom: 8px; }
+.cmdbar button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; background: none; border-radius: var(--r-control); font-size: var(--t-sm); }
+.cmdbar button svg { width: 15px; height: 15px; }
+.cmdbar button:hover:not(:disabled) { background: var(--paper-sunk); }
+.cmdbar button:disabled { color: #a3adb7; cursor: not-allowed; }
+.cmdbar .sepv { width: 1px; height: 20px; background: var(--rule); margin: 0 6px; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.search { position: relative; width: 260px; }
+.search input { padding-left: 30px; height: 30px; font-size: var(--t-sm); }
+.search svg { position: absolute; left: 9px; top: 8px; width: 14px; height: 14px; color: var(--ink-soft); }
+.pill { height: 28px; display: inline-flex; align-items: center; gap: 4px; padding: 0 10px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); font-size: var(--t-sm); }
+.pill b { font-weight: 600; }
+.pill.on { border-color: var(--ink); background: var(--paper-sunk); }
+.linkbtn { border: 0; background: none; font-size: var(--t-sm); text-decoration: underline; text-underline-offset: 3px; color: var(--ink); padding: 0 4px; }
+.inv-meta { display: flex; align-items: center; gap: 10px; font-size: var(--t-sm); color: var(--ink-soft); }
+.inv-meta select { width: 170px; height: 30px; font-size: var(--t-sm); }
+.inv-meta b { color: var(--ink); font-weight: 600; }
+.tbl-wrap { border: 1px solid var(--rule); border-radius: 8px; overflow: auto; min-height: 0; }
+table.inv-t { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.inv-t th { position: sticky; top: 0; background: var(--paper-sunk); text-align: left; font-weight: 500; color: var(--ink-soft); font-size: var(--t-xs); border-bottom: 1px solid var(--rule); padding: 0 10px; height: 32px; white-space: nowrap; }
+.inv-t th button { border: 0; background: none; font: inherit; color: inherit; padding: 0; display: inline-flex; gap: 4px; }
+.inv-t th button .s { color: #a3adb7; }
+.inv-t th[aria-sort="ascending"] button, .inv-t th[aria-sort="descending"] button { color: var(--ink); }
+.inv-t th[aria-sort="ascending"] .s, .inv-t th[aria-sort="descending"] .s { color: var(--ink); }
+.inv-t td { padding: 0 10px; height: 34px; border-bottom: 1px solid var(--rule-soft); white-space: nowrap; }
+.inv-t td.wrap { white-space: normal; padding-block: 6px; }
+.inv-t tr:hover td { background: #f8fafb; }
+.inv-t tr.sel td { background: #e9eef3; }
+.inv-t tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--ink); }
+.inv-t .ck { width: 36px; }
+.inv-t .nmcell { display: inline-flex; align-items: center; gap: 8px; }
+.inv-t .nmcell svg { width: 15px; height: 15px; color: var(--ink-soft); flex: none; }
+.inv-t a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
+.inv-t a:hover { text-decoration-color: var(--ink); }
+.inv-t .grp td { background: var(--paper-sunk); font-weight: 600; height: 30px; }
+.inv-t .grp td span { color: var(--ink-soft); font-weight: 400; }
+.status { display: inline-flex; align-items: center; gap: 6px; }
+.status i { font-style: normal; font-size: 12px; width: 14px; text-align: center; }
+.more { border: 0; background: none; width: 28px; height: 26px; border-radius: 4px; color: var(--ink-soft); }
+.more:hover { background: var(--paper-sunk); color: var(--ink); }
+.pager { display: flex; align-items: center; gap: 10px; font-size: var(--t-sm); color: var(--ink-soft); }
+
+/* Changes */
+.draft-row { display: flex; gap: 8px; align-items: end; }
+.draft-row .field { flex: 1; }
+.group h3 { font-size: var(--t-sm); margin-bottom: 6px; display: flex; gap: 6px; align-items: baseline; }
+.group h3 span { color: var(--ink-soft); font-weight: 400; }
+.change { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--rule-soft); font-size: var(--t-sm); }
+.change a { color: var(--ink); text-decoration: none; }
+.change a:hover { text-decoration: underline; }
+.change .sub { color: var(--ink-soft); font-size: var(--t-xs); display: block; }
+.record { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; border-top: 1px solid var(--rule); }
+.record p { font-size: var(--t-sm); color: var(--ink-soft); }
+</style>
+
+<div class="demo-strip">
+  <div>
+    <h1>Net-Top, paper and hardware</h1>
+    <p>A clickable demo of the visual pass on example data shaped like yours. Click cards, rack blocks, jacks and the rail. "Show today" puts the current screen next to it.</p>
+  </div>
+  <div class="demo-nav" role="group" aria-label="Demo screens">
+    <button data-go="overview" aria-pressed="false">Map overview</button>
+    <button data-go="map" aria-pressed="true">Map</button>
+    <button data-go="rack" aria-pressed="false">Rack</button>
+    <button data-go="hdf" aria-pressed="false">HDF</button>
+    <button data-go="switch" aria-pressed="false">Switch page</button>
+    <button data-go="form" aria-pressed="false">Add an HDF</button>
+    <button data-go="changes" aria-pressed="false">Changes</button>
+    <button data-go="inventory" aria-pressed="false">Inventory</button>
+    <span class="sep"></span>
+    <label><input type="checkbox" id="today-toggle"> Show today</label>
+  </div>
+</div>
+
+<div class="frame-scroll">
+<div class="app" id="app">
+  <div class="today" id="today" hidden><span class="tag">Today</span><img id="today-img" alt="The current version of this screen"></div>
+
+  <div class="bar">
+    <div class="brand" aria-label="nettop">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="6" rx="1"/><rect x="3" y="15" width="18" height="6" rx="1"/><path d="M7 9v6M17 9v6"/></svg>
+      nettop
+    </div>
+    <div class="seg" role="group" aria-label="View">
+      <button id="v-conceptual" aria-pressed="true">Conceptual</button>
+      <button id="v-physical" aria-pressed="false">Physical</button>
+      <button id="v-inventory" aria-pressed="false">Inventory</button>
+    </div>
+    <label class="inline">Network
+      <select id="net-select"><option>All networks</option></select>
+    </label>
+    <span class="spacer"></span>
+    <div class="seg" role="group" aria-label="Context">
+      <button id="c-installed" aria-pressed="true">Installed</button>
+      <button id="c-plan" aria-pressed="false"><span class="plan-pill"><span class="dash"></span>Plan: Expansion</span></button>
+    </div>
+    <button class="btn quiet" id="open-changes">Changes <span class="count">3</span></button>
+    <span class="env">DEV</span>
+  </div>
+
+  <div class="body" id="body">
+    <nav class="rail" aria-label="Workspace tools">
+      <button id="r-add" aria-pressed="false" title="Equipment library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+      <button id="r-explore" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg>Explore</button>
+      <button id="r-trace" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M6 8.5c0 5 6 4 6 7M18 8.5c0 5-6 4-6 7"/></svg>Trace</button>
+      <button id="r-inspect" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Inspect</button>
+    </nav>
+
+    <!-- Conceptual map -->
+    <section class="screen" id="s-map" style="padding:0">
+      <div class="map-surface" id="map-surface">
+        <svg class="wires" id="wires"></svg>
+      </div>
+      <div class="map-tools"><button class="btn" id="reset-layout">Reset layout</button></div>
+      <div class="results" id="results" hidden></div>
+      <div class="map-hint"><span><b id="map-count">8 of 8</b> equipment, 11 cables</span><span>Dragging a card changes this map only, never the topology.</span></div>
+    </section>
+
+    <!-- Map overview (roadmap §1) -->
+    <section class="screen" id="s-overview" style="padding:0" hidden>
+      <div class="map-surface" id="ov-surface"><svg class="wires" id="ov-wires"></svg></div>
+      <div class="map-modes"><div class="seg" role="group" aria-label="Map"><button aria-pressed="true">Overview</button><button id="ov-to-map" aria-pressed="false">Equipment</button></div><span class="scope">Nodes by site. Lines count real cables between nodes.</span></div>
+      <div class="map-tools"><button class="btn">Reset arrangement</button></div>
+      <div class="map-hint"><span><b>9</b> nodes in <b>3</b> sites, <b>212</b> cables</span><span>Open a node to see its equipment in place.</span></div>
+    </section>
+
+    <!-- Inventory (roadmap §2) -->
+    <section class="screen" id="s-inv" style="padding:0 0 0 84px" hidden>
+      <div class="inv">
+        <nav class="inv-menu" aria-label="Inventory lists" id="inv-menu"></nav>
+        <div class="inv-main" id="inv-main"></div>
+      </div>
+    </section>
+
+    <!-- Rack -->
+    <section class="screen" id="s-rack" hidden>
+      <div class="page-head">
+        <div class="row"><button class="btn back" data-back>‹ Back</button><nav class="crumbs" aria-label="Breadcrumbs" id="rack-crumbs"></nav></div>
+        <p class="scope">The complete physical inventory. All networks are shown.</p>
+      </div>
+      <div class="title-row"><h2><bdi>מחסני קשר + מעבדה ארון שחור</bdi></h2><span class="meta"><span class="num">42U</span> rack, front</span><span class="end"><button class="btn">Print sheet</button></span></div>
+      <div class="two-col">
+        <div class="cabinet" id="cabinet"></div>
+        <div class="side-note">
+          <div class="panel">
+            <div class="section-title">In this rack <span id="rack-count"></span></div>
+            <ul class="contents" id="rack-contents"></ul>
+          </div>
+          <div class="legend"><span><i style="background:var(--route)"></i>On the selected route</span><span><i style="border:1.5px dashed #d8b45a;background:#fffcf3"></i>Proposed</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HDF -->
+    <section class="screen" id="s-hdf" hidden>
+      <div class="page-head">
+        <div class="row"><button class="btn back" data-back>‹ Back</button><nav class="crumbs" aria-label="Breadcrumbs" id="hdf-crumbs"></nav></div>
+        <p class="scope">The complete physical inventory. All networks are shown.</p>
+      </div>
+      <div class="title-row"><h2>HDF-01</h2><span class="meta">HDF, 12 rows of blocks A–D, <span class="num">288</span> positions per side, <span class="num">4U</span> at <span class="num">U30</span></span>
+        <span class="end"><div class="seg" role="group" aria-label="Side"><button id="side-front" aria-pressed="false">Front</button><button id="side-rear" aria-pressed="true">Rear</button></div><button class="btn">Print sheet</button></span></div>
+      <div class="hdf-layout">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="chassis">
+            <div class="head"><span class="tape">HDF-01</span><span class="side" id="side-label">Rear</span></div>
+            <div class="hdf-grid" id="hdf-grid"></div>
+          </div>
+          <div class="legend" id="hdf-legend"></div>
+        </div>
+        <aside class="endpoint" id="endpoint" aria-live="polite"></aside>
+      </div>
+    </section>
+
+    <!-- Switch page -->
+    <section class="screen with-drawer" id="s-switch" hidden>
+      <div class="page-head">
+        <div class="row"><button class="btn back" data-back>‹ Back</button><nav class="crumbs" aria-label="Breadcrumbs" id="sw-crumbs"></nav></div>
+        <p class="scope">The complete physical inventory. All networks are shown.</p>
+      </div>
+      <div class="title-row"><h2><bdi>מתג קליקנט קשר + מעבדה 11</bdi></h2><span class="meta">Access switch, 24 ports, <span class="num">1U</span> at <span class="num">U25</span></span><span class="end"><button class="btn">Print sheet</button></span></div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="faceplate">
+          <div class="head"><span class="tape" style="max-width:340px"><bdi>מתג קליקנט קשר + מעבדה 11</bdi></span><span class="model">C9200-24T</span></div>
+          <div class="bank" id="bank"></div>
+        </div>
+        <div class="legend"><span><i style="background:var(--jack)"></i>Free</span><span><i style="background:var(--net-1)"></i><bdi>קליקנט</bdi></span><span><i style="background:var(--route)"></i>On the selected route</span><span><i style="background:var(--jack);outline:2px solid var(--ink);outline-offset:1px"></i>Selected</span></div>
+        <div>
+          <div class="section-title" style="margin-bottom:8px">Uplinks <span>3 of 24 ports reach an AGG or BB</span></div>
+          <table class="uplinks">
+            <thead><tr><th>Port</th><th>Reaches</th><th>Cables</th><th>Through</th></tr></thead>
+            <tbody id="uplinks"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div id="drawers"></div>
+  </div>
+</div>
+</div>
+
+<div class="notes">
+  <div><h3>Names read correctly</h3><p>Every name is set apart from the text around it, so Hebrew names keep their order next to English words, separators and numbers.</p></div>
+  <div><h3>Colour means something</h3><p>Buttons and tabs are ink. Blue, purple and orange only ever mean a network, teal the route, amber a highlight, dashed a proposed object.</p></div>
+  <div><h3>Hardware looks like hardware</h3><p>Racks, faceplates and HDFs are the only dark things, with names on label strips. A 1U row never shrinks below a readable height; tall racks scroll.</p></div>
+  <div><h3>The same system for what comes next</h3><p>The map overview and the inventory use the same paper, ink, chips and names. The inventory keeps its approved portal layout; only network dots carry colour.</p></div>
+  <div><h3>One way to do each thing</h3><p>One chip, one form layout (labels above, two columns), three buttons. Text is never below 11px, and only jack numbers use that size.</p></div>
+</div>
+
+<script>
+const IMG = { map: "", rack: "", hdf: "", switch: "", form: "", changes: "" };
+const $ = (s, r = document) => r.querySelector(s);
+const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const bdi = (s) => `<bdi>${esc(s)}</bdi>`;
+
+const NETS = [
+  { id: 'n1', name: 'קליקנט', color: 'var(--net-1)' },
+  { id: 'n2', name: 'כתום', color: 'var(--net-2)' },
+  { id: 'n3', name: 'מעבדה', color: 'var(--net-3)' },
+];
+const net = (id) => NETS.find((n) => n.id === id);
+const netChip = (id) => { const n = net(id); return `<span class="chip"><span class="dot" style="background:${n.color}"></span>${bdi(n.name)}</span>`; };
+$('#net-select').innerHTML = '<option>All networks</option>' + NETS.map((n) => `<option>${esc(n.name)}</option>`).join('') + '<option>Manage networks…</option>';
+const path = (parts) => `<span class="path">${parts.map((p) => bdi(p)).join('<span class="sep" aria-hidden="true">›</span>')}</span>`;
+const crumbs = (el, parts) => {
+  el.innerHTML = parts.map((p, i) => i === parts.length - 1 ? `<span class="here">${bdi(p)}</span>` : `<button>${bdi(p)}</button><span class="sep" aria-hidden="true">›</span>`).join('');
+};
+
+const ICON = {
+  switch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></svg>',
+  panel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18"/></svg>',
+  hdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>',
+};
+
+// ---------------- Map ----------------
+const SITE = 'רמלה', NODE = 'מחסני קשר + מעבדה', RACK = 'מחסני קשר + מעבדה ארון שחור', CORE = 'ליבה';
+const CARDS = [
+  { id: 'sw11', name: 'מתג קליקנט קשר + מעבדה 11', kind: 'switch', role: 'Access', where: [SITE, NODE, RACK, 'U25'], nets: ['n1'], cabled: '3 of 24', x: 110, y: 70, facet: ['Port 1'] },
+  { id: 'sw58', name: 'מתג כתום קשר + מעבדה 58', kind: 'switch', role: 'Access', where: [SITE, NODE, RACK, 'U27'], nets: ['n2'], cabled: '2 of 24', x: 110, y: 290 },
+  { id: 'sm', name: 'מחסני קשר + מעבדה ארון שחור SM', kind: 'panel', role: 'Patch panel', where: [SITE, NODE, RACK, 'U40'], nets: ['n1', 'n2'], cabled: '5 of 24', x: 400, y: 150, facet: ['7'] },
+  { id: 'hdf1', name: 'HDF-01', kind: 'hdf', role: 'HDF', where: [SITE, CORE, 'BB01', 'U30'], nets: ['n1', 'n2', 'n3'], cabled: '4 of 288', x: 690, y: 150, facet: ['5A / 3'] },
+  { id: 'agg03', name: 'AGG-03', kind: 'switch', role: 'Aggregation', where: [SITE, CORE, 'BB01', 'U12'], nets: ['n1'], cabled: '6 of 48', x: 980, y: 60, facet: ['Port 1'] },
+  { id: 'agg12', name: 'AGG-12', kind: 'switch', role: 'Aggregation', where: [SITE, CORE, 'BB02', 'U10'], nets: ['n2'], cabled: '2 of 48', x: 980, y: 260 },
+  { id: 'bb01', name: 'BB-01', kind: 'switch', role: 'Backbone', where: [SITE, CORE, 'BB02', 'U40'], nets: ['n1'], cabled: '1 of 48', x: 980, y: 450 },
+  { id: 'sw424', name: 'מתג מחסני קשר + מעבדה 424', kind: 'switch', role: 'Access', where: [SITE, NODE, RACK, 'U29'], nets: ['n3'], cabled: '1 of 24', x: 400, y: 450 },
+];
+const WIRES = [
+  { a: 'sw11', b: 'sm', n: 'n1', count: 3, route: true },
+  { a: 'sw58', b: 'sm', n: 'n2', count: 2 },
+  { a: 'sm', b: 'hdf1', n: 'n1', count: 3, route: true },
+  { a: 'sm', b: 'hdf1', n: 'n2', count: 2, offset: 14 },
+  { a: 'hdf1', b: 'agg03', n: 'n1', count: 2, route: true },
+  { a: 'hdf1', b: 'agg12', n: 'n2', count: 2 },
+  { a: 'hdf1', b: 'bb01', n: 'n1', count: 1 },
+  { a: 'sw424', b: 'hdf1', n: 'n3', count: 1 },
+];
+const ROUTES = [
+  { start: 'Port 1', dest: 'AGG-03', port: 'Port 1', role: 'AGG', len: '4 cables, 3 bridges', cards: ['sw11', 'sm', 'hdf1', 'agg03'] },
+  { start: 'Port 2', dest: 'AGG-03', port: 'Port 2', role: 'AGG', len: '4 cables, 3 bridges', cards: ['sw11', 'sm', 'hdf1', 'agg03'] },
+  { start: 'Port 3', dest: 'BB-01', port: 'Port 1', role: 'BB', len: '4 cables, 3 bridges', cards: ['sw11', 'sm', 'hdf1', 'bb01'] },
+];
+const state = { screen: 'map', selected: null, traced: false, route: 0, drawer: null, side: 'rear', jack: '5A-3', port: 1, rackSel: 'sw11' };
+
+function cardHtml(c) {
+  const onRoute = state.traced && ROUTES[state.route].cards.includes(c.id);
+  return `<button class="card${state.selected === c.id ? ' selected' : ''}${onRoute ? ' on-route' : ''}" data-card="${c.id}" style="left:${c.x}px;top:${c.y}px">
+    <span class="top"><span class="kind">${ICON[c.kind]}</span><span class="name" title="${esc(c.name)}">${bdi(c.name)}</span><span class="role">${c.role}</span></span>
+    ${path(c.where)}
+    <span class="foot"><span class="nets">${c.kind === 'switch' ? netChip(c.nets[0]) : c.nets.map(netChip).join('')}</span><span><span class="num">${c.cabled}</span> cabled</span></span>
+    ${onRoute && c.facet ? `<span class="facet"><span class="chip route">${c.facet[0]}</span></span>` : ''}
+  </button>`;
+}
+function drawMap() {
+  const surf = $('#map-surface');
+  surf.querySelectorAll('.card').forEach((e) => e.remove());
+  CARDS.forEach((c) => surf.appendChild(h(cardHtml(c))));
+  const svg = $('#wires');
+  const box = (id) => { const el = surf.querySelector(`[data-card="${id}"]`); return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }; };
+  const routeCards = state.traced ? ROUTES[state.route].cards : [];
+  svg.innerHTML = WIRES.map((w) => {
+    const A = box(w.a), B = box(w.b);
+    const x1 = A.x + A.w, y1 = A.y + 34 + (w.offset || 0), x2 = B.x, y2 = B.y + 34 + (w.offset || 0);
+    const mx = (x1 + x2) / 2;
+    const onRoute = state.traced && w.route && routeCards.includes(w.a) && routeCards.includes(w.b);
+    const color = onRoute ? 'var(--route)' : net(w.n).color;
+    const width = 1.5 + Math.min(w.count, 4) * 0.9;
+    const dim = state.traced && !onRoute ? 0.35 : 1;
+    const d = `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
+    const lx = mx, ly = (y1 + y2) / 2;
+    return `<g opacity="${dim}"><path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" ${onRoute ? 'stroke-dasharray="7 5"' : ''}/>
+      ${w.count > 1 ? `<g><rect x="${lx - 11}" y="${ly - 9}" width="22" height="18" rx="9" fill="var(--paper)" stroke="${color}" stroke-width="1.5"/><text x="${lx}" y="${ly + 4}" text-anchor="middle" class="bundle" fill="var(--ink)">${w.count}</text></g>` : ''}</g>`;
+  }).join('');
+  const res = $('#results');
+  res.hidden = !state.traced;
+  if (state.traced) {
+    res.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="font-size:var(--t-md);flex:1">Find AGG / BB from ${bdi('מתג קליקנט קשר + מעבדה 11')}</h3><span class="chip route">3 routes</span><button class="x" id="clear-trace" aria-label="Clear trace">✕</button></div>
+      ${ROUTES.map((r, i) => `<button class="row" data-route="${i}" aria-pressed="${i === state.route}"><span class="mono">${r.start}</span><span>→ <span class="dest">${r.dest}</span> · ${r.port} <span class="tag-agg">${r.role}</span></span><span class="len">${r.len}</span></button>`).join('')}
+      <div style="display:flex;gap:8px"><button class="btn">Route view</button><button class="btn quiet">Export PNG</button><button class="btn quiet">Export PDF</button></div>`;
+  }
+}
+
+// ---------------- Rack ----------------
+const RACK_ITEMS = [
+  { id: 'sm', u: 40, h: 1, name: 'מחסני קשר + מעבדה ארון שחור SM', kind: 'panel', nets: ['n1', 'n2'], ports: 24, used: 5 },
+  { id: 'mm', u: 39, h: 1, name: 'מחסני קשר + מעבדה ארון שחור MM', kind: 'panel', nets: ['n1'], ports: 24, used: 2 },
+  { id: 'hdf2', u: 33, h: 3, name: 'HDF-02', kind: 'hdf', nets: ['n1', 'n2'], proposed: true },
+  { id: 'avar', u: 30, h: 1, name: 'מתג עבר מחסני קשר', kind: 'switch', nets: ['n3'], ports: 24, used: 6 },
+  { id: 'sw424', u: 29, h: 1, name: 'מתג מחסני קשר + מעבדה 424', kind: 'switch', nets: ['n3'], ports: 24, used: 1 },
+  { id: 'sw58', u: 27, h: 1, name: 'מתג כתום קשר + מעבדה 58', kind: 'switch', nets: ['n2'], ports: 24, used: 2 },
+  { id: 'sw11', u: 25, h: 1, name: 'מתג קליקנט קשר + מעבדה 11', kind: 'switch', nets: ['n1'], ports: 24, used: 3, route: true },
+  { id: 'sw12', u: 23, h: 1, name: 'מתג קליקנט קשר + מעבדה 12', kind: 'switch', nets: ['n1'], ports: 24, used: 4 },
+];
+function drawRack() {
+  crumbs($('#rack-crumbs'), ['Sites', SITE, NODE, RACK]);
+  const cab = $('#cabinet'); const U = 42, PX = 26;
+  const occupied = new Set(); RACK_ITEMS.forEach((it) => { for (let k = 0; k < it.h; k++) occupied.add(it.u + k); });
+  let nums = '', slots = '';
+  for (let u = U; u >= 1; u--) {
+    nums += `<div class="unum${u % 5 === 0 ? ' five' : ''}">${u}</div>`;
+    slots += `<div class="slot">${occupied.has(u) ? '' : (u % 5 === 0 ? '<span class="free-label">Free</span>' : '')}</div>`;
+  }
+  cab.innerHTML = `<div class="rail-l" style="display:grid;grid-auto-rows:${PX}px">${nums}</div><div class="units" id="units">${slots}</div><div class="rail-r"></div>`;
+  const units = $('#units');
+  RACK_ITEMS.forEach((it) => {
+    const top = (U - (it.u + it.h - 1)) * PX;
+    const color = it.nets.length === 1 ? net(it.nets[0]).color : '#9aa8b6';
+    const ports = it.ports ? `<span class="ports">${Array.from({ length: Math.min(it.ports, 24) }, (_, i) => `<i class="${i < it.used ? 'used' : ''}"></i>`).join('')}</span>` : '';
+    const cls = ['block', it.h > 1 ? 'tall' : '', state.rackSel === it.id ? 'selected' : '', it.route ? 'route' : '', it.proposed ? 'proposed' : ''].join(' ');
+    const inner = it.h > 1
+      ? `<span class="rowline"><span class="tape">${bdi(it.name)}</span>${it.proposed ? '<span class="chip proposed" style="height:18px">Proposed</span>' : ''}<span class="size" style="margin-left:auto">${it.h}U</span></span><span class="grid-hint">${'<i></i>'.repeat(8)}</span>`
+      : `<span class="stripe" style="background:${color}"></span><span class="tape" title="${esc(it.name)}">${bdi(it.name)}</span>${ports}<span class="size">${it.h}U</span>`;
+    const b = h(`<button class="${cls}" data-rack="${it.id}" style="top:${top}px;height:${it.h * PX - 4}px" aria-label="${esc(it.name)}, U${it.u}">${inner}</button>`);
+    units.appendChild(b);
+  });
+  $('#rack-count').textContent = `${RACK_ITEMS.length} items, ${42 - occupied.size}U free`;
+  $('#rack-contents').innerHTML = RACK_ITEMS.map((it) => `<li><button data-rack="${it.id}"><span class="u">U${it.u}${it.h > 1 ? '–' + (it.u + it.h - 1) : ''}</span><span class="nm">${bdi(it.name)}</span>${it.proposed ? '<span class="chip proposed" style="height:18px">Proposed</span>' : it.nets.length === 1 ? netChip(it.nets[0]) : '<span class="chip role">Shared</span>'}</button></li>`).join('');
+}
+
+// ---------------- HDF ----------------
+const ROWS = 12, COLS = ['A', 'B', 'C', 'D'];
+const USED = { rear: { '3A-1': 'n2', '3A-2': 'n2', '5A-1': 'n3', '5A-3': 'route', '8B-1': 'n3', '6C-4': 'n1' }, front: { '3A-1': 'n2', '5A-3': 'route', '9D-2': 'n1' } };
+const STATE_JACKS = { '11D-6': 'Faulty' };
+function drawHdf() {
+  crumbs($('#hdf-crumbs'), ['Sites', SITE, CORE, 'BB01', 'HDF-01']);
+  $('#side-label').textContent = state.side === 'rear' ? 'Rear' : 'Front';
+  $('#side-front').setAttribute('aria-pressed', state.side === 'front');
+  $('#side-rear').setAttribute('aria-pressed', state.side === 'rear');
+  const used = USED[state.side];
+  let g = '<span></span>' + COLS.map((c) => `<span class="colh">${c}</span>`).join('');
+  for (let r = 1; r <= ROWS; r++) {
+    g += `<span class="rowh">${r}</span>`;
+    for (const c of COLS) {
+      g += `<div class="module"><span class="mlabel">${r}${c}</span><div class="jacks">`;
+      for (let p = 1; p <= 6; p++) {
+        const key = `${r}${c}-${p}`; const u = used[key];
+        const style = u && u !== 'route' ? `style="background:${net(u).color}"` : '';
+        const cls = ['jk', u ? 'used' : '', u === 'route' ? 'route' : '', state.jack === key ? 'sel' : '', STATE_JACKS[key] ? 'state' : ''].join(' ');
+        g += `<button class="${cls}" ${style} data-jack="${key}" aria-label="${r}${c} position ${p}${u ? ', cabled' : ', free'}">${p}</button>`;
+      }
+      g += '</div></div>';
+    }
+  }
+  $('#hdf-grid').innerHTML = g;
+  $('#hdf-legend').innerHTML = `<span><i style="background:var(--jack)"></i>Free</span>${NETS.map((n) => `<span><i style="background:${n.color}"></i>${bdi(n.name)}</span>`).join('')}<span><i style="background:var(--route)"></i>On the selected route</span><span><i style="background:var(--jack);background-image:repeating-linear-gradient(45deg,#0000 0 3px,#00000040 3px 5px)"></i>Faulty or reserved</span>`;
+  drawEndpoint();
+}
+function drawEndpoint() {
+  const [blk, pos] = state.jack.split('-'); const u = USED[state.side][state.jack];
+  const other = state.side === 'rear' ? 'front' : 'rear';
+  const el = $('#endpoint');
+  if (!u) {
+    el.innerHTML = `<h3>${blk} · ${pos} <small>${state.side}</small></h3><p class="scope">Free. No cable on this side.</p>
+      <div class="hop"><span class="line"></span><div><p>Internal peer</p><p>${blk} · ${pos} ${other}, ${USED[other][state.jack] ? 'cabled' : 'free'}</p></div></div>
+      <div class="actions"><button class="btn" id="flip">Switch to ${other}</button></div>`;
+  } else {
+    const far = u === 'route' ? 'מתג קליקנט קשר + מעבדה 11 · Port 1' : u === 'n2' ? 'מתג כתום קשר + מעבדה 58 · Port 4' : u === 'n3' ? 'מתג עבר מחסני קשר · Port 9' : 'AGG-03 · Port 7';
+    el.innerHTML = `<h3>${blk} · ${pos} <small>${state.side}</small> ${u === 'route' ? '<span class="chip route">Route</span>' : netChip(u)}</h3>
+      <div class="hop"><span class="line cable" style="background:${u === 'route' ? 'var(--route)' : net(u).color}"></span><div><p>Cable <span class="mono">C-0412</span></p><p>to ${bdi(far)}</p></div></div>
+      <div class="hop"><span class="line"></span><div><p>Internal peer</p><p>${blk} · ${pos} ${other}, then ${bdi('AGG-03 · Port 1')}</p></div></div>
+      <div class="actions"><button class="btn primary">Find AGG / BB</button><button class="btn">Go to peer</button><button class="btn" id="flip">Switch to ${other}</button><button class="btn quiet">Show on map</button></div>`;
+  }
+}
+
+// ---------------- Switch ----------------
+function drawSwitch() {
+  crumbs($('#sw-crumbs'), ['Sites', SITE, NODE, RACK, 'מתג קליקנט קשר + מעבדה 11']);
+  const used = { 1: 'route', 2: 'n1', 3: 'n1', 9: 'n1', 14: 'n1' };
+  let b = '';
+  for (let p = 1; p <= 24; p++) {
+    const u = used[p];
+    const cls = ['jk', u ? 'used' : '', u === 'route' ? 'route' : '', state.port === p ? 'sel' : ''].join(' ');
+    b += `<button class="${cls}" ${u && u !== 'route' ? `style="background:${net(u).color}"` : ''} data-port="${p}" aria-label="Port ${p}">${p}</button>`;
+  }
+  $('#bank').innerHTML = b;
+  $('#uplinks').innerHTML = [
+    ['1', 'AGG-03 · Port 1', 'AGG', 4, ['HDF-01', 'HDF-02', 'מחסני קשר + מעבדה ארון שחור SM']],
+    ['2', 'AGG-03 · Port 2', 'AGG', 4, ['HDF-01', 'HDF-02', 'מחסני קשר + מעבדה ארון שחור SM']],
+    ['3', 'BB-01 · Port 1', 'BB', 4, ['HDF-01', 'HDF-03', 'מחסני קשר + מעבדה ארון שחור MM']],
+  ].map(([p, d, r, c, via]) => `<tr><td class="mono">Port ${p}</td><td><b>${d}</b> <span class="tag-agg">${r}</span></td><td class="num">${c}</td><td class="via">${via.map(bdi).join(' <span aria-hidden="true">›</span> ')}</td></tr>`).join('');
+}
+
+// ---------------- Map overview ----------------
+const OV_SITES = [
+  { name: 'רמלה', nodes: 4, x: 110, y: 80, w: 560, h: 520 },
+  { name: 'לוד', nodes: 3, x: 720, y: 80, w: 300, h: 520 },
+  { name: 'ליבה ראשית', nodes: 2, x: 1070, y: 80, w: 280, h: 360 },
+];
+const OV_NODES = [
+  { id: 'a', name: 'מחסני קשר + מעבדה', ct: '1 rack, 9 equipment', nets: [['n1', 6], ['n2', 2], ['n3', 1]], x: 140, y: 120, route: true },
+  { id: 'b', name: 'קומה 2, אגף מזרחי', ct: '2 racks, 14 equipment', nets: [['n1', 10], ['n2', 4]], x: 140, y: 330 },
+  { id: 'c', name: 'מבנה 12', ct: '1 rack, 5 equipment', nets: [['n3', 5]], x: 410, y: 450 },
+  { id: 'd', name: 'ליבה', ct: '3 racks, 11 equipment', nets: [['n1', 4], ['n2', 3], ['n3', 2]], x: 410, y: 160, route: true },
+  { id: 'e', name: 'בניין הנהלה', ct: '1 rack, 7 equipment', nets: [['n1', 7]], x: 750, y: 120 },
+  { id: 'f', name: 'מחסן לוגיסטי', ct: '1 rack, 4 equipment', nets: [['n2', 4]], x: 750, y: 300 },
+  { id: 'g', name: 'שער צפוני', ct: '1 rack, 2 equipment', nets: [['n1', 2]], x: 750, y: 450 },
+  { id: 'h', name: 'BB01 / BB02', ct: '2 racks, 6 equipment', nets: [['n1', 3], ['n2', 2], ['n3', 1]], x: 1100, y: 130, route: true },
+  { id: 'i', name: 'DR', ct: '1 rack, 3 equipment', nets: [['n1', 2], ['n2', 1]], x: 1100, y: 300 },
+];
+const OV_LINKS = [['a', 'd', 48, true], ['b', 'd', 36], ['c', 'd', 12], ['d', 'h', 64, true], ['e', 'h', 22], ['f', 'h', 10], ['g', 'e', 4], ['h', 'i', 16]];
+function drawOverview() {
+  const surf = $('#ov-surface');
+  surf.querySelectorAll('.site-frame, .node-card').forEach((e) => e.remove());
+  OV_SITES.forEach((st) => surf.appendChild(h(`<div class="site-frame" style="left:${st.x}px;top:${st.y}px;width:${st.w}px;height:${st.h}px"><span>${bdi(st.name)}<small>${st.nodes} nodes</small></span></div>`)));
+  OV_NODES.forEach((n) => surf.appendChild(h(`<button class="node-card${state.traced && n.route ? ' on-route' : ''}" data-node="${n.id}" style="left:${n.x}px;top:${n.y}px">
+    <span class="nm">${bdi(n.name)}</span><span class="ct">${n.ct}</span>
+    <span class="nets">${n.nets.map(([id, c]) => `<span class="chip"><span class="dot" style="background:${net(id).color}"></span>${bdi(net(id).name)} <span class="num">${c}</span></span>`).join('')}</span>
+    ${state.traced && n.route ? '<span><span class="chip route">On the route</span></span>' : ''}</button>`)));
+  const box = (id) => { const el = surf.querySelector(`[data-node="${id}"]`); return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }; };
+  $('#ov-wires').innerHTML = OV_LINKS.map(([a, b, c, r]) => {
+    const A = box(a), B = box(b);
+    const ax = A.x + A.w / 2, ay = A.y + A.h / 2, bx = B.x + B.w / 2, by = B.y + B.h / 2;
+    const on = state.traced && r; const col = on ? 'var(--route)' : '#8795a3';
+    const w = 1.5 + Math.min(5, Math.log2(c));
+    const mx = (ax + bx) / 2, my = (ay + by) / 2;
+    return `<g opacity="${state.traced && !on ? 0.4 : 1}"><line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>
+      <rect x="${mx - 17}" y="${my - 10}" width="34" height="20" rx="10" fill="var(--paper)" stroke="${col}" stroke-width="1.5"/><text x="${mx}" y="${my + 4}" text-anchor="middle" font-size="11.5" font-weight="500" fill="var(--ink)" style="font-variant-numeric:tabular-nums">${c}</text></g>`;
+  }).join('');
+}
+
+// ---------------- Inventory ----------------
+const INV_ICON = {
+  equipment: ICON.switch, ports: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="6" width="14" height="12" rx="1"/><path d="M9 10h6v4H9z"/></svg>', cables: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18c4 0 4-12 8-12s4 12 8 12"/></svg>',
+  rack: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M5 8h14M5 13h14"/></svg>', map: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.3 11l7.4-3.8M8.3 13l7.4 3.8"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>', refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>', export: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>', columns: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M10 4v16M15 4v16"/></svg>', info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>', search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg>',
+};
+const KIND = { switch: 'Switch', panel: 'Patch panel', hdf: 'HDF' };
+const INV_ROWS = [
+  ['sw11', 'מתג קליקנט קשר + מעבדה 11', 'switch', 'Access', 'n1', RACK, 'U25', 'ok', '3 of 24'],
+  ['sw12', 'מתג קליקנט קשר + מעבדה 12', 'switch', 'Access', 'n1', RACK, 'U23', 'prop', '1 of 24'],
+  ['sw58', 'מתג כתום קשר + מעבדה 58', 'switch', 'Access', 'n2', RACK, 'U27', 'ok', '2 of 24'],
+  ['sw424', 'מתג מחסני קשר + מעבדה 424', 'switch', 'Access', 'n3', RACK, 'U29', 'ok', '1 of 24'],
+  ['avar', 'מתג עבר מחסני קשר', 'switch', 'Access', 'n3', RACK, 'U30', 'fault', '6 of 24'],
+  ['sm', 'מחסני קשר + מעבדה ארון שחור SM', 'panel', 'Passive', null, RACK, 'U40', 'ok', '5 of 24'],
+  ['mm', 'מחסני קשר + מעבדה ארון שחור MM', 'panel', 'Passive', null, RACK, 'U39', 'ok', '2 of 24'],
+  ['hdf1', 'HDF-01', 'hdf', 'Passive', null, 'BB01', 'U30', 'ok', '4 of 288'],
+  ['hdf2', 'HDF-02', 'hdf', 'Passive', null, RACK, 'U33', 'prop', '0 of 72'],
+  ['agg03', 'AGG-03', 'switch', 'Aggregation', 'n1', 'BB01', 'U12', 'ok', '6 of 48'],
+  ['agg12', 'AGG-12', 'switch', 'Aggregation', 'n2', 'BB02', 'U10', 'ok', '2 of 48'],
+  ['bb01', 'BB-01', 'switch', 'Backbone', 'n1', 'BB02', 'U40', 'ok', '1 of 48'],
+].map(([id, name, kind, role, n, rack, unit, st, cab]) => ({ id, name, kind, role, n, rack, unit, st, cab }));
+const STATUS = { ok: ['✓', 'In service'], fault: ['!', 'Faulty'], prop: ['', 'Proposed'] };
+const inv = { tab: 'equipment', q: '', net: null, sort: 'name', dir: 1, sel: {}, group: '' };
+function drawInventory() {
+  const counts = { equipment: 12, ports: 1284, cables: 212 };
+  $('#inv-menu').innerHTML = '<h3>Lists</h3>' + [['equipment', 'Equipment'], ['ports', 'Ports and positions'], ['cables', 'Cables']].map(([k, l]) => `<button data-invtab="${k}" ${inv.tab === k ? 'aria-current="page"' : ''}>${INV_ICON[k]}<span>${l}</span><span class="n">${counts[k].toLocaleString('en')}</span></button>`).join('')
+    + '<h3>Views</h3>' + `<button data-go="rack">${INV_ICON.rack}<span>Physical</span><span></span></button><button data-go="map">${INV_ICON.map}<span>Conceptual map</span><span></span></button>`;
+  let rows = INV_ROWS.filter((r) => (!inv.net || r.n === inv.net) && (!inv.q || (r.name + ' ' + r.role + ' ' + r.rack + ' ' + KIND[r.kind]).toLowerCase().includes(inv.q.toLowerCase())));
+  rows.sort((a, b) => String(a[inv.sort]).localeCompare(String(b[inv.sort]), 'he', { numeric: true }) * inv.dir);
+  const selIds = Object.keys(inv.sel).filter((k) => inv.sel[k] && rows.some((r) => r.id === k));
+  const one = selIds.length === 1;
+  const cmd = (icon, label, on = true) => `<button ${on ? '' : 'disabled'}>${INV_ICON[icon]}<span>${label}</span></button>`;
+  const cols = [['name', 'Name'], ['kind', 'Type'], ['role', 'Role'], ['n', 'Network'], ['rack', 'Rack'], ['unit', 'Unit'], ['st', 'Status'], ['cab', 'Cabled']];
+  const th = cols.map(([k, l]) => `<th aria-sort="${inv.sort === k ? (inv.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button data-invsort="${k}">${l}<span class="s" aria-hidden="true">${inv.sort === k ? (inv.dir > 0 ? '↑' : '↓') : '↑↓'}</span></button></th>`).join('');
+  const tr = (r) => `<tr class="${inv.sel[r.id] ? 'sel' : ''}"><td class="ck"><input type="checkbox" data-invsel="${r.id}" ${inv.sel[r.id] ? 'checked' : ''} aria-label="Select ${esc(r.name)}"></td>
+    <td><span class="nmcell">${ICON[r.kind]}<a href="#" data-invopen="${r.id}">${bdi(r.name)}</a></span>${r.st === 'prop' ? ' <span class="chip proposed" style="height:18px">Proposed</span>' : ''}</td>
+    <td>${KIND[r.kind]}</td><td>${r.role}</td><td>${r.n ? `<span class="status"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:${net(r.n).color}"></span>${bdi(net(r.n).name)}</span>` : '<span class="empty">Shared</span>'}</td>
+    <td>${bdi(r.rack)}</td><td class="mono">${r.unit}</td><td>${r.st === 'prop' ? '<span class="empty">Not installed</span>' : `<span class="status"><i aria-hidden="true">${STATUS[r.st][0]}</i>${STATUS[r.st][1]}</span>`}</td><td class="num">${r.cab}</td>
+    <td><button class="more" aria-label="More actions for ${esc(r.name)}">…</button></td></tr>`;
+  let body = '';
+  if (inv.group) {
+    const groups = {}; rows.forEach((r) => { const g = inv.group === 'n' ? (r.n ? net(r.n).name : 'Shared') : r[inv.group]; (groups[g] = groups[g] || []).push(r); });
+    Object.keys(groups).forEach((g) => { body += `<tr class="grp"><td colspan="${cols.length + 2}">${bdi(g)} <span>(${groups[g].length})</span></td></tr>` + groups[g].map(tr).join(''); });
+  } else body = rows.map(tr).join('');
+  $('#inv-main').innerHTML = `
+    <div class="inv-title"><h2>Equipment</h2><span>Installed${$('#c-plan').getAttribute('aria-pressed') === 'true' ? ' and proposed in Expansion' : ''}</span></div>
+    <div class="cmdbar" role="toolbar" aria-label="Commands">${cmd('plus', 'Add in a plan')}${cmd('refresh', 'Refresh')}${cmd('export', 'Export to CSV')}${cmd('columns', 'Edit columns')}<span class="sepv"></span>${cmd('info', 'Open details', one)}${cmd('map', 'Show on map', one)}${cmd('rack', 'Show in Physical', one)}</div>
+    <div class="filters"><label class="search">${INV_ICON.search}<input type="text" id="inv-q" placeholder="Filter for any field…" value="${esc(inv.q)}" autocomplete="off" aria-label="Filter for any field"></label>
+      <button class="pill${inv.net ? ' on' : ''}" id="inv-net">Network == <b>${inv.net ? bdi(net(inv.net).name) : 'All'}</b> ▾</button>
+      <button class="pill">Type == <b>All</b> ▾</button><button class="pill">Rack == <b>All</b> ▾</button>
+      ${inv.q || inv.net ? '<button class="linkbtn" id="inv-reset">Reset filters</button>' : ''}</div>
+    <div class="inv-meta"><span>Showing 1 to ${rows.length} of ${rows.length} records.${selIds.length ? ` <b>${selIds.length} selected.</b>` : ''}</span><span style="flex:1"></span><label for="inv-group">Group by</label>
+      <select id="inv-group"><option value="">No grouping</option><option value="rack" ${inv.group === 'rack' ? 'selected' : ''}>Rack</option><option value="n" ${inv.group === 'n' ? 'selected' : ''}>Network</option><option value="role" ${inv.group === 'role' ? 'selected' : ''}>Role</option></select></div>
+    <div class="tbl-wrap"><table class="inv-t"><thead><tr><th class="ck"><span style="position:absolute;left:-9999px">Select</span></th>${th}<th></th></tr></thead><tbody>${body || `<tr><td colspan="${cols.length + 2}" class="wrap">No records match. <button class="linkbtn" id="inv-reset">Reset filters</button></td></tr>`}</tbody></table></div>
+    <div class="pager"><button class="btn" disabled>‹ Previous</button><span>Page 1 of 1</span><button class="btn" disabled>Next ›</button></div>`;
+  const q = $('#inv-q');
+  q.addEventListener('input', () => { inv.q = q.value; const pos = q.selectionStart; drawInventory(); const nq = $('#inv-q'); nq.focus(); nq.setSelectionRange(pos, pos); });
+  $('#inv-group').addEventListener('change', (e) => { inv.group = e.target.value; drawInventory(); });
+}
+
+// ---------------- Drawers ----------------
+function inspectorHtml(id) {
+  const c = CARDS.find((x) => x.id === id) || CARDS[0];
+  return `<aside class="drawer right" aria-label="Inspector">
+    <header><div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <h2 style="display:flex;gap:8px;align-items:center"><span class="kind" style="width:24px;height:24px;border-radius:4px;background:var(--paper-sunk);display:grid;place-items:center;color:var(--ink-soft)">${ICON[c.kind].replace('<svg', '<svg width="15" height="15"')}</span>${bdi(c.name)}</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip role">${c.role}</span>${c.nets.map(netChip).join('')}</div>
+    </div><button class="x" data-close aria-label="Close inspector">✕</button></header>
+    <div class="scroll">
+      <div class="meter"><span class="track"><span class="fill" style="width:${c.id === 'hdf1' ? 2 : 14}%"></span></span><span><span class="num">${c.cabled}</span> cabled</span></div>
+      <nav class="crumbs" aria-label="Location">${c.where.slice(0, 3).map((p) => `<button>${bdi(p)}</button><span class="sep">›</span>`).join('')}<span class="here">${c.where[3]}</span></nav>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary lg" id="find">Find AGG / BB</button><button class="btn lg" id="show-phys">Show in Physical</button></div>
+      <div class="tabs" role="tablist"><button role="tab" aria-selected="true">Overview</button><button role="tab" aria-selected="false">Ports</button><button role="tab" aria-selected="false">History</button></div>
+      ${c.kind === 'switch' && c.role === 'Access' ? `<div><div class="section-title" style="margin-bottom:6px">Uplinks <span>3 of 24 ports</span></div>
+        <dl class="kv"><dt class="mono">Port 1</dt><dd><b>AGG-03</b> · Port 1 <span class="tag-agg">AGG</span></dd><dt class="mono">Port 2</dt><dd><b>AGG-03</b> · Port 2 <span class="tag-agg">AGG</span></dd><dt class="mono">Port 3</dt><dd><b>BB-01</b> · Port 1 <span class="tag-agg">BB</span></dd></dl></div>` : ''}
+      <div><div class="section-title" style="margin-bottom:6px">Details <button class="btn quiet" style="height:26px">Edit details</button></div>
+        <dl class="kv"><dt>Manufacturer</dt><dd>Cisco</dd><dt>Model</dt><dd class="mono">C9200-24T</dd><dt>Serial number</dt><dd class="empty">Not set</dd><dt>IP address</dt><dd class="mono">10.9.128.41</dd><dt>Description</dt><dd>${bdi('מתג קומה 2, ליד חדר המעבדה')}</dd></dl></div>
+    </div></aside>`;
+}
+function libraryHtml() {
+  const item = (ico, t, s) => `<div class="lib-item" draggable="true"><span class="ico">${ICON[ico]}</span><span><strong>${t}</strong><small>${s}</small></span><button class="btn">Add…</button></div>`;
+  return `<aside class="drawer left" aria-label="Equipment library">
+    <header><div><h2>Equipment library</h2><p>Drag onto a rack, or use Add… to choose the place.</p></div><button class="x" data-close aria-label="Close library">✕</button></header>
+    <div class="scroll">
+      <div class="lib-list">
+        ${item('switch', 'Access switch', 'Connects endpoints at the edge')}
+        ${item('switch', 'Aggregation switch', 'A destination for Find AGG / BB')}
+        ${item('panel', 'Patch panel', 'Front and rear, one position each')}
+      </div>
+      <form class="hdf" id="hdf-form" novalidate>
+        <div class="head"><span class="ico" style="width:28px;height:28px;border-radius:6px;background:#fff;display:grid;place-items:center;color:var(--ink-soft)">${ICON.hdf.replace('<svg', '<svg width="16" height="16"')}</span><strong>New HDF</strong><span class="chip proposed" style="height:20px">Proposed</span></div>
+        <div class="field full"><label for="f-name">Name</label><input type="text" id="f-name" placeholder="For example HDF-03" autocomplete="off"><span class="err" id="f-name-err" hidden>Give the HDF a name.</span></div>
+        <div class="field"><label for="f-rows">Rows (1–32)</label><input type="number" id="f-rows" value="12" min="1" max="32"></div>
+        <div class="field"><label for="f-height">Height (U)</label><input type="number" id="f-height" value="4" min="1" max="8"></div>
+        <span class="place-label">Place</span>
+        <div class="place">
+          <select id="f-site" aria-label="Site"><option>${esc(SITE)}</option></select>
+          <select id="f-node" aria-label="Node"><option>${esc(CORE)}</option><option>${esc(NODE)}</option></select>
+          <select id="f-rack" aria-label="Rack"><option>BB04</option><option>BB01</option></select>
+        </div>
+        <div class="field"><label for="f-unit">Lowest unit</label><input type="number" id="f-unit" value="1" min="1"></div>
+        <div class="field"><label>&nbsp;</label><span class="hint" style="padding-top:8px" id="f-span">Takes <span class="num">U1–U4</span>, all free.</span></div>
+        <p class="summary-line" id="f-summary">Blocks A–D in each row, 6 positions per block: <b class="num">288</b> positions on each side.</p>
+        <div class="form-actions"><button class="btn primary lg" type="submit">Add HDF to plan</button><button class="btn lg" type="button" data-close>Cancel</button></div>
+      </form>
+    </div></aside>`;
+}
+function changesHtml() {
+  return `<aside class="drawer right" aria-label="Changes">
+    <header><div><h2>Changes</h2><p>A plan stays separate from what is installed until you record it.</p></div><button class="x" data-close aria-label="Close changes">✕</button></header>
+    <div class="scroll">
+      <div class="draft-row"><div class="field"><label for="draft">Draft</label><select id="draft"><option>Expansion, revision 4</option></select></div><button class="btn">New draft</button></div>
+      <div class="group"><h3>Equipment added <span>2</span></h3>
+        <div class="change"><span><a href="#">HDF-02</a><span class="sub">${path([SITE, NODE, RACK, 'U33–35'])}</span></span><button class="btn quiet">Undo</button></div>
+        <div class="change"><span><a href="#">${bdi('מתג קליקנט קשר + מעבדה 12')}</a><span class="sub">${path([SITE, NODE, RACK, 'U23'])}</span></span><button class="btn quiet">Undo</button></div>
+      </div>
+      <div class="group"><h3>Cables connected <span>1</span></h3>
+        <div class="change"><span><a href="#">${bdi('מתג קליקנט קשר + מעבדה 12')} · Port 1</a> ↔ <a href="#">HDF-02 · 1A / 1 front</a></span><button class="btn quiet">Undo</button></div>
+      </div>
+      <div class="record"><button class="btn primary lg">Record as installed…</button><p>Recording is its own step, with a note. Saving a change never records it.</p></div>
+    </div></aside>`;
+}
+function drawDrawers() {
+  const d = $('#drawers');
+  d.innerHTML = state.drawer === 'inspect' ? inspectorHtml(state.selected) : state.drawer === 'library' ? libraryHtml() : state.drawer === 'changes' ? changesHtml() : '';
+  $('#r-add').setAttribute('aria-pressed', state.drawer === 'library');
+  $('#r-inspect').setAttribute('aria-pressed', state.drawer === 'inspect');
+  $('#r-trace').setAttribute('aria-pressed', state.traced && state.screen === 'map');
+  $('#s-switch').classList.toggle('with-drawer', state.drawer === 'inspect' || state.drawer === 'changes');
+  $('#s-inv').classList.toggle('with-drawer', state.drawer === 'inspect' || state.drawer === 'changes');
+  const form = $('#hdf-form');
+  if (form) {
+    const upd = () => {
+      const rows = Math.max(1, Math.min(32, +$('#f-rows').value || 1)); const hgt = +$('#f-height').value || 1; const u = +$('#f-unit').value || 1;
+      $('#f-summary').innerHTML = `Blocks A–D in each row, 6 positions per block: <b class="num">${rows * 24}</b> positions on each side.`;
+      $('#f-span').innerHTML = `Takes <span class="num">U${u}–U${u + hgt - 1}</span>, all free.`;
+    };
+    form.addEventListener('input', upd);
+    form.addEventListener('submit', (e) => {
+      e.preventDefault(); const n = $('#f-name');
+      const bad = !n.value.trim(); n.setAttribute('aria-invalid', bad); $('#f-name-err').hidden = !bad;
+      if (bad) { n.focus(); return; }
+      toast(`${n.value.trim()} added to the plan`); state.drawer = null; drawDrawers();
+    });
+  }
+}
+let toastTimer;
+function toast(msg) { document.querySelectorAll('.toast').forEach((t) => t.remove()); const t = h(`<div class="toast" role="status">${bdi(msg)}</div>`); $('#body').appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 2600); }
+
+// ---------------- Navigation ----------------
+const SCREENS = { map: 's-map', overview: 's-overview', inventory: 's-inv', rack: 's-rack', hdf: 's-hdf', switch: 's-switch' };
+function go(name) {
+  state.screen = name;
+  const target = name === 'form' ? 'map' : name === 'changes' ? 'map' : name;
+  Object.entries(SCREENS).forEach(([k, id]) => { $('#' + id).hidden = k !== target; });
+  if (name === 'form') { state.drawer = 'library'; setPlan(true); }
+  else if (name === 'changes') { state.drawer = 'changes'; setPlan(true); }
+  else if (name === 'switch') { state.drawer = 'inspect'; state.selected = 'sw11'; }
+  else if (name === 'map' || name === 'overview') { /* keep */ }
+  else if (name === 'inventory') { if (state.drawer !== 'inspect') state.drawer = null; }
+  else state.drawer = null;
+  $('#v-conceptual').setAttribute('aria-pressed', target === 'map' || target === 'overview');
+  $('#v-inventory').setAttribute('aria-pressed', target === 'inventory');
+  $('#v-physical').setAttribute('aria-pressed', !['map', 'overview', 'inventory'].includes(target));
+  document.querySelectorAll('[data-go]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.go === name));
+  if (target === 'map') drawMap(); if (target === 'overview') drawOverview(); if (target === 'inventory') drawInventory(); if (target === 'rack') drawRack(); if (target === 'hdf') drawHdf(); if (target === 'switch') drawSwitch();
+  drawDrawers(); syncToday();
+}
+function setPlan(on) { $('#c-plan').setAttribute('aria-pressed', on); $('#c-installed').setAttribute('aria-pressed', !on); }
+function syncToday() {
+  const on = $('#today-toggle').checked; $('#today').hidden = !on;
+  if (on) { const img = IMG[state.screen]; $('#today-img').hidden = !img; $('#today').querySelector('.tag').textContent = img ? 'Today' : 'The screenshots of today are not kept in the archived copy'; if (img) $('#today-img').src = img; }
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button, a'); if (!t) return;
+  if (t.tagName === 'A' && !t.dataset.invopen) { e.preventDefault(); return; }
+  if (t.dataset.go) return go(t.dataset.go);
+  if (t.dataset.node) { toast('Opens this node\'s equipment in place'); return; }
+  if (t.dataset.invtab) { inv.tab = 'equipment'; toast(t.dataset.invtab === 'equipment' ? 'Equipment list' : 'Ports and Cables use the same layout'); return; }
+  if (t.dataset.invsort) { inv.dir = inv.sort === t.dataset.invsort ? -inv.dir : 1; inv.sort = t.dataset.invsort; drawInventory(); return; }
+  if (t.dataset.invopen) { e.preventDefault(); state.selected = CARDS.some((c) => c.id === t.dataset.invopen) ? t.dataset.invopen : 'sw11'; state.drawer = 'inspect'; drawDrawers(); return; }
+  if (t.dataset.card) { state.selected = t.dataset.card; state.drawer = 'inspect'; drawMap(); drawDrawers(); return; }
+  if (t.dataset.route) { state.route = +t.dataset.route; drawMap(); return; }
+  if (t.dataset.rack) { state.rackSel = t.dataset.rack; if (t.dataset.rack === 'sw11') return go('switch'); drawRack(); return; }
+  if (t.dataset.jack) { state.jack = t.dataset.jack; drawHdf(); return; }
+  if (t.dataset.port) { state.port = +t.dataset.port; drawSwitch(); return; }
+  if (t.hasAttribute('data-close')) { state.drawer = null; drawDrawers(); if (state.screen === 'map') drawMap(); return; }
+  if (t.hasAttribute('data-back')) { return go(state.screen === 'switch' ? 'rack' : state.screen === 'hdf' ? 'rack' : 'map'); }
+  switch (t.id) {
+    case 'find': state.traced = true; state.route = 0; if (state.screen !== 'map') go('map'); else { drawMap(); drawDrawers(); } return;
+    case 'clear-trace': state.traced = false; drawMap(); drawDrawers(); return;
+    case 'show-phys': return go(state.selected === 'hdf1' ? 'hdf' : state.selected === 'sw11' ? 'switch' : 'rack');
+    case 'r-add': state.drawer = state.drawer === 'library' ? null : 'library'; if (state.drawer) setPlan(true); drawDrawers(); return;
+    case 'r-inspect': state.drawer = state.drawer === 'inspect' ? null : 'inspect'; state.selected = state.selected || 'sw11'; drawDrawers(); return;
+    case 'r-trace': state.traced = !state.traced; if (state.screen === 'overview') { drawOverview(); drawDrawers(); return; } if (state.screen !== 'map') go('map'); else { drawMap(); drawDrawers(); } return;
+    case 'r-explore': toast('Explore opens the location tree and search'); return;
+    case 'open-changes': state.drawer = state.drawer === 'changes' ? null : 'changes'; drawDrawers(); return;
+    case 'v-conceptual': return go('overview');
+    case 'v-inventory': return go('inventory');
+    case 'ov-to-map': return go('map');
+    case 'inv-net': inv.net = inv.net === null ? 'n1' : inv.net === 'n1' ? 'n2' : inv.net === 'n2' ? 'n3' : null; drawInventory(); return;
+    case 'inv-reset': inv.q = ''; inv.net = null; drawInventory(); return;
+    case 'v-physical': return go('rack');
+    case 'c-installed': setPlan(false); if (state.drawer === 'library') { state.drawer = null; drawDrawers(); } return;
+    case 'c-plan': setPlan(true); return;
+    case 'side-front': state.side = 'front'; drawHdf(); return;
+    case 'side-rear': state.side = 'rear'; drawHdf(); return;
+    case 'flip': state.side = state.side === 'rear' ? 'front' : 'rear'; drawHdf(); return;
+    case 'reset-layout': toast('Layout reset to the automatic arrangement'); return;
+  }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.drawer) { state.drawer = null; drawDrawers(); if (state.screen === 'map') drawMap(); } });
+$('#today-toggle').addEventListener('change', syncToday);
+document.addEventListener('change', (e) => { const id = e.target.dataset && e.target.dataset.invsel; if (id) { inv.sel[id] = e.target.checked; drawInventory(); } });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (state.screen === 'map') drawMap(); });
+go('map');
+</script>

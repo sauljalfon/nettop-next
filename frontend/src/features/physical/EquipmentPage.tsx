@@ -125,125 +125,127 @@ export default function EquipmentPage({
           ? face.face.positions.length
           : undefined,
     side,
-    location: index.locations.get(equipment.id) ?? '',
     networks: snapshot.networks,
   })
   return (
     <div className="equipment-page">
-      <RackStrip
-        inv={inv}
-        rackId={location.rackId ?? ''}
-        name={index.racks.get(location.rackId ?? '')?.name ?? ''}
-        rows={rackRows}
-        colors={colors}
-        onOpen={onOpenEquipment}
-      />
-      <div className="equipment-main">
-        {equipment.kind === 'switch' && (
-          <UplinksSummary
+      <div className="equipment-layout">
+        <RackStrip
+          inv={inv}
+          rackId={location.rackId ?? ''}
+          name={index.racks.get(location.rackId ?? '')?.name ?? ''}
+          rows={rackRows}
+          colors={colors}
+          onOpen={onOpenEquipment}
+        />
+        <div className="equipment-main">
+          {equipment.kind === 'switch' && (
+            <UplinksSummary
+              equipment={equipment}
+              state={uplinks}
+              selectedEndpointId={location.endpointId}
+              onSelect={onSelectEndpoint}
+            />
+          )}
+          <FaceView
+            uplinkIds={uplinkIds}
             equipment={equipment}
-            state={uplinks}
-            selectedEndpointId={location.endpointId}
-            onSelect={onSelectEndpoint}
+            face={face}
+            side={side}
+            meta={meta}
+            place={index.locationParts.get(equipment.id)}
+            networks={snapshot.networks}
+            colors={colors}
+            tooltip={(cell, ordinal) =>
+              endpointTooltip(index, equipment, cell, ordinal, side)
+            }
+            onSelect={(id, event) => {
+              onSelectEndpoint(id)
+              setPopover(
+                edit && event && !index.cabled.has(id)
+                  ? {
+                      endpointId: id,
+                      anchor: event.currentTarget.getBoundingClientRect(),
+                    }
+                  : undefined,
+              )
+            }}
+            onSide={onSide}
+            onPrint={onPrint}
+            proposed={
+              snapshot.context === 'planned' && !installedIds.has(equipment.id)
+            }
+            editSlot={
+              edit && (
+                <>
+                  <DuplicateEquipment
+                    snapshot={snapshot}
+                    index={index}
+                    equipmentId={equipment.id}
+                    edit={edit}
+                    where="page"
+                  />
+                  <DeleteEquipment
+                    snapshot={snapshot}
+                    index={index}
+                    equipmentId={equipment.id}
+                    proposed={!installedIds.has(equipment.id)}
+                    edit={edit}
+                    where="page"
+                  />
+                </>
+              )
+            }
+          />
+        </div>
+        {popover && edit && (
+          <ConnectPopover
+            key={popover.endpointId}
+            index={index}
+            endpointId={popover.endpointId}
+            anchor={popover.anchor}
+            onClose={() => setPopover(undefined)}
           />
         )}
-        <FaceView
-          uplinkIds={uplinkIds}
-          equipment={equipment}
-          face={face}
-          side={side}
-          meta={meta}
-          networks={snapshot.networks}
-          colors={colors}
-          tooltip={(cell, ordinal) =>
-            endpointTooltip(index, equipment, cell, ordinal, side)
+        <EndpointDetail
+          model={detail}
+          chain={chain}
+          walkSheet={walkSheet}
+          routeName={routeName}
+          networkColor={
+            detail?.networkId ? colors.get(detail.networkId) : undefined
           }
-          onSelect={(id, event) => {
-            onSelectEndpoint(id)
-            setPopover(
-              edit && event && !index.cabled.has(id)
-                ? {
-                    endpointId: id,
-                    anchor: event.currentTarget.getBoundingClientRect(),
-                  }
-                : undefined,
-            )
-          }}
-          onSide={onSide}
-          onPrint={onPrint}
-          proposed={
-            snapshot.context === 'planned' && !installedIds.has(equipment.id)
-          }
-          editSlot={
-            edit && (
-              <>
-                <DuplicateEquipment
-                  snapshot={snapshot}
-                  index={index}
-                  equipmentId={equipment.id}
-                  edit={edit}
-                  where="page"
-                />
-                <DeleteEquipment
-                  snapshot={snapshot}
-                  index={index}
-                  equipmentId={equipment.id}
-                  proposed={!installedIds.has(equipment.id)}
-                  edit={edit}
-                  where="page"
-                />
-              </>
-            )
-          }
-        />
+          onGoToPeer={onGoToPeer}
+          onSwitch={onSelectEndpoint}
+          onFind={onFind}
+          onShowOnMap={() => onShowOnMap(equipment.id)}
+        >
+          {detail && (
+            <>
+              <PortDetails
+                key={`details:${detail.endpointId}`}
+                snapshot={snapshot}
+                index={index}
+                endpointId={detail.endpointId}
+                proposed={
+                  snapshot.context === 'planned' &&
+                  !installedIds.has(equipment.id)
+                }
+                edit={edit}
+                onFixed={onFixed}
+              />
+              <EndpointEdit
+                key={detail.endpointId}
+                snapshot={snapshot}
+                index={index}
+                endpointId={detail.endpointId}
+                installedLinkIds={installedLinkIds}
+                edit={edit}
+              />
+            </>
+          )}
+        </EndpointDetail>
       </div>
-      {popover && edit && (
-        <ConnectPopover
-          key={popover.endpointId}
-          index={index}
-          endpointId={popover.endpointId}
-          anchor={popover.anchor}
-          onClose={() => setPopover(undefined)}
-        />
-      )}
-      <EndpointDetail
-        model={detail}
-        chain={chain}
-        walkSheet={walkSheet}
-        routeName={routeName}
-        networkColor={
-          detail?.networkId ? colors.get(detail.networkId) : undefined
-        }
-        onGoToPeer={onGoToPeer}
-        onSwitch={onSelectEndpoint}
-        onFind={onFind}
-        onShowOnMap={() => onShowOnMap(equipment.id)}
-      >
-        {detail && (
-          <>
-            <PortDetails
-              key={`details:${detail.endpointId}`}
-              snapshot={snapshot}
-              index={index}
-              endpointId={detail.endpointId}
-              proposed={
-                snapshot.context === 'planned' &&
-                !installedIds.has(equipment.id)
-              }
-              edit={edit}
-              onFixed={onFixed}
-            />
-            <EndpointEdit
-              key={detail.endpointId}
-              snapshot={snapshot}
-              index={index}
-              endpointId={detail.endpointId}
-              installedLinkIds={installedLinkIds}
-              edit={edit}
-            />
-          </>
-        )}
-      </EndpointDetail>
     </div>
   )
 }

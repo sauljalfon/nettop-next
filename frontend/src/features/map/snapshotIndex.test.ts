@@ -4,7 +4,7 @@ import { indexSnapshot } from './snapshotIndex'
 import { createMapSession } from './mapSession'
 import { projectMap } from './mapGraph'
 import { circuitNetworks, passiveNetworks } from './networks'
-import { cabledSummaries, locationLabel } from './location'
+import { cabledSummaries, locationLabel, locationParts } from './location'
 
 describe('snapshot-only results are computed once per snapshot', () => {
   const s = acceptanceSnapshot()
@@ -16,6 +16,11 @@ describe('snapshot-only results are computed once per snapshot', () => {
     expect(index.summaries).toEqual(cabledSummaries(s))
     for (const e of s.equipment)
       expect(index.locations.get(e.id)).toBe(locationLabel(s, e.id))
+  })
+
+  it('holds the location as parts, agreeing with locationParts', () => {
+    for (const e of s.equipment)
+      expect(index.locationParts.get(e.id)).toEqual(locationParts(s, e.id))
   })
 
   it('knows which endpoints carry a cable', () => {

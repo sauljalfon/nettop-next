@@ -1,4 +1,5 @@
 import { comparePorts } from '../../shared/ports'
+import type { TextPiece } from '../../shared/textPieces'
 import type { Equipment, Snapshot } from '../../shared/types'
 import { labelMatches } from '../map/connections'
 import { facetKey, facetLabel } from '../map/facets'
@@ -14,6 +15,10 @@ export interface InspectorSide {
     linkId: string
     /** "HDF-01 · 3C/5 rear". */
     farLabel: string
+    /** `farLabel` with the equipment and the position as separate names. */
+    farPieces: TextPiece[]
+    /** The same without a trailing front/rear (what the panel rows show). */
+    farShortPieces: TextPiece[]
     /** Circuit network; empty when unresolved. */
     networkId: string
   }
@@ -70,6 +75,19 @@ export function inspectorGroups(
     const owner = index.equipment.get(p?.equipmentId ?? '')
     return p ? `${owner?.name ?? p.equipmentId} · ${p.label}` : id
   }
+  const farPieces = (id: string) => {
+    const p = lookup.endpoints.get(id)
+    const owner = index.equipment.get(p?.equipmentId ?? '')
+    if (!p) return { farPieces: [{ text: id }], farShortPieces: [{ text: id }] }
+    const head: TextPiece[] = [
+      { name: owner?.name ?? p.equipmentId },
+      { text: ' · ' },
+    ]
+    return {
+      farPieces: [...head, { name: p.label }],
+      farShortPieces: [...head, { name: shortFarLabel(p.label) }],
+    }
+  }
   const units = new Map<
     string,
     InspectorUnit & { subpanel?: string; position: number }
@@ -104,6 +122,7 @@ export function inspectorGroups(
       cable: cable && {
         linkId: cable.linkId,
         farLabel: endpointLabel(cable.farEndpointId),
+        ...farPieces(cable.farEndpointId),
         networkId: circuit,
       },
     })

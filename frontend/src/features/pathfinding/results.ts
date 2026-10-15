@@ -1,5 +1,6 @@
 import type { Route, Snapshot, TraceResult } from '../../shared/types'
-import { endpointLabel } from './projection'
+import { piecesText, type TextPiece } from '../../shared/textPieces'
+import { endpointPieces } from './projection'
 
 export interface Destination {
   name: string
@@ -28,11 +29,23 @@ export function destinationOf(
 
 /** "EDGE-17 · Port 1 → AGG-03 · Port 1 · AGG · Network A". */
 export function routeOptionLabel(snapshot: Snapshot, route: Route): string {
+  return piecesText(routeOptionPieces(snapshot, route))
+}
+
+/** `routeOptionLabel` with each name (equipment, ports, network) as its own piece. */
+export function routeOptionPieces(
+  snapshot: Snapshot,
+  route: Route,
+): TextPiece[] {
   const destination = destinationOf(snapshot, route)
-  const ends = `${endpointLabel(snapshot, route.start)} → ${endpointLabel(snapshot, route.end)}`
-  return destination
-    ? `${ends} · ${destination.role} · ${destination.network}`
-    : ends
+  return [
+    ...endpointPieces(snapshot, route.start),
+    { text: ' → ' },
+    ...endpointPieces(snapshot, route.end),
+    ...(destination
+      ? [{ text: ` · ${destination.role} · ` }, { name: destination.network }]
+      : []),
+  ]
 }
 
 /** Set only for distribution routes whose source network could not be resolved. */

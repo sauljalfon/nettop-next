@@ -14,7 +14,7 @@ test('trace physical continuity on the map and in rack elevations', async ({
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
   await expect(
-    page.getByRole('heading', { name: 'Connected infrastructure.' }),
+    page.locator('.react-flow__node-equipment').first(),
   ).toBeVisible()
   await expect(page.locator('.studio-drawer')).toHaveCount(0)
   await page
@@ -108,7 +108,7 @@ test('panels overlay the full-page map and dragging does not render the shell', 
   // Choosing equipment in Explore opens the inspector on it, with no highlight.
   await expect(page.locator('.inspector-header h2')).toHaveText('AGG-12')
   await expect(page.locator('.location-breadcrumb')).toContainText(
-    'DR Site / DR Distribution / Rack DR02 / AGG-12',
+    'DR Site › DR Distribution › Rack DR02 › AGG-12',
   )
   expect(await page.locator('.flow-surface').boundingBox()).toEqual(bounds)
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()

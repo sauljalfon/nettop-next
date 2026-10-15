@@ -221,7 +221,9 @@ test('POL-17 EDGE-17–PANEL-A is one line with a "3" pill in Network A\'s color
   const badge = page
     .getByTestId('rf__node-panel-a')
     .locator('.network-badge', { hasText: 'Network A' })
-  const color = await badge.evaluate((el) => (el as HTMLElement).style.color)
+  const color = await badge.evaluate(
+    (el) => (el.querySelector('.dot') as HTMLElement).style.backgroundColor,
+  )
   await expect(p).toHaveCSS('background-color', color)
   await expect(page.locator('.map-tooltip')).toHaveCount(0)
   await p.hover()
@@ -231,12 +233,14 @@ test('POL-17 EDGE-17–PANEL-A is one line with a "3" pill in Network A\'s color
   // Hovering the line shows it too.
   await page.mouse.move(0, 0)
   await expect(tip).toHaveCount(0)
-  await page
+  // Near its start: the pill covers the middle. A level line has a 0 px tall box,
+  // which Playwright treats as hidden, so the mouse goes there directly.
+  const line = await page
     .locator('.react-flow__edge[data-id]')
     .filter({ has: page.locator('[data-cable-ids~="cable-a01"]') })
     .locator('.react-flow__edge-interaction')
-    // Near its start: the pill covers the middle.
-    .hover({ position: { x: 6, y: 2 } })
+    .boundingBox()
+  await page.mouse.move(line!.x + 6, line!.y + line!.height / 2)
   await expect(tip).toContainText('cable-a05')
   // No "N cables" text on any line.
   await expect(page.locator('.map-caption', { hasText: /cables/ })).toHaveCount(

@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { getChangeLog, recordedPlansFor } from '../../shared/api'
 import './details.css'
 import { fixLine, recordedLine } from './model'
+import Name from '../../shared/ui/Name'
+import Chip from '../../shared/ui/Chip'
 
 const when = (iso: string) =>
   iso
@@ -36,14 +38,21 @@ export default function HistoryTab({ equipmentId }: { equipmentId: string }) {
   const { fixes, plans } = history.data
   return (
     <div className="inspector-history" data-testid="history">
-      <h3 className="inspector-section">Direct fixes</h3>
+      <h3 className="inspector-section section-title">Direct fixes</h3>
       {fixes.length ? (
         <ul className="history-list" data-testid="history-fixes">
           {fixes.map((f) => (
             <li key={f.id}>
               <time dateTime={f.at}>{when(f.at)}</time>
               <span>
-                <b>{f.field}</b>: <del>{f.from}</del> → <ins>{f.to}</ins>
+                <b>{f.field}</b>:{' '}
+                <del>
+                  <Name text={f.from} />
+                </del>{' '}
+                →{' '}
+                <ins>
+                  <Name text={f.to} />
+                </ins>
               </span>
               {f.note && <span className="who">“{f.note}”</span>}
             </li>
@@ -52,15 +61,19 @@ export default function HistoryTab({ equipmentId }: { equipmentId: string }) {
       ) : (
         <p className="muted">No direct fixes yet.</p>
       )}
-      <h3 className="inspector-section">Recorded plans</h3>
+      <h3 className="inspector-section section-title">Recorded plans</h3>
       {plans.length ? (
         <ul className="history-list" data-testid="history-plans">
           {plans.map((p) => (
             <li key={p.id}>
               <time dateTime={p.at}>{when(p.at)}</time>
               <span>
-                <b>{p.name}</b>
-                <span className="tag-recorded">RECORDED</span>
+                <b>
+                  <Name text={p.name} />
+                </b>
+                <Chip kind="state" className="recorded">
+                  Recorded
+                </Chip>
               </span>
               <span className="who">
                 {p.by} · “{p.note}”

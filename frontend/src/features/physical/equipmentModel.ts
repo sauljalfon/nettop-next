@@ -79,7 +79,8 @@ export function faceMeta(
     rows?: number
     count?: number
     side?: 'front' | 'rear'
-    location: string
+    /** Plain-text location; pages render the parts with PlacePath instead and leave it out. */
+    location?: string
     networks: readonly Network[]
   },
 ): string {
@@ -127,6 +128,7 @@ export interface DetailModel {
     farTitle: string
     /** "Site / Node / Rack" */
     farLocation: string
+    farPlace: string[]
   }
   internal?: {
     endpointId: string
@@ -174,6 +176,7 @@ export function detailModel(
       farEquipmentName: d.external.farEquipmentName,
       farTitle: titleOf(d.external.farEndpointId),
       farLocation: d.external.farLocation,
+      farPlace: d.external.farPlace,
     },
     internal: d.internal && {
       endpointId: d.internal.endpointId,
@@ -284,6 +287,8 @@ export type ChainItem =
       title: string
       /** "Site / Node / Rack" of a far end. */
       sub?: string
+      /** The same far end's site, node and rack, for rendering. */
+      place?: string[]
       endpointId?: string
       /** The side an "other" box switches to. */
       side?: 'front' | 'rear'
@@ -334,6 +339,7 @@ export function connectionChain(
             role,
             title: readableEndpoint(index, farId),
             sub: far.farLocation,
+            place: far.farPlace,
             endpointId: farId,
             action: 'go',
             onRoute: on(farId),

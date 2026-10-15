@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { TrailStep } from './trail'
+import Name from '../../shared/ui/Name'
 
 /**
  * A slim one-line bar under the breadcrumbs while a route is selected: one chip
@@ -43,7 +44,7 @@ export default function RouteTrail({
             aria-current={current === i ? 'step' : undefined}
             onClick={() => onOpen(step)}
           >
-            {step.label}
+            <Name text={step.label} />
           </button>
         ))}
       </div>

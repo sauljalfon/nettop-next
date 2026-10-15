@@ -1,54 +1,21 @@
+/* A place chosen as Site › Node › Rack (and Equipment): the group's label above
+   one row of three fields; the Equipment field is full width under it. Narrower
+   than 480px (the library drawer, the inspector, a popover) the three stack one
+   per line, so no chosen name is clipped (owner, 2026-10-15). */
 .location-picker {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-@media (max-width: 600px) {
-  .location-picker {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-.location-picker label {
-  display: grid;
-  gap: 3px;
+  gap: 8px;
   min-width: 0;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
-  color: #77849a;
-  text-transform: uppercase;
+  container-type: inline-size;
 }
-.location-picker select {
-  width: 100%;
-  min-width: 0;
-  padding: 6px 7px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #26344b;
-  text-transform: none;
-  letter-spacing: 0;
-  background: #fff;
-  border: 1px solid #d5dce7;
-  border-radius: 7px;
-}
-.location-picker[data-level='rack'] {
-  grid-template-columns: minmax(0, 1fr);
-}
-.location-picker[data-level='rack'] label {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  align-items: center;
+.location-picker .place-row {
   gap: 8px;
 }
-.location-picker[data-level='rack'] label {
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0;
-  color: #4b5a72;
-  text-transform: none;
+@container (max-width: 479px) {
+  .location-picker .place-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
-.location-picker[data-level='rack'] select {
-  height: 26px;
-  box-sizing: border-box;
-  padding: 0 7px;
+.location-picker select {
+  text-overflow: ellipsis;
 }

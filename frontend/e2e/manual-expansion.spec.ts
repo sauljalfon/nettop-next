@@ -20,7 +20,7 @@ test('C03 HDF overview shows one card with parent, location, capacity and networ
   await fitted(page)
   const hdf = page.getByTestId('rf__node-hdf-01')
   await expect(hdf.getByRole('heading', { name: 'HDF-01' })).toBeVisible()
-  await expect(hdf).toContainText('Main Campus / North Sub-main / Rack SM01')
+  await expect(hdf).toContainText('Main Campus › North Sub-main › Rack SM01')
   await expect(hdf).toContainText('4 of 96 cabled') // capacity: 96 positions
   await expect(hdf).toContainText('Network A')
   await expect(hdf).toContainText('Network B')

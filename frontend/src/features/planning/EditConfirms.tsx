@@ -43,6 +43,7 @@ export function DeleteEquipmentConfirm({
       label="Confirm delete"
       openerKey={openerKey}
       onClose={onClose}
+      className="destructive"
     >
       <span>
         <strong>{lines.title}</strong> {lines.headline}
@@ -57,9 +58,9 @@ export function DeleteEquipmentConfirm({
       )}
       {lines.footer && <span className="quiet">{lines.footer}</span>}
       <EditError message={action.error} />
-      <div className="inline-row">
+      <div className="form-actions">
         <button
-          className="button danger"
+          className="btn danger"
           disabled={action.pending}
           onClick={() =>
             void action
@@ -71,7 +72,7 @@ export function DeleteEquipmentConfirm({
         >
           Delete in plan
         </button>
-        <button className="button" onClick={onClose}>
+        <button className="btn" onClick={onClose}>
           Cancel
         </button>
       </div>
@@ -107,6 +108,7 @@ export function DisconnectConfirm({
       label="Confirm disconnect"
       openerKey={openerKey}
       onClose={onClose}
+      className="destructive"
     >
       <span>
         <strong>{lines.title}</strong> {lines.headline}
@@ -115,9 +117,9 @@ export function DisconnectConfirm({
         {lines.cuts}
       </span>
       <EditError message={action.error} />
-      <div className="inline-row">
+      <div className="form-actions">
         <button
-          className="button danger"
+          className="btn danger"
           disabled={action.pending}
           onClick={() =>
             void action
@@ -129,7 +131,7 @@ export function DisconnectConfirm({
         >
           Disconnect in plan
         </button>
-        <button className="button" onClick={onClose}>
+        <button className="btn" onClick={onClose}>
           Cancel
         </button>
       </div>

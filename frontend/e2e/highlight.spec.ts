@@ -88,7 +88,7 @@ test('POL-14 clicking "Building A" in Explore highlights its equipment and cable
     .locator('.react-flow__edge.hl path.react-flow__edge-path')
     .first()
     .evaluate((p) => getComputedStyle(p).stroke)
-  expect(amber).toBe('rgb(224, 154, 0)')
+  expect(amber).toBe('rgb(217, 154, 11)')
   // Every card is still where it was.
   for (const [id, transform] of Object.entries(await layout(page)))
     expect(transform).toBe(positions[id])
@@ -274,7 +274,7 @@ test('POL-16 highlight, route and network filter combine and clear independently
     )
   })
   expect(colors).toEqual({
-    main: 'rgb(16, 139, 121)',
+    main: 'rgb(15, 139, 122)',
     outline: 'rgb(242, 177, 52)',
   })
 

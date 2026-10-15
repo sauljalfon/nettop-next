@@ -1,3 +1,4 @@
+import { LayoutGrid } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import type { Plan } from '../../shared/types'
 import LocationPicker from '../patching/LocationPicker'
@@ -7,6 +8,8 @@ import { HDF_MAX_ROWS, hdfPositions, parseHdfForm } from './containers'
 import { useLastEdit, type PlanEdit } from './editing'
 import { useAsyncAction } from './useAsyncAction'
 import { useInlineDialog } from './useInlineDialog'
+import Chip from '../../shared/ui/Chip'
+import Field from '../../shared/ui/Field'
 import './editing.css'
 
 /**
@@ -31,13 +34,18 @@ export default function HdfForm({
   const formEdit = useLastEdit(edit)
   return (
     <div className="library-hdf">
-      <div className="plan-row">
-        <strong>HDF · high-density fiber frame</strong>
-        <small>Rows of A–D blocks; set the rows, height and place.</small>
+      <div className="library-item">
+        <span className="equipment-icon">
+          <LayoutGrid size={22} aria-hidden />
+        </span>
+        <div>
+          <strong>HDF · high-density fiber frame</strong>
+          <small>Rows of A–D blocks; set the rows, height and place.</small>
+        </div>
         {!open && (
           <button
             type="button"
-            className="button primary"
+            className="btn"
             data-opener="library:hdf"
             disabled={!edit}
             onClick={() => setOpen(true)}
@@ -45,12 +53,12 @@ export default function HdfForm({
             Add HDF…
           </button>
         )}
-        {!edit && (
-          <small data-testid="hdf-disabled-hint">
-            Open a plan to add an HDF.
-          </small>
-        )}
       </div>
+      {!edit && (
+        <small data-testid="hdf-disabled-hint">
+          Open a plan to add an HDF.
+        </small>
+      )}
       {open && formEdit && (
         <Form
           tree={tree}
@@ -106,47 +114,66 @@ function Form({
         onCreated(saved, parsed.hdf.name)
       })
   }
+  const unit = Number(values.unit)
+  const height = Number(values.height)
+  const spans =
+    Number.isInteger(unit) &&
+    Number.isInteger(height) &&
+    unit >= 1 &&
+    height >= 1
+      ? `Takes U${unit}${height > 1 ? `–U${unit + height - 1}` : ''}.`
+      : undefined
   return (
     <form
       {...dialog}
-      className="inline-form library-form"
+      className="inline-form proposes library-form"
       aria-label="Add HDF"
       data-testid="hdf-form"
       noValidate
       onSubmit={submit}
     >
-      <span className="eyebrow">
-        NEW HDF <em className="proposed-tag">PROPOSED</em>
-      </span>
-      <label>
-        Name
-        <input
-          value={values.name}
-          placeholder="e.g. HDF-03"
-          autoComplete="off"
-          onChange={(e) => set('name')(e.target.value)}
-        />
-      </label>
-      <div className="two">
-        <label>
-          Rows (1–{HDF_MAX_ROWS})
+      <div className="form-head">
+        <strong className="form-title">New HDF</strong>
+        <Chip kind="proposed" className="proposed-tag">
+          Proposed
+        </Chip>
+      </div>
+      <Field label="Name">
+        {(id) => (
           <input
-            type="number"
-            min={1}
-            max={HDF_MAX_ROWS}
-            value={values.rows}
-            onChange={(e) => set('rows')(e.target.value)}
+            id={id}
+            type="text"
+            value={values.name}
+            placeholder="e.g. HDF-03"
+            autoComplete="off"
+            onChange={(e) => set('name')(e.target.value)}
           />
-        </label>
-        <label>
-          Height (U)
-          <input
-            type="number"
-            min={1}
-            value={values.height}
-            onChange={(e) => set('height')(e.target.value)}
-          />
-        </label>
+        )}
+      </Field>
+      <div className="field-grid">
+        <Field label={`Rows (1–${HDF_MAX_ROWS})`}>
+          {(id) => (
+            <input
+              id={id}
+              type="number"
+              min={1}
+              max={HDF_MAX_ROWS}
+              value={values.rows}
+              onChange={(e) => set('rows')(e.target.value)}
+            />
+          )}
+        </Field>
+        <Field label="Height (U)">
+          {(id) => (
+            <input
+              id={id}
+              type="number"
+              min={1}
+              value={values.height}
+              onChange={(e) => set('height')(e.target.value)}
+            />
+          )}
+        </Field>
       </div>
       <LocationPicker
         level="rack"
@@ -156,27 +183,37 @@ function Form({
         rackId={values.rackId}
         onChange={set('rackId')}
       />
-      <label>
-        Lowest unit
-        <input
-          type="number"
-          min={1}
-          value={values.unit}
-          onChange={(e) => set('unit')(e.target.value)}
-        />
-      </label>
-      <span className="hint">
+      <div className="field-grid">
+        <Field label="Lowest unit">
+          {(id) => (
+            <input
+              id={id}
+              type="number"
+              min={1}
+              value={values.unit}
+              onChange={(e) => set('unit')(e.target.value)}
+            />
+          )}
+        </Field>
+        <div className="field">
+          <span className="label" aria-hidden="true">
+            &nbsp;
+          </span>
+          <span className="hint span-hint">{spans}</span>
+        </div>
+      </div>
+      <p className="summary-line">
         Each row has blocks A–D with 6 positions, front and rear.
         {rows >= 1 && rows <= HDF_MAX_ROWS
           ? ` ${hdfPositions(rows)} positions per side.`
           : ''}
-      </span>
+      </p>
       <EditError message={action.error} />
-      <div className="inline-row">
-        <button className="button primary" disabled={action.pending}>
+      <div className="form-actions">
+        <button className="btn primary lg" disabled={action.pending}>
           Add HDF to plan
         </button>
-        <button type="button" className="button" onClick={onClose}>
+        <button type="button" className="btn lg" onClick={onClose}>
           Cancel
         </button>
       </div>

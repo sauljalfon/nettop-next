@@ -4,11 +4,13 @@
 
 .trace-picker input {
   width: 100%;
-  padding: 10px;
-  font-size: 12px;
-  border: 1px solid #dfe4ee;
-  border-radius: 7px;
-  background: white;
+  height: var(--h-input);
+  padding: 0 10px;
+  font-size: var(--t-md);
+  font-weight: 400;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--paper);
 }
 
 .picker-popup {
@@ -18,10 +20,10 @@
   right: 0;
   z-index: 80;
   margin-top: 4px;
-  background: white;
-  border: 1px solid #dce4ef;
-  border-radius: 8px;
-  box-shadow: 0 10px 26px #31486826;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
   max-height: 260px;
   overflow-y: auto;
 }
@@ -33,27 +35,29 @@
 }
 
 .picker-popup li {
-  padding: 5px 8px;
-  font-size: 12px;
-  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: var(--t-sm);
+  font-weight: 400;
+  border-radius: 4px;
   cursor: pointer;
 }
 
 .picker-popup li.active {
-  background: #f0edfa;
+  background: var(--paper-sunk);
 }
 
 .picker-note {
   margin: 0;
   padding: 6px 12px 8px;
-  font-size: 11px;
-  color: #8390a4;
+  font-size: var(--t-xs);
+  font-weight: 400;
+  color: var(--ink-soft);
 }
 
 /* The note stays in view at the bottom of a long, scrolling list. */
 .picker-popup .picker-note {
   position: sticky;
   bottom: 0;
-  background: white;
-  border-top: 1px solid #eef1f6;
+  background: var(--paper);
+  border-top: 1px solid var(--rule-soft);
 }

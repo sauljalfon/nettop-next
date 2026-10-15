@@ -113,7 +113,7 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | TR-03 | In Physical the results panel opens as one line and its expanded walk sheet scrolls | `trail` |
 | TR-04 | The trail shows the route's steps; chips, Prev and Next open the exact endpoint; Back returns | `trail`, `trail.test.ts` |
 | TR-05, TR-06 | The trace is rerun across Installed ↔ Plan; a missing route falls back to the first with a note | `trace-switch`, `traceSession.test.ts` |
-| RK-01, RK-02 | A 42U rack fits the visible height at 1440×900 and 1280×720 without scrolling; faceplates per kind and their states | `faceplates`, `cabinet.test.ts` |
+| RK-01, RK-02 | A 12U rack labels every unit; a 42U rack's U1 ends above the results panel once scrolled, at 1440×900 and 1280×720, and only the rack scrolls; faceplates per kind and their states | `faceplates`, `cabinet.test.ts` |
 | PB-01 to PB-03 | Odd-over-even switch ports; one legend swatch per network; arrow keys, Home/End and Enter with one tab stop | `faceplates`, `equipmentModel.test.ts`, `faceNav.test.ts` |
 | PB-04, PB-05 | The HDF is one dark chassis with 16 modules; jack sizes (44 px switch and panel, 34 px HDF) | `hdfplate` |
 | PD-01, PD-02 | The port detail card draws the connection chain for a position, each box opening its place; a switch port shows its walk sheet instead | `hdfplate`, `equipmentModel.test.ts` |
@@ -136,6 +136,19 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | WS-04 | The inspector shows the same uplinks; a line runs Find AGG / BB from that port | `walk-sheet` |
 | WS-05 | An AGG or BB page says paths end there and makes no trace request; the mismatch line is unit-tested only | `walk-sheet`, `uplinks.test.ts` |
 | POL-22 and the route-view specs | Route view is a picture over the map: steps in route order, sites and nodes with each cable's gap, a cross-site path; a step opens Physical; another route redraws; turning it off restores the map exactly; PNG/PDF hold the whole picture | `route-view`, `export`, `diagram.test.ts`, `exportRoute.test.ts` |
+
+## The visual pass (2026-10-15)
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| VP-01 | Hebrew names sit in their own `<bdi>` on cards, in the inspector, the walk sheet and the Changes drawer, and a location reads Site › Node › Rack as separate names; every summary line has pieces that read as its text | `visual-pass.recording`, `textPieces.test.ts`, `summary.test.ts` |
+| VP-02 | On Physical and the equipment pages an open right drawer keeps every block clear of it, with no sideways scroll; on the map and the site canvas a drawer floats and nothing moves | `visual-pass` |
+| VP-03 | A 42U rack keeps 26px rows, scrolls inside its panel and labels every unit; scrolled to the bottom U1 is fully visible; on Rack A03 no name is clipped on its label strip. Rows are 26–30px by the available height | `visual-pass`, `cabinet.test.ts` |
+| VP-03b | With the inspector open all 24 ports of EDGE-17 and the whole HDF grid sit inside the face card with no sideways scroll and the endpoint detail below it; without a drawer the HDF grid fills its card and every jack number is at least 11px | `visual-pass` |
+| VP-04 | Forms: label above the control; a focus ring that stays inside the form; Site › Node › Rack stacked in the narrow drawer and in one row, with Equipment below, in the patching screen; submit is ink, Cancel is paper with a rule border; a form that adds an object is dashed; a library item is one card | `visual-pass` |
+| VP-05 | No visible text is under 11px on the map with the inspector open, the site canvas, Rack A03, HDF-01's page, the HDF form in the library and the Changes drawer | `visual-pass` |
+| VP-06 | A map card reads role, network and state in the paper look | `map`, `cardRole.test.ts` |
+| — | No stylesheet outside `theme.css` has a colour, a font size under 11px or an uppercase transform; none uses `--purple`, `--line`, `--muted`, `--green`, `.button` or `.outline-button` (the allowlist is empty) | `theme.test.ts` |
 
 ## M5–M7 — Editing, persistence, scale, and governance
 

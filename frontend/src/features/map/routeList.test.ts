@@ -58,3 +58,17 @@ describe('POL-33 the results overlay title', () => {
     expect(resultsTitle('point_to_point')).toBe('Exact port → port')
   })
 })
+
+describe('VP-03 route rows carry pieces', () => {
+  it("each row's pieces join to its label and keep names apart", () => {
+    const s = acceptanceSnapshot()
+    for (const row of routeRows(s, edge17Result())) {
+      expect(
+        row.pieces.map((x) => ('name' in x ? x.name : x.text)).join(''),
+      ).toBe(row.label)
+      expect(
+        row.pieces.filter((x) => 'name' in x).length,
+      ).toBeGreaterThanOrEqual(5)
+    }
+  })
+})

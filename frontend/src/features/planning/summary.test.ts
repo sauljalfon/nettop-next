@@ -305,3 +305,39 @@ it('a recorded plan names what it moved and removed from its labels, without a "
     'PANEL-OLD',
   ])
 })
+
+it('VP-01 every line has pieces that read as its text, with each name its own piece', () => {
+  const renamed: Plan = { ...plan, renames: [{ id: EQ, name: 'Lab switch' }] }
+  const lines = planSummary(renamed, installed)
+  const names = [
+    'EDGE-18',
+    'HDF-03',
+    'AGG-08',
+    'AGG-15',
+    'PANEL-A',
+    'HDF-01',
+    'HDF-02',
+    'North Annex',
+    'Hall',
+    'R1',
+    'Rack A03',
+    'Rack Core 02',
+    'Rack Core 03',
+    'Rack DR01',
+    'DR Access',
+    'DR Site',
+    'Lab switch',
+  ]
+  for (const line of lines) {
+    const joined = line.pieces
+      .map((p) => ('name' in p ? p.name : p.text))
+      .join('')
+    expect(joined, line.key).toBe(line.text)
+    const asNames = new Set(
+      line.pieces.flatMap((p) => ('name' in p ? [p.name] : [])),
+    )
+    for (const n of names)
+      if (line.text.includes(n))
+        expect(asNames.has(n), `${line.key}: ${n}`).toBe(true)
+  }
+})

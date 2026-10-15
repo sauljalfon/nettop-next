@@ -5,6 +5,8 @@ import { DEFAULT_RACK_UNITS, type ContainerKind } from './containers'
 import type { PlanEdit } from './editing'
 import { useAsyncAction } from './useAsyncAction'
 import { useInlineDialog } from './useInlineDialog'
+import Chip from '../../shared/ui/Chip'
+import Field from '../../shared/ui/Field'
 import './editing.css'
 
 const LABEL: Record<ContainerKind, string> = {
@@ -99,48 +101,56 @@ function ContainerForm({
   return (
     <form
       {...dialog}
-      className="inline-form"
+      className="inline-form proposes"
       aria-label={LABEL[kind]}
       data-testid={`${kind}-form`}
       noValidate
       onSubmit={submit}
     >
-      <span className="eyebrow">
-        NEW {kind.toUpperCase()} <em className="proposed-tag">PROPOSED</em>
-      </span>
-      <label>
-        Name
-        <input
-          value={name}
-          placeholder={PLACEHOLDER[kind]}
-          autoComplete="off"
-          onChange={(e) => {
-            setName(e.target.value)
-            action.clear()
-          }}
-        />
-      </label>
-      {kind === 'rack' && (
-        <label>
-          Height (units, 1–60)
+      <div className="form-head">
+        <strong className="form-title">New {kind}</strong>
+        <Chip kind="proposed" className="proposed-tag">
+          Proposed
+        </Chip>
+      </div>
+      <Field label="Name">
+        {(id) => (
           <input
-            type="number"
-            min={1}
-            max={60}
-            value={units}
+            id={id}
+            type="text"
+            value={name}
+            placeholder={PLACEHOLDER[kind]}
+            autoComplete="off"
             onChange={(e) => {
-              setUnits(e.target.value)
+              setName(e.target.value)
               action.clear()
             }}
           />
-        </label>
+        )}
+      </Field>
+      {kind === 'rack' && (
+        <Field label="Height (units, 1–60)">
+          {(id) => (
+            <input
+              id={id}
+              type="number"
+              min={1}
+              max={60}
+              value={units}
+              onChange={(e) => {
+                setUnits(e.target.value)
+                action.clear()
+              }}
+            />
+          )}
+        </Field>
       )}
       <EditError message={action.error} />
-      <div className="inline-row">
-        <button className="button primary" disabled={action.pending}>
+      <div className="form-actions">
+        <button className="btn primary" disabled={action.pending}>
           {LABEL[kind]} to plan
         </button>
-        <button type="button" className="button" onClick={onClose}>
+        <button type="button" className="btn" onClick={onClose}>
           Cancel
         </button>
       </div>

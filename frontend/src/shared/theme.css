@@ -1,0 +1,372 @@
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-sans-hebrew/400.css';
+@import '@fontsource/ibm-plex-sans-hebrew/500.css';
+@import '@fontsource/ibm-plex-sans-hebrew/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* Paper and hardware (D33). The only file that may hold colours, fonts and sizes;
+   every other stylesheet uses var(--…). */
+:root {
+  --floor: #eef1f3; /* canvas behind everything */
+  --paper: #ffffff; /* drawers, forms, cards */
+  --paper-sunk: #f6f8f9; /* table heads, wells */
+  --ink: #1c2b3a; /* text, primary buttons, selection */
+  --ink-soft: #56636f; /* secondary text */
+  --rule: #d3dae1; /* borders */
+  --rule-soft: #e6ebef; /* inner dividers */
+  --steel: #1f2731; /* racks, faceplates, HDF chassis only */
+  --steel-2: #2a3440;
+  --steel-3: #3a4552;
+  --tape: #fbfbf8; /* label strips */
+  --tape-ink: #15202b;
+  --jack-free: #ffffff; /* a free jack */
+  --route: #0f8b7a; /* the selected route */
+  --route-soft: #e2f3f0;
+  --amber: #d99a0b; /* a highlight */
+  --amber-soft: #fdf3dc;
+  --proposed: #8a6100; /* proposed, always with a dashed border */
+  --proposed-soft: #fff6dd;
+  --danger: #b4361f; /* errors, Delete */
+  --unresolved: #9bacc0; /* a network that cannot be resolved */
+
+  /* Added beyond the plan's table. */
+  --rule-strong: #b6c1cc; /* hover border of an outlined button */
+  --ink-hover: #2b3d50; /* hover of a primary button */
+  --amber-ink: #3a2a00; /* text on an amber count pill */
+  --amber-halo: #f2b134; /* outline and glow of a highlight */
+  --env-ink: #7a5200; /* DEV badge text */
+  --env-border: #ecd49a; /* DEV badge border */
+  /* Steel-side greys (racks, faceplates, HDF chassis), from the demo. */
+  --steel-line: #36414d; /* dashed free slots, module borders */
+  --steel-edge: #4b5765; /* a block's border on the cabinet */
+  --steel-hover: #7d8a98; /* a block's hover border, and the stripe of a passive device */
+  --steel-ink: #a8b4c0; /* secondary text on steel */
+  --steel-ink-strong: #c3ccd6; /* every fifth U number, column letters */
+  --steel-ink-soft: #8d9aa8; /* U numbers */
+  --steel-free: #6f7c8a; /* "Available" on a free slot */
+  --steel-rail: #11171e; /* rail notches */
+  --steel-port: #8795a3; /* port dots on a rack block */
+  --steel-grid: #4d5967; /* an HDF block's grid lines */
+  --proposed-on-steel: #e3b84d; /* dashed border of a proposed block on steel */
+  --proposed-steel-bg: #3d3a2e;
+  --mixed-networks: #8a97ab; /* a line that carries several networks */
+  --scrim: #1c2b3a66; /* behind a modal screen */
+  --shadow-drawer:
+    0 18px 40px -18px #1c2b3a40, 0 2px 6px #1c2b3a12; /* drawers */
+  --shadow-pop: 0 10px 30px -10px #1c2b3a80; /* popovers, toasts, map controls */
+
+  --sans:
+    'IBM Plex Sans', 'IBM Plex Sans Hebrew', 'Segoe UI', Arial, sans-serif;
+  --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
+
+  --t-xs: 12px;
+  --t-sm: 13px;
+  --t-md: 14px;
+  --t-lg: 16px;
+  --t-xl: 20px;
+  --t-2xl: 26px;
+  --t-min: 11px; /* jack numbers only */
+
+  --r-drawer: 10px;
+  --r-control: 6px;
+  --r-hw: 2px;
+
+  --h-control: 32px;
+  --h-control-lg: 36px;
+  --h-input: 34px;
+
+  color-scheme: light;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+body {
+  margin: 0;
+  background: var(--floor);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--t-md);
+  line-height: 1.45;
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 600;
+  text-wrap: balance;
+}
+bdi {
+  unicode-bidi: isolate;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+select,
+input[type='text'],
+input[type='number'] {
+  height: var(--h-input);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  padding: 0 10px;
+  font-size: var(--t-md);
+  width: 100%;
+}
+select:focus-visible,
+input:focus-visible {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Buttons: primary (ink), outlined (default), quiet. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--h-control);
+  padding: 0 12px;
+  border-radius: var(--r-control);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  white-space: nowrap;
+}
+.btn:hover {
+  border-color: var(--rule-strong);
+}
+.btn.primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.btn.primary:hover {
+  background: var(--ink-hover);
+}
+.btn.quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  padding-inline: 8px;
+}
+.btn.quiet:hover {
+  color: var(--ink);
+  background: var(--paper-sunk);
+}
+.btn.lg {
+  height: var(--h-control-lg);
+  padding-inline: 16px;
+  font-size: var(--t-md);
+}
+/* Destructive actions: the filled one confirms, the outlined one asks. */
+.btn.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--paper);
+}
+.btn.danger:hover {
+  border-color: var(--danger);
+  filter: brightness(0.92);
+}
+.btn.danger-outline {
+  background: var(--paper);
+  color: var(--danger);
+}
+
+/* Segmented control (Front / Rear): one choice of a few, the chosen one raised. */
+.seg {
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+}
+.seg button {
+  height: 26px;
+  padding: 0 12px;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+  background: none;
+  border: 0;
+  border-radius: 4px;
+}
+.seg button.active,
+.seg button[aria-pressed='true'] {
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--rule);
+}
+
+/* Forms: label above, hint and error below, two columns. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+}
+.field > label,
+.field > .label {
+  color: var(--ink);
+  font-weight: 500;
+}
+.field .hint {
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+}
+.field .error {
+  color: var(--danger);
+  font-size: var(--t-xs);
+}
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.place-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* The one floating panel; the only shadowed element besides popovers. */
+.drawer {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-drawer);
+  box-shadow: var(--shadow-drawer);
+}
+
+/* Label strip on hardware. */
+.tape {
+  display: block;
+  background: var(--tape);
+  color: var(--tape-ink);
+  border-radius: var(--r-hw);
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  align-items: center;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+}
+.legend span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-hw);
+  display: inline-block;
+}
+
+/* A location as separate names (PlacePath). */
+.place-path {
+  display: inline-flex;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.place-sep {
+  color: var(--ink-soft);
+  white-space: pre;
+}
+
+/* The one chip (network, role, route, proposed, state). */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-size: var(--t-xs);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.chip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.chip.proposed {
+  border: 1.5px dashed var(--proposed);
+  background: var(--proposed-soft);
+  color: var(--proposed);
+  font-weight: 600;
+}
+.chip.route {
+  border-color: var(--route);
+  background: var(--route-soft);
+  font-weight: 500;
+}
+.chip.role {
+  background: var(--paper-sunk);
+}
+.chip.state {
+  background: var(--paper);
+}
+.chip.muted {
+  opacity: 0.45;
+}
+
+/* Section headings: sentence case, never all caps. */
+.section-title {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+}

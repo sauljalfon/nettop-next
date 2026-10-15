@@ -22,7 +22,7 @@ test('C01 default map shows equipment and actual cable references, not an invent
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
   await expect(page.locator('.canvas-container')).toHaveCount(0)
   const edge17 = page.getByTestId('rf__node-edge-17')
-  await expect(edge17).toContainText('Main Campus / Building A / Rack A03')
+  await expect(edge17).toContainText('Main Campus › Building A › Rack A03')
   await expect(edge17).toContainText('3 of 24 cabled')
   await expect(page.getByTestId('rf__node-agg-15')).toContainText(
     '0 of 24 cabled',
@@ -189,4 +189,44 @@ test('C13 a route and a highlight reveal objects the network filter hides, and h
   })
   await page.getByRole('button', { name: 'Clear highlight' }).click()
   await expectMarks(page, { cards: underB })
+})
+
+test('VP-06 a card reads role, network and state in the paper look', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await expect(page.getByText('Connected infrastructure.')).toHaveCount(0)
+  const edge17 = page.getByTestId('rf__node-edge-17')
+  const panel = page.getByTestId('rf__node-panel-a')
+  await expect(panel.locator('.card-role')).toHaveText('Patch panel')
+  await expect(edge17.locator('.card-role')).toHaveText('Access')
+  await expect(
+    edge17.locator('.network-badge', { hasText: 'Network A' }),
+  ).toBeVisible()
+
+  // Selected: an ink ring.
+  await edge17.locator('.map-card').click()
+  await expect(edge17.locator('.map-card')).toHaveClass(/selected/)
+  const ring = await edge17
+    .locator('.map-card')
+    .evaluate((c) => getComputedStyle(c).boxShadow)
+  expect(ring).toContain('rgb(28, 43, 58)')
+
+  // On the route: the route colour.
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
+  await pick(page, 'Start', 'edge-17 all ports')
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await expectMarks(page, {
+    routeCards: ['agg-03', 'edge-17', 'hdf-01', 'hdf-02', 'panel-a'],
+  })
+  for (const id of ['agg-03', 'panel-a']) {
+    const border = await page
+      .getByTestId(`rf__node-${id}`)
+      .locator('.map-card')
+      .evaluate((c) => getComputedStyle(c).borderTopColor)
+    expect(border).toBe('rgb(15, 139, 122)')
+  }
 })

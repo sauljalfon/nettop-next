@@ -86,3 +86,28 @@ describe('results are capped at 50 with the rest counted', () => {
     expect(searchExplore(items, 'bridge').cables.rows).toEqual([])
   })
 })
+
+describe('VP-03 search rows carry pieces', () => {
+  const text = (pieces: readonly ({ text: string } | { name: string })[]) =>
+    pieces.map((x) => ('name' in x ? x.name : x.text)).join('')
+
+  it('a port row joins to its label, equipment and position as names', () => {
+    const { ports } = searchExplore(items, 'HDF-01 3C/5')
+    expect(ports.rows.length).toBeGreaterThan(0)
+    for (const row of ports.rows) {
+      expect(text(row.pieces)).toBe(row.label)
+      expect(row.pieces.filter((x) => 'name' in x)).toHaveLength(2)
+    }
+  })
+
+  it('a cable row has the cable ID as text and each end as pieces', () => {
+    const [row] = searchExplore(items, 'a03').cables.rows
+    expect(text(row.pieces)).toBe(row.label)
+    expect(row.pieces[0]).toEqual({ text: 'A03 · ' })
+    expect(
+      row.pieces
+        .filter((x) => 'name' in x)
+        .map((x) => (x as { name: string }).name),
+    ).toEqual(['HDF-01', '3C/5 front', 'HDF-02', '2B/3 front'])
+  })
+})

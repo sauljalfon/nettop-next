@@ -1,24 +1,18 @@
-export const MIN_UNIT_PX = 7
+export const MIN_UNIT_PX = 26
 export const MAX_UNIT_PX = 30
-/** Units this tall or taller keep the 2 px gap; tighter racks use 1 px. */
-const ROOMY_UNIT_PX = 14
 
 /**
- * The height of one rack unit, and the gap between units, so the whole rack fits
- * `available` pixels: up to 30 px a unit with a 2 px gap when there is room
- * (a 12U rack gets 30, a 42U rack about 17), then a 1 px gap and shorter units
- * down to 7 px so a 42U rack still fits a small window. Below 7 px the minimum
- * wins and the page scrolls.
+ * The height of one rack unit and the gap between units (D33): the height that
+ * fits `available` pixels, never below 26 px and never above 30 px, with a 2 px
+ * gap. A rack that does not fit at 26 px scrolls; a name is never clipped.
  */
 export function rackMetrics(
   available: number,
   units: number,
 ): { unitPx: number; gap: number } {
-  if (units <= 0 || available <= 0) return { unitPx: MIN_UNIT_PX, gap: 1 }
-  const per = Math.floor(available / units)
-  if (per - 2 >= ROOMY_UNIT_PX)
-    return { unitPx: Math.min(MAX_UNIT_PX, per - 2), gap: 2 }
-  return { unitPx: Math.max(MIN_UNIT_PX, per - 1), gap: 1 }
+  if (units <= 0 || available <= 0) return { unitPx: MIN_UNIT_PX, gap: 2 }
+  const fit = Math.floor(available / units) - 2
+  return { unitPx: Math.min(MAX_UNIT_PX, Math.max(MIN_UNIT_PX, fit)), gap: 2 }
 }
 
 /** Every unit is labeled from 18 px up; below that, only every fifth. */

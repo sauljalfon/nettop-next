@@ -139,7 +139,7 @@ test('F06 HDF-01 3C/5 rear: its cable and peer, then the same position on the fr
   await expect(external(page)).toContainText('cable-a02')
   await expect(external(page)).toContainText('PANEL-A')
   await expect(external(page)).toContainText(
-    'Main Campus / Building A / Rack A03',
+    'Main Campus › Building A › Rack A03',
   )
   await expect(internal(page)).toContainText('front')
 
@@ -172,7 +172,7 @@ test('F07 HDF-02 2B/3 front: A03 to HDF-01, and the rear goes to AGG-03 port 1',
   await expect(external(page)).toContainText('AGG-03')
   await expect(external(page)).toContainText('Port 1')
   await expect(external(page)).toContainText(
-    'Main Campus / Main Distribution / Rack Core 01',
+    'Main Campus › Main Distribution › Rack Core 01',
   )
 })
 

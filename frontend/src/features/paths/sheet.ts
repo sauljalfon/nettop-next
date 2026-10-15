@@ -1,3 +1,4 @@
+import type { TextPiece } from '../../shared/textPieces'
 import type { Equipment, Network } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import type { Walk } from './follow'
@@ -70,9 +71,6 @@ export interface Sheet {
     role?: 'aggregation' | 'backbone'
   }
 }
-
-/** Text with each name kept as its own piece, so the UI can wrap names in <bdi>. */
-export type TextPiece = { text: string } | { name: string }
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
 

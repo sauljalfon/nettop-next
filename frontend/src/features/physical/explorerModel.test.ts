@@ -8,6 +8,7 @@ import {
   allProposed,
   cableRows,
   elevationSubtitle,
+  elevationSubtitlePieces,
   filterRackPreviews,
   locationKey,
   mixOf,
@@ -417,6 +418,17 @@ describe('F04 an equipment block says its role, network and units', () => {
     expect(elevationSubtitle(eq('PANEL-A'), s.networks)).toBe(
       'passive · 1U at U11',
     )
+  })
+
+  it('keeps the network name as its own piece, so a Hebrew name does not swap with the units', () => {
+    expect(elevationSubtitlePieces(eq('EDGE-17'), s.networks)).toEqual([
+      { text: 'access · ' },
+      { name: 'Network A' },
+      { text: ' · 1U at U8' },
+    ])
+    expect(elevationSubtitlePieces(eq('HDF-01'), s.networks)).toEqual([
+      { text: 'passive · 3U at U4–U6' },
+    ])
   })
 
   it('leaves out a network that does not exist', () => {

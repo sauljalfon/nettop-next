@@ -57,9 +57,11 @@ import type { Inventory, RouteMarks } from './inventory'
 import type { PhysicalSession } from './physicalSession'
 import { NetworkChip } from './SitesGrid'
 import { plural } from './text'
+import Name from '../../shared/ui/Name'
+import Chip from '../../shared/ui/Chip'
 
-const TEAL = '#108b79'
-const MIXED = '#8a97ab'
+const TEAL = 'var(--route)'
+const MIXED = 'var(--mixed-networks)'
 const FIT = { padding: 40, minZoom: 0.1, maxZoom: 1 }
 /** More than 12 nodes: cards stay readable (zoom 0.6 at least); the rest is panned or scrolled to. */
 const FIT_MANY = { ...FIT, minZoom: 0.6, anchor: 'top' as const }
@@ -119,11 +121,18 @@ const SiteNodeCard = memo(function SiteNodeCard({ data }: NodeProps<CardNode>) {
       />
       <div className="node-card-top">
         <span className="phys-label">
-          NODE {data.proposed && <em className="proposed-tag">PROPOSED</em>}
+          Node{' '}
+          {data.proposed && (
+            <Chip kind="proposed" className="proposed-tag">
+              Proposed
+            </Chip>
+          )}
         </span>
         <GripVertical size={14} className="grip" aria-hidden />
       </div>
-      <strong className="node-name">{data.name}</strong>
+      <strong className="node-name">
+        <Name text={data.name} />
+      </strong>
       <span className="phys-counts">
         {plural(data.racks, 'rack')} · {data.equipment} equipment
       </span>
@@ -131,16 +140,17 @@ const SiteNodeCard = memo(function SiteNodeCard({ data }: NodeProps<CardNode>) {
         {data.mix.map((m) => (
           <NetworkChip
             key={m.networkId}
-            text={`${m.name} · ${m.count}`}
+            name={m.name}
+            suffix={` · ${m.count}`}
             color={colorOf(data.colors, m.networkId)}
             muted={!!data.networkId && data.networkId !== m.networkId}
           />
         ))}
       </span>
       {data.routeEquipment > 0 && (
-        <span className="route-pill">
+        <Chip kind="route" className="route-pill">
           on route · {data.routeEquipment} equipment
-        </span>
+        </Chip>
       )}
       <span className="phys-muted">{plural(data.inside, 'cable')} inside</span>
       {data.groups.map((g) => (
@@ -149,11 +159,12 @@ const SiteNodeCard = memo(function SiteNodeCard({ data }: NodeProps<CardNode>) {
           className="link-button nodrag nopan"
           onClick={() => data.onOpenGroup(g.siteId)}
         >
-          {g.count === 1 ? '1 cable' : `${g.count} cables`} to {g.name}
+          {g.count === 1 ? '1 cable' : `${g.count} cables`} to{' '}
+          <Name text={g.name} />
         </button>
       ))}
       <button
-        className="open-racks nodrag nopan"
+        className="open-racks btn nodrag nopan"
         aria-label={`Open racks of ${data.name}`}
         onClick={data.onOpenRacks}
       >
@@ -701,7 +712,7 @@ function Canvas({
         >
           <Background
             variant={BackgroundVariant.Dots}
-            color="#c3ccd8"
+            color="var(--rule)"
             gap={20}
             size={1.2}
           />

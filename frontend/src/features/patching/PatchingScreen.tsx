@@ -35,6 +35,10 @@ import {
 } from './patching'
 import { patchingSession, type PatchRequest } from './patchingSession'
 import './patching.css'
+import Name from '../../shared/ui/Name'
+import Pieces from '../../shared/ui/Pieces'
+import type { TextPiece } from '../../shared/textPieces'
+import PlacePath from '../../shared/ui/PlacePath'
 
 /** A cable made in this screen: Undo last removes it by its plan change key. */
 interface Made {
@@ -260,12 +264,17 @@ export default function PatchingScreen({
   }
 
   if (!nearEquipment) return null
-  const name = (id: string) => {
+  /** "<equipment> · <port>", with the equipment name as its own piece for <bdi>. */
+  const namePieces = (id: string): TextPiece[] => {
     const p = index.lookup.endpoints.get(id)
     return p
-      ? `${index.equipment.get(p.equipmentId)?.name ?? ''} · ${p.label}`
-      : id
+      ? [
+          { name: index.equipment.get(p.equipmentId)?.name ?? '' },
+          { text: ` · ${p.label}` },
+        ]
+      : [{ text: id }]
   }
+  const named = (id: string) => <Pieces pieces={namePieces(id)} />
   const nearFace = faceFor(index, nearEquipment, nearSide, {
     selectedEndpointId: nearSel,
   })
@@ -368,7 +377,7 @@ export default function PatchingScreen({
         </header>
 
         <div className="patching-toolbar">
-          <div className="patching-mode" role="group" aria-label="Mode">
+          <div className="seg patching-mode" role="group" aria-label="Mode">
             {(
               [
                 ['one', 'One at a time'],
@@ -379,7 +388,6 @@ export default function PatchingScreen({
                 key={m}
                 type="button"
                 aria-pressed={mode === m}
-                className={mode === m ? 'active' : ''}
                 onClick={() => {
                   setMode(m)
                   setFarStart(undefined)
@@ -396,6 +404,7 @@ export default function PatchingScreen({
               <label className="patching-count">
                 Count
                 <input
+                  type="text"
                   inputMode="numeric"
                   aria-label="Count"
                   value={countText}
@@ -424,10 +433,14 @@ export default function PatchingScreen({
         <div className="patching-cols">
           <section className="patching-col" aria-label="From">
             <div className="patching-col-head">
-              <span className="eyebrow">FROM</span>
-              <strong>{nearEquipment.name}</strong>
+              <span className="eyebrow">From</span>
+              <strong>
+                <Name text={nearEquipment.name} />
+              </strong>
               <span className="quiet">
-                {index.locations.get(nearEquipment.id)}
+                <PlacePath
+                  parts={index.locationParts.get(nearEquipment.id) ?? []}
+                />
               </span>
             </div>
             <FaceView
@@ -435,7 +448,11 @@ export default function PatchingScreen({
               face={nearFace}
               side={nearSide}
               meta={
-                nearSel ? `Selected: ${name(nearSel)}` : 'No free jack selected'
+                nearSel ? (
+                  <>Selected: {named(nearSel)}</>
+                ) : (
+                  'No free jack selected'
+                )
               }
               networks={snapshot.networks}
               colors={colors}
@@ -454,11 +471,19 @@ export default function PatchingScreen({
           </section>
           <section className="patching-col" aria-label="To">
             <div className="patching-col-head">
-              <span className="eyebrow">TO</span>
-              <strong>{farEquipment?.name ?? 'Choose the far end'}</strong>
+              <span className="eyebrow">To</span>
+              <strong>
+                {farEquipment ? (
+                  <Name text={farEquipment.name} />
+                ) : (
+                  'Choose the far end'
+                )}
+              </strong>
               {farEquipment && (
                 <span className="quiet">
-                  {index.locations.get(farEquipment.id)}
+                  <PlacePath
+                    parts={index.locationParts.get(farEquipment.id) ?? []}
+                  />
                 </span>
               )}
             </div>
@@ -514,12 +539,12 @@ export default function PatchingScreen({
               {nearSel && farNext ? (
                 <>
                   <span>Next:</span>
-                  <b>{name(nearSel)}</b>
+                  <b>{named(nearSel)}</b>
                   <span aria-hidden="true">→</span>
-                  <b>{name(farNext)}</b>
+                  <b>{named(farNext)}</b>
                   <button
                     type="button"
-                    className="button primary"
+                    className="btn primary lg"
                     disabled={action.pending || !live}
                     onClick={() => void connectOne(nearSel, farNext)}
                   >
@@ -528,7 +553,8 @@ export default function PatchingScreen({
                 </>
               ) : !nearSel ? (
                 <span>
-                  No free jack left on this side of {nearEquipment.name}.
+                  No free jack left on this side of{' '}
+                  <Name text={nearEquipment.name} />.
                 </span>
               ) : (
                 <span>
@@ -572,7 +598,7 @@ export default function PatchingScreen({
                 )}
                 <button
                   type="button"
-                  className="button primary"
+                  className="btn primary lg"
                   disabled={
                     !live ||
                     action.pending ||
@@ -584,16 +610,21 @@ export default function PatchingScreen({
                   {pairs.length === 0 ? 'Connect' : `Connect ${makeable}`}
                 </button>
                 <span className="quiet">
-                  {pairs.length
-                    ? `From ${name(nearSel ?? '')}, ${pairs.length} pair${pairs.length === 1 ? '' : 's'}.`
-                    : 'Click the far start on the right to see the pairs.'}
+                  {pairs.length ? (
+                    <>
+                      From {named(nearSel ?? '')}, {pairs.length} pair
+                      {pairs.length === 1 ? '' : 's'}.
+                    </>
+                  ) : (
+                    'Click the far start on the right to see the pairs.'
+                  )}
                 </span>
               </div>
             </>
           )}
           <EditError message={action.error} />
           <div className="patching-made" data-testid="patching-made">
-            <span className="eyebrow">MADE HERE ({made.length})</span>
+            <span className="eyebrow">Made here ({made.length})</span>
             <div className="patching-made-list">
               {made.length === 0 ? (
                 <span className="quiet">
@@ -609,7 +640,7 @@ export default function PatchingScreen({
                   )}
                   {recentMade.map((m) => (
                     <span key={m.linkId || `${m.near}-${m.far}`}>
-                      {name(m.near)} → {name(m.far)}
+                      {named(m.near)} → {named(m.far)}
                     </span>
                   ))}
                 </>
@@ -617,13 +648,13 @@ export default function PatchingScreen({
             </div>
             <button
               type="button"
-              className="button"
+              className="btn lg"
               disabled={!made.at(-1)?.linkId || action.pending || !live}
               onClick={() => void undoLast()}
             >
               Undo last
             </button>
-            <button type="button" className="button" onClick={onClose}>
+            <button type="button" className="btn lg" onClick={onClose}>
               Done
             </button>
           </div>

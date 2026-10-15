@@ -239,7 +239,10 @@ export async function openRackInPhysical(
   await page
     .getByRole('button', { name: `Open racks of ${node}`, exact: true })
     .click()
-  await page.getByRole('button', { name: `Open ${rack}`, exact: true }).click()
+  // The corner of the mini rack: its centre can lie on an equipment block, which opens that equipment instead.
+  await page
+    .getByRole('button', { name: `Open ${rack}`, exact: true })
+    .click({ position: { x: 2, y: 2 } })
 }
 
 /** In Physical the results panel opens as one line; open it. Does nothing when it is already open. */

@@ -32,7 +32,7 @@ export default function DeleteEquipment({
     <div className="delete-equipment" data-testid={`delete-equipment-${where}`}>
       <button
         type="button"
-        className="button ghost-danger"
+        className="btn danger-outline"
         data-opener={key}
         aria-label={`Delete ${index.equipment.get(equipmentId)?.name ?? ''}…`}
         onClick={() => setAsking(true)}

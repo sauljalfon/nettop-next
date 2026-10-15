@@ -220,7 +220,7 @@ test('ED-10 add a site, a node and a rack (dashed, PROPOSED), see the server ref
     `[data-testid="site-card"][data-site-id="${siteId}"]`,
   )
   await expect(card).toHaveAttribute('data-proposed', 'true')
-  await expect(card).toContainText('PROPOSED')
+  await expect(card).toContainText('Proposed')
   // The card's frame is its wrapper (the foot sits inside it).
   expect(
     await card.evaluate(
@@ -249,7 +249,7 @@ test('ED-10 add a site, a node and a rack (dashed, PROPOSED), see the server ref
     `[data-testid="node-card"][data-node-id="${nodeId}"]`,
   )
   await expect(nodeCard).toHaveAttribute('data-proposed', 'true')
-  await expect(nodeCard).toContainText('PROPOSED')
+  await expect(nodeCard).toContainText('Proposed')
   const placed = await mark(page, 'data-node-positions')
   expect(placed).toContain(`${nodeId}:`)
   const box = (await nodeCard.boundingBox())!
@@ -277,7 +277,7 @@ test('ED-10 add a site, a node and a rack (dashed, PROPOSED), see the server ref
     `[data-testid="rack-preview"][data-rack-id="${rackId}"]`,
   )
   await expect(rack).toHaveAttribute('data-proposed-rack', 'true')
-  await expect(rack).toContainText('PROPOSED')
+  await expect(rack).toContainText('Proposed')
   await expect(rack).toContainText('0 equipment · 0 of 24U used')
 
   // Delete the empty proposed rack: its addition is dropped.
@@ -397,7 +397,7 @@ test('ED-11 the HDF form adds a 4-row HDF in a rack, shows the server refusing a
   await expect(root(page)).toHaveAttribute('data-selected-equipment', newId)
   // The library closes before the HDF opens, and the page marks it PROPOSED.
   await expect(page.getByRole('button', { name: 'Add HDF…' })).toHaveCount(0)
-  await expect(page.getByTestId('proposed-tag')).toHaveText('PROPOSED')
+  await expect(page.getByTestId('proposed-tag')).toHaveText('Proposed')
   await page
     .getByRole('navigation', { name: 'Breadcrumbs' })
     .getByRole('button', { name: 'Rack SM01' })

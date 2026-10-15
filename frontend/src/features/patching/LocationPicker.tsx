@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import {
   chooseNode,
   chooseSite,
@@ -12,6 +12,8 @@ import {
   type PickRules,
   type SiteBranch,
 } from './patching'
+import Field from '../../shared/ui/Field'
+import { optionText } from '../../shared/textPieces'
 import './location-picker.css'
 
 type Props = {
@@ -51,7 +53,6 @@ export default function LocationPicker(props: Props) {
     exclude: props.exclude,
   }
   const value = props.level === 'rack' ? props.rackId : props.equipmentId
-  const id = useId()
   const [choice, setChoice] = useState(() =>
     startPlace(tree, value, rules, props.near),
   )
@@ -84,95 +85,113 @@ export default function LocationPicker(props: Props) {
       aria-label={props.label ?? 'Far end'}
       data-level={rules.level}
     >
-      <label htmlFor={`${id}-site`}>
-        Site
-        <select
-          id={`${id}-site`}
-          aria-label="Site"
-          value={site?.id ?? ''}
-          disabled={disabled || tree.length === 0}
-          onChange={(e) => go(chooseSite(tree, e.target.value, rules))}
-        >
-          {tree.length === 0 && <option value="">No sites yet</option>}
-          {tree.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label htmlFor={`${id}-node`}>
-        Node
-        <select
-          id={`${id}-node`}
-          aria-label="Node"
-          value={node?.id ?? ''}
-          disabled={disabled || !site?.nodes.length}
-          onChange={(e) =>
-            go(chooseNode(tree, site?.id ?? '', e.target.value, rules))
-          }
-        >
-          {!site?.nodes.length && <option value="">No nodes here</option>}
-          {site?.nodes.map((n) => (
-            <option key={n.id} value={n.id}>
-              {n.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label htmlFor={`${id}-rack`}>
-        Rack
-        <select
-          id={`${id}-rack`}
-          aria-label="Rack"
-          value={rack?.id ?? ''}
-          disabled={disabled || racks.length === 0}
-          onChange={(e) =>
-            go({
-              siteId: site?.id ?? '',
-              nodeId: node?.id ?? '',
-              rackId: e.target.value,
-            })
-          }
-        >
-          {racks.length === 0 && <option value="">No racks here</option>}
-          {racks.length > 0 && !rack && (
-            <option value="" disabled>
-              Choose…
-            </option>
+      <span className="place-label">{props.label ?? 'Far end'}</span>
+      <div className="place-row">
+        <Field label="Site">
+          {(fieldId) => (
+            <select
+              id={fieldId}
+              aria-label="Site"
+              value={site?.id ?? ''}
+              disabled={disabled || tree.length === 0}
+              onChange={(e) => go(chooseSite(tree, e.target.value, rules))}
+            >
+              {tree.length === 0 && <option value="">No sites yet</option>}
+              {tree.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           )}
-          {racks.map((r) => (
-            <option key={r.id} value={r.id}>
-              {rules.level === 'rack'
-                ? `${r.name} · ${r.units}U`
-                : `${r.name} (${eligibleIn(r, rules).length})`}
-            </option>
-          ))}
-        </select>
-      </label>
+        </Field>
+        <Field label="Node">
+          {(fieldId) => (
+            <select
+              id={fieldId}
+              aria-label="Node"
+              value={node?.id ?? ''}
+              disabled={disabled || !site?.nodes.length}
+              onChange={(e) =>
+                go(chooseNode(tree, site?.id ?? '', e.target.value, rules))
+              }
+            >
+              {!site?.nodes.length && <option value="">No nodes here</option>}
+              {site?.nodes.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field label="Rack">
+          {(fieldId) => (
+            <select
+              id={fieldId}
+              aria-label="Rack"
+              value={rack?.id ?? ''}
+              disabled={disabled || racks.length === 0}
+              onChange={(e) =>
+                go({
+                  siteId: site?.id ?? '',
+                  nodeId: node?.id ?? '',
+                  rackId: e.target.value,
+                })
+              }
+            >
+              {racks.length === 0 && <option value="">No racks here</option>}
+              {racks.length > 0 && !rack && (
+                <option value="" disabled>
+                  Choose…
+                </option>
+              )}
+              {racks.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {optionText([
+                    { name: r.name },
+                    {
+                      text:
+                        rules.level === 'rack'
+                          ? ` · ${r.units}U`
+                          : ` (${eligibleIn(r, rules).length})`,
+                    },
+                  ])}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+      </div>
       {props.level !== 'rack' && (
-        <label htmlFor={`${id}-equipment`}>
-          Equipment
-          <select
-            id={`${id}-equipment`}
-            aria-label="Equipment"
-            value={inRack.some((e) => e.id === value) ? value : ''}
-            disabled={disabled || inRack.length === 0}
-            onChange={(e) => props.onChange(e.target.value)}
-          >
-            {inRack.length === 0 && <option value="">No equipment here</option>}
-            {inRack.length > 0 && !inRack.some((e) => e.id === value) && (
-              <option value="" disabled>
-                Choose…
-              </option>
-            )}
-            {inRack.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name} · {props.freeOf(e.id)} free
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Equipment">
+          {(fieldId) => (
+            <select
+              id={fieldId}
+              aria-label="Equipment"
+              value={inRack.some((e) => e.id === value) ? value : ''}
+              disabled={disabled || inRack.length === 0}
+              onChange={(e) => props.onChange(e.target.value)}
+            >
+              {inRack.length === 0 && (
+                <option value="">No equipment here</option>
+              )}
+              {inRack.length > 0 && !inRack.some((e) => e.id === value) && (
+                <option value="" disabled>
+                  Choose…
+                </option>
+              )}
+              {inRack.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {optionText([
+                    { name: e.name },
+                    { text: ` · ${props.freeOf(e.id)} free` },
+                  ])}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       )}
     </div>
   )

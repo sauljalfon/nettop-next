@@ -7,6 +7,8 @@ import { endpointLabel } from '../pathfinding/projection'
 import { exportHeader, exportRouteView } from './exportRoute'
 import { mismatchLine, truncationNotice } from '../pathfinding/results'
 import { resultsSummary, resultsTitle, routeRows } from './routeList'
+import Chip from '../../shared/ui/Chip'
+import Pieces from '../../shared/ui/Pieces'
 
 interface Props {
   snapshot: Snapshot
@@ -103,9 +105,9 @@ export default function MapResults({
     >
       <header>
         <strong>{resultsTitle(result.mode)}</strong>
-        <span className={`badge ${result.status === 'reached' ? 'green' : ''}`}>
+        <Chip kind={result.status === 'reached' ? 'route' : 'state'}>
           {result.status === 'reached' ? 'Physical path found' : 'No route'}
-        </span>
+        </Chip>
         {!open && <span>{resultsSummary(snapshot, result, routeIndex)}</span>}
         <button
           className="icon-button"
@@ -140,7 +142,9 @@ export default function MapResults({
                     aria-pressed={row.index === routeIndex}
                     onClick={() => onRoute(row.index)}
                   >
-                    <span>{row.label}</span>
+                    <span>
+                      <Pieces pieces={row.pieces} />
+                    </span>
                     <small>{row.counts}</small>
                   </button>
                   {row.index === routeIndex && selected && (
@@ -148,7 +152,7 @@ export default function MapResults({
                       {!physical && (
                         <div className="map-route-tools">
                           <button
-                            className="route-view-toggle"
+                            className="route-view-toggle btn"
                             aria-pressed={routeView}
                             onClick={() => onRouteView(!routeView)}
                           >
@@ -157,7 +161,7 @@ export default function MapResults({
                           {(['png', 'pdf'] as const).map((format) => (
                             <button
                               key={format}
-                              className="route-view-toggle"
+                              className="route-view-toggle btn quiet"
                               aria-label={`Export ${format.toUpperCase()}`}
                               disabled={!routeView || exporting !== undefined}
                               title={

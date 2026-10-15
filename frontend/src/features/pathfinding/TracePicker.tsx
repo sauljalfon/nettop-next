@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from 'react'
 import { useDebounced } from '../../shared/lazy'
 import { matchPicker, type PickerItem } from './picker'
 import './picker.css'
+import Name from '../../shared/ui/Name'
 
 interface Props {
   /** The accessible name: "Start" or "Destination". */
@@ -113,7 +114,7 @@ export default function TracePicker({
                   choose(item)
                 }}
               >
-                {item.label}
+                <Name text={item.label} />
               </li>
             ))}
           </ul>

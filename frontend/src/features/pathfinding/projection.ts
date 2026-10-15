@@ -1,3 +1,4 @@
+import { piecesText, type TextPiece } from '../../shared/textPieces'
 import type { Route, Snapshot } from '../../shared/types'
 
 export function routeHighlight(snapshot: Snapshot, route?: Route) {
@@ -20,13 +21,21 @@ export function routeHighlight(snapshot: Snapshot, route?: Route) {
 }
 
 export function endpointLabel(snapshot: Snapshot, id: string) {
+  return piecesText(endpointPieces(snapshot, id))
+}
+
+/** `endpointLabel` with the equipment and the port label as separate names. */
+export function endpointPieces(snapshot: Snapshot, id: string): TextPiece[] {
   const endpoint = snapshot.endpoints.find((p) => p.id === id)
+  if (!endpoint) return [{ text: id }]
   const equipment = snapshot.equipment.find(
-    (e) => e.id === endpoint?.equipmentId,
+    (e) => e.id === endpoint.equipmentId,
   )
-  return endpoint
-    ? `${equipment?.name ?? endpoint.equipmentId} · ${endpoint.label}`
-    : id
+  return [
+    { name: equipment?.name ?? endpoint.equipmentId },
+    { text: ' · ' },
+    { name: endpoint.label },
+  ]
 }
 
 export function cableEdges(snapshot: Snapshot) {

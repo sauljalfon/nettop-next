@@ -1,94 +1,94 @@
-/* Inline confirms and forms for plan editing: the inspector's compact controls. */
+/* Inline forms and confirms for plan editing (D33): one layout, label above the
+   control, dashed when the form proposes an object. Colours and sizes are tokens. */
 .inline-confirm,
 .inline-form {
   display: grid;
-  gap: 6px;
-  padding: 9px 10px;
-  font-size: 12px;
-  color: #26344b;
+  gap: 12px;
+  padding: 14px;
+  font-size: var(--t-sm);
+  color: var(--ink);
   text-align: left;
-  background: #fff;
-  border: 1px solid #e3c7c4;
+  background: var(--paper);
+  border: 1px solid var(--rule);
   border-radius: 8px;
   outline: none;
 }
 .inline-confirm {
-  background: #fdf3f2;
+  gap: 8px;
+  padding: 12px;
 }
 .connect-box {
-  background: #fff;
-  border-color: #cfd8e4;
+  background: var(--paper);
+  border-color: var(--rule);
 }
-.inline-form {
-  border-color: #e3cf9c;
-  background: #fffdf8;
+/* A form that adds a proposed object: dashed is proposed. */
+.inline-form.proposes,
+.inline-confirm.proposes {
+  background: var(--proposed-soft);
+  border: 1.5px dashed var(--proposed);
 }
-.inline-confirm:focus-visible,
-.inline-form:focus-visible {
-  box-shadow: 0 0 0 2px #cdbff5;
+/* The form takes focus when it opens: the ring sits inside its own box. */
+.inline-confirm:focus,
+.inline-form:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+/* A destructive confirm (delete, disconnect) is marked on its start edge. */
+.inline-confirm.destructive {
+  border-inline-start: 3px solid var(--danger);
+}
+.form-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-title {
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+.place-label {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--ink);
+}
+.summary-line {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+  background: var(--paper);
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--r-control);
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .inline-confirm ul {
   margin: 0;
-  padding-left: 16px;
-  color: #4b5a72;
+  padding-inline-start: 16px;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
 }
-.inline-confirm .cut,
+.inline-confirm span.cut,
 .inline-confirm .quiet {
-  font-size: 11px;
-  color: #6b7a90;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
 }
-.inline-form .eyebrow {
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: 1.2px;
-  color: #8390a4;
-}
-.inline-form label {
-  display: grid;
-  gap: 4px;
-  font-size: 11px;
-  color: #4b5a72;
-}
-.inline-form input,
-.inline-form select,
-.count-input {
-  height: 26px;
-  box-sizing: border-box;
-  padding: 0 7px;
-  font: inherit;
-  font-size: 12px;
-  color: #26344b;
-  background: #fff;
-  border: 1px solid #c9d2e0;
-  border-radius: 6px;
-}
-.inline-form .two {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.inline-form .hint {
-  font-size: 11px;
-  color: #8390a4;
+.inline-form p.hint {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
 }
 .inline-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-}
-.button.danger {
-  color: #fff;
-  background: #b3261e;
-  border-color: #b3261e;
-}
-.button.ghost-danger {
-  color: #b3261e;
-  background: #fff;
-  border-color: #e3c7c4;
+  gap: 8px;
 }
 .edit-error {
-  font-size: 11px;
-  color: #b3261e;
+  font-size: var(--t-xs);
+  color: var(--danger);
 }
 .container-foot {
   display: grid;
@@ -97,8 +97,8 @@
 }
 .container-foot .quiet,
 .installed-hint {
-  font-size: 11px;
-  color: #8390a4;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
 }
 .installed-hint {
   grid-column: 1 / -1;
@@ -112,20 +112,19 @@
 /* The item is the card (so its foot sits inside it); the button is its face. */
 .site-item {
   padding-bottom: 12px;
-  background: #fff;
-  border: 1px solid #dfe6ee;
+  background: var(--paper);
+  border: 1px solid var(--rule);
   border-radius: 12px;
-  box-shadow: 0 1px 3px #2e4a6710;
 }
 .site-item:hover {
-  border-color: #c7d2e0;
+  border-color: var(--rule-strong);
 }
 .site-item:has(> .site-card.on-route) {
-  border: 2px solid #108b79;
+  border: 2px solid var(--route);
 }
 .site-item:has(> .site-card.proposed-container) {
-  background: #fffdf8;
-  border: 1px dashed #d9a441;
+  background: var(--proposed-soft);
+  border: 1.5px dashed var(--proposed);
 }
 .site-item .site-card,
 .site-item .site-card.on-route,
@@ -170,162 +169,85 @@
   gap: 5px;
   min-height: 56px;
   padding: 10px 14px;
-  font-size: 12.5px;
-  color: #4b5a72;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
   background: transparent;
-  border: 1px dashed #b7c3d4;
+  border: 1px dashed var(--rule-strong);
   border-radius: 12px;
   cursor: pointer;
 }
 .add-button:hover,
 .add-button:focus-visible {
-  color: #5645b6;
-  border-color: #8f7fe0;
+  color: var(--ink);
+  border-color: var(--ink);
 }
 .proposed-container {
   border-style: dashed !important;
-  border-color: #d9a441 !important;
-  background: #fffdf8 !important;
+  border-color: var(--proposed) !important;
+  background: var(--proposed-soft) !important;
 }
 .endpoint-edit {
   display: grid;
   gap: 8px;
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid #eef1f6;
+  border-top: 1px solid var(--rule-soft);
 }
 .endpoint-edit .section-label {
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: 1.2px;
-  color: #8390a4;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.endpoint-edit .btn {
+  justify-self: start;
 }
 .port-confirm-row td {
   padding: 4px 6px 8px;
 }
 .library-form {
-  margin-top: 10px;
-}
-.library-hdf .plan-row {
-  display: grid;
-  gap: 5px;
-  justify-items: start;
-  padding: 13px 12px;
-  margin: 10px 0;
-  background: #fff;
-  border: 1px solid #e2e5ec;
-  border-radius: 9px;
-}
-.library-hdf .plan-row small {
-  font-size: 11px;
-  color: #8c98ac;
-}
-
-/* Compact controls: the global .button is sized for drawers, and .primary is full width. */
-:is(
-    .inline-confirm,
-    .inline-form,
-    .endpoint-edit,
-    .library-hdf,
-    .delete-equipment,
-    .container-foot,
-    .add-card
-  )
-  .button,
-:is(
-    .inline-confirm,
-    .inline-form,
-    .endpoint-edit,
-    .library-hdf,
-    .delete-equipment,
-    .container-foot,
-    .add-card
-  )
-  .button.primary {
-  width: auto;
-  margin-top: 0;
-  padding: 4px 11px;
-  line-height: 1.4;
-}
-.endpoint-edit .button,
-.library-hdf .plan-row .button {
-  justify-self: start;
-}
-.connect-box .trace-picker {
-  display: grid;
-  gap: 7px;
-  font-size: 11px;
-  color: #4b5a72;
-}
-.connect-box .trace-picker input {
-  padding: 5px 8px;
+  margin-top: 4px;
 }
 .site-edit .add-card {
   width: 260px;
 }
 
 /* A container's Delete is a small button, not a full-width bar. */
-.container-foot .button {
+.container-foot .btn {
   align-self: flex-start;
   justify-self: start;
-  padding: 2px 8px;
-  font-size: 11px;
 }
 .container-foot {
   justify-items: start;
 }
-.library-entry {
-  display: grid;
-  gap: 6px;
-}
-.library-entry .library-item {
-  margin: 10px 0 0;
-  padding: 12px;
-  cursor: grab;
-}
-.library-entry .library-item[aria-disabled='true'] {
-  cursor: default;
-  opacity: 0.7;
-}
-.library-entry .library-item .button {
-  margin-left: auto;
-  width: auto;
-  padding: 4px 11px;
-  line-height: 1.4;
-}
 
-.connect-range label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-.count-input {
-  width: 56px;
+.count-input,
+.inline-form .count-input {
+  width: 64px;
 }
 .range-pairs {
   list-style: none;
   margin: 0;
-  padding: 4px 6px;
+  padding: 4px 8px;
   max-height: 180px;
   overflow-y: auto;
-  border: 1px solid #e3e8f0;
-  border-radius: 6px;
-  font-size: 11px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  font-size: var(--t-xs);
 }
 .range-pairs li.blocked {
-  color: #b3261e;
+  color: var(--danger);
 }
 .range-pairs li {
-  padding: 1px 0;
+  padding: 2px 0;
 }
 .range-pairs li em {
   display: block;
-  padding-left: 14px;
+  padding-inline-start: 14px;
   font-style: normal;
 }
 .range-skip {
-  font-size: 11px;
+  font-size: var(--t-xs);
 }
 
 /* Preview lines never break inside a name; a long reason scrolls instead. */
@@ -343,52 +265,39 @@
   width: 360px;
   max-width: calc(100vw - 16px);
   overflow-y: auto;
-  box-shadow: 0 8px 28px rgba(31, 41, 74, 0.18);
+  box-shadow: var(--shadow-pop);
 }
 
 /* Port group rows of a switch's Add form (step 11b). */
 .port-groups {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 .port-group {
   display: grid;
   min-width: 0;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid #e3e8f0;
-  border-radius: 6px;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--paper);
 }
 .group-line {
   display: flex;
   min-width: 0;
-  gap: 4px;
+  gap: 6px;
   align-items: flex-end;
 }
-.group-line label {
-  display: grid;
-  gap: 2px;
+.group-line .field {
   min-width: 0;
 }
-.group-line label:last-child {
+.group-line .field:last-child {
   flex: 1;
-}
-.group-line label:last-child input {
-  width: 100%;
 }
 .group-line input,
 .group-line select {
   min-width: 0;
-  height: 26px;
-  box-sizing: border-box;
-  padding: 0 6px;
-  font: inherit;
-  font-size: 12px;
-  border: 1px solid #c9d2e0;
-  border-radius: 6px;
-  background: #fff;
-  color: #26344b;
 }
 .group-line > input,
 .group-line > select {
@@ -422,39 +331,18 @@
 .copy-name {
   width: 9em;
   min-width: 0;
-  height: 22px;
-  box-sizing: border-box;
-  padding: 0 6px;
-  font: inherit;
-  font-size: 11px;
-  color: #26344b;
-  background: #fff;
-  border: 1px solid #c9d2e0;
-  border-radius: 6px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: var(--t-xs);
 }
 .group-caption {
-  font-size: 11px;
-  color: #4b5a72;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
 }
-
-/* Duplicate's Network row lines up with the picker's Site, Node and Rack rows. */
-.connect-range label.duplicate-network {
+.span-hint {
+  padding-top: 8px;
+}
+.library-hdf {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  align-items: center;
   gap: 8px;
-  font-size: 11px;
-  color: #4b5a72;
-}
-.connect-range label.duplicate-network select {
-  width: 100%;
-  height: 26px;
-  box-sizing: border-box;
-  padding: 0 7px;
-  font: inherit;
-  font-size: 12px;
-  color: #26344b;
-  background: #fff;
-  border: 1px solid #d5dce7;
-  border-radius: 7px;
 }

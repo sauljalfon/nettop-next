@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { routeHighlight, endpointLabel, cableEdges } from './projection'
+import {
+  routeHighlight,
+  endpointLabel,
+  endpointPieces,
+  cableEdges,
+} from './projection'
 import type { Snapshot } from '../../shared/types'
 
 const snapshot: Snapshot = {
@@ -64,5 +69,20 @@ describe('trace visualization preserves physical semantics', () => {
   })
   it('resolves exact endpoint labels for trace explanations', () => {
     expect(endpointLabel(snapshot, 'f')).toBe('PANEL · 1 front')
+  })
+})
+
+describe('VP-03 endpointPieces keeps the equipment and the port as separate names', () => {
+  it('joins to the endpointLabel string', () => {
+    for (const p of snapshot.endpoints) {
+      const pieces = endpointPieces(snapshot, p.id)
+      expect(pieces.map((x) => ('name' in x ? x.name : x.text)).join('')).toBe(
+        endpointLabel(snapshot, p.id),
+      )
+      expect(pieces.filter((x) => 'name' in x)).toHaveLength(2)
+    }
+  })
+  it('is plain text for an unknown endpoint', () => {
+    expect(endpointPieces(snapshot, 'nope')).toEqual([{ text: 'nope' }])
   })
 })

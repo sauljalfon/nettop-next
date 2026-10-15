@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import type { CableRow } from './explorerModel'
+import Name from '../../shared/ui/Name'
 
 /**
  * The real cables behind a line or a card's link: each with both ends and
@@ -51,9 +52,11 @@ export default function CableList({
                   aria-label={`Open ${end.label}`}
                   onClick={() => onOpen(end.endpointId)}
                 >
-                  {end.label}
+                  <Name text={end.label} />
                 </button>
-                <small>{end.rack}</small>
+                <small>
+                  <Name text={end.rack} />
+                </small>
               </span>
             ))}
           </li>

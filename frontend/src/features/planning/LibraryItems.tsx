@@ -6,6 +6,7 @@ import AddEquipmentForm, { type EquipmentKind } from './AddEquipmentForm'
 import { useLastEdit, type PlanEdit } from './editing'
 import HdfForm from './HdfForm'
 import './editing.css'
+import './planning.css'
 
 /** A drop (or an unplaced preview) waiting for its details. */
 export interface PendingEquipment {
@@ -119,72 +120,74 @@ export default function LibraryItems({
           </p>
         </div>
       )}
-      {ITEMS.map((item) => (
-        <div key={item.id} className="library-entry">
-          <div
-            className="library-item"
-            draggable={canEdit}
-            aria-disabled={!canEdit}
-            onDragStart={(e) => {
-              e.dataTransfer.setData(
-                'application/x-nettop-item',
-                `new:${item.type.kind}:::${item.type.role === 'aggregation' ? 'aggregation' : ''}`,
-              )
-              e.dataTransfer.effectAllowed = 'copy'
-            }}
-          >
-            <span className="equipment-icon">
-              <item.Icon size={22} />
-            </span>
-            <div>
-              <strong>{item.name}</strong>
-              <small>{item.description}</small>
+      <div className="lib-list">
+        {ITEMS.map((item) => (
+          <div key={item.id} className="library-entry">
+            <div
+              className="library-item"
+              draggable={canEdit}
+              aria-disabled={!canEdit}
+              onDragStart={(e) => {
+                e.dataTransfer.setData(
+                  'application/x-nettop-item',
+                  `new:${item.type.kind}:::${item.type.role === 'aggregation' ? 'aggregation' : ''}`,
+                )
+                e.dataTransfer.effectAllowed = 'copy'
+              }}
+            >
+              <span className="equipment-icon">
+                <item.Icon size={22} aria-hidden />
+              </span>
+              <div>
+                <strong>{item.name}</strong>
+                <small>{item.description}</small>
+              </div>
+              {open !== item.id && (
+                <button
+                  type="button"
+                  className="btn"
+                  data-opener={`library:add:${item.id}`}
+                  aria-label={`Add ${item.name}…`}
+                  disabled={!edit}
+                  onClick={() => setOpen(item.id)}
+                >
+                  Add…
+                </button>
+              )}
             </div>
-            {open !== item.id && (
-              <button
-                type="button"
-                className="button"
-                data-opener={`library:add:${item.id}`}
-                aria-label={`Add ${item.name}…`}
-                disabled={!edit}
-                onClick={() => setOpen(item.id)}
-              >
-                Add…
-              </button>
+            {open === item.id && formEdit && (
+              <AddEquipmentForm
+                key={pending?.token ?? 'manual'}
+                title={item.name}
+                type={item.type}
+                tree={tree}
+                near={near}
+                networks={networks}
+                initial={
+                  pending && itemFor(pending) === item.id
+                    ? { rackId: pending.rackId, unit: pending.unit }
+                    : { rackId: defaultRackId }
+                }
+                edit={formEdit}
+                openerKey={`library:add:${item.id}`}
+                onClose={close}
+                onManageNetworks={onManageNetworks}
+                onAdded={(plan) => {
+                  setOpen(undefined)
+                  onAdded(plan)
+                }}
+              />
             )}
           </div>
-          {open === item.id && formEdit && (
-            <AddEquipmentForm
-              key={pending?.token ?? 'manual'}
-              title={item.name}
-              type={item.type}
-              tree={tree}
-              near={near}
-              networks={networks}
-              initial={
-                pending && itemFor(pending) === item.id
-                  ? { rackId: pending.rackId, unit: pending.unit }
-                  : { rackId: defaultRackId }
-              }
-              edit={formEdit}
-              openerKey={`library:add:${item.id}`}
-              onClose={close}
-              onManageNetworks={onManageNetworks}
-              onAdded={(plan) => {
-                setOpen(undefined)
-                onAdded(plan)
-              }}
-            />
-          )}
-        </div>
-      ))}
-      <HdfForm
-        tree={tree}
-        near={near}
-        defaultRackId={defaultRackId}
-        edit={edit}
-        onCreated={onHdfCreated}
-      />
+        ))}
+        <HdfForm
+          tree={tree}
+          near={near}
+          defaultRackId={defaultRackId}
+          edit={edit}
+          onCreated={onHdfCreated}
+        />
+      </div>
       <p className="muted">
         Add sites, nodes and racks in Physical, on the level where they belong.
       </p>

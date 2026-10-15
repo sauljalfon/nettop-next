@@ -255,7 +255,7 @@ test('PG-03 Connect a range from Gi1/0/23 with count 4 runs Gi1/0/23, Gi1/0/24, 
   await shot(page, 'range')
   await range.getByRole('button', { name: 'Connect 4' }).click()
   await expect(range.getByTestId('patching-made')).toContainText(
-    'MADE HERE (4)',
+    'Made here (4)',
   )
   const plan = await getPlan(request, id)
   const ends = plan.links

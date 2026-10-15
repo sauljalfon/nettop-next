@@ -21,6 +21,7 @@ import type { PlanEdit } from '../planning/editing'
 import type { LocationRef } from '../map/highlight'
 import type { MapSession } from '../map/mapSession'
 import NetworkBadge from '../map/NetworkBadge'
+import { cardRoleLabel } from '../map/cardRole'
 import { colorOf, networkColors } from '../map/networkColors'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import {
@@ -34,6 +35,9 @@ import UplinksSummary from '../paths/UplinksSummary'
 import { useUplinks } from '../paths/useUplinks'
 import PortTable from './PortTable'
 import './inspector.css'
+import Name from '../../shared/ui/Name'
+import { PlaceSep } from '../../shared/ui/PlacePath'
+import Chip from '../../shared/ui/Chip'
 
 interface Props {
   snapshot: Snapshot
@@ -138,19 +142,21 @@ export default function Inspector({
           <span className="equipment-icon">
             <Icon />
           </span>
-          <h2>{header.name}</h2>
+          <h2>
+            <Name text={header.name} />
+          </h2>
         </div>
         <div className="inspector-badges">
-          <span className="badge">{header.role}</span>
+          <Chip kind="role">{cardRoleLabel(equipment)}</Chip>
           {header.network && equipment.networkId && (
             <NetworkBadge
               name={header.network}
               color={networkColor(equipment.networkId)}
             />
           )}
-          <span className={`badge ${header.proposed ? 'green' : ''}`}>
+          <Chip kind={header.proposed ? 'proposed' : 'state'}>
             {header.proposed ? 'Proposed' : 'Installed'}
-          </span>
+          </Chip>
         </div>
         <div className="cabling-meter">
           <div className="meter-bar" aria-hidden>
@@ -172,9 +178,9 @@ export default function Inspector({
                   onHighlight({ kind: 'site', id: location.site!.id })
                 }
               >
-                {location.site.name}
-              </button>{' '}
-              /{' '}
+                <Name text={location.site.name} />
+              </button>
+              <PlaceSep />
             </>
           )}
           {location.node && (
@@ -186,9 +192,9 @@ export default function Inspector({
                   onHighlight({ kind: 'node', id: location.node!.id })
                 }
               >
-                {location.node.name}
-              </button>{' '}
-              /{' '}
+                <Name text={location.node.name} />
+              </button>
+              <PlaceSep />
             </>
           )}
           {location.rack && (
@@ -198,16 +204,16 @@ export default function Inspector({
                 aria-label={`Open ${location.rack.name} in Physical`}
                 onClick={() => onOpenRack(location.rack!.id)}
               >
-                {location.rack.name}
-              </button>{' '}
-              /{' '}
+                <Name text={location.rack.name} />
+              </button>
+              <PlaceSep />
             </>
           )}
-          {header.name}
+          <Name text={header.name} />
         </p>
         <div className="inspector-actions">
           <button
-            className="button"
+            className="btn"
             aria-label={`Show on map: ${equipment.name}`}
             onClick={() => onShowOnMap(equipment.id)}
           >
@@ -215,7 +221,7 @@ export default function Inspector({
             Show on map
           </button>
           <button
-            className="button"
+            className="btn"
             aria-label={`Show in Physical: ${equipment.name}`}
             onClick={() => onShowInPhysical(equipment.id)}
           >
@@ -224,7 +230,7 @@ export default function Inspector({
           </button>
           {canFindFromDevice(equipment) && (
             <button
-              className="button primary"
+              className="btn primary"
               aria-label={`Find AGG / BB from ${equipment.name}`}
               onClick={onFindFromDevice}
             >
@@ -281,11 +287,13 @@ export default function Inspector({
       >
         {tab === 'overview' ? (
           <Overview
-            role={header.role}
+            role={cardRoleLabel(equipment)}
             placement={
-              location.rack
-                ? `${location.rack.name} · U${equipment.unit}`
-                : undefined
+              location.rack ? (
+                <>
+                  <Name text={location.rack.name} /> · U{equipment.unit}
+                </>
+              ) : undefined
             }
             uplinks={
               equipment.kind === 'switch' && (

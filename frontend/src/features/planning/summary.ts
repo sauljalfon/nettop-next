@@ -1,3 +1,4 @@
+import type { TextPiece } from '../../shared/textPieces'
 import type { Plan, Snapshot } from '../../shared/types'
 import { plural } from '../physical/text'
 
@@ -23,7 +24,28 @@ export interface ChangeLine {
   group: ChangeGroup
   /** Names only, never IDs. */
   text: string
+  /** The same line with each name its own piece, so the UI can isolate it. */
+  pieces: TextPiece[]
   go?: GoTarget
+}
+
+/** A line part: a plain string is text, a `{ name }` is a user-given name. */
+type Part = string | { name: string }
+const nm = (name: string): Part => ({ name })
+
+/** The line's text and pieces from its parts; the text is the pieces joined. */
+function parts(...list: Part[]): { text: string; pieces: TextPiece[] } {
+  const pieces: TextPiece[] = []
+  for (const p of list) {
+    const piece = typeof p === 'string' ? { text: p } : p
+    const last = pieces.at(-1)
+    if ('text' in piece && last && 'text' in last) last.text += piece.text
+    else pieces.push({ ...piece })
+  }
+  return {
+    text: pieces.map((p) => ('name' in p ? p.name : p.text)).join(''),
+    pieces,
+  }
 }
 
 const unitRange = (unit: number, height: number) =>
@@ -60,17 +82,29 @@ export function planSummary(plan: Plan, installed: Snapshot): ChangeLine[] {
   for (const p of installed.endpoints)
     if (wanted.has(p.id)) endpoints.set(p.id, p)
   for (const p of plan.endpoints) endpoints.set(p.id, p)
-  const endpointName = (id: string) => {
+  const endpointParts = (id: string): Part[] => {
     const p = endpoints.get(id)
     return p
-      ? `${equipment.get(p.equipmentId)?.name ?? labels[p.equipmentId] ?? 'Equipment'} · ${p.label}`
-      : (labels[id] ?? 'An endpoint')
+      ? [
+          nm(
+            equipment.get(p.equipmentId)?.name ??
+              labels[p.equipmentId] ??
+              'Equipment',
+          ),
+          ' · ',
+          nm(p.label),
+        ]
+      : [labels[id] ? nm(labels[id]) : 'An endpoint']
   }
   const siteOf = (nodeId: string) => nodes.get(nodeId)?.siteId
   // A name: the live object's, else the one the plan kept, else a plain word.
-  const siteName = (id: string) => sites.get(id)?.name ?? labels[id] ?? 'a site'
-  const nodeName = (id: string) => nodes.get(id)?.name ?? labels[id] ?? 'a node'
-  const rackName = (id: string) => racks.get(id)?.name ?? labels[id] ?? 'a rack'
+  const named = (found: string | undefined, id: string, word: string): Part => {
+    const name = found ?? labels[id]
+    return name ? nm(name) : word
+  }
+  const siteName = (id: string) => named(sites.get(id)?.name, id, 'a site')
+  const nodeName = (id: string) => named(nodes.get(id)?.name, id, 'a node')
+  const rackName = (id: string) => named(racks.get(id)?.name, id, 'a rack')
 
   const lines: ChangeLine[] = []
   const add = (line: ChangeLine) => lines.push(line)
@@ -79,21 +113,21 @@ export function planSummary(plan: Plan, installed: Snapshot): ChangeLine[] {
     add({
       key: `add_site:${s.id}`,
       group: 'Containers added',
-      text: `Site · ${s.name}`,
+      ...parts('Site · ', nm(s.name)),
       go: { kind: 'container', siteId: s.id },
     })
-  for (const n of plan.nodes ?? [])
+  for (const node of plan.nodes ?? [])
     add({
-      key: `add_node:${n.id}`,
+      key: `add_node:${node.id}`,
       group: 'Containers added',
-      text: `Node · ${n.name} in ${siteName(n.siteId)}`,
-      go: { kind: 'container', siteId: n.siteId, nodeId: n.id },
+      ...parts('Node · ', nm(node.name), ' in ', siteName(node.siteId)),
+      go: { kind: 'container', siteId: node.siteId, nodeId: node.id },
     })
   for (const r of plan.racks ?? [])
     add({
       key: `add_rack:${r.id}`,
       group: 'Containers added',
-      text: `Rack · ${r.name} (${r.units}U) in ${nodeName(r.nodeId)}`,
+      ...parts('Rack · ', nm(r.name), ` (${r.units}U) in `, nodeName(r.nodeId)),
       go: {
         kind: 'container',
         siteId: siteOf(r.nodeId),
@@ -111,16 +145,22 @@ export function planSummary(plan: Plan, installed: Snapshot): ChangeLine[] {
     add({
       key: `add_equipment:${e.id}`,
       group: 'Equipment added',
-      text: `${e.name} · ${what} · ${rackName(e.rackId)} ${unitRange(e.unit, e.height)}`,
+      ...parts(
+        nm(e.name),
+        ` · ${what} · `,
+        rackName(e.rackId),
+        ` ${unitRange(e.unit, e.height)}`,
+      ),
       go: { kind: 'equipment', equipmentId: e.id },
     })
   }
   for (const r of plan.renames ?? []) {
     const added = plan.equipment.find((e) => e.id === r.id)
+    const was = added?.name ?? labels[r.id]
     add({
       key: `rename_equipment:${r.id}`,
       group: 'Equipment added',
-      text: `Rename ${added?.name ?? labels[r.id] ?? 'equipment'} → ${r.name}`,
+      ...parts('Rename ', was ? nm(was) : 'equipment', ' → ', nm(r.name)),
       go: added ? { kind: 'equipment', equipmentId: r.id } : undefined,
     })
   }
@@ -135,20 +175,26 @@ export function planSummary(plan: Plan, installed: Snapshot): ChangeLine[] {
   for (const pl of placements) {
     const was = wasEquipment.get(pl.equipmentId)
     const name = equipment.get(pl.equipmentId)?.name ?? labels[pl.equipmentId]
-    const to = `${rackName(pl.rackId)} U${pl.unit}`
+    const to: Part[] = [rackName(pl.rackId), ` U${pl.unit}`]
     // A recorded plan has already moved it, so there is no "from" to show.
     const text =
       plan.status === 'recorded' && name
-        ? `${name} · moved to ${to}`
+        ? parts(nm(name), ' · moved to ', ...to)
         : was
-          ? `${was.name} · ${rackName(was.rackId)} U${was.unit} → ${to}`
+          ? parts(
+              nm(was.name),
+              ' · ',
+              rackName(was.rackId),
+              ` U${was.unit} → `,
+              ...to,
+            )
           : name
-            ? `${name} · now ${to}`
-            : `Equipment no longer in Installed · now ${to}`
+            ? parts(nm(name), ' · now ', ...to)
+            : parts('Equipment no longer in Installed · now ', ...to)
     add({
       key: `place_equipment:${pl.equipmentId}`,
       group: 'Moved',
-      text,
+      ...text,
       go: was ? { kind: 'equipment', equipmentId: pl.equipmentId } : undefined,
     })
   }
@@ -168,9 +214,11 @@ export function planSummary(plan: Plan, installed: Snapshot): ChangeLine[] {
     add({
       key: `remove_equipment:${id}`,
       group: 'Removed',
-      text: e
-        ? `${e.name} with ${plural(cablesOf(id), 'cable')}`
-        : (labels[id] ?? 'Equipment no longer in Installed'),
+      ...(e
+        ? parts(nm(e.name), ` with ${plural(cablesOf(id), 'cable')}`)
+        : parts(
+            labels[id] ? nm(labels[id]) : 'Equipment no longer in Installed',
+          )),
     })
   }
   for (const [kind, ids, label, source] of [
@@ -182,18 +230,18 @@ export function planSummary(plan: Plan, installed: Snapshot): ChangeLine[] {
       add({
         key: `${kind}:${id}`,
         group: 'Removed',
-        text: source.has(id)
-          ? `${label} · ${(source.get(id) as { name: string }).name}`
+        ...(source.has(id)
+          ? parts(`${label} · `, nm((source.get(id) as { name: string }).name))
           : labels[id]
-            ? `${label} · ${labels[id]}`
-            : `${label} no longer in Installed`,
+            ? parts(`${label} · `, nm(labels[id]))
+            : parts(`${label} no longer in Installed`)),
       })
   for (const l of plan.links)
     if (l.kind !== 'internal')
       add({
         key: `add_cable:${l.id}`,
         group: 'Cables connected',
-        text: `${endpointName(l.a)} ↔ ${endpointName(l.b)}`,
+        ...parts(...endpointParts(l.a), ' ↔ ', ...endpointParts(l.b)),
         go: { kind: 'endpoint', endpointId: l.a },
       })
   for (const id of removals?.links ?? []) {
@@ -201,9 +249,11 @@ export function planSummary(plan: Plan, installed: Snapshot): ChangeLine[] {
     add({
       key: `remove_cable:${id}`,
       group: 'Cables disconnected',
-      text: link
-        ? `${endpointName(link.a)} ↔ ${endpointName(link.b)}`
-        : (labels[id] ?? 'A cable no longer in Installed'),
+      ...(link
+        ? parts(...endpointParts(link.a), ' ↔ ', ...endpointParts(link.b))
+        : parts(
+            labels[id] ? nm(labels[id]) : 'A cable no longer in Installed',
+          )),
     })
   }
   return lines

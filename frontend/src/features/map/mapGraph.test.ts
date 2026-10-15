@@ -655,4 +655,25 @@ describe('POL-17/18 cable lines', () => {
       PALETTE[1],
     ])
   })
+
+  it('gives a switch card its own network as the one badge', () => {
+    const { nodes } = projectMap(input())
+    const edge = nodes.find((n) => n.id === 'EDGE-17')!.data
+    expect(edge.badges).toEqual(['Network A'])
+    expect(edge.badgeColors).toEqual([PALETTE[0]])
+    const other = nodes.find((n) => n.id === 'EDGE-22')!.data
+    expect(other.badges).toEqual(['Network B'])
+    expect(other.badgeColors).toEqual([PALETTE[1]])
+  })
+
+  it('gives a switch with no network no badge', () => {
+    const snapshot = acceptanceSnapshot()
+    snapshot.equipment = snapshot.equipment.map((e) =>
+      e.id === 'EDGE-17' ? { ...e, networkId: undefined } : e,
+    )
+    const { nodes } = projectMap(input({ snapshot }))
+    const data = nodes.find((n) => n.id === 'EDGE-17')!.data
+    expect(data.badges).toEqual([])
+    expect(data.badgeColors).toEqual([])
+  })
 })

@@ -4,6 +4,7 @@ import type { Plan } from '../../shared/types'
 import { draftsOf, planOption } from './changes'
 import { errorMessage } from './editing'
 import { useInlineDialog } from './useInlineDialog'
+import Field from '../../shared/ui/Field'
 import './changes.css'
 
 /**
@@ -29,26 +30,28 @@ export default function DraftPicker({
   return (
     <div className="changes draft-picker" data-testid="draft-picker">
       <div className="head">
-        <label className="grow">
-          Draft
-          <select
-            aria-label="Draft"
-            value={selected?.id ?? ''}
-            onChange={(e) => onSelect(e.target.value)}
-          >
-            <option value="" disabled>
-              {drafts.length ? 'Choose a draft' : 'No drafts yet'}
-            </option>
-            {drafts.map((p) => (
-              <option key={p.id} value={p.id}>
-                {planOption(p, installedRevision)}
+        <Field label="Draft" className="grow">
+          {(id) => (
+            <select
+              id={id}
+              aria-label="Draft"
+              value={selected?.id ?? ''}
+              onChange={(e) => onSelect(e.target.value)}
+            >
+              <option value="" disabled>
+                {drafts.length ? 'Choose a draft' : 'No drafts yet'}
               </option>
-            ))}
-          </select>
-        </label>
+              {drafts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {planOption(p, installedRevision)}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
         {!creating && (
           <button
-            className="button"
+            className="btn"
             data-opener="draft:new"
             onClick={() => setCreating(true)}
           >
@@ -96,27 +99,30 @@ function NewDraft({
     }
   }
   return (
-    <form {...dialog} onSubmit={submit} noValidate aria-label="New draft">
-      <label>
-        Draft name
-        <input
-          type="text"
-          value={name}
-          maxLength={100}
-          placeholder="e.g. Building B fit-out"
-          onChange={(e) => setName(e.target.value)}
-        />
-      </label>
-      {error && (
-        <span className="error" role="alert">
-          {error}
-        </span>
-      )}
-      <div className="row">
-        <button className="button primary" disabled={busy}>
+    <form
+      {...dialog}
+      className="inline-form"
+      onSubmit={submit}
+      noValidate
+      aria-label="New draft"
+    >
+      <Field label="Draft name" error={error}>
+        {(id) => (
+          <input
+            id={id}
+            type="text"
+            value={name}
+            maxLength={100}
+            placeholder="e.g. Building B fit-out"
+            onChange={(e) => setName(e.target.value)}
+          />
+        )}
+      </Field>
+      <div className="form-actions">
+        <button className="btn primary" disabled={busy}>
           Create draft
         </button>
-        <button type="button" className="button" onClick={onClose}>
+        <button type="button" className="btn" onClick={onClose}>
           Cancel
         </button>
       </div>

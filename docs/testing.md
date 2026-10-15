@@ -115,6 +115,8 @@ npm run test:e2e
 
 The Playwright config has two projects: `main` (every spec except `*.recording.spec.ts`) and `recording` (`changes.recording.spec.ts`), which depends on `main` and runs after it with one worker. Recording a plan changes the shared test server's installed revision and makes every other draft stale, so specs that record or make drafts stale must be named `*.recording.spec.ts`, build their own drafts, and not depend on each other's order. If a `main` spec fails, `recording` does not run.
 
+`src/shared/theme.test.ts` is the look's rule test (D33): colours, font sizes under 11px and uppercase transforms are allowed in `theme.css` only (its allowlist of unconverted files is empty), the retired names (`--purple`, `--line`, `--muted`, `--green`, `.button`, `.outline-button`) are gone, and every token has its planned value. It runs with `npm test`.
+
 Frontend unit tests cover the map projection (layout, edges, facets, networks, cables and colors, highlight, session store, route view, export, center) and the inspector, picker and results helpers; the browser specs run on the acceptance fixture plus a test-only Expansion draft. M4 must deliberately update the physical-view coverage while retaining valid regression coverage.
 
 ## 5. Contract and migration verification

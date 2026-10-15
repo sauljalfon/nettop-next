@@ -5,7 +5,7 @@ import { networkCounts, type InspectorGroup } from './model'
 interface Props {
   role: string
   /** Placement, e.g. "Rack A03 · U11"; undefined when unplaced. */
-  placement?: string
+  placement?: ReactNode
   groups: InspectorGroup[]
   /** Display name and shared color of a network ID. */
   networkName: (id: string) => string
@@ -46,7 +46,7 @@ export default function Overview({
         )}
       </dl>
       {details}
-      <h3 className="inspector-section">Cabled by network</h3>
+      <h3 className="inspector-section section-title">Cabled by network</h3>
       {counts.length ? (
         <ul className="network-counts">
           {counts.map((c) => (

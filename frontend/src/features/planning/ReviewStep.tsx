@@ -15,6 +15,8 @@ import { errorMessage } from './editing'
 import { lineForKey, type ChangeLine, type GoTarget } from './summary'
 import { plural } from '../physical/text'
 import './changes.css'
+import Name from '../../shared/ui/Name'
+import Field from '../../shared/ui/Field'
 
 /** What Record tells the workspace: the plan, how many changes, and whether it was already recorded. */
 export interface RecordedInfo {
@@ -101,7 +103,9 @@ export default function ReviewStep({
     <div className="changes" data-testid="review-step">
       <div>
         <span className="eyebrow">Review</span>
-        <div className="title">Record “{plan.name}” as installed</div>
+        <div className="title">
+          Record “<Name text={plan.name} />” as installed
+        </div>
       </div>
       <div data-testid="review-check" aria-live="polite">
         {!check && !checkError && (
@@ -169,49 +173,59 @@ export default function ReviewStep({
           Update draft.
         </span>
       </div>
-      <form onSubmit={submit} noValidate>
-        <label>
-          Note (required)
-          <textarea
-            value={note}
-            placeholder="e.g. Installed EDGE-18 in A03 U5, patched port 1 to PANEL-A 4"
-            onChange={(e) => setNote(e.target.value)}
-          />
-          <small className="hint">
-            {note.trim().length}/{MAX_NOTE}
-          </small>
-        </label>
-        {(touched || note.trim().length > MAX_NOTE) && state.noteError && (
-          <span className="field-error" role="alert">
-            {state.noteError}
-          </span>
-        )}
-        <label>
-          Recorded by (required)
-          <input
-            type="text"
-            value={by}
-            maxLength={MAX_RECORDED_BY + 20}
-            onChange={(e) => setBy(e.target.value)}
-          />
-        </label>
-        {(touched || by.trim().length > MAX_RECORDED_BY) && state.byError && (
-          <span className="field-error" role="alert">
-            {state.byError}
-          </span>
-        )}
+      <form className="inline-form" onSubmit={submit} noValidate>
+        <Field
+          label="Note (required)"
+          hint={
+            <>
+              {note.trim().length}/{MAX_NOTE}
+            </>
+          }
+          error={
+            (touched || note.trim().length > MAX_NOTE) && state.noteError
+              ? state.noteError
+              : undefined
+          }
+        >
+          {(id) => (
+            <textarea
+              id={id}
+              value={note}
+              placeholder="e.g. Installed EDGE-18 in A03 U5, patched port 1 to PANEL-A 4"
+              onChange={(e) => setNote(e.target.value)}
+            />
+          )}
+        </Field>
+        <Field
+          label="Recorded by (required)"
+          error={
+            (touched || by.trim().length > MAX_RECORDED_BY) && state.byError
+              ? state.byError
+              : undefined
+          }
+        >
+          {(id) => (
+            <input
+              id={id}
+              type="text"
+              value={by}
+              maxLength={MAX_RECORDED_BY + 20}
+              onChange={(e) => setBy(e.target.value)}
+            />
+          )}
+        </Field>
         {error && (
           <span className="error" role="alert" data-testid="record-error">
             {error}
           </span>
         )}
-        <div className="row">
-          <button className="button primary" disabled={!state.canRecord}>
+        <div className="form-actions">
+          <button className="btn primary lg" disabled={!state.canRecord}>
             {pending
               ? 'Recording…'
               : `Record ${plural(lines.length, 'change')}`}
           </button>
-          <button type="button" className="button" onClick={onBack}>
+          <button type="button" className="btn lg" onClick={onBack}>
             Back to changes
           </button>
         </div>

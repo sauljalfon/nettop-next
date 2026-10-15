@@ -121,7 +121,7 @@ test('NET-05 renaming Network A updates the selector, badges and inspector; its 
       .getByTestId('rf__node-panel-a')
       .locator('.network-badge', { hasText: text })
   const color = await badge('Network A').evaluate(
-    (el) => (el as HTMLElement).style.color,
+    (el) => (el.querySelector('.dot') as HTMLElement).style.backgroundColor,
   )
   const card = page.getByTestId('rf__node-edge-17')
   const box = await card.boundingBox()
@@ -158,7 +158,9 @@ test('NET-05 renaming Network A updates the selector, badges and inspector; its 
   await expect(badge(renamed)).toBeVisible()
   await expect(badge('Network A')).toHaveCount(0)
   expect(
-    await badge(renamed).evaluate((el) => (el as HTMLElement).style.color),
+    await badge(renamed).evaluate(
+      (el) => (el.querySelector('.dot') as HTMLElement).style.backgroundColor,
+    ),
   ).toBe(color)
   await expect(rows(page).first().getByTestId('network-swatch')).toHaveCSS(
     'background-color',

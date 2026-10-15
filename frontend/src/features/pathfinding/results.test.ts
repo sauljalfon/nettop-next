@@ -3,6 +3,7 @@ import {
   destinationOf,
   mismatchLine,
   routeOptionLabel,
+  routeOptionPieces,
   sourceNetworkNote,
   truncationNotice,
 } from './results'
@@ -143,5 +144,36 @@ describe('distribution result display', () => {
       ({ truncated }) as unknown as TraceResult
     expect(truncationNotice(result(false))).toBeUndefined()
     expect(truncationNotice(result(true))).toMatch(/truncated/i)
+  })
+})
+
+describe('VP-03 routeOptionPieces', () => {
+  const agg = route({
+    destinationEquipmentId: 'agg',
+    destinationRole: 'aggregation',
+    destinationNetworkId: 'a',
+    sourceNetworkId: 'a',
+  })
+  const text = (route: Route) =>
+    routeOptionPieces(snapshot, route)
+      .map((x) => ('name' in x ? x.name : x.text))
+      .join('')
+
+  it('joins to routeOptionLabel', () => {
+    expect(text(agg)).toBe(routeOptionLabel(snapshot, agg))
+    expect(text(route({}))).toBe(routeOptionLabel(snapshot, route({})))
+  })
+
+  it('keeps the equipment, the ports and the network as names', () => {
+    const names = routeOptionPieces(snapshot, agg).flatMap((x) =>
+      'name' in x ? [x.name] : [],
+    )
+    expect(names).toEqual([
+      'EDGE-17',
+      'Port 1',
+      'AGG-03',
+      'Port 1',
+      'Network A',
+    ])
   })
 })

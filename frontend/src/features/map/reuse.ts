@@ -7,6 +7,7 @@ import type { MapCardData, MapFlowEdge } from './mapGraph'
 export const CARD_FIELDS = [
   'equipment',
   'location',
+  'place',
   'summary',
   'badges',
   'badgeColors',
@@ -69,6 +70,7 @@ export function sameCardData(a: MapCardData, b: MapCardData): boolean {
   return (
     a.equipment === b.equipment &&
     a.location === b.location &&
+    sameList(a.place, b.place) &&
     a.summary.cabled === b.summary.cabled &&
     a.summary.total === b.summary.total &&
     a.highlighted === b.highlighted &&

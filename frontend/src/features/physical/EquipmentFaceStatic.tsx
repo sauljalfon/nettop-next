@@ -36,9 +36,9 @@ export default function EquipmentFaceStatic({
                     ? face.face.positions.length
                     : undefined,
               side,
-              location: index.locations.get(equipment.id) ?? '',
               networks: snapshot.networks,
             })}
+            place={index.locationParts.get(equipment.id)}
             networks={snapshot.networks}
             colors={colors}
             tooltip={(cell, ordinal) =>

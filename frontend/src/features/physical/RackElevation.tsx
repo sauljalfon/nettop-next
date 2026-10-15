@@ -5,9 +5,13 @@ import { visibleArea } from '../map/viewArea'
 import { blockDetail, labelEvery, rackMetrics, unitLabel } from './cabinet'
 import { DRAG_TYPE, dropInto, type DropHandlers } from './drops'
 import type { ElevationRow } from './elevation'
-import { elevationSubtitle } from './explorerModel'
+import { elevationSubtitlePieces } from './explorerModel'
+import { piecesText } from '../../shared/textPieces'
+import Pieces from '../../shared/ui/Pieces'
+import Name from '../../shared/ui/Name'
+import Chip from '../../shared/ui/Chip'
 
-const NO_NETWORK_EDGE = '#7d8aa0'
+const NO_NETWORK_EDGE = 'var(--steel-hover)'
 /** The cabinet's own padding above and below its units. */
 const CABINET_FRAME_PX = 28
 /** Air between the cabinet and the panel below it. */
@@ -31,13 +35,13 @@ interface Props extends DropHandlers {
 }
 
 /**
- * One rack as a dark cabinet with rails and screw holes, top unit first. The
- * unit height is computed from the height the page leaves, so even a 42U rack
- * fits without scrolling (every fifth unit is labeled when it is compact). Each
+ * One rack as a steel cabinet with rails, top unit first. The unit height is
+ * what fits the page, never below 26 px (D33): a rack that does not fit scrolls
+ * and every unit is labeled. Each
  * equipment is one faceplate spanning its units: a switch with port dots, an
  * HDF with a grid texture and its row count, a panel with a row of jacks. Route
- * equipment is teal, the selected one has an amber ring, proposed equipment is
- * dashed and tagged, other networks' devices are muted. In a plan the same drops
+ * equipment has a teal border, the selected one a paper ring, proposed equipment
+ * is dashed and tagged, other networks' devices are muted. In a plan the same drops
  * as before apply, with the same `rack-slot-<rack>-<unit>` test IDs.
  */
 export default function RackElevation({
@@ -135,11 +139,13 @@ export default function RackElevation({
       }}
     >
       <section className="rack-figure">
-        <header className="rack-heading">
-          <strong>{rack.name}</strong>
-          <small>{rack.units}U · front elevation</small>
+        <header className="rack-heading title-row">
+          <h2>
+            <Name text={rack.name} />
+          </h2>
+          <span className="meta">{rack.units}U · front elevation</span>
           {!printing && onPrint && (
-            <button className="outline-button print-button" onClick={onPrint}>
+            <button className="btn print-button" onClick={onPrint}>
               Print sheet
             </button>
           )}
@@ -202,7 +208,8 @@ export default function RackElevation({
             const e = equipment.get(row.equipmentId)!
             const blockPx = row.height * unitPx + (row.height - 1) * gap
             const detail = blockDetail(blockPx)
-            const subtitle = elevationSubtitle(e, snapshot.networks)
+            const pieces = elevationSubtitlePieces(e, snapshot.networks)
+            const subtitle = piecesText(pieces)
             const ports = facts.endpoints.get(e.id) ?? 0
             return (
               <div
@@ -226,9 +233,9 @@ export default function RackElevation({
                   data-muted={row.muted}
                   data-proposed={row.proposed}
                   draggable={canEdit}
-                  title={`${e.name} · ${subtitle}${row.proposed ? ' · PROPOSED' : ''}`}
+                  title={`${e.name} · ${subtitle}${row.proposed ? ' · Proposed' : ''}`}
                   style={{
-                    borderLeftColor:
+                    ['--stripe' as string]:
                       e.role !== 'passive' && e.networkId
                         ? colorOf(colors, e.networkId)
                         : NO_NETWORK_EDGE,
@@ -242,12 +249,20 @@ export default function RackElevation({
                   {detail !== 'none' && (
                     <span className="block-text">
                       <span className="rack-block-name">
-                        {e.name}
+                        <span className="tape" title={e.name}>
+                          <Name text={e.name} />
+                        </span>
                         {row.proposed && detail === 'full' && (
-                          <em className="proposed-tag">PROPOSED</em>
+                          <Chip kind="proposed" className="proposed-tag">
+                            Proposed
+                          </Chip>
                         )}
                       </span>
-                      {detail === 'full' && <small>{subtitle}</small>}
+                      {detail === 'full' && (
+                        <small>
+                          <Pieces pieces={pieces} />
+                        </small>
+                      )}
                     </span>
                   )}
                   <Plate
@@ -261,15 +276,17 @@ export default function RackElevation({
           })}
         </div>
       </section>
-      <aside className="rack-notes">
-        <p>A 3U HDF is one object spanning its three units.</p>
-        <p>Teal = equipment on the selected route.</p>
-        {canEdit && (
-          <p>
-            Free units accept drops from the library or another rack of this
-            node.
-          </p>
-        )}
+      <aside className="rack-notes side-note">
+        <div className="panel">
+          <p>A 3U HDF is one object spanning its three units.</p>
+          <p>Teal = equipment on the selected route.</p>
+          {canEdit && (
+            <p>
+              Free units accept drops from the library or another rack of this
+              node.
+            </p>
+          )}
+        </div>
       </aside>
     </div>
   )

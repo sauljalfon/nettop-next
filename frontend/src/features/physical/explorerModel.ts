@@ -6,6 +6,7 @@ import type {
   Snapshot,
 } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
+import { piecesText, type TextPiece } from '../../shared/textPieces'
 import { defaultNodeLayout, type NodeGraph, type Position } from './layout'
 import { resolveLocation, type PhysicalLocation } from './location'
 import { rackElevation } from './elevation'
@@ -331,13 +332,22 @@ export function elevationSubtitle(
   e: Pick<Equipment, 'role' | 'networkId' | 'unit' | 'height'>,
   networks: readonly Network[],
 ): string {
-  const network = networks.find((n) => n.id === e.networkId)?.name
+  return piecesText(elevationSubtitlePieces(e, networks))
+}
+
+/** The same line with the network name as its own piece, for <bdi>. */
+export function elevationSubtitlePieces(
+  e: Pick<Equipment, 'role' | 'networkId' | 'unit' | 'height'>,
+  networks: readonly Network[],
+): TextPiece[] {
+  const network =
+    e.role === 'passive'
+      ? undefined
+      : networks.find((n) => n.id === e.networkId)?.name
   const top = e.unit + e.height - 1
-  return [
-    ROLE_LABEL[e.role] ?? e.role,
-    e.role === 'passive' ? undefined : network,
-    `${e.height}U at U${e.unit}${e.height > 1 ? `–U${top}` : ''}`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const role = ROLE_LABEL[e.role] ?? e.role
+  const units = `${e.height}U at U${e.unit}${e.height > 1 ? `–U${top}` : ''}`
+  return network
+    ? [{ text: `${role} · ` }, { name: network }, { text: ` · ${units}` }]
+    : [{ text: `${role} · ${units}` }]
 }

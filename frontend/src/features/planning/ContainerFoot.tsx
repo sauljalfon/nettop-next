@@ -5,6 +5,7 @@ import { NOT_EMPTY_HINT, type ContainerKind } from './containers'
 import type { PlanEdit } from './editing'
 import { useAsyncAction } from './useAsyncAction'
 import './editing.css'
+import Name from '../../shared/ui/Name'
 
 /**
  * The foot of a site, node or rack card in a plan: "Delete" when it is empty
@@ -45,7 +46,7 @@ export default function ContainerFoot({
         <div className="inline-row">
           <button
             type="button"
-            className="button ghost-danger"
+            className="btn danger-outline"
             data-opener={key}
             aria-label={`Delete ${kind} ${name}`}
             onClick={() => setAsking(true)}
@@ -60,23 +61,30 @@ export default function ContainerFoot({
           label={`Confirm delete ${kind}`}
           openerKey={key}
           onClose={() => setAsking(false)}
+          className="destructive"
         >
           <span>
             {proposed ? (
               <>
-                <strong>{name}</strong> is only in this plan, so its addition is
-                dropped.
+                <strong>
+                  <Name text={name} />
+                </strong>{' '}
+                is only in this plan, so its addition is dropped.
               </>
             ) : (
               <>
-                Remove <strong>{name}</strong> in this plan? It is empty.
+                Remove{' '}
+                <strong>
+                  <Name text={name} />
+                </strong>{' '}
+                in this plan? It is empty.
               </>
             )}
           </span>
           <EditError message={action.error} />
-          <div className="inline-row">
+          <div className="form-actions">
             <button
-              className="button danger"
+              className="btn danger"
               disabled={action.pending}
               onClick={() =>
                 void action
@@ -91,7 +99,7 @@ export default function ContainerFoot({
             >
               {proposed ? 'Drop from plan' : 'Remove in plan'}
             </button>
-            <button className="button" onClick={() => setAsking(false)}>
+            <button className="btn" onClick={() => setAsking(false)}>
               Cancel
             </button>
           </div>

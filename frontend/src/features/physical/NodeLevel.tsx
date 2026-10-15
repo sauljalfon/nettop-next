@@ -10,6 +10,8 @@ import { DRAG_TYPE, dropInto, type DropHandlers } from './drops'
 import { previewUnitPx } from './cabinet'
 import type { RackPreview } from './explorerModel'
 import { plural } from './text'
+import Name from '../../shared/ui/Name'
+import Chip from '../../shared/ui/Chip'
 
 /** The Node level: only the node's own racks, each a scaled elevation. */
 export default function NodeLevel({
@@ -57,7 +59,9 @@ export default function NodeLevel({
   return (
     <div className="node-level">
       <header className="node-level-head">
-        <h2>{nodeName}</h2>
+        <h2>
+          <Name text={nodeName} />
+        </h2>
         <span className="phys-counts">{plural(total, 'rack')}</span>
         {total > 12 && (
           <label className="rack-search">
@@ -100,11 +104,19 @@ export default function NodeLevel({
             }}
           >
             <header>
-              <strong>{rack.name}</strong>
+              <strong>
+                <Name text={rack.name} />
+              </strong>
               {proposedIds.has(rack.rackId) && (
-                <em className="proposed-tag">PROPOSED</em>
+                <Chip kind="proposed" className="proposed-tag">
+                  Proposed
+                </Chip>
               )}
-              {rack.onRoute && <span className="route-pill">on route</span>}
+              {rack.onRoute && (
+                <Chip kind="route" className="route-pill">
+                  on route
+                </Chip>
+              )}
               <small>
                 {rack.equipmentCount} equipment · {rack.usedUnits} of{' '}
                 {rack.units}U used
@@ -148,7 +160,7 @@ export default function NodeLevel({
                     event.stopPropagation()
                     onOpenEquipment(b.equipmentId)
                   }}
-                  title={`${b.name} · ${b.height}U · U${b.unit}${b.proposed ? ' · PROPOSED' : ''}`}
+                  title={`${b.name} · ${b.height}U · U${b.unit}${b.proposed ? ' · Proposed' : ''}`}
                   style={{
                     bottom: 4 + (b.unit - 1) * previewUnitPx(rack.units),
                     height: b.height * previewUnitPx(rack.units) - 1,
@@ -156,10 +168,10 @@ export default function NodeLevel({
                     fontSize: previewUnitPx(rack.units) < 9 ? 0 : undefined,
                     borderLeftColor: b.networkId
                       ? colorOf(colors, b.networkId)
-                      : '#7d8aa0',
+                      : 'var(--steel-hover)',
                   }}
                 >
-                  {b.name}
+                  <Name text={b.name} />
                 </span>
               ))}
             </div>

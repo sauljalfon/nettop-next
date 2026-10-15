@@ -116,17 +116,19 @@ export default function ChangesDrawer({
             notify(undoMessage(lines, result.removed))
           }}
         />
-        <button
-          className="button primary block"
-          disabled={lines.length === 0}
-          onClick={() => setReviewing(true)}
-        >
-          Record as installed…
-        </button>
-        <span className="hint">
-          Recording is a separate, explicit step with a note. Saving a change
-          never records it.
-        </span>
+        <div className="record">
+          <button
+            className="btn primary lg"
+            disabled={lines.length === 0}
+            onClick={() => setReviewing(true)}
+          >
+            Record as installed…
+          </button>
+          <p>
+            Recording is a separate, explicit step with a note. Saving a change
+            never records it.
+          </p>
+        </div>
       </div>
     </>
   )

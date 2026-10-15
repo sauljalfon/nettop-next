@@ -67,5 +67,5 @@ export async function useRange(page: Page, count: number) {
 
 export const madeCount = (page: Page, n: number) =>
   expect(patching(page).getByTestId('patching-made')).toContainText(
-    `MADE HERE (${n})`,
+    `Made here (${n})`,
   )

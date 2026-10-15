@@ -24,9 +24,12 @@ export interface MapInput {
 
 export interface MapCardData extends Record<string, unknown> {
   equipment: Equipment
+  /** "Site / Node / Rack" as plain text (search, titles); cards render `place`. */
   location: string
+  /** Site, node and rack names, for PlacePath. */
+  place: string[]
   summary: { cabled: number; total: number }
-  /** Network names of the circuits through a passive card. */
+  /** Network names: the circuits through a passive card, or a switch's own network. */
   badges: string[]
   /** Network colors of the badges, in the same order. */
   badgeColors: string[]
@@ -144,6 +147,13 @@ export function projectMap(input: MapInput): {
   const networkName = (id: string) =>
     s.networks.find((n) => n.id === id)?.name ?? id
 
+  // A passive card shows its circuits' networks; a switch shows its own.
+  const badgeIds = (e: Equipment): string[] =>
+    e.kind === 'switch'
+      ? e.networkId
+        ? [e.networkId]
+        : []
+      : (index.badges.get(e.id) ?? [])
   const nodes: MapNode[] = s.equipment
     .filter((e) => shown.has(e.id))
     .map((e) => ({
@@ -153,11 +163,10 @@ export function projectMap(input: MapInput): {
       data: {
         equipment: e,
         location: index.locations.get(e.id) ?? '',
+        place: index.locationParts.get(e.id) ?? [],
         summary: index.summaries.get(e.id) ?? { cabled: 0, total: 0 },
-        badges: (index.badges.get(e.id) ?? []).map(networkName),
-        badgeColors: (index.badges.get(e.id) ?? []).map((id) =>
-          colorOf(colors, id),
-        ),
+        badges: badgeIds(e).map(networkName),
+        badgeColors: badgeIds(e).map((id) => colorOf(colors, id)),
         facets: facets.get(e.id) ?? [],
         manualKeys: [...(manual.get(e.id) ?? [])].sort(),
         highlighted: highlight.equipmentIds.has(e.id),

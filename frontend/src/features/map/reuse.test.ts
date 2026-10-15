@@ -17,6 +17,7 @@ const equipment = { id: 'a' } as MapCardData['equipment']
 const card = (over: Partial<MapCardData> = {}): MapCardData => ({
   equipment,
   location: 'Site / Node',
+  place: ['Site', 'Node'],
   summary: { cabled: 1, total: 4 },
   badges: ['Network A'],
   badgeColors: ['#123456'],
@@ -170,6 +171,7 @@ describe('SC-04 the comparisons cover every field the projection produces', () =
     const changed: Record<string, unknown> = {
       equipment: { ...base.equipment },
       location: base.location + '!',
+      place: [...base.place, 'Rack X'],
       summary: { ...base.summary, total: base.summary.total + 1 },
       badges: [...base.badges, 'x'],
       badgeColors: [...base.badgeColors, '#fff'],

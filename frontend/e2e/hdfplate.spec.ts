@@ -50,7 +50,7 @@ test.beforeEach(async ({ page }) => {
   await fitted(page)
 })
 
-test('PB-04 the HDF is one dark chassis: letters above, row numbers at the left, a recessed module per block', async ({
+test('PB-04 the HDF is one steel chassis: letters above, row numbers at the left, a recessed module per block', async ({
   page,
 }) => {
   await traceAgg03(page)
@@ -62,7 +62,7 @@ test('PB-04 the HDF is one dark chassis: letters above, row numbers at the left,
     'hdf-01',
   )
   const plate = page.locator('.faceplate[data-kind="hdf"]')
-  await expect(plate).toHaveCSS('background-color', 'rgb(31, 39, 53)')
+  await expect(plate).toHaveCSS('background-color', 'rgb(31, 39, 49)')
   const first = page.locator('[data-testid="face-block"][data-block="1A"]')
   const firstBox = (await first.boundingBox())!
   const a = (await page.locator('.hdf-col', { hasText: 'A' }).boundingBox())!
@@ -75,10 +75,10 @@ test('PB-04 the HDF is one dark chassis: letters above, row numbers at the left,
   await expect(page.locator('.hdf-col')).toHaveText(['A', 'B', 'C', 'D'])
   await expect(first.locator('code')).toHaveText('1A')
   // A recessed module: darker than the chassis, and a teal border where the route is.
-  await expect(first).toHaveCSS('background-color', 'rgb(21, 27, 39)')
+  await expect(first).toHaveCSS('background-color', 'rgb(42, 52, 64)')
   const route = page.locator('[data-testid="face-block"][data-block="3C"]')
   await expect(route).toHaveAttribute('data-on-route', 'true')
-  await expect(route).toHaveCSS('border-top-color', 'rgb(16, 139, 121)')
+  await expect(route).toHaveCSS('border-top-color', 'rgb(15, 139, 122)')
   await expect(first).toHaveAttribute('data-on-route', 'false')
   // Six jack-shaped positions in 3 × 2, with the link dot on cabled ones.
   const [p1, p2, p3, p4] = await Promise.all(
@@ -101,7 +101,7 @@ test('PB-04 the HDF is one dark chassis: letters above, row numbers at the left,
   ) // Network B
   await expect(endpoint(page, 'hdf-01:sp-3C:5:f')).toHaveCSS(
     'background-color',
-    'rgb(16, 139, 121)',
+    'rgb(15, 139, 122)',
   ) // route
   await expect(endpoint(page, 'hdf-01:sp-3C:4:f')).toHaveCSS(
     'background-color',
@@ -154,7 +154,7 @@ test('PB-05 jacks are about 44 px on a switch and a panel and 34 px on an HDF, w
     'hdf-01',
   )
   const jack = await box(page, 'hdf-01:sp-3C:5:f')
-  expect(Math.abs(jack.width - 34)).toBeLessThanOrEqual(1.5)
+  expect(jack.width).toBeGreaterThanOrEqual(34 - 0.5) // the grid fills the card; never narrower than 34
   expect(
     Number(
       await endpoint(page, 'hdf-01:sp-3C:5:f').evaluate((e) =>
@@ -254,13 +254,13 @@ test('PD-01 the HDF-01 3C/5 rear card draws the connection top to bottom, and ea
     'otherFar',
   ])
   const want: string[][] = [
-    ['PANEL-A', '1', 'rear', 'Main Campus / Building A / Rack A03'],
+    ['PANEL-A', '1', 'rear', 'Main Campus › Building A › Rack A03'],
     ['cable-a02'],
     ['3C / 5 rear'],
     ['bridge'],
     ['3C / 5 front'],
     ['cable-a03'],
-    ['HDF-02', '2B/3 front', 'Main Campus / Main Distribution / Rack Core 01'],
+    ['HDF-02', '2B/3 front', 'Main Campus › Main Distribution › Rack Core 01'],
   ]
   for (const [i, parts] of want.entries())
     for (const part of parts)

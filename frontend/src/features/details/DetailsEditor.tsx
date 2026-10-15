@@ -26,7 +26,13 @@ export function DetailList({
       {fields.map((f) => (
         <div key={f.key}>
           <dt>{f.label}</dt>
-          <dd className={f.mono ? 'mono' : undefined}>
+          <dd
+            className={
+              [f.mono && 'mono', !values[f.key] && 'empty']
+                .filter(Boolean)
+                .join(' ') || undefined
+            }
+          >
             {values[f.key] || '—'}
           </dd>
         </div>
@@ -93,7 +99,9 @@ export default function DetailsEditor({
           })
       }}
     >
-      <span className="eyebrow">{title}</span>
+      <div className="form-head">
+        <strong className="form-title">{title}</strong>
+      </div>
       <div className="details-fields">
         {fields.map((f) => {
           const fieldId = `${id}-${f.key}`
@@ -103,16 +111,13 @@ export default function DetailsEditor({
             action.clear()
           }
           return (
-            <label
+            <div
               key={f.key}
-              htmlFor={fieldId}
-              className={
-                f.key === 'name' || f.kind === 'textarea'
-                  ? 'details-wide'
-                  : undefined
-              }
+              className={`field${
+                f.key === 'name' || f.kind === 'textarea' ? ' details-wide' : ''
+              }`}
             >
-              {f.label}
+              <label htmlFor={fieldId}>{f.label}</label>
               {f.kind === 'select' ? (
                 <select
                   id={fieldId}
@@ -135,38 +140,36 @@ export default function DetailsEditor({
               ) : (
                 <input
                   id={fieldId}
+                  type="text"
                   className={f.mono ? 'mono' : undefined}
                   value={value}
                   onChange={(e) => set(e.target.value)}
                 />
               )}
-            </label>
+            </div>
           )
         })}
       </div>
       {withNote && (
-        <label htmlFor={`${id}-note`}>
-          Why (optional, kept in history)
+        <div className="field">
+          <label htmlFor={`${id}-note`}>Why (optional, kept in history)</label>
           <input
             id={`${id}-note`}
+            type="text"
             value={note}
             maxLength={500}
             placeholder="e.g. Asset audit"
             onChange={(e) => setNote(e.target.value)}
           />
-        </label>
+        </div>
       )}
-      <span className="quiet">{hint}</span>
+      <span className="hint">{hint}</span>
       <EditError message={action.error} />
-      <div className="inline-row">
-        <button
-          className="button primary"
-          type="submit"
-          disabled={action.pending}
-        >
+      <div className="form-actions">
+        <button className="btn primary" type="submit" disabled={action.pending}>
           {saveLabel}
         </button>
-        <button className="button" type="button" onClick={onClose}>
+        <button className="btn" type="button" onClick={onClose}>
           Cancel
         </button>
       </div>

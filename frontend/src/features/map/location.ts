@@ -1,13 +1,22 @@
 import { hasSide } from '../../shared/ports'
 import type { Snapshot } from '../../shared/types'
 
-/** "Site / Node / Rack" of an equipment; empty when it has no known location. */
+/** "Site / Node / Rack" of an equipment, for plain text only (search, titles, CSV, print); empty when it has no known location. */
 export function locationLabel(s: Snapshot, equipmentId: string) {
   const equipment = s.equipment.find((e) => e.id === equipmentId),
     rack = s.racks.find((r) => r.id === equipment?.rackId),
     node = s.nodes.find((n) => n.id === rack?.nodeId),
     site = s.sites.find((site) => site.id === node?.siteId)
   return [site?.name, node?.name, rack?.name].filter(Boolean).join(' / ')
+}
+
+/** Site, node and rack names of an equipment, in that order; missing ones are skipped. */
+export function locationParts(s: Snapshot, equipmentId: string): string[] {
+  const equipment = s.equipment.find((e) => e.id === equipmentId),
+    rack = s.racks.find((r) => r.id === equipment?.rackId),
+    node = s.nodes.find((n) => n.id === rack?.nodeId),
+    site = s.sites.find((site) => site.id === node?.siteId)
+  return [site?.name, node?.name, rack?.name].filter((x): x is string => !!x)
 }
 
 /** Site / Node / Rack / Equipment. */
@@ -62,6 +71,24 @@ export function locationLabels(s: Snapshot): Map<string, string> {
       return [
         e.id,
         [site?.name, node?.name, rack?.name].filter(Boolean).join(' / '),
+      ]
+    }),
+  )
+}
+
+/** The site, node and rack names of every equipment in one pass. */
+export function locationPartsAll(s: Snapshot): Map<string, string[]> {
+  const racks = new Map(s.racks.map((r) => [r.id, r]))
+  const nodes = new Map(s.nodes.map((n) => [n.id, n]))
+  const sites = new Map(s.sites.map((x) => [x.id, x]))
+  return new Map(
+    s.equipment.map((e) => {
+      const rack = racks.get(e.rackId)
+      const node = nodes.get(rack?.nodeId ?? '')
+      const site = sites.get(node?.siteId ?? '')
+      return [
+        e.id,
+        [site?.name, node?.name, rack?.name].filter((x): x is string => !!x),
       ]
     }),
   )

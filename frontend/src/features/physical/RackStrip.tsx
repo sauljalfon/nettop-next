@@ -1,6 +1,7 @@
 import { colorOf } from '../map/networkColors'
 import type { ElevationRow } from './elevation'
 import type { Inventory } from './inventory'
+import Name from '../../shared/ui/Name'
 
 const UNIT_PX = 11
 
@@ -30,7 +31,9 @@ export default function RackStrip({
       data-testid="rack-strip"
       aria-label={`${name} strip`}
     >
-      <small className="phys-label">{name.toUpperCase()}</small>
+      <small className="phys-label">
+        <Name text={name} />
+      </small>
       <div className="strip-rack" style={{ height: units * UNIT_PX + 8 }}>
         {rows.map((row) => {
           if (row.kind !== 'equipment') return null
@@ -51,11 +54,11 @@ export default function RackStrip({
                 borderLeftColor:
                   e.role !== 'passive' && e.networkId
                     ? colorOf(colors, e.networkId)
-                    : '#7d8aa0',
+                    : 'var(--steel-hover)',
               }}
               onClick={() => onOpen(e.id)}
             >
-              {e.name}
+              <Name text={e.name} />
             </button>
           )
         })}

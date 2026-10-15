@@ -1,6 +1,7 @@
 import type { Plan } from '../../shared/types'
 import { useUpdateDraft } from './useUpdateDraft'
 import './changes.css'
+import Name from '../../shared/ui/Name'
 
 /**
  * Plan view of a stale draft (answer 11): its proposed topology cannot be built
@@ -34,8 +35,8 @@ export default function StaleCard({
     >
       <strong>Installed changed since this draft</strong>
       <span>
-        “{plan.name}” was drawn on an older Installed, so it can’t be shown
-        here. <b>Update draft</b> re-checks every change on the current
+        “<Name text={plan.name} />” was drawn on an older Installed, so it can’t
+        be shown here. <b>Update draft</b> re-checks every change on the current
         Installed and either moves the draft there or lists what no longer fits.
         Nothing is changed automatically.
       </span>
@@ -46,16 +47,16 @@ export default function StaleCard({
       )}
       <div className="row">
         <button
-          className="button primary"
+          className="btn primary"
           disabled={update.pending}
           onClick={() => void update.run()}
         >
           {update.pending ? 'Updating…' : 'Update draft'}
         </button>
-        <button className="button" onClick={onOpenChanges}>
+        <button className="btn" onClick={onOpenChanges}>
           Open Changes
         </button>
-        <button className="button" onClick={onViewInstalled}>
+        <button className="btn" onClick={onViewInstalled}>
           View Installed
         </button>
       </div>

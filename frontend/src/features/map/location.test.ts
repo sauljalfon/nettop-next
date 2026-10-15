@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot } from './acceptanceFixture'
 import type { Snapshot } from '../../shared/types'
-import { cabledSummaries, locationLabel, locationPath } from './location'
+import {
+  cabledSummaries,
+  locationLabel,
+  locationParts,
+  locationPartsAll,
+  locationPath,
+} from './location'
 
 const cabledSummary = (s: Snapshot, id: string) =>
   cabledSummaries(s).get(id) ?? { cabled: 0, total: 0 }
@@ -70,5 +76,39 @@ describe('cabledSummaries computes every equipment in one pass', () => {
     const s = acceptanceSnapshot()
     s.equipment.push({ ...s.equipment[0], id: 'EMPTY', name: 'EMPTY' })
     expect(cabledSummaries(s).has('EMPTY')).toBe(false)
+  })
+})
+
+describe('locationParts keeps site, node and rack as separate pieces', () => {
+  const s = acceptanceSnapshot()
+
+  it('returns [site, node, rack]', () => {
+    expect(locationParts(s, 'EDGE-17')).toEqual([
+      'Main Campus',
+      'Building A',
+      'Rack A03',
+    ])
+    expect(locationParts(s, 'HDF-01')).toEqual([
+      'Main Campus',
+      'North Sub-main',
+      'Rack SM01',
+    ])
+  })
+
+  it('skips missing parts and is empty for unknown equipment', () => {
+    const t = acceptanceSnapshot()
+    const e = t.equipment.find((x) => x.id === 'EDGE-17')!
+    t.racks = t.racks.filter((r) => r.id !== e.rackId)
+    expect(locationParts(t, 'EDGE-17')).toEqual([])
+    expect(locationParts(s, 'nope')).toEqual([])
+    const u = acceptanceSnapshot()
+    u.sites = u.sites.filter((x) => x.name !== 'Main Campus')
+    expect(locationParts(u, 'EDGE-17')).toEqual(['Building A', 'Rack A03'])
+  })
+
+  it('locationPartsAll agrees with locationParts for every equipment', () => {
+    const all = locationPartsAll(s)
+    for (const e of s.equipment)
+      expect(all.get(e.id)).toEqual(locationParts(s, e.id))
   })
 })

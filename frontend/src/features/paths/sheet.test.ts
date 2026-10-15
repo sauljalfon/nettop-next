@@ -8,8 +8,8 @@ import {
   metaPieces,
   notePieces,
   type Sheet,
-  type TextPiece,
 } from './sheet'
+import type { TextPiece } from '../../shared/textPieces'
 import { indexOf, withLinks, withoutLink } from './testSnapshots'
 
 const NETWORKS = [

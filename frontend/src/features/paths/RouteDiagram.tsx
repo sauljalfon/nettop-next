@@ -1,4 +1,3 @@
-import { Fragment } from 'react'
 import {
   routeDiagram,
   type DiagramCable,
@@ -6,7 +5,9 @@ import {
   type DiagramSite,
   type DiagramStep,
 } from './diagram'
-import { notePieces, type Sheet, type TextPiece } from './sheet'
+import { notePieces, type Sheet } from './sheet'
+import Name from '../../shared/ui/Name'
+import Pieces from '../../shared/ui/Pieces'
 import './paths.css'
 import './routeDiagram.css'
 
@@ -17,20 +18,6 @@ interface Props {
 }
 
 const isCable = (x: object): x is DiagramCable => 'item' in x
-
-function Pieces({ pieces }: { pieces: TextPiece[] }) {
-  return (
-    <>
-      {pieces.map((p, i) =>
-        'name' in p ? (
-          <bdi key={i}>{p.name}</bdi>
-        ) : (
-          <Fragment key={i}>{p.text}</Fragment>
-        ),
-      )}
-    </>
-  )
-}
 
 function Cable({ cable }: { cable: DiagramCable }) {
   const { item, gap } = cable
@@ -45,7 +32,7 @@ function Cable({ cable }: { cable: DiagramCable }) {
       <span className="arrow" />
       {item.label ? (
         <span className="clabel" title={item.fullId}>
-          <bdi>{item.label}</bdi>
+          <Name text={item.label} />
         </span>
       ) : (
         <span className="clabel id" title={item.fullId}>
@@ -96,22 +83,22 @@ function Step({
         <span className="u">U{row.unit}</span>
       </span>
       <span className="rd-name">
-        <bdi>{row.name}</bdi>
+        <Name text={row.name} />
       </span>
       <span className="rd-rack">
-        <bdi>{step.rack}</bdi>
+        <Name text={step.rack} />
       </span>
       <span className="rd-pins">
         {row.inPort && (
           <span className="pin in">
-            <bdi>{row.inPort}</bdi>
+            <Name text={row.inPort} />
           </span>
         )}
         {row.stop ? (
           <span className="pin stop">
             {row.outPort && (
               <>
-                <bdi>{row.outPort}</bdi>:{' '}
+                <Name text={row.outPort} />:{' '}
               </>
             )}
             nothing connected
@@ -119,7 +106,7 @@ function Step({
         ) : (
           row.outPort && (
             <span className="pin out">
-              <bdi>{row.outPort}</bdi>
+              <Name text={row.outPort} />
             </span>
           )
         )}
@@ -144,7 +131,7 @@ function Node({
       {node.name && (
         <div className="rd-node-head">
           <small>Node</small>
-          <bdi>{node.name}</bdi>
+          <Name text={node.name} />
         </div>
       )}
       <div className="rd-node-row">
@@ -182,7 +169,7 @@ function Site({
       {site.name && (
         <div className="rd-site-head">
           <small>Site</small>
-          <bdi>{site.name}</bdi>
+          <Name text={site.name} />
         </div>
       )}
       <div className="rd-site-row">

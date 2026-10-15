@@ -29,10 +29,10 @@ export default function EquipmentDetails({
   return (
     <section className="details-section" data-testid="equipment-details">
       <div className="details-head">
-        <h3 className="inspector-section">Details</h3>
+        <h3 className="inspector-section section-title">Details</h3>
         {mode !== 'none' && !open && (
           <button
-            className="button"
+            className="btn quiet"
             data-opener={opener}
             onClick={() => setOpen(true)}
           >

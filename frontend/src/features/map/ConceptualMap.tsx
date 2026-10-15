@@ -49,6 +49,10 @@ import { shouldClearOnEscape } from './keys'
 import { stackIndex } from './stacking'
 import { useViewRequests } from './useViewRequests'
 import './map.css'
+import Chip from '../../shared/ui/Chip'
+import Name from '../../shared/ui/Name'
+import { cardRoleLabel } from './cardRole'
+import PlacePath from '../../shared/ui/PlacePath'
 
 type CardNode = Node<MapCardData, 'equipment'>
 type PreviewNode = Node<{ name: string; onConfigure: () => void }, 'preview'>
@@ -91,26 +95,33 @@ const EquipmentCard = memo(function EquipmentCard({
     <article
       className={`equipment-card map-card ${data.highlighted ? 'traced' : ''} ${data.highlightRole === 'card' ? 'hl' : data.highlightRole === 'neighbor' ? 'hl-neighbor' : ''} ${data.dimmed ? 'dimmed' : ''} ${selected ? 'selected' : ''} ${data.proposed ? 'proposed' : ''}`}
     >
-      <div className="equipment-heading">
-        <span className="equipment-icon">
-          <Icon size={21} />
+      <div className="card-top">
+        <span className="card-kind">
+          <Icon size={14} />
         </span>
-        <span className={`badge ${data.proposed ? 'green' : ''}`}>
-          {data.proposed ? 'PROPOSED' : e.role}
-        </span>
+        <h3 className="card-name">
+          <Name text={e.name} />
+        </h3>
+        {data.proposed ? (
+          <Chip kind="proposed">Proposed</Chip>
+        ) : (
+          <span className="card-role">{cardRoleLabel(e)}</span>
+        )}
       </div>
-      <h3>{e.name}</h3>
-      <p className="map-location">{data.location}</p>
-      <p className="map-summary">
-        {summary.cabled} of {summary.total} cabled
+      <p className="map-location">
+        <PlacePath parts={data.place} />
       </p>
-      {data.badges.length > 0 && (
+      <div className="card-foot">
         <p className="map-badges">
           {data.badges.map((b, i) => (
             <NetworkBadge key={b} name={b} color={data.badgeColors[i]} />
           ))}
         </p>
-      )}
+        <p className="map-summary">
+          <span className="num">{summary.cabled}</span> of{' '}
+          <span className="num">{summary.total}</span> cabled
+        </p>
+      </div>
       {data.facets.length > 0 && (
         <ul className="map-facets" aria-label={`${e.name} shown connections`}>
           {data.facets.map((f) => (
@@ -119,14 +130,16 @@ const EquipmentCard = memo(function EquipmentCard({
                 data-source={[f.automatic && 'auto', f.manual && 'manual']
                   .filter(Boolean)
                   .join(' ')}
-                className={`nodrag map-facet ${f.automatic ? 'auto' : ''} ${f.manual ? 'manual' : ''}`}
+                className={`nodrag map-facet chip ${f.automatic ? 'route auto' : ''} ${f.manual ? 'manual' : ''}`}
                 aria-label={`${e.name} ${f.label}, find AGG / BB from here`}
                 onClick={(event) => {
                   event.stopPropagation()
                   onPort(facetStart(f))
                 }}
               >
-                <span className="map-facet-label">{f.label}</span>
+                <span className="map-facet-label">
+                  <Name text={f.label} />
+                </span>
                 {f.automatic && <small>route</small>}
                 {f.manual && <small>pinned</small>}
               </button>
@@ -178,8 +191,8 @@ const Preview = memo(function Preview({ data }: NodeProps<PreviewNode>) {
 })
 /** Opacity of a faded card or line. */
 const DIM = 0.3
-const ROUTE_COLOR = '#108b79'
-const HIGHLIGHT_COLOR = '#e09a00'
+const ROUTE_COLOR = 'var(--route)'
+const HIGHLIGHT_COLOR = 'var(--amber)'
 
 /**
  * A cable line. Highlighted and traced at once: the teal route line keeps its
@@ -210,7 +223,7 @@ function MapEdge(props: EdgeProps) {
   const ids = data?.linkIds.join(' ')
   const faded = data?.dimmed ? { opacity: DIM } : undefined
   const joined = !!data?.pairKey && !data.split
-  const text = color === HIGHLIGHT_COLOR ? '#3a2a00' : '#fff'
+  const text = color === HIGHLIGHT_COLOR ? 'var(--amber-ink)' : 'var(--paper)'
   // The labels are portaled but still React children of the edge: keep their
   // clicks from reaching the edge's own click, which would toggle twice.
   const toggle = (event: { stopPropagation: () => void }) => {
@@ -243,7 +256,7 @@ function MapEdge(props: EdgeProps) {
               ...faded,
             }}
           >
-            {props.label}
+            <Name text={String(props.label)} />
           </span>
         )}
         {joined && data.count > 1 && (
@@ -315,7 +328,7 @@ function MapEdge(props: EdgeProps) {
 function edgeColor(data: MapFlowEdge['data'] | undefined): string {
   if (data?.highlighted) return ROUTE_COLOR
   if (data?.highlight) return HIGHLIGHT_COLOR
-  return data?.color ?? '#9bacc0'
+  return data?.color ?? 'var(--unresolved)'
 }
 const edgeTypes = { map: MapEdge }
 const nodeTypes = {
@@ -723,7 +736,7 @@ function Canvas({
           deleteKeyCode={null}
           onlyRenderVisibleElements
         >
-          <Background color="#ccd5df" gap={24} size={1} />
+          <Background gap={24} size={1} />
           {!active && <Controls showInteractive={false} />}
           <Panel position="top-right" className="map-tools">
             {!active && highlight && (

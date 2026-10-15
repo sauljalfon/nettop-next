@@ -37,7 +37,7 @@ test('POL-09 HDF-01 lists its 4 cabled positions by default, grouped by subpanel
     page.locator('.inspector-header').getByText('4 of 96 cabled'),
   ).toBeVisible()
   await expect(page.locator('.location-breadcrumb')).toContainText(
-    'Main Campus / North Sub-main / Rack SM01 / HDF-01',
+    'Main Campus › North Sub-main › Rack SM01 › HDF-01',
   )
 
   // More than 48 positions: Cabled is the default, and only the 4 cabled ones show.
@@ -295,8 +295,14 @@ test('POL-20 the inspector has Overview and Ports tabs, a compact port table, al
     .locator('.network-badge', { hasText: 'Network A' })
   const tableBadge = p1.locator('.col-network .network-badge').first()
   await expect(tableBadge).toHaveText('Network A')
-  expect(await tableBadge.evaluate((e) => (e as HTMLElement).style.color)).toBe(
-    await cardBadge.evaluate((e) => (e as HTMLElement).style.color),
+  expect(
+    await tableBadge.evaluate(
+      (e) => (e.querySelector('.dot') as HTMLElement).style.backgroundColor,
+    ),
+  ).toBe(
+    await cardBadge.evaluate(
+      (e) => (e.querySelector('.dot') as HTMLElement).style.backgroundColor,
+    ),
   )
 
   // Row actions are always visible (no hover), small, with tooltips and names.

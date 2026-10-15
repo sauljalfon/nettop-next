@@ -9,6 +9,7 @@ import { rebaseSession } from './rebaseSession'
 import { lineForKey, planSummary, undoMessage, type GoTarget } from './summary'
 import { useUpdateDraft } from './useUpdateDraft'
 import './changes.css'
+import Name from '../../shared/ui/Name'
 
 /**
  * A stale draft in the drawer (answer 5, 9): the banner, Update draft, and the
@@ -56,7 +57,9 @@ export default function StaleChanges({
       <div className="head">
         <div>
           <span className="eyebrow">Draft</span>
-          <div className="title">{plan.name}</div>
+          <div className="title">
+            <Name text={plan.name} />
+          </div>
         </div>
         <span className="hint">{plural(lines.length, 'change')}</span>
       </div>
@@ -69,7 +72,7 @@ export default function StaleChanges({
         </span>
         <div className="row">
           <button
-            className="button primary"
+            className="btn primary"
             disabled={update.pending}
             onClick={() => void update.run()}
           >
@@ -105,7 +108,7 @@ export default function StaleChanges({
                   <span className="why">{c.reason}</span>
                 </span>
                 <button
-                  className="button"
+                  className="btn"
                   aria-label={`Drop: ${line?.text ?? c.change}`}
                   disabled={busy !== undefined}
                   onClick={() => void drop(c.change)}

@@ -18,6 +18,8 @@ import PortDetailFields from './PortDetailFields'
 import type { PlanEdit } from './editing'
 import { useAsyncAction } from './useAsyncAction'
 import './editing.css'
+import Name from '../../shared/ui/Name'
+import Field from '../../shared/ui/Field'
 
 /**
  * "Duplicate…" for one equipment in a plan, with its inline box below the
@@ -44,7 +46,7 @@ export default function DuplicateEquipment({
     <div className="delete-equipment" data-testid={`duplicate-${where}`}>
       <button
         type="button"
-        className="button"
+        className="btn"
         data-opener={key}
         aria-label={`Duplicate ${index.equipment.get(equipmentId)?.name ?? ''}…`}
         onClick={() => setOpen(true)}
@@ -134,21 +136,30 @@ function DuplicateBox({
       label="Duplicate"
       openerKey={openerKey}
       onClose={onClose}
-      className="connect-box connect-range"
+      className="connect-box connect-range proposes"
     >
-      <label>
-        More like {source.name}
-        <input
-          className="count-input"
-          inputMode="numeric"
-          aria-label="Count"
-          value={countText}
-          onChange={(e) => {
-            setCountText(e.target.value)
-            action.clear()
-          }}
-        />
-      </label>
+      <Field
+        label={
+          <>
+            More like <Name text={source.name} />
+          </>
+        }
+      >
+        {(id) => (
+          <input
+            id={id}
+            type="text"
+            className="count-input"
+            inputMode="numeric"
+            aria-label="Count"
+            value={countText}
+            onChange={(e) => {
+              setCountText(e.target.value)
+              action.clear()
+            }}
+          />
+        )}
+      </Field>
       {!countOk && (
         <span className="edit-error" role="alert">
           Count must be between 1 and {MAX_COPIES}.
@@ -165,23 +176,25 @@ function DuplicateBox({
         }}
       />
       {isSwitch && (
-        <label className="duplicate-network">
-          Network
-          <select
-            aria-label="Network"
-            value={networkId}
-            onChange={(e) => {
-              setNetworkId(e.target.value)
-              action.clear()
-            }}
-          >
-            {snapshot.networks.map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Network">
+          {(id) => (
+            <select
+              id={id}
+              aria-label="Network"
+              value={networkId}
+              onChange={(e) => {
+                setNetworkId(e.target.value)
+                action.clear()
+              }}
+            >
+              {snapshot.networks.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       )}
       {isSwitch &&
         (fromSource.length > 0 ? (
@@ -222,6 +235,7 @@ function DuplicateBox({
         describe={(l) => (
           <>
             <input
+              type="text"
               className="copy-name"
               aria-label={`Name of copy ${l.n}`}
               autoComplete="off"
@@ -236,8 +250,15 @@ function DuplicateBox({
                 action.clear()
               }}
             />
-            {` · ${rackName}${l.unit ? ` U${l.unit}` : ''}`}
-            {isSwitch && ` · ${networkName}`}
+            {' · '}
+            <Name text={rackName} />
+            {l.unit ? ` U${l.unit}` : ''}
+            {isSwitch && (
+              <>
+                {' · '}
+                <Name text={networkName} />
+              </>
+            )}
           </>
         )}
       />
@@ -252,9 +273,9 @@ function DuplicateBox({
         </p>
       )}
       <EditError message={action.error} />
-      <div className="inline-row">
+      <div className="form-actions">
         <button
-          className="button primary"
+          className="btn primary"
           disabled={!ready}
           onClick={() =>
             void action
@@ -273,7 +294,7 @@ function DuplicateBox({
         >
           {lines.length > 0 ? `Duplicate ${lines.length}` : 'Duplicate'}
         </button>
-        <button className="button" onClick={onClose}>
+        <button className="btn" onClick={onClose}>
           Cancel
         </button>
       </div>

@@ -7,6 +7,9 @@ import { draftsOf, isStale, recordedLine, recordedOf } from './changes'
 import { errorMessage } from './editing'
 import { planSummary, groupLines } from './summary'
 import './changes.css'
+import Name from '../../shared/ui/Name'
+import Chip from '../../shared/ui/Chip'
+import Field from '../../shared/ui/Field'
 
 /**
  * The Changes drawer on Installed: the drafts (current, or "Installed
@@ -62,16 +65,22 @@ export default function InstalledChanges({
             data-stale={stale}
           >
             <div className="top-line">
-              <b>{p.name}</b>
+              <b>
+                <Name text={p.name} />
+              </b>
               {stale ? (
-                <span className="chip behind">Installed changed</span>
+                <Chip kind="state" className="behind">
+                  Installed changed
+                </Chip>
               ) : (
-                <span className="chip current">current</span>
+                <Chip kind="state" className="current">
+                  current
+                </Chip>
               )}
             </div>
             <span className="hint">{plural(changeCount(p), 'change')}</span>
             <button
-              className="button"
+              className="btn"
               style={{ justifySelf: 'start' }}
               aria-label={`Open ${p.name} in Plan`}
               onClick={() => onOpenPlan(p.id)}
@@ -82,29 +91,26 @@ export default function InstalledChanges({
         )
       })}
       {creating ? (
-        <form onSubmit={create} noValidate>
-          <label>
-            Draft name
-            <input
-              type="text"
-              autoFocus
-              value={name}
-              placeholder="e.g. Building B fit-out"
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          {error && (
-            <span className="error" role="alert">
-              {error}
-            </span>
-          )}
-          <div className="row">
-            <button className="button primary" disabled={busy}>
+        <form className="inline-form" onSubmit={create} noValidate>
+          <Field label="Draft name" error={error}>
+            {(id) => (
+              <input
+                id={id}
+                type="text"
+                autoFocus
+                value={name}
+                placeholder="e.g. Building B fit-out"
+                onChange={(e) => setName(e.target.value)}
+              />
+            )}
+          </Field>
+          <div className="form-actions">
+            <button className="btn primary" disabled={busy}>
               Create draft
             </button>
             <button
               type="button"
-              className="button"
+              className="btn"
               onClick={() => setCreating(false)}
             >
               Cancel
@@ -113,7 +119,7 @@ export default function InstalledChanges({
         </form>
       ) : (
         <button
-          className="button"
+          className="btn"
           style={{ justifySelf: 'start' }}
           onClick={() => setCreating(true)}
         >
@@ -137,14 +143,18 @@ export default function InstalledChanges({
             data-plan-id={p.id}
           >
             <div className="top-line">
-              <b>{p.name}</b>
-              <span className="tag-recorded">RECORDED</span>
+              <b>
+                <Name text={p.name} />
+              </b>
+              <Chip kind="state" className="recorded">
+                Recorded
+              </Chip>
             </div>
             <span className="hint" data-testid="recorded-line">
               {recordedLine(p)}
             </span>
             <button
-              className="link"
+              className="btn quiet"
               style={{ justifySelf: 'start' }}
               aria-expanded={open === p.id}
               onClick={() => setOpen(open === p.id ? undefined : p.id)}

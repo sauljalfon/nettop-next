@@ -29,6 +29,7 @@ export default function PortDetailFields({
         <option value="fiber">fiber</option>
       </select>
       <input
+        type="text"
         aria-label="Connector"
         placeholder="Connector"
         list={`${id}-connectors`}
@@ -36,6 +37,7 @@ export default function PortDetailFields({
         onChange={(e) => onChange({ connector: e.target.value })}
       />
       <input
+        type="text"
         aria-label="Speed"
         placeholder="Speed"
         list={`${id}-speeds`}

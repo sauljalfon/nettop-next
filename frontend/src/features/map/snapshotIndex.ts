@@ -1,6 +1,6 @@
 import type { Equipment, Link, Snapshot } from '../../shared/types'
 import { endpointLookup, type EndpointLookup } from './facets'
-import { cabledSummaries, locationLabels } from './location'
+import { cabledSummaries, locationLabels, locationPartsAll } from './location'
 import { circuitNetworks, passiveNetworks } from './networks'
 
 /**
@@ -14,8 +14,10 @@ export interface SnapshotIndex {
   /** Sorted network IDs of the circuits through each passive equipment. */
   badges: ReadonlyMap<string, string[]>
   summaries: ReadonlyMap<string, { cabled: number; total: number }>
-  /** "Site / Node / Rack" per equipment. */
+  /** "Site / Node / Rack" per equipment: plain text only (search, titles, CSV, print). */
   locations: ReadonlyMap<string, string>
+  /** Site, node and rack names per equipment, for rendering with PlacePath. */
+  locationParts: ReadonlyMap<string, string[]>
   equipment: ReadonlyMap<string, Equipment>
   /** Endpoints that carry a cable. */
   cabled: ReadonlySet<string>
@@ -112,6 +114,7 @@ export function indexSnapshot(s: Snapshot): SnapshotIndex {
     badges: passiveNetworks(s, circuits),
     summaries: cabledSummaries(s),
     locations: locationLabels(s),
+    locationParts: locationPartsAll(s),
     equipment: new Map(s.equipment.map((e) => [e.id, e])),
     cabled,
     lookup: endpointLookup(s),

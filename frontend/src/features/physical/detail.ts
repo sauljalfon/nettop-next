@@ -21,6 +21,8 @@ export interface EndpointDetail {
     farLabel: string
     /** "Site / Node / Rack" of the far equipment. */
     farLocation: string
+    /** Site, node and rack names of the far equipment, for rendering. */
+    farPlace: string[]
   }
   /** The same position's other side, joined by its internal bridge. */
   internal?: {
@@ -87,6 +89,7 @@ export function endpointDetail(
       farEquipmentName: farDevice?.name ?? far.equipmentId,
       farLabel: facetLabel(index.lookup, far),
       farLocation: index.locations.get(far.equipmentId) ?? '',
+      farPlace: index.locationParts.get(far.equipmentId) ?? [],
     }
   }
   const other = otherSide(index, p)

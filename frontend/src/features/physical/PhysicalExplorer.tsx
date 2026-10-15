@@ -38,6 +38,8 @@ import { resolveLocation } from './location'
 import SiteCanvas from './SiteCanvas'
 import SitesGrid from './SitesGrid'
 import './physical.css'
+import Name from '../../shared/ui/Name'
+import { PlaceSep } from '../../shared/ui/PlacePath'
 
 interface Props {
   snapshot: Snapshot
@@ -283,7 +285,7 @@ export default function PhysicalExplorer({
       <div className="physical-top">
         <div className="physical-nav">
           <button
-            className="phys-back"
+            className="btn phys-back"
             disabled={history.back.length === 0}
             onClick={session.back}
           >
@@ -293,19 +295,17 @@ export default function PhysicalExplorer({
           <nav aria-label="Breadcrumbs" className="crumbs">
             {crumbs.map((c, i) => (
               <Fragment key={`${c.location.level}:${c.label}`}>
-                {i > 0 && (
-                  <span className="crumb-sep" aria-hidden>
-                    ›
-                  </span>
-                )}
+                {i > 0 && <PlaceSep className="crumb-sep" />}
                 {i === crumbs.length - 1 ? (
-                  <strong aria-current="page">{c.label}</strong>
+                  <strong aria-current="page">
+                    {i === 0 ? c.label : <Name text={c.label} />}
+                  </strong>
                 ) : (
                   <button
                     className="crumb-link"
                     onClick={() => session.navigate(c.location)}
                   >
-                    {c.label}
+                    {i === 0 ? c.label : <Name text={c.label} />}
                   </button>
                 )}
               </Fragment>

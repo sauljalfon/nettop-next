@@ -1,5 +1,7 @@
 import type { Equipment } from '../../shared/types'
 import type { UplinksState } from './useUplinks'
+import Name from '../../shared/ui/Name'
+import PlacePath from '../../shared/ui/PlacePath'
 import './paths.css'
 
 interface Props {
@@ -18,7 +20,7 @@ export default function UplinksSummary({
   selectedEndpointId,
   onSelect,
 }: Props) {
-  const name = <bdi>{equipment.name}</bdi>
+  const name = <Name text={equipment.name} />
   const { data } = state
   let body
   if (equipment.role === 'aggregation' || equipment.role === 'backbone') {
@@ -32,7 +34,7 @@ export default function UplinksSummary({
     body = (
       <p className="uplinks-empty" role="alert">
         {state.error.message}{' '}
-        <button type="button" className="outline-button" onClick={state.retry}>
+        <button type="button" className="btn" onClick={state.retry}>
           Retry
         </button>
       </p>
@@ -60,11 +62,11 @@ export default function UplinksSummary({
               onClick={() => onSelect(line.startEndpointId)}
             >
               <span className="uplink-port">
-                <bdi>{line.port}</bdi>
+                <Name text={line.port} />
               </span>
               <span className="uplink-dest">
-                → <bdi>{line.destinationName}</bdi> ·{' '}
-                <bdi>{line.destinationPort}</bdi>
+                → <Name text={line.destinationName} /> ·{' '}
+                <Name text={line.destinationPort} />
                 <span className={`uplink-tag ${line.role.toLowerCase()}`}>
                   {line.role}
                 </span>
@@ -74,7 +76,7 @@ export default function UplinksSummary({
               </span>
               {line.via.length > 0 && (
                 <span className="uplink-via" title={`via ${via}`}>
-                  via <bdi>{via}</bdi>
+                  via <PlacePath parts={line.via} />
                 </span>
               )}
             </button>

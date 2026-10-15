@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { Equipment, Rack } from '../../shared/types'
 import LocationPicker from '../patching/LocationPicker'
 import type { SiteBranch } from '../patching/patching'
+import Field from '../../shared/ui/Field'
+import './planning.css'
 
 export default function PlacementEditor({
   equipment,
@@ -40,19 +42,21 @@ export default function PlacementEditor({
         disabled={pending}
         onChange={setRackID}
       />
-      <label>
-        Placement unit
-        <input
-          type="number"
-          min={1}
-          max={racks.find((r) => r.id === rackID)?.units ?? 100}
-          required
-          value={unit}
-          disabled={pending}
-          onChange={(e) => setUnit(Number(e.target.value))}
-        />
-      </label>
-      <button className="button" disabled={pending || !rackID}>
+      <Field label="Placement unit">
+        {(id) => (
+          <input
+            id={id}
+            type="number"
+            min={1}
+            max={racks.find((r) => r.id === rackID)?.units ?? 100}
+            required
+            value={unit}
+            disabled={pending}
+            onChange={(e) => setUnit(Number(e.target.value))}
+          />
+        )}
+      </Field>
+      <button className="btn" disabled={pending || !rackID}>
         {pending ? 'Saving placement…' : 'Save planned placement'}
       </button>
     </form>

@@ -32,7 +32,7 @@ export default function CopyRackLayout({
     <>
       <button
         type="button"
-        className="button"
+        className="btn"
         data-opener={key}
         aria-label={`Copy rack layout into ${name}…`}
         ref={button}
@@ -105,7 +105,7 @@ function CopyBox({
       label="Copy rack layout"
       openerKey={openerKey}
       onClose={onClose}
-      className="connect-box connect-range copy-popover nodrag nopan"
+      className="connect-box connect-range proposes copy-popover nodrag nopan"
       style={style}
     >
       <LocationPicker
@@ -130,9 +130,9 @@ function CopyBox({
         describe={(l) => `U${l.unit}  ${l.sourceName} → ${l.name}`}
       />
       <EditError message={action.error} />
-      <div className="inline-row">
+      <div className="form-actions">
         <button
-          className="button primary"
+          className="btn primary"
           disabled={!ready}
           onClick={() =>
             void action
@@ -151,7 +151,7 @@ function CopyBox({
         >
           {lines.length > 0 ? `Copy ${lines.length}` : 'Copy'}
         </button>
-        <button className="button" onClick={onClose}>
+        <button className="btn" onClick={onClose}>
           Cancel
         </button>
       </div>

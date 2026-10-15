@@ -42,10 +42,16 @@ it('the plan selector never offers recorded plans and marks stale drafts', () =>
     plan({ id: 'c', baseRevision: 'old' }),
   ]
   expect(draftsOf(plans).map((p) => p.id)).toEqual(['a', 'c'])
-  expect(planOption(plans[0], 'r1')).toBe('Expansion · revision 3')
+  expect(planOption(plans[0], 'r1')).toBe('Expansion · \u200erevision 3')
   expect(planOption(plans[2], 'r1')).toBe(
-    'Expansion · revision 3 · behind Installed',
+    'Expansion · \u200erevision 3 · behind Installed',
   )
+})
+
+it('a Hebrew plan name ending in a digit keeps its place in the selector option', () => {
+  const hebrew = plan({ name: 'הרחבה 3', revision: '2' })
+  // The mark after the separator stops the digits after the name running into it.
+  expect(planOption(hebrew, 'r1')).toBe('הרחבה 3 · \u200erevision 2')
 })
 
 it('recorded plans are listed newest first with who, when and why', () => {

@@ -7,38 +7,44 @@ import {
   unitLabel,
 } from './cabinet'
 
-describe('RK-01 a rack fits the available height', () => {
-  it('gives a roomy rack up to 30 px a unit and a 2 px gap, and 42U about 17 px', () => {
+describe('D33 a 1U row is max(26 px, what fits), capped at 30 px, with a 2 px gap', () => {
+  it('gives a roomy rack 30 px a unit', () => {
     expect(rackMetrics(800, 12)).toEqual({ unitPx: 30, gap: 2 })
-    expect(rackMetrics(800, 42)).toEqual({ unitPx: 17, gap: 2 })
+    expect(rackMetrics(1400, 42)).toEqual({ unitPx: 30, gap: 2 })
   })
 
-  it('a tight rack shrinks to a 1 px gap and units below 14 px so it still fits', () => {
-    // 594 px for 42U (a 1440×900 window with a results panel): 13 px units.
-    expect(rackMetrics(594, 42)).toEqual({ unitPx: 13, gap: 1 })
-    // 414 px for 42U (1280×720): 8 px units.
-    expect(rackMetrics(414, 42)).toEqual({ unitPx: 8, gap: 1 })
+  it('a tall rack never shrinks below 26 px; it scrolls instead', () => {
+    expect(rackMetrics(800, 42)).toEqual({ unitPx: 26, gap: 2 })
+    expect(rackMetrics(594, 42)).toEqual({ unitPx: 26, gap: 2 })
+    expect(rackMetrics(0, 12)).toEqual({ unitPx: 26, gap: 2 })
+    expect(rackMetrics(100, 42)).toEqual({ unitPx: 26, gap: 2 })
+    expect(rackMetrics(500, 0)).toEqual({ unitPx: 26, gap: 2 })
   })
 
-  it('never goes below 7 px; then the page scrolls', () => {
-    expect(rackMetrics(100, 42)).toEqual({ unitPx: 7, gap: 1 })
-    expect(rackMetrics(0, 12)).toEqual({ unitPx: 7, gap: 1 })
+  it('the gap is always 2 and the unit is always 26 to 30 px', () => {
+    for (const units of [1, 12, 20, 42, 60])
+      for (const space of [0, 300, 414, 594, 700, 900, 1400]) {
+        const m = rackMetrics(space, units)
+        expect(m.gap).toBe(2)
+        expect(m.unitPx).toBeGreaterThanOrEqual(26)
+        expect(m.unitPx).toBeLessThanOrEqual(30)
+      }
   })
 
   it('a taller rack never gets a taller unit', () => {
-    expect(rackMetrics(700, 42).unitPx).toBeLessThanOrEqual(
-      rackMetrics(700, 24).unitPx,
+    expect(rackMetrics(1100, 42).unitPx).toBeLessThanOrEqual(
+      rackMetrics(1100, 24).unitPx,
     )
-    expect(rackMetrics(700, 24).unitPx).toBeLessThanOrEqual(
-      rackMetrics(700, 12).unitPx,
+    expect(rackMetrics(1100, 24).unitPx).toBeLessThanOrEqual(
+      rackMetrics(1100, 12).unitPx,
     )
   })
 
-  it('the whole rack, gaps included, fits its space unless the minimum applies', () => {
+  it('when the rack fits, the whole rack, gaps included, fits its space', () => {
     for (const units of [12, 20, 42])
-      for (const space of [300, 414, 500, 594, 700, 900]) {
+      for (const space of [300, 594, 900, 1200, 1400]) {
         const m = rackMetrics(space, units)
-        if (m.unitPx > 7)
+        if (m.unitPx > 26)
           expect(m.unitPx * units + m.gap * (units - 1)).toBeLessThanOrEqual(
             space,
           )

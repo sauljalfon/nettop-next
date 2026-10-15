@@ -1,4 +1,4 @@
-/* Type scale and colors come from the inspector's port table (inspector.css). */
+/* The table follows the inspector's port table (inspector.css). */
 .network-table .col-dot {
   width: 18px;
   padding-left: 8px;
@@ -6,6 +6,10 @@
 }
 .network-table td {
   vertical-align: middle;
+  font-size: var(--t-sm);
+}
+.network-table .col-label {
+  font-family: var(--sans);
 }
 .network-swatch {
   display: block;
@@ -18,7 +22,7 @@
 }
 .network-table .network-count {
   white-space: nowrap;
-  color: #8390a4;
+  color: var(--ink-soft);
 }
 .network-editing {
   display: flex;
@@ -28,16 +32,17 @@
 .network-input {
   flex: 1;
   min-width: 0;
-  height: 22px;
+  height: 26px;
   box-sizing: border-box;
   /* The text lines up with the network names: the box hangs out by the cell's padding. */
   padding: 0 6px 0 3px;
   margin-left: -4px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--t-sm);
   font-weight: 600;
-  border: 1px solid #c9d2e0;
-  border-radius: 5px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--paper);
 }
 .network-edit-actions {
   display: inline-flex;
@@ -54,24 +59,24 @@
   padding: 4px;
   border: 0;
   background: none;
-  font-size: 11px;
-  color: #8390a4;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
   cursor: pointer;
 }
 .network-add:hover,
 .network-add:focus-visible {
-  color: #5645b6;
+  color: var(--ink);
 }
 .network-error td {
   padding: 0 4px 4px 22px;
-  border-bottom: 1px solid #eef1f6;
+  border-bottom: 1px solid var(--rule-soft);
 }
 .field-error {
-  color: #b3261e;
-  font-size: 11px;
+  color: var(--danger);
+  font-size: var(--t-xs);
 }
 .network-note {
   margin: 8px 4px 0;
-  font-size: 11px;
-  color: #8390a4;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
 }

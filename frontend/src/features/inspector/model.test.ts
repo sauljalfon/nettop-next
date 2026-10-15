@@ -322,3 +322,32 @@ describe('F05 a row opens its endpoint in Physical', () => {
     expect(unit('EDGE-17', 'EDGE-17:p5').physicalEndpointId).toBe('EDGE-17:p5')
   })
 })
+
+describe('VP-03 far ends carry pieces', () => {
+  const text = (pieces: readonly ({ text: string } | { name: string })[]) =>
+    pieces.map((x) => ('name' in x ? x.name : x.text)).join('')
+
+  it('farPieces join to farLabel and farShortPieces to shortFarLabel, for every cable', () => {
+    let seen = 0
+    for (const e of s.equipment)
+      for (const g of groups(e.id))
+        for (const u of g.units)
+          for (const side of u.sides) {
+            if (!side.cable) continue
+            seen++
+            expect(text(side.cable.farPieces)).toBe(side.cable.farLabel)
+            expect(text(side.cable.farShortPieces)).toBe(
+              shortFarLabel(side.cable.farLabel),
+            )
+            expect(side.cable.farPieces.some((x) => 'name' in x)).toBe(true)
+          }
+    expect(seen).toBeGreaterThan(10)
+  })
+
+  it('keeps the equipment and the position as separate names', () => {
+    const side = groups('PANEL-A')[0].units[0].sides.find((x) => x.cable)!
+    expect(side.cable!.farShortPieces.filter((x) => 'name' in x)).toHaveLength(
+      2,
+    )
+  })
+})

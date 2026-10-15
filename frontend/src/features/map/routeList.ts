@@ -1,3 +1,4 @@
+import type { TextPiece } from '../../shared/textPieces'
 import type {
   Route,
   Snapshot,
@@ -7,6 +8,7 @@ import type {
 import {
   destinationOf,
   routeOptionLabel,
+  routeOptionPieces,
   type Destination,
 } from '../pathfinding/results'
 
@@ -19,6 +21,8 @@ export interface RouteRow {
   /** Index into result.routes, the order the engine returned (AGG first). */
   index: number
   label: string
+  /** The label with each name as its own piece. */
+  pieces: TextPiece[]
   destination?: Destination
   counts: string
 }
@@ -30,6 +34,7 @@ export function routeRows(s: Snapshot, result: TraceResult): RouteRow[] {
     return {
       index,
       label: routeOptionLabel(s, route),
+      pieces: routeOptionPieces(s, route),
       destination: destinationOf(s, route),
       counts: `${cables} cables · ${bridges} internal bridges`,
     }

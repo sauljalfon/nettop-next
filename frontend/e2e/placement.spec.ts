@@ -176,8 +176,9 @@ test('P2-1 the Add form picks its rack as Site › Node › Rack, starting at th
   await expect(level('Site')).toHaveValue('site-main-campus')
   await expect(level('Node')).toHaveValue('node-building-a')
   await expect(level('Rack')).toHaveValue('rack-a03')
+  // A left-to-right mark after "· " keeps a Hebrew rack name in place (optionText).
   await expect(level('Rack').locator('option:checked')).toHaveText(
-    'Rack A03 · 12U',
+    'Rack A03 · \u200E12U',
   )
   // A site change moves Node and Rack to that site's first.
   await level('Site').selectOption('site-dr')

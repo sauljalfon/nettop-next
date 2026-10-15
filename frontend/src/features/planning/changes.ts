@@ -1,5 +1,6 @@
 import type { Plan, PlanConflict } from '../../shared/types'
 import { plural } from '../physical/text'
+import { optionText } from '../../shared/textPieces'
 
 export const MAX_NOTE = 500
 export const MAX_RECORDED_BY = 100
@@ -20,7 +21,12 @@ export const recordedOf = (plans: readonly Plan[]) =>
 
 /** The plan selector's text: a stale draft says it is behind Installed. */
 export const planOption = (plan: Plan, installedRevision: string) =>
-  `${plan.name} · revision ${plan.revision}${isStale(plan, installedRevision) ? ' · behind Installed' : ''}`
+  optionText([
+    { name: plan.name },
+    {
+      text: ` · revision ${plan.revision}${isStale(plan, installedRevision) ? ' · behind Installed' : ''}`,
+    },
+  ])
 
 /** "Recorded on 9 Oct 2026, 14:25 by Dana Cohen · Installed EDGE-18". */
 export function recordedLine(plan: Plan, locale = 'en-GB') {

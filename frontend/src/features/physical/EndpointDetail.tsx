@@ -1,8 +1,11 @@
 import { Crosshair, GitFork } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { Sheet } from '../paths/sheet'
 import WalkSheet from '../paths/WalkSheet'
 import type { ChainItem, DetailModel } from './equipmentModel'
+import Name from '../../shared/ui/Name'
+import PlacePath from '../../shared/ui/PlacePath'
+import Chip from '../../shared/ui/Chip'
 
 /**
  * The selected endpoint as one white card: its label, the network and route
@@ -40,8 +43,8 @@ export default function EndpointDetail({
 }) {
   if (!model)
     return (
-      <aside className="endpoint-detail" data-testid="endpoint-detail">
-        <p className="phys-label">ENDPOINT</p>
+      <aside className="endpoint-detail endpoint" data-testid="endpoint-detail">
+        <p className="phys-label">Endpoint</p>
         <p className="phys-muted">
           Select a port or position to see its cable and its peer.
         </p>
@@ -49,18 +52,20 @@ export default function EndpointDetail({
     )
   const self = chain.find((i) => i.kind === 'box' && i.role === 'self')
   return (
-    <aside className="endpoint-detail" data-testid="endpoint-detail">
+    <aside className="endpoint-detail endpoint" data-testid="endpoint-detail">
       <header className="detail-head">
         <div>
-          <h3 className="detail-label">{model.label}</h3>
+          <h3 className="detail-label">
+            <Name text={model.label} />
+          </h3>
           <p className="detail-sub">
-            {model.equipmentName}
+            <Name text={model.equipmentName} />
             {model.side && ` · ${model.side}`}
           </p>
         </div>
         <div className="detail-icons">
           <button
-            className="row-action"
+            className="btn quiet detail-icon"
             aria-label="Find AGG / BB from here"
             title="Find AGG / BB from here"
             onClick={() => onFind(model.endpointId)}
@@ -68,7 +73,7 @@ export default function EndpointDetail({
             <GitFork size={14} />
           </button>
           <button
-            className="row-action"
+            className="btn quiet detail-icon"
             aria-label="Show on map"
             title="Show on map"
             onClick={onShowOnMap}
@@ -79,15 +84,14 @@ export default function EndpointDetail({
       </header>
       <div className="detail-chips">
         {model.networkName && (
-          <span
-            className="phys-badge"
-            style={{ color: networkColor, borderColor: networkColor }}
-          >
-            {model.networkName}
-          </span>
+          <Chip kind="network" color={networkColor}>
+            <Name text={model.networkName} />
+          </Chip>
         )}
         {routeName && self?.onRoute && (
-          <span className="route-pill">on route {routeName}</span>
+          <Chip kind="route" className="route-pill">
+            on route <Name text={routeName} />
+          </Chip>
         )}
       </div>
       {model.fiberPair && (
@@ -115,6 +119,11 @@ export default function EndpointDetail({
                   data-testid="chain-link"
                   data-link={item.link}
                   data-on-route={item.onRoute}
+                  style={
+                    item.link !== 'bridge' && networkColor
+                      ? ({ '--net': networkColor } as CSSProperties)
+                      : undefined
+                  }
                 >
                   <span className="chain-line" />
                   <small>{item.label}</small>
@@ -173,8 +182,16 @@ function ChainBox({
         : `Go to ${item.title}`
   const inner = (
     <>
-      <strong>{item.title}</strong>
-      {item.sub && <small>{item.sub}</small>}
+      <strong>
+        <Name text={item.title} />
+      </strong>
+      {item.place && item.place.length > 0 ? (
+        <small>
+          <PlacePath parts={item.place} />
+        </small>
+      ) : (
+        item.sub && <small>{item.sub}</small>
+      )}
     </>
   )
   return (

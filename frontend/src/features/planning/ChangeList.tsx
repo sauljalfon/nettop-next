@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Pieces from '../../shared/ui/Pieces'
 import { errorMessage } from './editing'
 import { groupLines, type ChangeLine, type GoTarget } from './summary'
 import './changes.css'
@@ -33,7 +34,8 @@ export default function ChangeList({
           data-group={group}
         >
           <h3>
-            {group} · {items.length}
+            {group}
+            <span className="count"> · {items.length}</span>
           </h3>
           {items.map((line) => (
             <div
@@ -45,15 +47,15 @@ export default function ChangeList({
               <span className="what">
                 {line.go && onGo ? (
                   <button className="link" onClick={() => onGo(line.go!)}>
-                    {line.text}
+                    <Pieces pieces={line.pieces} />
                   </button>
                 ) : (
-                  line.text
+                  <Pieces pieces={line.pieces} />
                 )}
               </span>
               {onUndo && (
                 <button
-                  className="button"
+                  className="btn quiet"
                   aria-label={`Undo: ${line.text}`}
                   disabled={busy !== undefined}
                   onClick={() => {

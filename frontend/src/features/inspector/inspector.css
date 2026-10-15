@@ -1,18 +1,18 @@
-/* Type scale: 15 name · 12 body · 11 secondary (muted). Spacing: 4 / 8 / 12 / 16. */
+/* Type: the shared scale (--t-*). Spacing: 4 / 8 / 12 / 16. */
 .inspector {
-  font-size: 12px;
-  color: #2b3648;
+  font-size: var(--t-sm);
+  color: var(--ink);
 }
 
 /* The drawer content is the scroller: the header sticks to its top edge. */
 .inspector-header {
   position: sticky;
-  top: -20px; /* sticks at the scroller's edge, over its 20px padding */
+  top: -16px; /* sticks at the scroller's edge, over its 16px padding */
   z-index: 3;
-  margin: -20px -20px 12px;
-  padding: 16px 20px 0;
-  background: #fff;
-  border-bottom: 1px solid #e3e8f0;
+  margin: -16px -18px 12px;
+  padding: 16px 18px 0;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule-soft);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -25,13 +25,20 @@
 }
 
 .inspector-title .equipment-icon {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
   flex-shrink: 0;
 }
 
+.inspector-title .equipment-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
 .inspector-title h2 {
-  font-size: 15px;
+  font-size: var(--t-xl);
+  font-weight: 600;
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -45,39 +52,46 @@
 .cabling-meter {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: #6d7b90;
+  gap: 10px;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
 }
 
 .meter-bar {
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: #e6ebf3;
+  background: var(--rule-soft);
   overflow: hidden;
 }
 
 .meter-bar span {
   display: block;
   height: 100%;
-  background: #58b294;
+  background: var(--ink);
 }
 
 .inspector-header .location-breadcrumb {
   margin: 0;
-  font-size: 11px;
-  color: #8390a4;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
 }
 
 .location-link {
   padding: 0;
   border: 0;
   background: none;
-  color: #6a5aa8;
+  color: var(--ink-soft);
   font: inherit;
-  text-decoration: underline dotted;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
   cursor: pointer;
+}
+
+.location-link:hover {
+  color: var(--ink);
+  text-decoration-color: var(--ink);
 }
 
 .inspector-actions {
@@ -86,67 +100,71 @@
   gap: 8px;
 }
 
-.inspector-actions .button {
+.inspector-actions .btn {
   width: auto;
   flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  padding: 6px 10px;
 }
 
 .inspector-tabs {
   display: flex;
-  gap: 16px;
+  gap: 2px;
   margin-top: 4px;
 }
 
 .inspector-tabs button {
   border: 0;
   border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* the underline sits on the header's rule */
   background: none;
-  padding: 6px 0;
-  font-size: 12px;
-  color: #728097;
+  padding: 8px 10px;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
   cursor: pointer;
 }
 
 .inspector-tabs button[aria-selected='true'] {
-  color: #5645b6;
-  border-bottom-color: #5645b6;
-  font-weight: 600;
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+  font-weight: 500;
 }
 
+/* Headings are .section-title; this only spaces them. */
 .inspector-section {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  color: #8390a4;
   margin: 16px 0 8px;
 }
 
+.inspector .details-head .btn {
+  height: 26px;
+  font-weight: 400;
+}
+
+/* Key / value lists: a 120px label column. */
 .detail-list {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  font-size: var(--t-sm);
 }
 
 .detail-list > div {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
   gap: 12px;
 }
 
 .detail-list dt {
-  color: #8390a4;
+  color: var(--ink-soft);
 }
 
 .detail-list dd {
   margin: 0;
-  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-list dd.empty {
+  color: var(--ink-soft);
 }
 
 .network-counts {
@@ -172,67 +190,69 @@
 
 .port-controls .segmented {
   display: flex;
-  border: 1px solid #dfe4ee;
-  border-radius: 7px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
   overflow: hidden;
   flex-shrink: 0;
 }
 
 .port-controls .segmented button {
   border: 0;
-  background: white;
+  background: var(--paper);
   padding: 6px 9px;
-  font-size: 11px;
-  color: #728097;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
 }
 
 .port-controls .segmented .active {
-  background: #f0edfa;
-  color: #5645b6;
+  background: var(--paper-sunk);
+  color: var(--ink);
 }
 
 .port-controls input {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--t-xs);
   padding: 6px 8px;
-  border: 1px solid #dce4ef;
+  border: 1px solid var(--rule);
   border-radius: 6px;
 }
 
 .port-count {
-  font-size: 11px;
-  color: #8390a4;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
   margin: 8px 0 4px;
 }
 
 .port-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--t-xs);
 }
 
 .port-table thead th {
   text-align: left;
-  font-size: 11px;
+  font-size: var(--t-xs);
   font-weight: 500;
-  color: #8390a4;
-  padding: 4px 6px;
-  border-bottom: 1px solid #e3e8f0;
+  color: var(--ink-soft);
+  background: var(--paper-sunk);
+  padding: 6px;
+  border-bottom: 1px solid var(--rule);
 }
 
 .port-table td,
 .port-table tbody th {
   padding: 4px;
-  font-size: 11px;
+  font-size: var(--t-xs);
   vertical-align: top;
   text-align: left;
   font-weight: normal;
-  border-bottom: 1px solid #eef1f6;
+  border-bottom: 1px solid var(--rule-soft);
 }
 
 .port-table .col-label {
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -243,7 +263,7 @@
 }
 
 .port-table .col-far div {
-  font-size: 10.5px;
+  font-size: var(--t-xs);
   line-height: 16px;
   white-space: nowrap;
   overflow: hidden;
@@ -256,29 +276,31 @@
 }
 
 .port-table .col-cable {
-  color: #6d7b90;
+  font-family: var(--mono);
+  color: var(--ink-soft);
   white-space: nowrap;
 }
 
-.port-table .col-network .badge {
-  display: block;
-  white-space: nowrap;
-  font-size: 9px;
-  line-height: 12px;
-  padding: 1px 4px;
+.port-table .col-network .chip {
+  height: 18px;
+  padding: 0 6px;
 }
 
 .port-table .side-name {
   display: inline-block;
   min-width: 12px;
   margin-right: 3px;
-  font-size: 10px;
+  font-size: var(--t-xs);
   text-decoration: none;
-  color: #a0abbc;
+  color: var(--ink-soft);
 }
 
 .port-table .free-side {
-  color: #a3adbd;
+  color: var(--ink-soft);
+}
+
+.port-table .port-row.free .col-label {
+  font-weight: 400;
 }
 
 .port-row {
@@ -286,22 +308,22 @@
 }
 
 .port-row.free {
-  color: #8a97aa;
+  color: var(--ink-soft);
 }
 
 .port-row:hover,
 .port-row.selected {
-  background: #f6f4fc;
+  background: var(--paper-sunk);
 }
 
 .port-row:focus-visible {
-  outline: 2px solid #9d88d1;
+  outline: 2px solid var(--ink);
   outline-offset: -2px;
 }
 
 .port-group td {
   padding: 0;
-  background: #f5f7fb;
+  background: var(--paper-sunk);
 }
 
 .port-group button {
@@ -312,14 +334,14 @@
   border: 0;
   background: none;
   padding: 5px 6px;
-  font-size: 11px;
+  font-size: var(--t-xs);
   font-weight: 600;
-  color: #4b5a72;
+  color: var(--ink);
   text-align: left;
 }
 
 .port-group small {
-  color: #8390a4;
+  color: var(--ink-soft);
   font-weight: normal;
 }
 
@@ -335,20 +357,20 @@
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--r-control);
   background: transparent;
-  color: #8a97aa;
+  color: var(--ink-soft);
   cursor: pointer;
 }
 
 .row-action:hover,
 .row-action:focus-visible {
-  background: #ece8f8;
-  color: #5645b6;
+  background: var(--paper-sunk);
+  color: var(--ink);
 }
 
 .row-action.active {
-  color: #5645b6;
+  color: var(--ink);
 }
 
 @media (max-width: 640px) {

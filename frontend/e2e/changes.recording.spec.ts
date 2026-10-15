@@ -246,7 +246,7 @@ test('RC-09 a double click records once and shows the recorded plan', async ({
   ).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('status')).toContainText('Recorded 1 change from')
   const row = page.locator(`[data-testid="recorded-row"][data-plan-id="${id}"]`)
-  await expect(row).toContainText('RECORDED')
+  await expect(row).toContainText('Recorded')
   const installed = await (
     await request.get('/api/topology?context=installed')
   ).json()

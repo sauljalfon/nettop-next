@@ -1,6 +1,7 @@
 import { facetLabel } from '../map/facets'
 import type { SnapshotIndex } from '../map/snapshotIndex'
-import { readableEndpoint } from '../pathfinding/hops'
+import type { TextPiece } from '../../shared/textPieces'
+import { readableEndpoint, readableEndpointPieces } from '../pathfinding/hops'
 import {
   matchPicker,
   MAX_MATCHES,
@@ -12,6 +13,8 @@ export interface SearchRow {
   id: string
   /** "HDF-01 · 3C/5 front", or "A03 · HDF-01 · 3C/5 front ↔ HDF-02 · 2B/3 front". */
   label: string
+  /** The label with each name as its own piece. */
+  pieces: TextPiece[]
   /** What choosing it opens: the port itself, or a cable's first end. */
   openEndpointId: string
 }
@@ -21,6 +24,8 @@ export interface SearchItems {
   cables: PickerItem[]
   /** Each cable's first end. */
   firstEnd: ReadonlyMap<string, string>
+  /** The label of each port (by endpoint ID) and cable (by cable ID) as pieces. */
+  pieces: ReadonlyMap<string, TextPiece[]>
 }
 
 /**
@@ -30,9 +35,11 @@ export interface SearchItems {
  */
 export function buildSearchItems(index: SnapshotIndex): SearchItems {
   const ports: PickerItem[] = []
+  const pieces = new Map<string, TextPiece[]>()
   for (const p of index.lookup.endpoints.values()) {
     const label = readableEndpoint(index, p.id)
     ports.push({ value: p.id, label, search: `${label} ${p.label}` })
+    pieces.set(p.id, readableEndpointPieces(index, p.id))
   }
   const cables: PickerItem[] = []
   const firstEnd = new Map<string, string>()
@@ -47,9 +54,15 @@ export function buildSearchItems(index: SnapshotIndex): SearchItems {
       label: `${c.id} · ${a} ↔ ${b}`,
       search: `${c.id} ${a} ${b} ${stored}`,
     })
+    pieces.set(c.id, [
+      { text: `${c.id} · ` },
+      ...readableEndpointPieces(index, c.a),
+      { text: ' ↔ ' },
+      ...readableEndpointPieces(index, c.b),
+    ])
     firstEnd.set(c.id, c.a)
   }
-  return { ports, cables, firstEnd }
+  return { ports, cables, firstEnd, pieces }
 }
 
 /** Ports and cables matching the query (every word, any order), at most 50 each, with the rest counted. */
@@ -69,6 +82,7 @@ export function searchExplore(
       rows: ports.matches.map((m) => ({
         id: m.value,
         label: m.label,
+        pieces: items.pieces.get(m.value) ?? [{ text: m.label }],
         openEndpointId: m.value,
       })),
       more: ports.more,
@@ -77,6 +91,7 @@ export function searchExplore(
       rows: cables.matches.map((m) => ({
         id: m.value,
         label: m.label,
+        pieces: items.pieces.get(m.value) ?? [{ text: m.label }],
         openEndpointId: items.firstEnd.get(m.value) ?? '',
       })),
       more: cables.more,

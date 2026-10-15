@@ -37,10 +37,10 @@ export default function EndpointEdit({
   const key = `endpoint:${open ?? ''}:${endpointId}`
   return (
     <div className="endpoint-edit" data-testid="endpoint-edit">
-      <span className="section-label">EDIT IN THIS PLAN</span>
+      <span className="section-label">Edit in this plan</span>
       {cable ? (
         <button
-          className="button ghost-danger"
+          className="btn danger-outline"
           data-opener={`endpoint:disconnect:${endpointId}`}
           onClick={() => setOpen('disconnect')}
         >
@@ -51,7 +51,7 @@ export default function EndpointEdit({
           {(['one', 'range'] as const).map((mode) => (
             <button
               key={mode}
-              className={`button ${mode === 'one' ? 'primary' : ''}`}
+              className={`btn ${mode === 'one' ? 'primary' : ''}`}
               data-opener={`endpoint:${mode}:${endpointId}`}
               onClick={() =>
                 patchingSession.open({

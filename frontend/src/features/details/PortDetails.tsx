@@ -48,10 +48,10 @@ export default function PortDetails({
   return (
     <section className="details-section" data-testid="port-details">
       <div className="details-head">
-        <span className="section-label">PORT DETAILS</span>
+        <span className="section-label">Port details</span>
         {mode !== 'none' && !open && (
           <button
-            className="button"
+            className="btn quiet"
             data-opener={opener}
             onClick={() => setOpen(true)}
           >

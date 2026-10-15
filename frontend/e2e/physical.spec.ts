@@ -48,9 +48,11 @@ async function openMainCampus(page: Page) {
 
 test('the header title is neutral', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('.workspace-title strong')).toHaveText(
-    'Network Studio',
-  )
+  const header = page.locator('.studio-header')
+  await expect(header).not.toContainText('Network Studio')
+  await expect(header).not.toContainText('Infrastructure workspace')
+  await expect(page.locator('.brand')).toBeVisible()
+  await expect(page.locator('.brand')).toHaveText('nettop')
 })
 
 test('F01 Sites shows names, counts and the route, with no coordinates', async ({

@@ -20,6 +20,8 @@ import {
   type InspectorGroup,
   type InspectorUnit,
 } from './model'
+import Pieces from '../../shared/ui/Pieces'
+import Name from '../../shared/ui/Name'
 
 interface Props {
   equipmentName: string
@@ -259,7 +261,7 @@ function Row({
         }}
       >
         <th scope="row" className="col-label">
-          {unit.label}
+          <Name text={unit.label} />
         </th>
         <td className="col-far">
           {unit.sides.map((side) => (
@@ -276,7 +278,16 @@ function Row({
                 </abbr>
               )}
               {side.cable ? (
-                `→ ${side.side === 'port' ? side.cable.farLabel : shortFarLabel(side.cable.farLabel)}`
+                <>
+                  →{' '}
+                  <Pieces
+                    pieces={
+                      side.side === 'port'
+                        ? side.cable.farPieces
+                        : side.cable.farShortPieces
+                    }
+                  />
+                </>
               ) : (
                 <span className="free-side">free</span>
               )}

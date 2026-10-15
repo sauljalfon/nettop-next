@@ -11,6 +11,8 @@ import { MAX_RANGE } from '../planning/range'
 import type { FarTarget } from './patching'
 import { patchingSession } from './patchingSession'
 import './patching.css'
+import Name from '../../shared/ui/Name'
+import Chip from '../../shared/ui/Chip'
 
 /** Where the jack's focus returns: the jack itself. */
 export const jackSelector = (endpointId: string) =>
@@ -66,7 +68,7 @@ export default function ConnectPopover({
   }, [anchor])
 
   useEffect(() => {
-    box.current?.querySelector<HTMLElement>('.button.primary')?.focus()
+    box.current?.querySelector<HTMLElement>('.btn.primary')?.focus()
     const outside = (event: MouseEvent) => {
       if (!box.current?.contains(event.target as Node)) onClose()
     }
@@ -110,7 +112,8 @@ export default function ConnectPopover({
       }}
     >
       <h3>
-        {index.equipment.get(own ?? '')?.name} · {endpoint?.label}
+        <Name text={index.equipment.get(own ?? '')?.name ?? ''} /> ·{' '}
+        <Name text={endpoint?.label ?? ''} />
       </h3>
       <span className="quiet">Free. Where does the cable go?</span>
       <div className="modes" role="radiogroup" aria-label="How many">
@@ -145,16 +148,16 @@ export default function ConnectPopover({
       </div>
       {targets.length > 0 && (
         <>
-          <span className="eyebrow">RECENT</span>
+          <span className="eyebrow">Recent</span>
           <div className="chips">
             {targets.map((t) => (
               <button
                 key={`${t.equipmentId}:${t.side ?? ''}`}
                 type="button"
-                className="chip"
+                className="chip-button"
                 onClick={() => open(t)}
               >
-                {name(t)}
+                <Chip kind="state">{name(t)}</Chip>
               </button>
             ))}
           </div>
@@ -163,12 +166,12 @@ export default function ConnectPopover({
       <div className="row">
         <button
           type="button"
-          className="button primary"
+          className="btn primary"
           onClick={() => open(undefined)}
         >
           Choose far end…
         </button>
-        <button type="button" className="button" onClick={close}>
+        <button type="button" className="btn" onClick={close}>
           Cancel
         </button>
       </div>
