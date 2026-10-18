@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { Snapshot } from '../../shared/types'
-import { acceptanceSnapshot } from './acceptanceFixture'
+import type { Route, Snapshot } from '../../shared/types'
+import { routeMarks } from '../physical/inventory'
+import { acceptanceSnapshot, agg03Route } from './acceptanceFixture'
 import { campusSnapshot } from './campusFixture'
 import { buildFocus } from './focus'
 import { focusLayout } from './focusLayout'
@@ -18,6 +19,7 @@ function project(
     installedIds?: ReadonlySet<string>
     openGroups?: string[]
     selected?: string
+    route?: Route
   } = {},
 ) {
   const index = indexSnapshot(s)
@@ -36,6 +38,7 @@ function project(
       colors: networkColors(s.networks),
       installedIds: opts.installedIds,
       openGroups: new Set(opts.openGroups ?? []),
+      marks: opts.route ? routeMarks(index, opts.route) : undefined,
     }),
   }
 }
@@ -272,5 +275,69 @@ describe('CM-10 focus projection: ends and groups', () => {
     const line = open.edges.find((e) => e.target === groups[0].id)!
     expect(line.source).toBe('AGG-1')
     expect(line.data!.label).toEqual({ kind: 'count', count: 10 })
+  })
+})
+
+describe('CM-11 the route on Focus', () => {
+  it('lights the center, the route’s neighbour and their line, and nothing else', () => {
+    const p = project(acceptanceSnapshot(), 'EDGE-17', { route: agg03Route() })
+    const state = (id: string, type: 'focusCenter' | 'focusCard') =>
+      node(p.nodes, id, type).data.onRoute
+    expect(state('EDGE-17', 'focusCenter')).toBe(true)
+    expect(state('AGG-03', 'focusCard')).toBe(true)
+    expect(state('AGG-08', 'focusCard')).toBe(false)
+    expect(state('BB-01', 'focusCard')).toBe(false)
+    const lines = Object.fromEntries(
+      p.edges.map((e) => [e.id, (e.data as { onRoute: boolean }).onRoute]),
+    )
+    expect(lines).toEqual({
+      'line:EDGE-17|AGG-03': true,
+      'line:EDGE-17|AGG-08': false,
+      'line:EDGE-17|BB-01': false,
+    })
+    expect(p.edges[0].style).toMatchObject({ stroke: 'var(--route)' })
+  })
+
+  it('without a route nothing is on it', () => {
+    const p = project(acceptanceSnapshot(), 'EDGE-17')
+    expect(p.nodes.some((n) => 'onRoute' in n.data && n.data.onRoute)).toBe(
+      false,
+    )
+  })
+
+  it('an on-route neighbour is not dimmed by another network', () => {
+    const p = project(acceptanceSnapshot(), 'EDGE-17', {
+      route: agg03Route(),
+      networkId: 'B',
+    })
+    expect(node(p.nodes, 'AGG-03', 'focusCard').data.dimmed).toBe(false)
+    expect(node(p.nodes, 'AGG-08', 'focusCard').data.dimmed).toBe(true)
+  })
+
+  it('a group holding a route equipment is on the route, with the line from the route’s parent', () => {
+    const route: Route = {
+      start: 'AGG-1:p1',
+      end: 'SW-01:p1',
+      hops: [
+        { linkId: 'c01b', from: 'AGG-1:p1', to: 'PNL-01:1:r', kind: 'cable' },
+        {
+          linkId: 'PNL-01:b',
+          from: 'PNL-01:1:r',
+          to: 'PNL-01:1:f',
+          kind: 'internal',
+        },
+        { linkId: 'c01a', from: 'PNL-01:1:f', to: 'SW-01:p1', kind: 'cable' },
+      ],
+    } as Route
+    const p = project(campusSnapshot(), 'AGG-1', { route })
+    const groups = p.nodes.filter((n) => n.type === 'focusGroup')
+    expect(groups).toHaveLength(3)
+    expect(
+      groups.map((g) => node(p.nodes, g.id, 'focusGroup').data.onRoute),
+    ).toEqual([true, false, false])
+    expect(
+      p.edges.map((e) => (e.data as { onRoute: boolean }).onRoute),
+    ).toEqual([true, false, false])
+    expect(node(p.nodes, 'AGG-1', 'focusCenter').data.onRoute).toBe(true)
   })
 })

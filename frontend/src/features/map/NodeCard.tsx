@@ -27,9 +27,11 @@ export default function NodeCard({
   const listId = `overview-list-${data.id}`
   return (
     <article
-      className={`overview-card${data.open ? ' open' : ''}${data.proposed ? ' proposed' : ''}${data.dimmed ? ' dimmed' : ''}`}
+      className={`overview-card${data.open ? ' open' : ''}${data.proposed ? ' proposed' : ''}${data.dimmed ? ' dimmed' : ''}${data.onRoute ? ' on-route' : ''}${data.highlighted ? ' highlighted' : ''}`}
       data-node-id={data.id}
       data-proposed={data.proposed}
+      data-on-route={data.onRoute}
+      data-highlighted={data.highlighted}
       style={data.open ? undefined : { height: OVERVIEW_CARD_HEIGHT }}
     >
       <button
@@ -70,7 +72,9 @@ export default function NodeCard({
                   <li key={e.id}>
                     <button
                       type="button"
-                      className={`overview-row${data.selectedId === e.id ? ' selected' : ''}`}
+                      className={`overview-row${data.selectedId === e.id ? ' selected' : ''}${e.onRoute ? ' on-route' : ''}`}
+                      data-equipment-id={e.id}
+                      data-on-route={e.onRoute}
                       aria-current={
                         data.selectedId === e.id ? 'true' : undefined
                       }

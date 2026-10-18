@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectCenteredInVisibleArea, fitted } from './helpers'
+import { expectCenteredInVisibleArea, fitted, settledViewport } from './helpers'
 
 // CM-10. Ids are the test server's (the acceptance example): equipment ids are
 // the lower-case names. The overview arrangement is shared server state.
@@ -194,4 +194,40 @@ test('CM-10 a card the plan adds is Proposed; in Installed the same focus says i
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await expect(page.getByText('edge-18 is not in this topology.')).toBeVisible()
   await expect(page.getByRole('button', { name: '‹ Overview' })).toBeVisible()
+})
+
+test('CM-10 readability: with the inspector open on Focus on PANEL-A, no text in the canvas renders below 11px', async ({
+  page,
+}) => {
+  await focusEdge17(page)
+  await exploreChoose(page, 'PANEL-A') // choosing in Explore also opens the inspector
+  await expect(focusRoot(page)).toHaveAttribute('data-focus-id', 'panel-a')
+  await expect(page.locator('.inspector-header h2')).toHaveText('PANEL-A')
+  await expect(equipmentCard(page, 'bb-01')).toBeVisible()
+  await settledViewport(page) // the fit for this focus has finished
+  const small = await page.evaluate(() => {
+    const surface = document.querySelector(
+      '[data-view="focus"] .react-flow__viewport',
+    )!
+    const zoom = new DOMMatrix(getComputedStyle(surface).transform).a
+    const found: string[] = []
+    for (const el of surface.querySelectorAll<HTMLElement>('*')) {
+      const own = [...el.childNodes].some(
+        (n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim() !== '',
+      )
+      if (!own) continue
+      const px = parseFloat(getComputedStyle(el).fontSize) * zoom
+      if (px < 11)
+        found.push(
+          `${el.className || el.tagName}: ${px.toFixed(1)}px "${el.textContent!.trim().slice(0, 24)}"`,
+        )
+    }
+    return { zoom, found }
+  })
+  console.log(
+    'ZOOM',
+    small.zoom,
+    await page.locator('.react-flow__viewport').getAttribute('style'),
+  )
+  expect(small.found).toEqual([])
 })

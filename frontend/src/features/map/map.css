@@ -627,7 +627,8 @@
   gap: 6px;
   margin-top: 2px;
 }
-/* Count pills sit above every card, so a count is never hidden under one. */
+/* Count pills sit above every closed card, so a count is never hidden under one;
+   an open card (OPEN_Z in overviewFlow.ts) is above them, so its list is readable. */
 .overview-surface .react-flow__edgelabel-renderer {
   z-index: 20;
 }
@@ -938,4 +939,39 @@ button.focus-pill:focus-visible {
 }
 .focus-panel .num {
   font-family: var(--mono);
+}
+
+/* The selected route (teal) and a location highlight (amber), in place (locked 3). */
+.overview-card.on-route {
+  border: 2px solid var(--route);
+}
+.overview-card.highlighted {
+  border: 3px solid var(--amber);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--amber-halo) 40%, transparent);
+}
+.overview-card.on-route.highlighted {
+  border-color: var(--route);
+}
+.overview-row.on-route {
+  color: var(--ink);
+  background: var(--route-soft);
+  border-color: var(--route);
+}
+.overview-row.on-route.selected {
+  color: var(--paper);
+  background: var(--ink);
+}
+.overview-pill.on-route {
+  box-shadow: 0 0 0 2px var(--route);
+}
+.focus-card.on-route {
+  border: 2px solid var(--route);
+}
+.focus-card.center.on-route {
+  border: 3px solid var(--route);
+}
+.focus-pill.on-route {
+  color: var(--route);
+  border-color: var(--route);
+  background: var(--route-soft);
 }

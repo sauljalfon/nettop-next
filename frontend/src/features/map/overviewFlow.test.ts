@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { siteLineWidth } from '../physical/explorerModel'
 import type { MapLayout } from '../../shared/types'
-import { acceptanceSnapshot } from './acceptanceFixture'
+import { acceptanceSnapshot, agg03Route } from './acceptanceFixture'
 import { networkColors } from './networkColors'
 import { buildOverview } from './overview'
 import {
   restoreMapPosition,
   withoutMapPositions,
   withSavedMapPosition,
+  highlightedNodeIds,
   panIntoView,
   pillPoint,
   projectOverview,
@@ -18,6 +19,7 @@ import {
   siteFrames,
 } from './overviewLayout'
 import { NODE_WIDTH } from '../physical/layout'
+import { routeMarks } from '../physical/inventory'
 import { indexSnapshot } from './snapshotIndex'
 
 const s = acceptanceSnapshot()
@@ -373,5 +375,120 @@ describe('CM-09 pills are placed where no card is', () => {
       (e) => e.data!.pill,
     )
     expect(open).not.toEqual(closed)
+  })
+})
+
+describe('CM-11 the route and the highlight on the overview', () => {
+  const marks = routeMarks(index, agg03Route())
+  const run = (
+    opts: {
+      networkId?: string
+      open?: string[]
+      withRoute?: boolean
+      highlighted?: string[]
+    } = {},
+  ) => {
+    const overview = buildOverview(index, { networkId: opts.networkId })
+    const positions = overviewLayout(overview, new Map())
+    return projectOverview({
+      overview,
+      index,
+      positions,
+      frames: siteFrames(overview, positions),
+      openNodes: new Set(opts.open ?? []),
+      selected: '',
+      colors,
+      marks: opts.withRoute === false ? undefined : marks,
+      highlighted: new Set(opts.highlighted ?? []),
+    })
+  }
+  const on = (nodes: ReturnType<typeof run>['nodes'], id: string) =>
+    cardOf(nodes, id).data.onRoute
+
+  it('marks the cards of the route’s nodes and no others', () => {
+    const { nodes } = run()
+    expect(
+      ['node-a', 'node-sm', 'node-core', 'node-dr1', 'node-dr2'].map((id) =>
+        on(nodes, id),
+      ),
+    ).toEqual([true, true, true, false, false])
+  })
+
+  it('marks the pairs that carry the route’s cables (A02 and A03; A01 and A04 are inside a node)', () => {
+    const { edges } = run()
+    const state = Object.fromEntries(
+      edges.map((e) => [e.id, (e.data as { onRoute: boolean }).onRoute]),
+    )
+    expect(state).toEqual({
+      'pair:node-a:node-sm': true,
+      'pair:node-core:node-dr2': false,
+      'pair:node-core:node-sm': true,
+      'pair:node-dr1:node-sm': false,
+    })
+    const lit = edges.find((e) => e.id === 'pair:node-a:node-sm')!
+    expect(lit.style).toMatchObject({ stroke: 'var(--route)' })
+    expect(lit.style!.strokeWidth).toBeGreaterThan(siteLineWidth(3))
+    const plain = edges.find((e) => e.id === 'pair:node-dr1:node-sm')!
+    expect(plain.style).toMatchObject({ stroke: colors.get('B') })
+  })
+
+  it('is empty without a route', () => {
+    const { nodes, edges } = run({ withRoute: false })
+    expect(
+      nodes.flatMap((n) =>
+        n.type === 'overviewCard' && n.data.onRoute ? [n.id] : [],
+      ),
+    ).toEqual([])
+    expect(edges.some((e) => (e.data as { onRoute: boolean }).onRoute)).toBe(
+      false,
+    )
+  })
+
+  it('an on-route node or pair is not dimmed by the network selector (D11)', () => {
+    const { nodes, edges } = run({ networkId: 'B' })
+    // Building A is Network A only, but the route goes through it.
+    expect(cardOf(nodes, 'node-a').data.dimmed).toBe(false)
+    expect(cardOf(nodes, 'node-a').data.onRoute).toBe(true)
+    const pair = edges.find((e) => e.id === 'pair:node-a:node-sm')!
+    expect(pair.className ?? '').not.toContain('dimmed')
+    // Without the route the same node and pair are dimmed.
+    const without = run({ networkId: 'B', withRoute: false })
+    expect(cardOf(without.nodes, 'node-a').data.dimmed).toBe(true)
+    expect(
+      without.edges.find((e) => e.id === 'pair:node-a:node-sm')!.className,
+    ).toContain('dimmed')
+  })
+
+  it('an open card marks the route’s equipment rows', () => {
+    const { nodes } = run({ open: ['node-core'] })
+    const rows = cardOf(nodes, 'node-core').data.racks.flatMap(
+      (r) => r.equipment,
+    )
+    expect(Object.fromEntries(rows.map((e) => [e.id, e.onRoute]))).toEqual({
+      'AGG-03': true,
+      'HDF-02': true,
+      'AGG-08': false,
+      'AGG-15': false,
+      'BB-01': false,
+    })
+  })
+
+  it('a highlight marks a node, or every node of a site', () => {
+    const overview = buildOverview(index)
+    expect([
+      ...highlightedNodeIds(overview, { kind: 'node', id: 'node-sm' }),
+    ]).toEqual(['node-sm'])
+    expect(
+      [
+        ...highlightedNodeIds(overview, { kind: 'site', id: 'site-main' }),
+      ].sort(),
+    ).toEqual(['node-a', 'node-core', 'node-sm'])
+    expect(
+      highlightedNodeIds(overview, { kind: 'node', id: 'gone' }).size,
+    ).toBe(0)
+    expect(highlightedNodeIds(overview, undefined).size).toBe(0)
+    const { nodes } = run({ highlighted: ['node-sm'] })
+    expect(cardOf(nodes, 'node-sm').data.highlighted).toBe(true)
+    expect(cardOf(nodes, 'node-a').data.highlighted).toBe(false)
   })
 })

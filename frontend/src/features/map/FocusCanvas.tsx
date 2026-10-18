@@ -27,10 +27,11 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import type { Snapshot } from '../../shared/types'
+import type { Route, Snapshot } from '../../shared/types'
 import Chip from '../../shared/ui/Chip'
 import Name from '../../shared/ui/Name'
 import PlacePath from '../../shared/ui/PlacePath'
+import { routeMarks } from '../physical/inventory'
 import { OPENER, useInlineDialog } from '../planning/useInlineDialog'
 import RouteDiagram from '../paths/RouteDiagram'
 import type { Sheet } from '../paths/sheet'
@@ -109,9 +110,10 @@ const EquipmentCard = memo(function EquipmentCard({
   const { colors, networkName } = useContext(Names)
   return (
     <article
-      className={`focus-card${center ? ' center' : ''}${data.proposed ? ' proposed' : ''}${data.dimmed ? ' dimmed' : ''}${data.selected ? ' selected' : ''}`}
+      className={`focus-card${center ? ' center' : ''}${data.proposed ? ' proposed' : ''}${data.dimmed ? ' dimmed' : ''}${data.selected ? ' selected' : ''}${data.onRoute ? ' on-route' : ''}`}
       data-equipment-id={data.equipmentId}
       data-side={data.side}
+      data-on-route={data.onRoute}
     >
       <Handles />
       <button
@@ -159,9 +161,10 @@ const GroupView = memo(function GroupView({ data }: NodeProps<FocusGroupNode>) {
   const { onFocus, onSelect, onToggleGroup } = useContext(Actions)
   return (
     <article
-      className={`focus-card focus-group${data.open ? ' open' : ''}`}
+      className={`focus-card focus-group${data.open ? ' open' : ''}${data.onRoute ? ' on-route' : ''}`}
       data-group-node={data.nodeId ?? ''}
       data-side={data.side}
+      data-on-route={data.onRoute}
     >
       <Handles />
       <button
@@ -281,7 +284,8 @@ function FocusLine(props: EdgeProps) {
           {data.circuits.length > 0 ? (
             <button
               type="button"
-              className="focus-pill nodrag nopan"
+              className={`focus-pill nodrag nopan${data.onRoute ? ' on-route' : ''}`}
+              data-on-route={data.onRoute}
               data-line={key}
               {...{ [OPENER]: props.id }}
               style={style}
@@ -291,7 +295,8 @@ function FocusLine(props: EdgeProps) {
             </button>
           ) : (
             <span
-              className="focus-pill group nodrag nopan"
+              className={`focus-pill group nodrag nopan${data.onRoute ? ' on-route' : ''}`}
+              data-on-route={data.onRoute}
               data-line={key}
               style={style}
             >
@@ -385,6 +390,8 @@ export interface FocusProps {
   onSelect: (equipmentId: string) => void
   /** Find AGG / BB from one exact endpoint. */
   onPort: (endpointId: string) => void
+  /** The selected route: its equipment and lines are lit, nothing moves. */
+  route?: Route
   routeSheet?: Sheet
   onRouteStep?: (endpointId: string) => void
   session?: MapSession
@@ -406,6 +413,7 @@ function Canvas({
   networkId,
   onSelect,
   onPort,
+  route,
   routeSheet,
   onRouteStep,
   session = mapSession,
@@ -434,12 +442,21 @@ function Canvas({
   )
   const names = useMemo(() => ({ colors, networkName }), [colors, networkName])
 
+  // A location highlight changes nothing here; its fit request is not left for
+  // the overview to replay later.
+  const fitRequest = useSyncExternalStore(session.subscribe, session.fitRequest)
+  useEffect(() => {
+    if (fitRequest && fitRequest.serial > session.fitHandled())
+      session.markFitHandled(fitRequest.serial)
+  }, [fitRequest, session])
+
   const known = index.equipment.has(focusId)
   const focus = useMemo(
     () => buildFocus(index, focusId, { hops }),
     [index, focusId, hops],
   )
   const layout = useMemo(() => focusLayout(index, focus), [index, focus])
+  const marks = useMemo(() => routeMarks(index, route), [index, route])
   const projected = useMemo(
     () =>
       projectFocus({
@@ -451,6 +468,7 @@ function Canvas({
         colors,
         installedIds,
         openGroups,
+        marks,
       }),
     [
       index,
@@ -461,6 +479,7 @@ function Canvas({
       colors,
       installedIds,
       openGroups,
+      marks,
     ],
   )
 

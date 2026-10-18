@@ -8,6 +8,8 @@ import {
   type Rect,
 } from '../physical/layout'
 import { colorOf } from './networkColors'
+import type { RouteMarks } from '../physical/inventory'
+import type { LocationRef } from './highlight'
 import type { Overview, OverviewNode } from './overview'
 import { OVERVIEW_CARD_HEIGHT, type SiteFrame } from './overviewLayout'
 import type { SnapshotIndex } from './snapshotIndex'
@@ -15,7 +17,7 @@ import type { SnapshotIndex } from './snapshotIndex'
 export interface OverviewRack {
   id: string
   name: string
-  equipment: { id: string; name: string; unit: number }[]
+  equipment: { id: string; name: string; unit: number; onRoute: boolean }[]
 }
 
 export interface OverviewCardData extends Record<string, unknown> {
@@ -30,6 +32,10 @@ export interface OverviewCardData extends Record<string, unknown> {
   racks: OverviewRack[]
   /** Set only on the card that holds the selected equipment. */
   selectedId?: string
+  /** The selected route passes through this node (teal; never dimmed). */
+  onRoute: boolean
+  /** The location highlight marks this node (amber). */
+  highlighted: boolean
 }
 
 export type OverviewCardNode = Node<OverviewCardData, 'overviewCard'>
@@ -43,14 +49,17 @@ export interface OverviewLineData extends Record<string, unknown> {
   names: [string, string]
   pair: string
   dimmed: boolean
+  /** A cable of the selected route is among the pair's cables. */
+  onRoute: boolean
   /** Where the count pill is drawn: on the line, clear of every card. */
   pill: Position
 }
 
 const MIXED = 'var(--mixed-networks)'
+const ROUTE = 'var(--route)'
 /** Frames sit behind every card; an open card sits above its neighbours. */
 const FRAME_Z = -1
-const OPEN_Z = 10
+const OPEN_Z = 30
 
 const byName = (
   a: { name: string; id: string },
@@ -61,6 +70,7 @@ const byName = (
 function racksOf(
   index: SnapshotIndex,
   open: ReadonlySet<string>,
+  marks?: RouteMarks,
 ): Map<string, OverviewRack[]> {
   const byNode = new Map<string, Map<string, OverviewRack>>()
   for (const e of index.equipment.values()) {
@@ -73,7 +83,12 @@ function racksOf(
     let r = racks.get(rack.id)
     if (!r)
       racks.set(rack.id, (r = { id: rack.id, name: rack.name, equipment: [] }))
-    r.equipment.push({ id: e.id, name: e.name, unit: e.unit })
+    r.equipment.push({
+      id: e.id,
+      name: e.name,
+      unit: e.unit,
+      onRoute: !!marks?.equipment.has(e.id),
+    })
   }
   return new Map(
     [...byNode].map(([nodeId, racks]) => [
@@ -99,13 +114,19 @@ export function projectOverview(args: {
   openNodes: ReadonlySet<string>
   selected: string
   colors: ReadonlyMap<string, string>
+  /** What the selected route touches; D11: it is never dimmed. */
+  marks?: RouteMarks
+  /** Nodes the location highlight marks. */
+  highlighted?: ReadonlySet<string>
   /** Measured sizes of cards that are not the closed size (open cards). */
   sizes?: ReadonlyMap<string, { width: number; height: number }>
 }): { nodes: OverviewFlowNode[]; edges: Edge[] } {
   const { overview, index, positions, frames, openNodes, selected, colors } =
     args
   const siteName = new Map(overview.sites.map((s) => [s.id, s.name]))
-  const racks = openNodes.size ? racksOf(index, openNodes) : new Map()
+  const racks = openNodes.size
+    ? racksOf(index, openNodes, args.marks)
+    : new Map()
   const selectedNode = selected ? index.places.get(selected)?.nodeId : undefined
 
   const nodes: OverviewFlowNode[] = frames.map((f) => ({
@@ -122,6 +143,7 @@ export function projectOverview(args: {
   }))
   for (const n of overview.nodes) {
     const open = openNodes.has(n.id)
+    const onRoute = !!args.marks?.nodes.has(n.id)
     nodes.push({
       id: n.id,
       type: 'overviewCard',
@@ -134,7 +156,9 @@ export function projectOverview(args: {
         equipmentCount: n.equipmentCount,
         tags: n.tags,
         proposed: n.proposed,
-        dimmed: n.dimmed,
+        dimmed: n.dimmed && !onRoute,
+        onRoute,
+        highlighted: !!args.highlighted?.has(n.id),
         open,
         racks: open ? (racks.get(n.id) ?? []) : [],
         selectedId: selectedNode === n.id ? selected : undefined,
@@ -162,12 +186,15 @@ export function projectOverview(args: {
   const allRects = [...rects.values()]
   const edges: Edge[] = overview.pairs.map((p) => {
     const [a, b] = p.nodeIds
+    const onRoute =
+      !!args.marks && p.linkIds.some((id) => args.marks!.links.has(id))
     const data: OverviewLineData = {
       linkIds: p.linkIds,
       count: p.count,
       names: [nodeName.get(a) ?? a, nodeName.get(b) ?? b],
       pair: `${a}|${b}`,
-      dimmed: p.dimmed,
+      dimmed: p.dimmed && !onRoute,
+      onRoute,
       pill: pillPoint(centres.get(a)!, centres.get(b)!, allRects),
     }
     return {
@@ -176,12 +203,16 @@ export function projectOverview(args: {
       target: b,
       type: 'overviewLine',
       label: String(p.count),
-      className: p.dimmed ? 'dimmed' : undefined,
+      className: p.dimmed && !onRoute ? 'dimmed' : undefined,
       interactionWidth: 20,
       data,
       style: {
-        stroke: p.networkId ? colorOf(colors, p.networkId) : MIXED,
-        strokeWidth: siteLineWidth(p.count),
+        stroke: onRoute
+          ? ROUTE
+          : p.networkId
+            ? colorOf(colors, p.networkId)
+            : MIXED,
+        strokeWidth: siteLineWidth(p.count) + (onRoute ? 2 : 0),
         strokeLinecap: 'round' as const,
       },
     }
@@ -284,4 +315,19 @@ export function pillPoint(
   consider(at, 1)
   const t = best ? (best[0] + best[1]) / 2 : 0.5
   return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }
+}
+
+/** The nodes a location highlight marks: the node, or every node of the site. */
+export function highlightedNodeIds(
+  overview: Overview,
+  location: LocationRef | undefined,
+): Set<string> {
+  if (!location) return new Set()
+  return new Set(
+    overview.nodes
+      .filter(
+        (n) => (location.kind === 'node' ? n.id : n.siteId) === location.id,
+      )
+      .map((n) => n.id),
+  )
 }

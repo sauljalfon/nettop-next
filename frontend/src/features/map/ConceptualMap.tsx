@@ -392,6 +392,7 @@ export default function ConceptualMap(props: Props) {
         networkId={props.networkId}
         onSelect={props.onSelect}
         onPort={props.onPort}
+        route={props.route}
         routeSheet={props.routeSheet}
         onRouteStep={props.onRouteStep}
         session={session}
@@ -406,6 +407,7 @@ export default function ConceptualMap(props: Props) {
         selected={props.selected}
         networkId={props.networkId}
         onSelect={props.onSelect}
+        route={props.route}
         routeSheet={props.routeSheet}
         onRouteStep={props.onRouteStep}
         session={session}

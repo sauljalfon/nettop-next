@@ -1,5 +1,6 @@
 import type { Edge, Node } from '@xyflow/react'
 import type { Position, Rect } from '../physical/layout'
+import type { RouteMarks } from '../physical/inventory'
 import { cardRoleLabel } from './cardRole'
 import {
   endpointPlace,
@@ -50,6 +51,8 @@ export interface FocusLineData extends Record<string, unknown> {
   label?: FocusLabel
   /** Where the label sits: on the line, clear of every card. */
   pill: Position
+  /** A cable of the selected route is among the line's circuits. */
+  onRoute: boolean
 }
 
 export interface FocusCardData extends Record<string, unknown> {
@@ -64,6 +67,8 @@ export interface FocusCardData extends Record<string, unknown> {
   proposed: boolean
   dimmed: boolean
   selected: boolean
+  /** The selected route passes through this equipment (teal; never dimmed). */
+  onRoute: boolean
   side: 'center' | 'left' | 'right'
 }
 
@@ -76,6 +81,8 @@ export interface FocusGroupData extends Record<string, unknown> {
   open: boolean
   /** The members while the card is open. */
   members: { id: string; name: string }[]
+  /** The selected route passes through a member. */
+  onRoute: boolean
 }
 
 export interface FocusEndRow {
@@ -116,6 +123,8 @@ export function projectFocus(args: {
   /** Equipment of the installed topology; one outside it is proposed. */
   installedIds?: ReadonlySet<string>
   openGroups: ReadonlySet<string>
+  /** What the selected route touches; D11: it is never dimmed. */
+  marks?: RouteMarks
 }): { nodes: FocusFlowNode[]; edges: Edge[] } {
   const {
     index,
@@ -125,7 +134,9 @@ export function projectFocus(args: {
     networkId,
     installedIds,
     openGroups,
+    marks,
   } = args
+  const onRouteEquipment = (id: string) => !!marks?.equipment.has(id)
   const nameOf = (id: string) => index.equipment.get(id)?.name ?? id
   const steps = (via: readonly FocusStep[]): StepPiece[] =>
     via.map((v) => ({ name: nameOf(v.equipmentId), place: v.place }))
@@ -172,6 +183,7 @@ export function projectFocus(args: {
           members: open
             ? g.equipmentIds.map((id) => ({ id, name: nameOf(id) }))
             : [],
+          onRoute: g.equipmentIds.some(onRouteEquipment),
         },
       })
       continue
@@ -179,6 +191,7 @@ export function projectFocus(args: {
     const e = index.equipment.get(item.id)
     if (!e) continue
     const isCenter = item.kind === 'center'
+    const onRoute = onRouteEquipment(e.id)
     const data: FocusCardData = {
       equipmentId: e.id,
       name: e.name,
@@ -191,8 +204,10 @@ export function projectFocus(args: {
         !isCenter &&
         !!networkId &&
         e.kind === 'switch' &&
-        e.networkId !== networkId,
+        e.networkId !== networkId &&
+        !onRoute,
       selected: e.id === selected,
+      onRoute,
       side: item.side,
     }
     nodes.push({
@@ -251,7 +266,14 @@ export function projectFocus(args: {
               }
             : { kind: 'steps', steps: via, more: 0 }
     } else if (line.count > 0) label = { kind: 'count', count: line.count }
+    const onRoute =
+      !!marks &&
+      (line.circuits.length > 0
+        ? line.circuits.some((c) => c.linkIds.some((id) => marks.links.has(id)))
+        : onRouteEquipment(line.from) &&
+          !!groups.get(line.to)?.equipmentIds.some(onRouteEquipment))
     const data: FocusLineData = {
+      onRoute,
       from: line.from,
       to: line.to,
       circuits,
@@ -266,8 +288,8 @@ export function projectFocus(args: {
       interactionWidth: 20,
       data,
       style: {
-        stroke: 'var(--mixed-networks)',
-        strokeWidth: 3,
+        stroke: onRoute ? 'var(--route)' : 'var(--mixed-networks)',
+        strokeWidth: onRoute ? 5 : 3,
         strokeLinecap: 'round' as const,
       },
     }

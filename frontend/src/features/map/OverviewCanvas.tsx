@@ -29,18 +29,26 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { getMapLayout, resetMapLayout, saveMapPosition } from '../../shared/api'
-import type { MapLayout, NodePosition, Snapshot } from '../../shared/types'
+import type {
+  MapLayout,
+  NodePosition,
+  Route,
+  Snapshot,
+} from '../../shared/types'
 import RouteDiagram from '../paths/RouteDiagram'
 import type { Sheet } from '../paths/sheet'
 import { positionMarks } from '../physical/explorerModel'
+import { routeMarks } from '../physical/inventory'
 import { NODE_WIDTH, type Position as Point } from '../physical/layout'
 import { fitViewport } from './center'
-import { MapViewSwitch, ResetLayout } from './MapControls'
+import { shouldClearOnEscape } from './keys'
+import { ClearHighlight, MapViewSwitch, ResetLayout } from './MapControls'
 import { mapSession, type MapSession } from './mapSession'
 import { networkColors } from './networkColors'
 import NodeCard from './NodeCard'
 import { buildOverview } from './overview'
 import {
+  highlightedNodeIds,
   panIntoView,
   projectOverview,
   restoreMapPosition,
@@ -119,9 +127,10 @@ function OverviewLine(props: EdgeProps) {
       />
       <EdgeLabelRenderer>
         <span
-          className={`overview-pill nodrag nopan${data.dimmed ? ' dimmed' : ''}`}
+          className={`overview-pill nodrag nopan${data.dimmed ? ' dimmed' : ''}${data.onRoute ? ' on-route' : ''}`}
           role="img"
           data-pair={data.pair}
+          data-on-route={data.onRoute}
           aria-label={`${data.count} ${data.count === 1 ? 'cable' : 'cables'} between ${data.names[0]} and ${data.names[1]}`}
           style={{
             transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
@@ -146,6 +155,8 @@ export interface OverviewProps {
   selected: string
   networkId?: string
   onSelect: (equipmentId: string) => void
+  /** The selected route: its nodes and cables are lit, nothing moves. */
+  route?: Route
   /** The selected route as a walk sheet; the route view draws it over the overview. */
   routeSheet?: Sheet
   onRouteStep?: (endpointId: string) => void
@@ -239,6 +250,7 @@ function Canvas({
   selected,
   networkId,
   onSelect,
+  route,
   routeSheet,
   onRouteStep,
   session,
@@ -337,6 +349,25 @@ function Canvas({
     [overview, settled],
   )
   // Open cards are not the closed size; their lines and pills follow the measured one.
+  const marks = useMemo(() => routeMarks(index, route), [index, route])
+  const highlight = useSyncExternalStore(session.subscribe, session.highlight)
+  const highlighted = useMemo(
+    () => highlightedNodeIds(overview, highlight),
+    [overview, highlight],
+  )
+  // Esc clears the highlight without touching the trace (as on the device map).
+  useEffect(() => {
+    if (!highlight) return
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        event.key === 'Escape' &&
+        shouldClearOnEscape(event.target as HTMLElement | null)
+      )
+        session.setHighlight(undefined)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [highlight, session])
   const [sizes, setSizes] = useState<
     ReadonlyMap<string, { width: number; height: number }>
   >(new Map())
@@ -351,8 +382,21 @@ function Canvas({
         selected,
         colors,
         sizes,
+        marks,
+        highlighted,
       }),
-    [overview, index, settled, frames, openNodes, selected, colors, sizes],
+    [
+      overview,
+      index,
+      settled,
+      frames,
+      openNodes,
+      selected,
+      colors,
+      sizes,
+      marks,
+      highlighted,
+    ],
   )
 
   // Local node state carries React Flow's measurements and an in-progress drag.
@@ -488,6 +532,58 @@ function Canvas({
     [flow, session],
   )
   useEffect(() => () => cancelAnimationFrame(revealFrame.current), [])
+
+  // A new location highlight (Explore) asks for one fit to the highlighted
+  // cards, at zoom 1 or less. Each request is handled once, by whichever map
+  // sees it first, so a remount never replays it. Cards not measured yet are
+  // waited for.
+  const fitRequest = useSyncExternalStore(session.subscribe, session.fitRequest)
+  useEffect(() => {
+    if (!fitRequest || fitRequest.serial <= session.fitHandled()) return
+    let second = 0
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        const ids = highlighted.size
+          ? [...highlighted]
+          : [
+              ...new Set(
+                fitRequest.ids.flatMap((id) => {
+                  const node = index.places.get(id)?.nodeId
+                  return node ? [node] : []
+                }),
+              ),
+            ]
+        if (ids.length === 0) return session.markFitHandled(fitRequest.serial)
+        const boxes = ids.map((id) => flow.getInternalNode(id))
+        const where = visibleArea(surface.current)
+        if (!where || boxes.some((b) => !b?.measured.width)) return // retried when the nodes change
+        session.markFitHandled(fitRequest.serial)
+        const xs = boxes.flatMap((b) => [
+          b!.internals.positionAbsolute.x,
+          b!.internals.positionAbsolute.x + b!.measured.width!,
+        ])
+        const ys = boxes.flatMap((b) => [
+          b!.internals.positionAbsolute.y,
+          b!.internals.positionAbsolute.y + (b!.measured.height ?? 0),
+        ])
+        const bounds = {
+          x: Math.min(...xs),
+          y: Math.min(...ys),
+          width: Math.max(...xs) - Math.min(...xs),
+          height: Math.max(...ys) - Math.min(...ys),
+        }
+        void flow
+          .setViewport(fitViewport(bounds, where.box, where.covers, FIT), {
+            duration: 300,
+          })
+          .then(() => session.setOverviewViewport(flow.getViewport()))
+      })
+    })
+    return () => {
+      cancelAnimationFrame(first)
+      cancelAnimationFrame(second)
+    }
+  }, [fitRequest, nodes, highlighted, index, flow, session])
   const actions = useMemo(
     () => ({
       onToggle: (id: string) => {
@@ -567,6 +663,11 @@ function Canvas({
               {!active && (
                 <>
                   <MapViewSwitch view="overview" onChange={session.setView} />
+                  {highlight && (
+                    <ClearHighlight
+                      onClear={() => session.setHighlight(undefined)}
+                    />
+                  )}
                   <ResetLayout label="Reset arrangement" onReset={onReset} />
                 </>
               )}
