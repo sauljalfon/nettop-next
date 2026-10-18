@@ -14,9 +14,12 @@ import {
   createNetwork,
   fixInstalled,
   getChangeLog,
+  getMapLayout,
   getSiteLayout,
   renameNetwork,
+  resetMapLayout,
   resetSiteLayout,
+  saveMapPosition,
   saveNodePosition,
 } from './api'
 
@@ -107,6 +110,34 @@ it('PHY-17 client: reset sends DELETE and surfaces the server error', async () =
   await expect(resetSiteLayout('gone')).rejects.toMatchObject({
     status: 404,
     message: 'Site not found',
+  })
+})
+
+it('CM-01 client: reads the map layout, saves one node position by ID and resets', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ positions: [] }),
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  await getMapLayout()
+  expect(fetchMock.mock.calls[0][0]).toBe('/api/map-layout')
+  await saveMapPosition('n 2/x', { x: 1.5, y: -2 })
+  const [url, init] = fetchMock.mock.calls[1]
+  expect(url).toBe('/api/map-layout/nodes/n%202%2Fx')
+  expect(init.method).toBe('PUT')
+  expect(JSON.parse(init.body)).toEqual({ x: 1.5, y: -2 })
+  fetchMock.mockResolvedValue({ ok: true, status: 204 })
+  await resetMapLayout()
+  expect(fetchMock.mock.calls[2][0]).toBe('/api/map-layout')
+  expect(fetchMock.mock.calls[2][1].method).toBe('DELETE')
+  fetchMock.mockResolvedValue({
+    ok: false,
+    status: 500,
+    json: async () => ({ error: 'boom' }),
+  })
+  await expect(resetMapLayout()).rejects.toMatchObject({
+    status: 500,
+    message: 'boom',
   })
 })
 

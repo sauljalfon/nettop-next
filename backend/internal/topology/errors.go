@@ -7,6 +7,7 @@ import "errors"
 // 404, 409 and 422.
 var (
 	ErrSiteNotFound    = errors.New("site not found")
+	ErrNodeNotFound    = errors.New("node not found")
 	ErrNetworkNotFound = errors.New("network not found")
 	ErrDuplicateName   = errors.New("duplicate name")
 	ErrInvalidInput    = errors.New("invalid input")
@@ -23,6 +24,12 @@ type NodePosition struct {
 // SiteLayout lists only the nodes with a saved position.
 type SiteLayout struct {
 	SiteID    string         `json:"siteId"`
+	Positions []NodePosition `json:"positions"`
+}
+
+// MapLayout lists only the nodes with a saved position on the conceptual
+// overview, one coordinate space for the whole network.
+type MapLayout struct {
 	Positions []NodePosition `json:"positions"`
 }
 

@@ -316,6 +316,10 @@ export interface SiteLayout {
   siteId: string
   positions: NodePosition[]
 }
+/** Saved arrangement of the conceptual overview: one space for the whole network. */
+export interface MapLayout {
+  positions: NodePosition[]
+}
 export interface Rack extends RackDetails {
   nodeId: string
   id: string

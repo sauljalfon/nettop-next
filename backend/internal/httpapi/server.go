@@ -48,6 +48,9 @@ type Repository interface {
 	SiteLayout(context.Context, string) (topology.SiteLayout, error)
 	SaveNodePosition(ctx context.Context, siteID, nodeID string, x, y float64) error
 	ResetSiteLayout(context.Context, string) error
+	MapLayout(context.Context) (topology.MapLayout, error)
+	SaveMapPosition(ctx context.Context, nodeID string, x, y float64) error
+	ResetMapLayout(context.Context) error
 	CreateNetwork(context.Context, string) (topology.Network, error)
 	RenameNetwork(ctx context.Context, id, name string) (topology.Network, error)
 	// Direct fixes of installed names and details (never topology): one
@@ -96,6 +99,8 @@ func repositoryError(w http.ResponseWriter, err error) {
 		problem(w, 422, err.Error())
 	case errors.Is(err, topology.ErrSiteNotFound):
 		problem(w, 404, "Site not found")
+	case errors.Is(err, topology.ErrNodeNotFound):
+		problem(w, 404, "Node not found")
 	case errors.Is(err, topology.ErrNetworkNotFound):
 		problem(w, 404, "Network not found")
 	case errors.Is(err, fixes.ErrNotFound):
@@ -321,6 +326,42 @@ func New(repo Repository, environment string) http.Handler {
 	})
 	mux.HandleFunc("DELETE /api/sites/{siteId}/layout", func(w http.ResponseWriter, r *http.Request) {
 		if err := repo.ResetSiteLayout(r.Context(), r.PathValue("siteId")); err != nil {
+			repositoryError(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("GET /api/map-layout", func(w http.ResponseWriter, r *http.Request) {
+		layout, err := repo.MapLayout(r.Context())
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, layout)
+	})
+	mux.HandleFunc("PUT /api/map-layout/nodes/{nodeId}", func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			X *json.RawMessage `json:"x"`
+			Y *json.RawMessage `json:"y"`
+		}
+		if !decode(w, r, &input) {
+			return
+		}
+		x, xerr := coordinate(input.X)
+		y, yerr := coordinate(input.Y)
+		if err := errors.Join(xerr, yerr); err != nil {
+			repositoryError(w, fmt.Errorf("%w: x and y are required finite numbers", topology.ErrInvalidInput))
+			return
+		}
+		nodeID := r.PathValue("nodeId")
+		if err := repo.SaveMapPosition(r.Context(), nodeID, x, y); err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, topology.NodePosition{NodeID: nodeID, X: x, Y: y})
+	})
+	mux.HandleFunc("DELETE /api/map-layout", func(w http.ResponseWriter, r *http.Request) {
+		if err := repo.ResetMapLayout(r.Context()); err != nil {
 			repositoryError(w, err)
 			return
 		}

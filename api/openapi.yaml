@@ -336,6 +336,56 @@ paths:
         '404': {$ref: '#/components/responses/Error'}
         '422': {$ref: '#/components/responses/Error'}
         '500': {$ref: '#/components/responses/Error'}
+  /map-layout:
+    get:
+      operationId: getMapLayout
+      summary: Read the saved node positions of the conceptual overview
+      description: Presentation data for the overview map, shared by everyone, in one coordinate space for the whole network. Only nodes the user has moved have a position; the client places the others by default. Separate from the site screen's positions. Positions are an arrangement, never physical coordinates, and are not part of installed topology, plans, or revisions.
+      responses:
+        '200':
+          description: Saved positions, ordered by node ID; empty when none were saved
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MapLayout'}
+        '500': {$ref: '#/components/responses/Error'}
+    delete:
+      operationId: resetMapLayout
+      summary: Remove every saved overview position
+      description: Succeeds when there are none. The site screen's positions are not touched.
+      responses:
+        '204': {description: Positions removed}
+        '500': {$ref: '#/components/responses/Error'}
+  /map-layout/nodes/{nodeId}:
+    parameters:
+      - in: path
+        name: nodeId
+        required: true
+        schema: {type: string}
+    put:
+      operationId: saveMapPosition
+      summary: Save one node's overview position
+      description: Upserts the position. Concurrency is last write wins per node, with no revision check; two people moving different nodes never conflict, and the same node ends where it was last dropped. Saving a position never changes a topology revision or a plan, and does not touch the site screen's position of the node.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [x, y]
+              properties:
+                x: {type: number, minimum: -1000000, maximum: 1000000}
+                y: {type: number, minimum: -1000000, maximum: 1000000}
+      responses:
+        '200':
+          description: The saved position
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NodePosition'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
   /networks:
     post:
       operationId: createNetwork
@@ -1011,6 +1061,13 @@ components:
       required: [siteId, positions]
       properties:
         siteId: {type: string}
+        positions:
+          type: array
+          items: {$ref: '#/components/schemas/NodePosition'}
+    MapLayout:
+      type: object
+      required: [positions]
+      properties:
         positions:
           type: array
           items: {$ref: '#/components/schemas/NodePosition'}

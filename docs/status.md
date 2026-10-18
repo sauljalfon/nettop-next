@@ -2,9 +2,9 @@
 
 **This is the only document that says where the project is.** Everything else links here.
 
-> **Now / Next** (updated 2026-10-15)
-> - **Done:** M1–M4.2, M5a, M5c, M5b steps 11–13, P1, P2 (the data-entry fixes), Explanatory paths (2026-10-14, not yet deployed) and the visual pass (2026-10-15, not yet deployed). The test server runs `main` with real data entered by hand.
-> - **Now:** [the conceptual map for real data](roadmap.md#1-conceptual-map-for-real-data-next) (its open questions, then a plan).
+> **Now / Next** (updated 2026-10-18)
+> - **Done:** M1–M4.2, M5a, M5c, M5b steps 11–13, P1, P2 (the data-entry fixes), Explanatory paths (2026-10-14) and the visual pass (2026-10-15), both deployed. The test server runs `main` with real data entered by hand.
+> - **Now:** [the conceptual map for real data](roadmap.md#1-conceptual-map-for-real-data-next): design approved 2026-10-18 (D35); building it by [its plan](plans/2026-10-18-conceptual-map.md).
 > - **Then:** the inventory view (M5b step 14), M6, M7. See [roadmap.md](roadmap.md).
 
 Below is what the code runs today, by area. The headings name the milestone that built each part (the milestones themselves are in [history/implementation-plan-m1-to-p2.md](history/implementation-plan-m1-to-p2.md)). The rules behind it are [architecture.md](architecture.md), [ui-spec.md](ui-spec.md) and [decisions.md](decisions.md).

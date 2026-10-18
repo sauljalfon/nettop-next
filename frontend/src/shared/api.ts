@@ -15,6 +15,7 @@ import type {
   RecordResult,
   RemoveChangeResult,
   Snapshot,
+  MapLayout,
   SiteLayout,
   TraceRequest,
   TraceResult,
@@ -174,6 +175,27 @@ export const saveNodePosition = (
     `/sites/${encodeURIComponent(siteID)}/layout/nodes/${encodeURIComponent(nodeID)}`,
     json('PUT', position),
   )
+export const getMapLayout = (signal?: AbortSignal) =>
+  request<MapLayout>('/map-layout', { signal })
+/** Last write wins per node; the server validates the node exists. */
+export const saveMapPosition = (
+  nodeID: string,
+  position: { x: number; y: number },
+) =>
+  request<NodePosition>(
+    `/map-layout/nodes/${encodeURIComponent(nodeID)}`,
+    json('PUT', position),
+  )
+export const resetMapLayout = async () => {
+  const response = await fetch('/api/map-layout', { method: 'DELETE' })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new APIError(
+      response.status,
+      body?.error ?? `API request failed (${response.status}).`,
+    )
+  }
+}
 export const resetSiteLayout = async (siteID: string) => {
   const response = await fetch(
     `/api/sites/${encodeURIComponent(siteID)}/layout`,
