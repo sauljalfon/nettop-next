@@ -492,3 +492,214 @@
 .studio.drawer-right .route-layer {
   padding-right: var(--clear-of-right-drawer);
 }
+
+/* Overview (step 3): node cards in site frames, lines with counts. */
+.overview-surface {
+  position: relative;
+  height: 100%;
+  background: var(--floor);
+}
+.overview-surface .react-flow.overview-hidden {
+  visibility: hidden;
+}
+.overview-surface .react-flow__background-pattern {
+  fill: var(--rule);
+}
+.overview-surface .overview-note {
+  max-width: 340px;
+  margin: 12px 0 0 100px;
+  padding: 6px 10px;
+  font-size: var(--t-sm);
+  line-height: 1.4;
+  color: var(--ink-soft);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.studio.drawer-left .overview-surface .overview-note {
+  margin-left: var(--clear-of-left-drawer);
+}
+.overview-surface .overview-error {
+  margin: 0 0 12px 100px;
+  padding: 6px 10px;
+  font-size: var(--t-sm);
+  color: var(--danger);
+  background: var(--paper);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+}
+.overview-error p {
+  margin: 0;
+}
+.overview-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: var(--t-md);
+  color: var(--ink-soft);
+}
+.overview-empty-tools {
+  position: absolute;
+  top: 12px;
+  right: 22px;
+}
+.react-flow__handle.overview-handle {
+  top: 50%;
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* A site: a quiet sunk area behind its cards, the name at the top left. */
+.overview-frame {
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, var(--paper-sunk) 70%, transparent);
+  border: 1px solid var(--rule-soft);
+  border-radius: 10px;
+}
+.overview-frame-name {
+  position: absolute;
+  top: 8px;
+  left: 14px;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+/* A node card (D33): paper, a 1px rule, no shadow except while dragging. */
+.overview-card {
+  display: flex;
+  flex-direction: column;
+  width: 250px;
+  min-height: 96px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  cursor: grab;
+}
+.overview-card.open {
+  width: 340px;
+}
+.overview-card.proposed {
+  border: 1.5px dashed var(--proposed);
+}
+.overview-card.dimmed {
+  opacity: 0.4;
+}
+.react-flow__node.dragging .overview-card {
+  cursor: grabbing;
+  box-shadow: var(--shadow-pop);
+}
+.overview-card-head {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--ink);
+  text-align: start;
+  cursor: inherit;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+}
+.overview-card-head:focus-visible,
+.overview-row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.overview-card-name {
+  font-size: var(--t-lg);
+  font-weight: 600;
+}
+.overview-card-count {
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+}
+.overview-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+/* Count pills sit above every card, so a count is never hidden under one. */
+.overview-surface .react-flow__edgelabel-renderer {
+  z-index: 20;
+}
+.overview-card-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px 14px 12px;
+  cursor: default;
+  border-top: 1px solid var(--rule-soft);
+}
+.overview-card-none {
+  margin: 8px 0 0;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+}
+.overview-rack ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.overview-rack .section-title {
+  margin: 10px 0 4px;
+}
+.overview-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: var(--t-sm);
+  color: var(--ink);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  cursor: pointer;
+}
+.overview-row:hover {
+  background: var(--paper-sunk);
+}
+.overview-row .num {
+  font-family: var(--mono);
+  color: var(--ink-soft);
+}
+.overview-row.selected {
+  color: var(--paper);
+  background: var(--ink);
+}
+.overview-row.selected .num {
+  color: var(--paper);
+}
+
+/* A line between two nodes; the count is a round pill at its middle. */
+.react-flow__edge.dimmed path {
+  opacity: 0.25;
+}
+.overview-pill {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: var(--t-min);
+  font-weight: 700;
+  color: var(--paper);
+  border: 2px solid var(--paper);
+  border-radius: 13px;
+  pointer-events: all;
+}
+.overview-pill.dimmed {
+  opacity: 0.4;
+}

@@ -7,6 +7,11 @@ import {
 } from '../physical/layout'
 import type { Overview } from './overview'
 
+/** A closed overview card's height; Physical's NODE_HEIGHT is a size for rack previews. */
+export const OVERVIEW_CARD_HEIGHT = 96
+/** Heights and gaps of the default arrangement scale together, so cards stay apart. */
+const Y_SCALE = OVERVIEW_CARD_HEIGHT / NODE_HEIGHT
+
 /** Space between the right edge of one site's cards and the left edge of the next site's. */
 export const SITE_GAP = 240
 /** Space around a site's cards inside its frame. */
@@ -24,9 +29,10 @@ export interface SiteFrame {
 
 /**
  * A position (top-left of the card) for every node, in one coordinate space for
- * the whole network. Each site is arranged on its own and the sites are placed
- * left to right, SITE_GAP apart, in a fixed order: fewest AGG/BB nodes first
- * (the core site last), then name, then ID. A saved position then replaces only
+ * the whole network. Each site is arranged on its own (its y scaled to the
+ * overview card's height) and the sites are placed left to right, SITE_GAP
+ * apart, in a fixed order: fewest AGG/BB nodes first (the core site last), then
+ * name, then ID. A saved position then replaces only
  * its own card: dragging a card moves that card and nothing else (a card may be
  * dropped on another; that is the user's arrangement).
  */
@@ -86,7 +92,7 @@ export function overviewLayout(
     const top = Math.min(...[...own.values()].map((p) => p.y))
     const dx = (right === -Infinity ? 0 : right + SITE_GAP) - left
     for (const [id, p] of own) {
-      out.set(id, { x: p.x + dx, y: p.y - top })
+      out.set(id, { x: p.x + dx, y: (p.y - top) * Y_SCALE })
       right = Math.max(right, p.x + dx + NODE_WIDTH)
     }
   }
@@ -112,7 +118,7 @@ export function siteFrames(
     const left = Math.min(...cards.map((p) => p.x))
     const top = Math.min(...cards.map((p) => p.y))
     const right = Math.max(...cards.map((p) => p.x)) + NODE_WIDTH
-    const bottom = Math.max(...cards.map((p) => p.y)) + NODE_HEIGHT
+    const bottom = Math.max(...cards.map((p) => p.y)) + OVERVIEW_CARD_HEIGHT
     frames.push({
       siteId: site.id,
       x: left - FRAME_PADDING,

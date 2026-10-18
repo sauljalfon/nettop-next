@@ -5,6 +5,7 @@ import { buildOverview, type Overview } from './overview'
 import {
   FRAME_PADDING,
   FRAME_TITLE,
+  OVERVIEW_CARD_HEIGHT,
   SITE_GAP,
   overviewLayout,
   siteFrames,
@@ -43,8 +44,8 @@ function manual(siteSizes: Record<string, number>): Overview {
 const overlaps = (a: Position, b: Position) =>
   a.x < b.x + NODE_WIDTH &&
   b.x < a.x + NODE_WIDTH &&
-  a.y < b.y + NODE_HEIGHT &&
-  b.y < a.y + NODE_HEIGHT
+  a.y < b.y + OVERVIEW_CARD_HEIGHT &&
+  b.y < a.y + OVERVIEW_CARD_HEIGHT
 function expectNoOverlap(positions: Map<string, Position>) {
   const all = [...positions]
   for (let i = 0; i < all.length; i++)
@@ -69,6 +70,19 @@ describe('CM-05 the default arrangement', () => {
     expectNoOverlap(
       overviewLayout(manual({ a: 3, b: 14, c: 1, d: 12 }), new Map()),
     )
+  })
+
+  it('scales every default y by OVERVIEW_CARD_HEIGHT / NODE_HEIGHT and leaves x', () => {
+    expect(OVERVIEW_CARD_HEIGHT).toBe(96)
+    const o = acceptance()
+    const p = overviewLayout(o, new Map())
+    // Physical's layout puts DR Access and DR Distribution 260 apart (a card, a gap, and the ring's 10 px steps).
+    expect(p.get('node-dr2')!.y - p.get('node-dr1')!.y).toBeCloseTo(
+      (260 * OVERVIEW_CARD_HEIGHT) / NODE_HEIGHT,
+      6,
+    )
+    expect(p.get('node-dr1')!.x).toBe(0)
+    expect(p.get('node-core')!.x - p.get('node-sm')!.x).toBeCloseTo(294, 0)
   })
 
   it('puts sites side by side, the core site last, SITE_GAP apart', () => {
@@ -138,9 +152,9 @@ describe('CM-05 site frames', () => {
         expect(p.y - f.y).toBeGreaterThanOrEqual(
           FRAME_PADDING + FRAME_TITLE - 1e-6,
         )
-        expect(f.y + f.height - (p.y + NODE_HEIGHT)).toBeGreaterThanOrEqual(
-          FRAME_PADDING - 1e-6,
-        )
+        expect(
+          f.y + f.height - (p.y + OVERVIEW_CARD_HEIGHT),
+        ).toBeGreaterThanOrEqual(FRAME_PADDING - 1e-6)
       }
     }
   })

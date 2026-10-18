@@ -42,7 +42,8 @@ import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
 import { mapSession, type MapSession, type Viewport } from './mapSession'
 import RouteDiagram from '../paths/RouteDiagram'
 import type { Sheet } from '../paths/sheet'
-import { ClearHighlight, ResetLayout } from './MapControls'
+import { ClearHighlight, MapViewSwitch, ResetLayout } from './MapControls'
+import OverviewCanvas from './OverviewCanvas'
 import { reconciledPosition } from './reconcile'
 import { SPLIT_GAP, splitPath } from './splitPath'
 import { shouldClearOnEscape } from './keys'
@@ -373,9 +374,27 @@ interface Props {
   index?: SnapshotIndex
   /** Defaults to the app-wide session store. */
   session?: MapSession
+  /** Containers of the installed topology: an overview node outside it is proposed. */
+  installedContainerIds?: ReadonlySet<string>
 }
 
 export default function ConceptualMap(props: Props) {
+  const session = props.session ?? mapSession
+  const view = useSyncExternalStore(session.subscribe, session.view)
+  if (view === 'overview')
+    return (
+      <OverviewCanvas
+        snapshot={props.snapshot}
+        index={props.index}
+        installedContainerIds={props.installedContainerIds}
+        selected={props.selected}
+        networkId={props.networkId}
+        onSelect={props.onSelect}
+        routeSheet={props.routeSheet}
+        onRouteStep={props.onRouteStep}
+        session={session}
+      />
+    )
   return (
     <ReactFlowProvider>
       <Canvas {...props} />
@@ -741,6 +760,9 @@ function Canvas({
           <Panel position="top-right" className="map-tools">
             {!active && highlight && (
               <ClearHighlight onClear={() => session.setHighlight(undefined)} />
+            )}
+            {!active && (
+              <MapViewSwitch view="devices" onChange={session.setView} />
             )}
             {!active && <ResetLayout onReset={session.resetLayout} />}
           </Panel>

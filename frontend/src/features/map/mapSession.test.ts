@@ -340,3 +340,86 @@ describe('POL-22 route view state', () => {
     expect(calls).toBe(1)
   })
 })
+
+describe('CM-09 overview session state', () => {
+  it('defaults: the device map stays the default view, nothing open, nothing proposed', () => {
+    const session = createMapSession()
+    expect(session.view()).toBe('devices')
+    expect(session.overviewViewport()).toBeUndefined()
+    expect(session.overviewNeedsFit()).toBe(true)
+    expect(session.openNodes().size).toBe(0)
+    expect(session.proposedPosition('n1')).toBeUndefined()
+    expect(session.proposedPositions().size).toBe(0)
+  })
+
+  it('switches the view and notifies', () => {
+    const session = createMapSession()
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.setView('overview')
+    expect(session.view()).toBe('overview')
+    expect(calls).toBe(1)
+    session.setView('overview')
+    expect(calls).toBe(1)
+    session.setView('devices')
+    expect(session.view()).toBe('devices')
+  })
+
+  it('keeps its own viewport, apart from the device map', () => {
+    const session = createMapSession()
+    session.setViewport({ x: 1, y: 2, zoom: 1 })
+    expect(session.overviewNeedsFit()).toBe(true)
+    session.setOverviewViewport({ x: 5, y: 6, zoom: 0.5 })
+    expect(session.overviewNeedsFit()).toBe(false)
+    expect(session.overviewViewport()).toEqual({ x: 5, y: 6, zoom: 0.5 })
+    expect(session.viewport()).toEqual({ x: 1, y: 2, zoom: 1 })
+  })
+
+  it('toggles open nodes by replacing the set', () => {
+    const session = createMapSession()
+    let calls = 0
+    session.subscribe(() => calls++)
+    const empty = session.openNodes()
+    session.toggleNode('a')
+    const one = session.openNodes()
+    expect(one).not.toBe(empty)
+    expect([...one]).toEqual(['a'])
+    expect(empty.size).toBe(0)
+    session.toggleNode('b')
+    session.toggleNode('a')
+    expect([...session.openNodes()]).toEqual(['b'])
+    expect(calls).toBe(3)
+  })
+
+  it('records proposed positions by node ID without sharing the caller object', () => {
+    const session = createMapSession()
+    const p = { x: 3, y: 4 }
+    const before = session.proposedPositions()
+    session.setProposedPosition('n9', p)
+    p.x = 99
+    expect(session.proposedPosition('n9')).toEqual({ x: 3, y: 4 })
+    expect(session.proposedPositions()).not.toBe(before)
+    expect(session.proposedPositions().get('n9')).toEqual({ x: 3, y: 4 })
+  })
+
+  it('resetOverview clears proposed positions and the viewport and bumps the version', () => {
+    const session = createMapSession()
+    session.setOverviewViewport({ x: 1, y: 1, zoom: 1 })
+    session.setProposedPosition('n9', { x: 1, y: 1 })
+    session.toggleNode('a')
+    session.setPosition('EDGE-17', { x: 1, y: 1 })
+    session.setViewport({ x: 2, y: 2, zoom: 1 })
+    const version = session.overviewVersion()
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.resetOverview()
+    expect(session.proposedPositions().size).toBe(0)
+    expect(session.overviewNeedsFit()).toBe(true)
+    expect(session.overviewVersion()).toBe(version + 1)
+    expect(calls).toBe(1)
+    // What is not the arrangement stays: open cards and the device map.
+    expect([...session.openNodes()]).toEqual(['a'])
+    expect(session.position('EDGE-17')).toEqual({ x: 1, y: 1 })
+    expect(session.viewport()).toEqual({ x: 2, y: 2, zoom: 1 })
+  })
+})

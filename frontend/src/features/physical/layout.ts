@@ -12,19 +12,23 @@ const COLUMN_GAP = 200
 /** Up to this many unsaved nodes go on a ring; more go in a grid. */
 const MAX_RING = 12
 
-interface Rect {
+export interface Rect {
   left: number
   top: number
   right: number
   bottom: number
 }
 
-/** True when the segment touches the rectangle's interior (Liang–Barsky clipping). */
-export function segmentCrossesRect(
+/**
+ * The part of the segment inside the rectangle's interior, as the parameters
+ * [t0, t1] along it (0 at `from`, 1 at `to`), or undefined when it only touches
+ * or misses it (Liang–Barsky clipping).
+ */
+export function clipSegment(
   from: Position,
   to: Position,
   r: Rect,
-): boolean {
+): [number, number] | undefined {
   const dx = to.x - from.x
   const dy = to.y - from.y
   let t0 = 0
@@ -37,19 +41,28 @@ export function segmentCrossesRect(
   ]
   for (const [p, q] of edges) {
     if (p === 0) {
-      if (q <= 0) return false
+      if (q <= 0) return undefined
       continue
     }
     const t = q / p
     if (p < 0) {
-      if (t > t1) return false
+      if (t > t1) return undefined
       t0 = Math.max(t0, t)
     } else {
-      if (t < t0) return false
+      if (t < t0) return undefined
       t1 = Math.min(t1, t)
     }
   }
-  return t1 - t0 > 1e-9
+  return t1 - t0 > 1e-9 ? [t0, t1] : undefined
+}
+
+/** True when the segment touches the rectangle's interior. */
+export function segmentCrossesRect(
+  from: Position,
+  to: Position,
+  r: Rect,
+): boolean {
+  return clipSegment(from, to, r) !== undefined
 }
 
 const rectAt = (c: Position): Rect => ({

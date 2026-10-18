@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Network } from '../../shared/types'
 import { MANAGE_NETWORKS } from '../networks/model'
+import type { MapMode } from './mapSession'
 
 export type MapView = 'conceptual' | 'physical'
 
@@ -63,22 +64,53 @@ export function NetworkSelect({
   )
 }
 
-/** Reset layout with an inline confirm; it only drops card positions and refits. */
-export function ResetLayout({ onReset }: { onReset: () => void }) {
+/** The two conceptual maps. Temporary: it goes with the device map. */
+export function MapViewSwitch({
+  view,
+  onChange,
+}: {
+  view: MapMode
+  onChange: (view: MapMode) => void
+}) {
+  return (
+    <div className="seg map-tool" role="group" aria-label="Map view">
+      {(['overview', 'devices'] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          aria-pressed={view === v}
+          className={view === v ? 'active' : ''}
+          onClick={() => onChange(v)}
+        >
+          {v === 'overview' ? 'Overview' : 'Devices'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Reset with an inline confirm; it only drops card positions and refits. */
+export function ResetLayout({
+  onReset,
+  label = 'Reset layout',
+}: {
+  onReset: () => void
+  label?: string
+}) {
   const [confirming, setConfirming] = useState(false)
   if (!confirming)
     return (
       <button
         className="map-tool btn"
-        aria-label="Reset layout"
+        aria-label={label}
         onClick={() => setConfirming(true)}
       >
-        Reset layout
+        {label}
       </button>
     )
   return (
     <span className="map-tool confirm" role="group" aria-label="Confirm reset">
-      <span>Reset layout?</span>
+      <span>{label}?</span>
       <button
         className="btn primary"
         aria-label="Reset"

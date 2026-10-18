@@ -973,6 +973,7 @@ function Workspace({
           onCreateEquipment={onCreateEquipment}
           preview={pending}
           onConfigurePreview={onConfigurePreview}
+          installedContainerIds={installedContainerIds}
         />
       ) : (
         <PhysicalExplorer

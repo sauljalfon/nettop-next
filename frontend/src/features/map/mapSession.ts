@@ -2,6 +2,9 @@ import type { ManualFacets } from './facets'
 import type { LocationRef } from './highlight'
 import type { Position } from './layout'
 
+/** Which conceptual map is drawn; 'devices' stays the default until the old map is removed. */
+export type MapMode = 'overview' | 'devices'
+
 export interface Viewport {
   x: number
   y: number
@@ -78,6 +81,31 @@ export interface MapSession {
   markFitHandled(serial: number): void
   /** Incremented by every resetLayout; lets the map tell a reset from a drag. */
   layoutVersion(): number
+  /** The map drawn under the Conceptual header; session-only. */
+  view(): MapMode
+  setView(view: MapMode): void
+  /** The overview's own viewport, apart from the device map's. */
+  overviewViewport(): Viewport | undefined
+  setOverviewViewport(viewport: Viewport): void
+  /** True until an overview viewport has been recorded: it fits once per session. */
+  overviewNeedsFit(): boolean
+  /** Node cards that are open (listing their equipment). Replaced on every change. */
+  openNodes(): ReadonlySet<string>
+  toggleNode(id: string): void
+  /**
+   * Positions of nodes that exist only in the plan (the server does not know
+   * them). Replaced on every change; never sent to the server.
+   */
+  proposedPositions(): ReadonlyMap<string, Position>
+  proposedPosition(id: string): Position | undefined
+  setProposedPosition(id: string, position: Position): void
+  /**
+   * Forgets the proposed positions and the overview viewport, so the next
+   * render fits once. Open cards and the device map are kept.
+   */
+  resetOverview(): void
+  /** Incremented by every resetOverview; lets the overview tell a reset from a drag. */
+  overviewVersion(): number
   /** Notified after manual facets change; returns the unsubscribe function. */
   subscribe(listener: () => void): () => void
 }
@@ -94,6 +122,11 @@ export function createMapSession(): MapSession {
   let layoutVersion = 0
   let center: { id: string; serial: number } | undefined
   let centerHandled = 0
+  let view: MapMode = 'devices'
+  let overviewViewport: Viewport | undefined
+  let openNodes: ReadonlySet<string> = new Set()
+  let proposed: ReadonlyMap<string, Position> = new Map()
+  let overviewVersion = 0
   const listeners = new Set<() => void>()
   const notify = () => {
     for (const listener of listeners) listener()
@@ -171,6 +204,36 @@ export function createMapSession(): MapSession {
       fit = { ids: [...ids], serial: (fit?.serial ?? 0) + 1 }
       notify()
     },
+    view: () => view,
+    setView(next) {
+      if (next === view) return
+      view = next
+      notify()
+    },
+    overviewViewport: () => overviewViewport,
+    setOverviewViewport: (v) =>
+      void (overviewViewport = { x: v.x, y: v.y, zoom: v.zoom }),
+    overviewNeedsFit: () => overviewViewport === undefined,
+    openNodes: () => openNodes,
+    toggleNode(id) {
+      const next = new Set(openNodes)
+      if (!next.delete(id)) next.add(id)
+      openNodes = next
+      notify()
+    },
+    proposedPositions: () => proposed,
+    proposedPosition: (id) => proposed.get(id),
+    setProposedPosition(id, p) {
+      proposed = new Map(proposed).set(id, { x: p.x, y: p.y })
+      notify()
+    },
+    resetOverview() {
+      proposed = new Map()
+      overviewViewport = undefined
+      overviewVersion++
+      notify()
+    },
+    overviewVersion: () => overviewVersion,
     subscribe(listener) {
       listeners.add(listener)
       return () => void listeners.delete(listener)
