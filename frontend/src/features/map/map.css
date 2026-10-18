@@ -703,3 +703,239 @@
 .overview-pill.dimmed {
   opacity: 0.4;
 }
+
+/* Focus (step 4): one device and the active equipment it reaches. */
+.focus-surface {
+  position: relative;
+  height: 100%;
+  background: var(--floor);
+}
+.focus-surface .react-flow.overview-hidden {
+  visibility: hidden;
+}
+.focus-surface .react-flow__background-pattern {
+  fill: var(--rule);
+}
+.focus-surface .react-flow__edgelabel-renderer {
+  z-index: 20;
+}
+.focus-toolbar {
+  position: absolute;
+  z-index: 5;
+  top: 12px;
+  left: 100px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: var(--t-sm);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.studio.drawer-left .focus-surface .focus-toolbar {
+  left: var(--clear-of-left-drawer);
+}
+.focus-hops {
+  font-weight: 600;
+}
+.focus-nothing {
+  color: var(--ink-soft);
+}
+.focus-tools {
+  position: absolute;
+  top: 12px;
+  right: 22px;
+}
+.focus-empty {
+  position: absolute;
+  inset: auto 0 15% 0;
+  margin: 0;
+  text-align: center;
+  font-size: var(--t-md);
+  color: var(--ink-soft);
+}
+
+/* A card: paper, a 1px rule, rings for state. */
+.focus-card {
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  height: 112px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.focus-card.center {
+  width: 280px;
+  height: 144px;
+  border: 2px solid var(--ink);
+}
+.focus-card.proposed {
+  border: 1.5px dashed var(--proposed);
+}
+.focus-card.selected {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.focus-card.dimmed {
+  opacity: 0.4;
+}
+.focus-card.focus-group.open {
+  height: auto;
+  min-height: 112px;
+}
+.focus-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+}
+.focus-card-body:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.focus-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.focus-card-name {
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+.focus-card.center .focus-card-name {
+  font-size: var(--t-xl);
+}
+.focus-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.focus-card-place {
+  font-size: var(--t-xs);
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+.focus-card-place .num {
+  font-family: var(--mono);
+}
+.focus-group-list {
+  max-height: 320px;
+  margin: 0;
+  padding: 4px 8px 8px;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--rule-soft);
+}
+
+/* A line's label: pieces, small, above the cards, at a point clear of them. */
+.focus-pill {
+  position: absolute;
+  width: max-content;
+  max-width: 140px;
+  padding: 3px 7px;
+  font: inherit;
+  font-size: var(--t-xs);
+  line-height: 1.3;
+  text-align: center;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: 10px;
+  pointer-events: all;
+}
+button.focus-pill {
+  cursor: pointer;
+}
+button.focus-pill:hover,
+button.focus-pill:focus-visible {
+  border-color: var(--ink);
+}
+.focus-pill .num,
+.focus-step .num {
+  font-family: var(--mono);
+}
+/* A step (equipment and its place) never breaks; a label wraps only between steps. */
+.focus-step {
+  white-space: nowrap;
+}
+
+.focus-ends {
+  width: 360px;
+  padding: 8px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.focus-ends h3 {
+  margin: 0 0 4px;
+}
+.focus-ends ul {
+  margin: 0;
+  padding: 0;
+  font-size: var(--t-xs);
+  list-style: none;
+}
+.focus-ends li {
+  padding: 2px 0;
+}
+.focus-end-port {
+  font-family: var(--mono);
+}
+
+.focus-panel {
+  position: absolute;
+  z-index: 30;
+  bottom: 16px;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(520px, calc(100% - 200px));
+  max-height: 50%;
+  padding: 12px 14px;
+  overflow-y: auto;
+  transform: translateX(-50%);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: var(--shadow-pop);
+}
+.focus-panel:focus {
+  outline: none;
+}
+.focus-panel h3 {
+  margin: 0;
+}
+.focus-panel ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.focus-panel li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: var(--t-sm);
+}
+.focus-circuit-via {
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+.focus-panel .num {
+  font-family: var(--mono);
+}

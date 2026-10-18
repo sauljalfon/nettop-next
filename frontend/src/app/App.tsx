@@ -882,13 +882,23 @@ function Workspace({
     }
   }
   // Select the card, show the map and center on the card. No highlight.
+  const focusOnMap = useCallback(
+    (id: string) => {
+      setSelected(id)
+      onViewChange('conceptual')
+      mapSession.focusOn(id)
+    },
+    [onViewChange],
+  )
+  // On the device map, Show on map centers the card; on the overview or Focus it opens Focus.
   const showOnMap = useCallback(
     (id: string) => {
+      if (mapSession.view() !== 'devices') return focusOnMap(id)
       setSelected(id)
       onViewChange('conceptual')
       mapSession.requestCenter(id)
     },
-    [onViewChange],
+    [onViewChange, focusOnMap],
   )
   // A port or cable chosen in Explore's search. In Physical it opens that endpoint
   // on its equipment page; in Conceptual it selects the equipment, centers its
@@ -934,6 +944,7 @@ function Workspace({
       onFindFromDevice={traceSelectedDevice}
       onFindFromHere={traceFromPort}
       onShowOnMap={showOnMap}
+      onFocus={focusOnMap}
       onShowInPhysical={showInPhysical}
       onHighlight={highlightLocation}
       onOpenRack={openRack}

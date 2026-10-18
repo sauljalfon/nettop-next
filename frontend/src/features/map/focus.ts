@@ -33,6 +33,10 @@ export interface FocusGroup {
   nodeId?: string
   side: FocusSide
   equipmentIds: string[]
+  /** The center or earlier ring's equipment whose walks reached the members, by name then ID. */
+  fromIds: string[]
+  /** The circuits that reach the members. */
+  circuitCount: number
 }
 
 export interface FocusRing {
@@ -52,6 +56,13 @@ export interface Focus {
   hops: number
   rings: FocusRing[]
   ends: FocusEnd[]
+}
+
+/** A position as the walk sheet reads it: "3C/5" on an HDF, "1" on a panel; a port's label otherwise. */
+export function endpointPlace(index: SnapshotIndex, p: Endpoint): string {
+  if (p.position === undefined || !p.side) return p.label
+  const sub = index.lookup.subpanels.get(p.subpanelId ?? '')
+  return sub ? `${sub.row}${sub.column}/${p.position}` : `${p.position}`
 }
 
 export const DEFAULT_CAP = 24
@@ -82,12 +93,7 @@ export function buildFocus(
     nameOf(a).localeCompare(nameOf(b)) || a.localeCompare(b)
   const endpoint = (id: string) => index.lookup.endpoints.get(id)
 
-  // Position as the walk sheet reads it: "3C/5" on an HDF, "1" on a panel.
-  const place = (p: Endpoint) => {
-    if (p.position === undefined || !p.side) return p.label
-    const sub = index.lookup.subpanels.get(p.subpanelId ?? '')
-    return sub ? `${sub.row}${sub.column}/${p.position}` : `${p.position}`
-  }
+  const place = (p: Endpoint) => endpointPlace(index, p)
 
   const compareEndpoints = (aId: string, bId: string) => {
     const a = endpoint(aId)
@@ -198,15 +204,26 @@ export function buildFocus(
       for (const n of neighbours) {
         const nodeId = index.places.get(n.equipmentId)?.nodeId
         const key = `${nodeId ?? ''}\u0000${n.side}`
-        const g = groups.get(key)
+        let g = groups.get(key)
         if (g) g.equipmentIds.push(n.equipmentId)
         else
-          groups.set(key, {
-            nodeId,
-            side: n.side,
-            equipmentIds: [n.equipmentId],
-          })
+          groups.set(
+            key,
+            (g = {
+              nodeId,
+              side: n.side,
+              equipmentIds: [n.equipmentId],
+              fromIds: [],
+              circuitCount: 0,
+            }),
+          )
+        g.circuitCount += n.circuits.length
+        for (const c of n.circuits) {
+          const from = index.owner.get(c.start)
+          if (from && !g.fromIds.includes(from)) g.fromIds.push(from)
+        }
       }
+      for (const g of groups.values()) g.fromIds.sort(byName)
       const nodeName = (g: FocusGroup) =>
         g.nodeId ? (index.nodes.get(g.nodeId)?.name ?? g.nodeId) : '￿'
       rings.push({

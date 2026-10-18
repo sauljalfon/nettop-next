@@ -43,6 +43,7 @@ import { mapSession, type MapSession, type Viewport } from './mapSession'
 import RouteDiagram from '../paths/RouteDiagram'
 import type { Sheet } from '../paths/sheet'
 import { ClearHighlight, MapViewSwitch, ResetLayout } from './MapControls'
+import FocusCanvas from './FocusCanvas'
 import OverviewCanvas from './OverviewCanvas'
 import { reconciledPosition } from './reconcile'
 import { SPLIT_GAP, splitPath } from './splitPath'
@@ -381,6 +382,21 @@ interface Props {
 export default function ConceptualMap(props: Props) {
   const session = props.session ?? mapSession
   const view = useSyncExternalStore(session.subscribe, session.view)
+  if (view === 'focus')
+    return (
+      <FocusCanvas
+        snapshot={props.snapshot}
+        index={props.index}
+        installedIds={props.installedIDs}
+        selected={props.selected}
+        networkId={props.networkId}
+        onSelect={props.onSelect}
+        onPort={props.onPort}
+        routeSheet={props.routeSheet}
+        onRouteStep={props.onRouteStep}
+        session={session}
+      />
+    )
   if (view === 'overview')
     return (
       <OverviewCanvas

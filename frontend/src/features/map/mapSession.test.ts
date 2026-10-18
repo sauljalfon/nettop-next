@@ -423,3 +423,66 @@ describe('CM-09 overview session state', () => {
     expect(session.viewport()).toEqual({ x: 2, y: 2, zoom: 1 })
   })
 })
+
+describe('CM-10 focus session state', () => {
+  it('defaults: no focus, one hop, nothing open', () => {
+    const session = createMapSession()
+    expect(session.focusId()).toBeUndefined()
+    expect(session.hops()).toBe(1)
+    expect(session.focusReturn()).toBe('devices')
+    expect(session.openGroups().size).toBe(0)
+  })
+
+  it('focusOn remembers the view it came from, once, and back returns to it', () => {
+    const session = createMapSession()
+    session.setView('overview')
+    session.setOverviewViewport({ x: 1, y: 2, zoom: 0.7 })
+    session.focusOn('a')
+    expect(session.view()).toBe('focus')
+    expect(session.focusId()).toBe('a')
+    expect(session.focusReturn()).toBe('overview')
+    session.focusOn('b') // from Focus: the remembered view is kept
+    expect(session.focusId()).toBe('b')
+    expect(session.focusReturn()).toBe('overview')
+    session.back()
+    expect(session.view()).toBe('overview')
+    expect(session.overviewViewport()).toEqual({ x: 1, y: 2, zoom: 0.7 })
+  })
+
+  it('back from a focus entered on the device map returns there', () => {
+    const session = createMapSession()
+    session.focusOn('a')
+    expect(session.focusReturn()).toBe('devices')
+    session.back()
+    expect(session.view()).toBe('devices')
+  })
+
+  it('keeps the hops, clamped to 1–3', () => {
+    const session = createMapSession()
+    session.setHops(2)
+    session.focusOn('a')
+    expect(session.hops()).toBe(2)
+    session.setHops(9)
+    expect(session.hops()).toBe(3)
+    session.setHops(0)
+    expect(session.hops()).toBe(1)
+    session.setHops(2.7)
+    expect(session.hops()).toBe(2)
+  })
+
+  it('toggles open groups by replacing the set; focusOn clears them', () => {
+    const session = createMapSession()
+    let calls = 0
+    session.subscribe(() => calls++)
+    const empty = session.openGroups()
+    session.toggleGroup('g1')
+    expect(session.openGroups()).not.toBe(empty)
+    expect([...session.openGroups()]).toEqual(['g1'])
+    session.toggleGroup('g1')
+    expect(session.openGroups().size).toBe(0)
+    session.toggleGroup('g2')
+    session.focusOn('x')
+    expect(session.openGroups().size).toBe(0)
+    expect(calls).toBeGreaterThanOrEqual(4)
+  })
+})

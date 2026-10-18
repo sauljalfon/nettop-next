@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Endpoint, Equipment, Snapshot } from '../../shared/types'
 import { acceptanceSnapshot } from './acceptanceFixture'
+import { campusSnapshot } from './campusFixture'
 import { buildFocus } from './focus'
 import { indexSnapshot } from './snapshotIndex'
 
@@ -186,88 +187,8 @@ describe('CM-07 focus on a panel and on an HDF', () => {
   })
 })
 
-/** One AGG and 30 access switches in 3 nodes, each through its own panel. */
-function campus(): Snapshot {
-  const eq: Equipment[] = []
-  const endpoints: Endpoint[] = []
-  const links: Snapshot['links'] = []
-  const racks: Snapshot['racks'] = [
-    { id: 'rack-core', nodeId: 'n-core', name: 'Core', units: 12 },
-  ]
-  const nodes: Snapshot['nodes'] = [{ id: 'n-core', siteId: 's', name: 'Core' }]
-  for (let k = 1; k <= 3; k++) {
-    nodes.push({ id: `n-${k}`, siteId: 's', name: `Floor ${k}` })
-    racks.push({ id: `rack-${k}`, nodeId: `n-${k}`, name: `R${k}`, units: 12 })
-  }
-  const add = (
-    id: string,
-    kind: Equipment['kind'],
-    role: string,
-    rackId: string,
-  ) =>
-    eq.push({
-      id,
-      name: id,
-      kind,
-      role,
-      networkId: role === 'passive' ? undefined : 'A',
-      rackId,
-      unit: 1,
-      height: 1,
-    })
-  add('AGG-1', 'switch', 'aggregation', 'rack-core')
-  for (let i = 1; i <= 30; i++) {
-    const n = String(i).padStart(2, '0')
-    const rack = `rack-${((i - 1) % 3) + 1}`
-    add(`SW-${n}`, 'switch', 'access', rack)
-    add(`PNL-${n}`, 'panel', 'passive', rack)
-    endpoints.push(
-      { id: `SW-${n}:p1`, equipmentId: `SW-${n}`, label: '1' },
-      {
-        id: `PNL-${n}:1:f`,
-        equipmentId: `PNL-${n}`,
-        label: '1 front',
-        position: 1,
-        side: 'front',
-      },
-      {
-        id: `PNL-${n}:1:r`,
-        equipmentId: `PNL-${n}`,
-        label: '1 rear',
-        position: 1,
-        side: 'rear',
-      },
-      { id: `AGG-1:p${i}`, equipmentId: 'AGG-1', label: String(i) },
-    )
-    links.push(
-      {
-        id: `PNL-${n}:b`,
-        kind: 'internal',
-        a: `PNL-${n}:1:f`,
-        b: `PNL-${n}:1:r`,
-      },
-      { id: `c${n}a`, kind: 'cable', a: `SW-${n}:p1`, b: `PNL-${n}:1:f` },
-      { id: `c${n}b`, kind: 'cable', a: `PNL-${n}:1:r`, b: `AGG-1:p${i}` },
-    )
-  }
-  return {
-    context: 'installed',
-    revision: '1',
-    site: 'S',
-    room: '',
-    networks: [{ id: 'A', name: 'A' }],
-    subpanels: [],
-    sites: [{ id: 's', name: 'S' }],
-    nodes,
-    racks,
-    equipment: eq,
-    endpoints,
-    links,
-  }
-}
-
 describe('CM-08 caps, groups and hops', () => {
-  const s = campus()
+  const s = campusSnapshot()
 
   it('groups more than 24 neighbours per node and side; neighbours is empty', () => {
     const ring = focus(s, 'AGG-1').rings[0]
@@ -307,7 +228,7 @@ describe('CM-08 caps, groups and hops', () => {
 
   it('clamps hops to 1–3 and never repeats equipment', () => {
     const chain: Snapshot = {
-      ...campus(),
+      ...campusSnapshot(),
       equipment: [],
       endpoints: [],
       links: [],
@@ -351,5 +272,56 @@ describe('CM-08 caps, groups and hops', () => {
       rings: [],
       ends: [],
     })
+  })
+})
+
+describe('CM-10 groups say where they come from and how many circuits they hold', () => {
+  const s = campusSnapshot()
+  it('ring 1 groups come from the center, each with its circuits', () => {
+    const groups = focus(s, 'AGG-1').rings[0].groups
+    expect(groups.map((g) => [g.fromIds, g.circuitCount])).toEqual([
+      [['AGG-1'], 10],
+      [['AGG-1'], 10],
+      [['AGG-1'], 10],
+    ])
+  })
+
+  it('ring 2 groups come from the ring 1 equipment, sorted by name', () => {
+    const f = focus(s, 'SW-01', { hops: 2 })
+    expect(f.rings[0].neighbours.map((n) => n.equipmentId)).toEqual(['AGG-1'])
+    const groups = f.rings[1].groups
+    expect(groups.map((g) => g.equipmentIds.length)).toEqual([9, 10, 10])
+    for (const g of groups) expect(g.fromIds).toEqual(['AGG-1'])
+    expect(groups.map((g) => g.circuitCount)).toEqual([9, 10, 10])
+  })
+
+  it('several parents are listed once each, by name', () => {
+    const t = campusSnapshot()
+    // A second AGG cabled to SW-01 and SW-02 directly.
+    t.equipment.push({
+      id: 'AGG-0',
+      name: 'AGG-0',
+      kind: 'switch',
+      role: 'aggregation',
+      networkId: 'A',
+      rackId: 'rack-core',
+      unit: 2,
+      height: 1,
+    })
+    t.endpoints.push(
+      { id: 'AGG-0:p1', equipmentId: 'AGG-0', label: '1' },
+      { id: 'AGG-0:p2', equipmentId: 'AGG-0', label: '2' },
+      { id: 'SW-01:p2', equipmentId: 'SW-01', label: '2' },
+      { id: 'SW-02:p2', equipmentId: 'SW-02', label: '2' },
+    )
+    t.links.push(
+      { id: 'd1', kind: 'cable', a: 'AGG-0:p1', b: 'SW-01:p2' },
+      { id: 'd2', kind: 'cable', a: 'AGG-0:p2', b: 'SW-02:p2' },
+    )
+    const f = focus(t, 'SW-01', { hops: 2, cap: 5 })
+    const all = f.rings[1].groups
+    expect(all.length).toBeGreaterThan(0)
+    for (const g of all) expect(g.fromIds).toEqual([...g.fromIds].sort())
+    expect(all.some((g) => g.fromIds.length === 2)).toBe(true)
   })
 })

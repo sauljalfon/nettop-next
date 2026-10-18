@@ -3,7 +3,7 @@ import type { LocationRef } from './highlight'
 import type { Position } from './layout'
 
 /** Which conceptual map is drawn; 'devices' stays the default until the old map is removed. */
-export type MapMode = 'overview' | 'devices'
+export type MapMode = 'overview' | 'focus' | 'devices'
 
 export interface Viewport {
   x: number
@@ -106,6 +106,24 @@ export interface MapSession {
   resetOverview(): void
   /** Incremented by every resetOverview; lets the overview tell a reset from a drag. */
   overviewVersion(): number
+  /** The equipment Focus is on; undefined until the first focusOn. */
+  focusId(): string | undefined
+  /** Rings shown around the focus, 1–3. Kept across focus changes. */
+  hops(): number
+  setHops(hops: number): void
+  /**
+   * Opens Focus on this equipment. The view it came from (overview or devices)
+   * is remembered, unless it was already Focus; the hops are kept and any
+   * opened group cards are closed.
+   */
+  focusOn(id: string): void
+  /** The view `back` returns to. */
+  focusReturn(): 'overview' | 'devices'
+  /** Leaves Focus for the remembered view; that view's viewport is untouched. */
+  back(): void
+  /** Group cards that are open (by their key). Replaced on every change. */
+  openGroups(): ReadonlySet<string>
+  toggleGroup(key: string): void
   /** Notified after manual facets change; returns the unsubscribe function. */
   subscribe(listener: () => void): () => void
 }
@@ -127,6 +145,10 @@ export function createMapSession(): MapSession {
   let openNodes: ReadonlySet<string> = new Set()
   let proposed: ReadonlyMap<string, Position> = new Map()
   let overviewVersion = 0
+  let focusId: string | undefined
+  let hops = 1
+  let focusReturn: 'overview' | 'devices' = 'devices'
+  let openGroups: ReadonlySet<string> = new Set()
   const listeners = new Set<() => void>()
   const notify = () => {
     for (const listener of listeners) listener()
@@ -234,6 +256,35 @@ export function createMapSession(): MapSession {
       notify()
     },
     overviewVersion: () => overviewVersion,
+    focusId: () => focusId,
+    hops: () => hops,
+    setHops(n) {
+      const next = Math.min(3, Math.max(1, Math.floor(n)))
+      if (next === hops) return
+      hops = next
+      notify()
+    },
+    focusOn(id) {
+      if (view !== 'focus')
+        focusReturn = view === 'overview' ? 'overview' : 'devices'
+      view = 'focus'
+      focusId = id
+      openGroups = new Set()
+      notify()
+    },
+    focusReturn: () => focusReturn,
+    back() {
+      if (view !== 'focus') return
+      view = focusReturn
+      notify()
+    },
+    openGroups: () => openGroups,
+    toggleGroup(key) {
+      const next = new Set(openGroups)
+      if (!next.delete(key)) next.add(key)
+      openGroups = next
+      notify()
+    },
     subscribe(listener) {
       listeners.add(listener)
       return () => void listeners.delete(listener)
