@@ -1,3 +1,4 @@
+import { endpointNetwork } from '../map/circuitNetwork'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import type { RouteMarks } from './inventory'
 import type { NodeGraph } from './layout'
@@ -44,13 +45,6 @@ export function nodeConnections(
       byNode.set(node.id, { inside: 0, otherSites: 0, otherSiteLinkIds: [] })
   const pairs = new Map<string, NodePair>()
 
-  const networkOf = (endpointId: string) => {
-    const circuit = index.circuits.get(endpointId)
-    if (circuit) return circuit
-    const e = index.equipment.get(index.owner.get(endpointId) ?? '')
-    return e && e.role !== 'passive' ? e.networkId : undefined
-  }
-
   for (const cable of index.cables) {
     const a = index.places.get(index.owner.get(cable.a) ?? '')
     const b = index.places.get(index.owner.get(cable.b) ?? '')
@@ -70,8 +64,8 @@ export function nodeConnections(
         pair = { nodeIds, linkIds: [], perNetwork: new Map(), onRoute: false }
         pairs.set(key, pair)
       }
-      const na = networkOf(cable.a)
-      const nb = networkOf(cable.b)
+      const na = endpointNetwork(index, cable.a)
+      const nb = endpointNetwork(index, cable.b)
       const network = na && nb && na !== nb ? '' : (na ?? nb ?? '')
       pair.linkIds.push(cable.id)
       pair.perNetwork.set(network, (pair.perNetwork.get(network) ?? 0) + 1)
