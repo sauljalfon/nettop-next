@@ -116,7 +116,7 @@ describe('POL-09 far ends, cable IDs and circuit networks', () => {
     expect(unit('EDGE-17', '1').startEndpointId).toBe('EDGE-17:p1')
   })
 
-  it('carries the facet key that "Show connections" and Pin use', () => {
+  it('carries the row key', () => {
     expect(unit('HDF-01', '3C / 5').key).toBe('3C/5')
     expect(unit('PANEL-A', '2').key).toBe('2')
     expect(unit('EDGE-17', '1').key).toBe('EDGE-17:p1')

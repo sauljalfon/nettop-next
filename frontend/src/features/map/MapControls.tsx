@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { Network } from '../../shared/types'
 import { MANAGE_NETWORKS } from '../networks/model'
-import type { MapMode } from './mapSession'
 
 export type MapView = 'conceptual' | 'physical'
 
@@ -61,31 +60,6 @@ export function NetworkSelect({
         {onManage && <option value={MANAGE_NETWORKS}>Manage networks…</option>}
       </select>
     </label>
-  )
-}
-
-/** The two conceptual maps. Temporary: it goes with the device map. */
-export function MapViewSwitch({
-  view,
-  onChange,
-}: {
-  view: MapMode
-  onChange: (view: MapMode) => void
-}) {
-  return (
-    <div className="seg map-tool" role="group" aria-label="Map view">
-      {(['overview', 'devices'] as const).map((v) => (
-        <button
-          key={v}
-          type="button"
-          aria-pressed={view === v}
-          className={view === v ? 'active' : ''}
-          onClick={() => onChange(v)}
-        >
-          {v === 'overview' ? 'Overview' : 'Devices'}
-        </button>
-      ))}
-    </div>
   )
 }
 

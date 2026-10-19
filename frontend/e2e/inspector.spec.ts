@@ -1,12 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import {
-  expectCenteredInVisibleArea,
-  expectInsideVisibleArea,
-  expectMarks,
-  fitted,
-  selectEquipment,
-  useDevices,
-} from './helpers'
+import { expectInsideVisibleArea, fitted, selectEquipment } from './helpers'
 
 const units = (page: Page) => page.getByTestId('inspector-unit')
 const filter = (page: Page, name: 'Cabled' | 'Free' | 'All') =>
@@ -158,60 +151,6 @@ test('POL-10 Find AGG / BB from an inspector entry, and Show on map opens Focus'
   await expect(results.getByTestId('route-row')).toHaveCount(1)
 })
 
-// Retired with the device map (D35): Pin on map and the pins on the device card, and Show on map centering a card.
-// Successor for the rest of this test: 'POL-10 Find AGG / BB from an inspector entry, and Show on map opens Focus' (above).
-test('POL-10 Find AGG / BB, Pin and Show on map from an inspector entry, with pins showing on the card', async ({
-  page,
-}) => {
-  await page.goto('/')
-  await fitted(page)
-  await useDevices(page)
-  await page.getByTestId('rf__node-hdf-01').click()
-  await expect(page.locator('.inspector-header h2')).toHaveText('HDF-01')
-  await portsTab(page).click()
-
-  // Find AGG / BB from here starts at the front side of the position.
-  await page
-    .getByRole('button', { name: 'Find AGG / BB from here: HDF-01 3C / 5' })
-    .click()
-  const results = page.getByLabel('Map trace results')
-  await expect(results.getByTestId('route-row')).toHaveCount(1)
-  await expect(results.getByTestId('route-row')).toContainText('3C/5 front')
-  await expect(results.getByTestId('route-row')).toContainText('AGG-03')
-
-  // Pin on map: the position shows on the card.
-  const pin = (label: string, state: 'Pin' | 'Unpin' = 'Pin') =>
-    page.getByRole('button', { name: `${state} on map: HDF-01 ${label}` })
-  await pin('2D / 4').click()
-  await expect(pin('2D / 4', 'Unpin')).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  await expect(
-    page
-      .getByLabel('HDF-01 shown connections')
-      .locator('li')
-      .filter({ hasText: '2D / 4' }),
-  ).toContainText('pinned')
-
-  // Unpinning in the inspector removes it from the card again.
-  await page.getByTestId('rf__node-hdf-01').click()
-  await portsTab(page).click()
-  await pin('2D / 4', 'Unpin').click()
-  await expect(pin('2D / 4')).toHaveAttribute('aria-pressed', 'false')
-  await pin('3C / 5').click()
-  await page.getByRole('button', { name: 'Clear trace' }).click()
-  await expect(
-    page.getByLabel('HDF-01 shown connections').locator('li'),
-  ).toHaveCount(1) // only the pinned 3C / 5 remains
-
-  // Show on map (header): select the card and center it in the visible area, with no highlight.
-  await page.getByRole('button', { name: 'Show on map: HDF-01' }).click()
-  await expectMarks(page, { highlightCards: [], dimmedCards: [] })
-  await expect(
-    page.getByTestId('rf__node-hdf-01').locator('.equipment-card'),
-  ).toHaveClass(/selected/)
-  await expectCenteredInVisibleArea(page, 'hdf-01')
-})
-
 test('POL-11 the location links highlight the site or node on the map, and the rack opens in Physical', async ({
   page,
 }) => {
@@ -261,66 +200,6 @@ test('POL-11 the location links highlight the site or node on the map, and the r
     .click()
   await expect(page.locator('.flow-surface')).toBeVisible()
   await expect.poll(highlighted).toEqual(['node-building-a'])
-})
-
-// Retired with the device map (D35): the equipment and cable highlight, with its neighbors, on device cards.
-// Successor: 'POL-11' above and CM-11 (e2e/overview-trace.spec.ts) for the node highlight.
-test('POL-11 the location links highlight equipment and cables on the device map', async ({
-  page,
-}) => {
-  await page.goto('/')
-  await fitted(page)
-  await useDevices(page)
-  await page.getByTestId('rf__node-edge-17').click()
-  await expect(page.locator('.inspector-header h2')).toHaveText('EDGE-17')
-
-  // Node and site highlight their equipment and cables, and fit the view to them.
-  await page
-    .getByRole('button', { name: 'Highlight node Building A on the map' })
-    .click()
-  await expectMarks(page, {
-    highlightCards: ['edge-17', 'panel-a'],
-    highlightNeighbors: ['hdf-01'],
-  })
-  await expectInsideVisibleArea(page, ['edge-17', 'panel-a', 'hdf-01'])
-  await expect(
-    page.getByRole('button', { name: 'Clear highlight' }),
-  ).toBeVisible()
-  await page
-    .getByRole('button', { name: 'Highlight site Main Campus on the map' })
-    .click()
-  await expectMarks(page, {
-    highlightCards: [
-      'agg-03',
-      'agg-08',
-      'agg-15',
-      'bb-01',
-      'edge-17',
-      'hdf-01',
-      'hdf-02',
-      'panel-a',
-    ],
-    highlightNeighbors: ['agg-12', 'panel-dr'],
-  })
-
-  // The rack opens in Physical.
-  await page.getByRole('button', { name: 'Open Rack A03 in Physical' }).click()
-  await expect(page.locator('.flow-surface')).toHaveCount(0)
-  await expect(page.locator('.physical-explorer')).toHaveAttribute(
-    'data-location',
-    /rack:rack-a03/,
-  )
-  await expect(page.getByTestId('rack-slot-rack-a03-8')).toContainText(
-    'EDGE-17',
-  )
-  await expect(page.getByTestId('rack-slot-rack-core-01-8')).toHaveCount(0) // only that rack
-
-  // From Physical, a location link switches back to the map and highlights there.
-  await page
-    .getByRole('button', { name: 'Highlight node Building A on the map' })
-    .click()
-  await expect(page.locator('.flow-surface')).toBeVisible()
-  await expectMarks(page, { highlightCards: ['edge-17', 'panel-a'] })
 })
 
 test('whole-device Find AGG / BB is offered for switches only', async ({
@@ -402,12 +281,13 @@ test('POL-20 the inspector has Overview and Ports tabs, a compact port table, al
   const trace = p1.getByRole('button', {
     name: 'Find AGG / BB from here: PANEL-A 1',
   })
-  const pin = p1.getByRole('button', { name: 'Pin on map: PANEL-A 1' })
   await expect(trace).toBeVisible()
-  await expect(pin).toBeVisible()
   await expect(trace).toHaveAttribute('title', 'Find AGG / BB from here')
-  await expect(pin).toHaveAttribute('title', 'Pin on map')
-  expect((await pin.boundingBox())!.width).toBeLessThanOrEqual(28)
+  expect((await trace.boundingBox())!.width).toBeLessThanOrEqual(28)
+  // There is no Pin on map (D35): a row has Find, Show in Physical and, in a plan, Connect.
+  await expect(
+    p1.getByRole('button', { name: /^(Un)?[Pp]in on map/ }),
+  ).toHaveCount(0)
 
   // Clicking a row selects it.
   await p1.click({ position: { x: 4, y: 4 } })

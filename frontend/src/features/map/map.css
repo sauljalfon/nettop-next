@@ -16,162 +16,6 @@
   color: var(--ink-soft);
 }
 
-.react-flow__node-equipment.dragging {
-  z-index: 100 !important;
-}
-
-.react-flow__node-equipment.dragging .equipment-card {
-  box-shadow: var(--shadow-pop);
-}
-
-/* The card (D33): paper, a 1px rule, rings for state; no shadow except while dragging. */
-.equipment-card.map-card {
-  width: 240px;
-  height: auto;
-  min-height: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-}
-
-.equipment-card.map-card:hover {
-  border-color: var(--rule-strong);
-}
-
-.equipment-card.map-card.selected {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 1px var(--ink);
-}
-
-.equipment-card.map-card.traced {
-  border-color: var(--route);
-  box-shadow: 0 0 0 1px var(--route);
-}
-
-.equipment-card.map-card.traced.selected {
-  box-shadow:
-    0 0 0 1px var(--route),
-    0 0 0 4px color-mix(in srgb, var(--ink) 20%, transparent);
-}
-
-.equipment-card.map-card.proposed {
-  border-style: dashed;
-}
-
-.map-card .card-top {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.map-card .card-kind {
-  width: 22px;
-  height: 22px;
-  flex: none;
-  border-radius: 4px;
-  display: grid;
-  place-items: center;
-  background: var(--paper-sunk);
-  color: var(--ink-soft);
-}
-
-.map-card .card-name {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--t-md);
-  font-weight: 600;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
-.map-card .card-role {
-  flex: none;
-  padding-top: 1px;
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-}
-
-.map-card .card-top .chip {
-  flex: none;
-}
-
-.map-card .map-location {
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-  line-height: 1.35;
-}
-
-.map-card .card-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-}
-
-.map-card .map-summary {
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-  white-space: nowrap;
-  margin-left: auto;
-}
-
-.map-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.map-facets {
-  list-style: none;
-  margin: 2px 0 0;
-  padding: 6px 0 0;
-  border-top: 1px dashed var(--rule);
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-}
-
-.map-facet-row {
-  position: relative;
-}
-
-.map-facet {
-  max-width: 100%;
-  font-family: var(--mono);
-  font-size: var(--t-xs);
-  text-align: left;
-}
-
-.map-facet-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.map-facet.manual {
-  border-style: solid;
-}
-
-.map-facet small {
-  font-family: var(--sans);
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-}
-
-.map-facet-row .react-flow__handle {
-  top: 50%;
-}
-
 .studio-header .view-switch {
   margin-left: auto;
   align-self: center;
@@ -287,8 +131,7 @@
 }
 
 /* Overlays keep clear of an open drawer: right of the left one, left of the right one. */
-.studio.drawer-left .map-results,
-.studio.drawer-left .board-caption {
+.studio.drawer-left .map-results {
   left: var(--clear-of-left-drawer);
 }
 
@@ -301,128 +144,14 @@
   right: var(--clear-of-right-drawer);
 }
 
-/* Location highlight: amber, separate from the route colour; the rest fades. */
-.equipment-card.map-card.hl {
-  border: 3px solid var(--amber);
-  box-shadow:
-    0 0 0 6px color-mix(in srgb, var(--amber-halo) 40%, transparent),
-    0 0 22px color-mix(in srgb, var(--amber-halo) 55%, transparent);
-}
-
-.equipment-card.map-card.hl-neighbor {
-  border: 2px solid var(--amber-halo);
-  background: var(--amber-soft);
-  box-shadow: none;
-}
-
-/* On the route and highlighted: the amber border stays, the route ring shows around it. */
-.equipment-card.map-card.hl.traced {
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--route) 40%, transparent),
-    0 0 0 8px color-mix(in srgb, var(--amber-halo) 40%, transparent),
-    0 0 22px color-mix(in srgb, var(--amber-halo) 55%, transparent);
-}
-
-.equipment-card.map-card.hl-neighbor.traced {
-  border-color: var(
-    --route
-  ); /* on the route: the route colour wins; the amber tint stays */
-}
-
-.equipment-card.map-card.dimmed {
-  opacity: 0.3;
-}
-
-.react-flow__edge .hl-outline {
-  stroke: var(--amber-halo);
-  stroke-width: 8px;
-  stroke-opacity: 0.85;
-}
-
-.react-flow__edge.animated path.hl-outline {
-  stroke-dasharray: none;
-  animation: none;
-}
-
 .map-tools {
   display: flex;
   align-items: flex-start;
   gap: 8px;
 }
 
-.map-pill {
-  position: absolute;
-  pointer-events: all;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border: 2px solid var(--paper);
-  border-radius: 10px;
-  font-family: var(--mono);
-  font-size: var(--t-min);
-  font-weight: 500;
-  line-height: 16px;
-  cursor: pointer;
-  z-index: 12;
-}
-
-.map-tooltip {
-  position: absolute;
-  pointer-events: none;
-  background: var(--ink);
-  color: var(--paper);
-  border-radius: var(--r-control);
-  padding: 6px 9px;
-  font-family: var(--mono);
-  font-size: var(--t-xs);
-  line-height: 1.5;
-  white-space: nowrap;
-  z-index: 30;
-}
-
-.map-cable-label {
-  position: absolute;
-  pointer-events: none;
-  background: var(--paper);
-  border: 1px solid;
-  border-radius: 4px;
-  padding: 1px 6px;
-  font-family: var(--mono);
-  font-size: var(--t-min);
-  line-height: 14px;
-  z-index: 12;
-}
-
-.map-join {
-  position: absolute;
-  pointer-events: all;
-  background: var(--paper);
-  border: 1px solid var(--unresolved);
-  border-radius: 10px;
-  padding: 1px 8px;
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-  cursor: pointer;
-  z-index: 12;
-}
-
-.react-flow__edge.selectable:not(.map-edge-splittable) {
-  cursor: default; /* React Flow makes every edge a pointer; only splittable lines look clickable */
-}
-
-.react-flow__edge.map-edge-splittable {
-  cursor: pointer;
-}
-
-.map-caption {
-  position: absolute;
-  pointer-events: none;
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-  background: var(--paper);
-  border-radius: 4px;
-  padding: 0 4px;
-  z-index: 11;
+.react-flow__edge.selectable {
+  cursor: default; /* React Flow makes every edge a pointer; no line here is clickable */
 }
 
 .map-route-tools {
@@ -539,11 +268,6 @@
   margin: 0;
   font-size: var(--t-md);
   color: var(--ink-soft);
-}
-.overview-empty-tools {
-  position: absolute;
-  top: 12px;
-  right: 22px;
 }
 .react-flow__handle.overview-handle {
   top: 50%;
@@ -742,11 +466,6 @@
 }
 .focus-nothing {
   color: var(--ink-soft);
-}
-.focus-tools {
-  position: absolute;
-  top: 12px;
-  right: 22px;
 }
 .focus-empty {
   position: absolute;

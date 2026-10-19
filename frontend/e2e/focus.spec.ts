@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectCenteredInVisibleArea, fitted, settledViewport } from './helpers'
+import { fitted, settledViewport } from './helpers'
 
 // CM-10. Ids are the test server's (the acceptance example): equipment ids are
 // the lower-case names. The overview arrangement is shared server state.
@@ -14,17 +14,12 @@ const equipmentCard = (page: Page, id: string) =>
   page.locator(`[data-equipment-id="${id}"]`)
 const line = (page: Page, from: string, to: string) =>
   page.locator(`[data-line="${from}|${to}"]`)
-const mapView = (page: Page, name: 'Overview' | 'Devices') =>
-  page
-    .getByRole('group', { name: 'Map view' })
-    .getByRole('button', { name, exact: true })
 const viewport = (page: Page) =>
   page.locator('.react-flow__viewport').getAttribute('style')
 
 async function toOverview(page: Page) {
   await page.goto('/')
   await fitted(page)
-  await mapView(page, 'Overview').click()
   await expect(overviewRoot(page)).toHaveAttribute('data-fitted', 'true')
 }
 
@@ -157,7 +152,7 @@ test('CM-10 ‹ Overview returns to the overview with the same arrangement and v
   await expect.poll(() => viewport(page)).toBe(view)
 })
 
-test('CM-10 from the overview, Explore → EDGE-17 opens Focus; from Devices, Show on map still centers the card', async ({
+test('CM-10 from the overview, Explore → EDGE-17 opens Focus, and ‹ Overview returns to the overview', async ({
   page,
 }) => {
   await toOverview(page)
@@ -165,17 +160,6 @@ test('CM-10 from the overview, Explore → EDGE-17 opens Focus; from Devices, Sh
   await expect(focusRoot(page)).toHaveAttribute('data-focus-id', 'edge-17')
   await page.getByRole('button', { name: '‹ Overview' }).click()
   await expect(overviewRoot(page)).toBeVisible()
-  await mapView(page, 'Devices').click()
-  await expect(
-    page.locator('.react-flow__node-equipment').first(),
-  ).toBeVisible()
-  await page
-    .getByRole('button', { name: 'Close Equipment inspector' })
-    .click()
-    .catch(() => undefined)
-  await exploreChoose(page, 'AGG-08')
-  await expect(focusRoot(page)).toHaveCount(0)
-  await expectCenteredInVisibleArea(page, 'agg-08')
 })
 
 test('CM-10 a card the plan adds is Proposed; in Installed the same focus says it is not in this topology', async ({

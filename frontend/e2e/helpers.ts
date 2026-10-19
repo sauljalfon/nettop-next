@@ -4,24 +4,18 @@ export const viewport = (page: Page) =>
   page.locator('.react-flow__viewport').getAttribute('style')
 
 /**
- * Waits for the map view that is showing to be ready: the overview fitted, Focus
- * drawn, or the device map's first card with a settled viewport. Map-agnostic
- * specs call it and need not know which view is the default.
+ * Waits for the map view that is showing to be ready: the overview fitted, or
+ * Focus drawn with a settled viewport.
  */
 export async function fitted(page: Page) {
   const overview = page.locator('[data-view="overview"]')
   const focus = page.locator('[data-view="focus"]')
-  const device = page.locator('.react-flow__node-equipment').first()
-  await expect(overview.or(focus).or(device)).toBeVisible()
+  await expect(overview.or(focus)).toBeVisible()
   if (await overview.count()) {
     await expect(overview).toHaveAttribute('data-fitted', 'true')
-  } else if (await focus.count()) {
+  } else {
     await expect(focus.locator('[data-equipment-id]').first()).toBeVisible()
     await settledViewport(page)
-  } else {
-    await expect
-      .poll(() => viewport(page))
-      .not.toBe('transform: translate(0px, 0px) scale(1);')
   }
 }
 
@@ -49,96 +43,16 @@ export async function selectEquipment(page: Page, name: string) {
   await expect(page.locator('.inspector-header h2')).toHaveText(name)
 }
 
-/**
- * Switches the map to the device map and waits for it. Only for tests of the
- * device map itself, which D35 retires in step 7.
- */
-export async function useDevices(page: Page) {
-  await page
-    .getByRole('group', { name: 'Map view' })
-    .getByRole('button', { name: 'Devices', exact: true })
-    .click()
-  await expect(
-    page.locator('.react-flow__node-equipment').first(),
-  ).toBeVisible()
-  await expect
-    .poll(() => viewport(page))
-    .not.toBe('transform: translate(0px, 0px) scale(1);')
-}
-
-/**
- * The card's center is the center of the part of the canvas that is visible:
- * not under an open drawer or the results overlay.
- */
-export async function expectCenteredInVisibleArea(page: Page, id: string) {
-  await expect
-    .poll(async () => {
-      const card = await page.getByTestId(`rf__node-${id}`).boundingBox()
-      return page.evaluate((c) => {
-        const surface = document
-          .querySelector('.flow-surface')!
-          .getBoundingClientRect()
-        let left = 0
-        let right = 0
-        let bottom = 0
-        for (const d of document.querySelectorAll('.studio-drawer')) {
-          const r = d.getBoundingClientRect()
-          if (d.classList.contains('left'))
-            left = Math.max(left, r.right - surface.left)
-          else right = Math.max(right, surface.right - r.left)
-        }
-        for (const o of document.querySelectorAll('.map-results')) {
-          const r = o.getBoundingClientRect()
-          bottom = Math.max(bottom, surface.bottom - r.top)
-        }
-        // The tool rail at the canvas's left edge covers it too.
-        const rail = document
-          .querySelector('.tool-rail')
-          ?.getBoundingClientRect()
-        if (rail) left = Math.max(left, rail.right - surface.left)
-        const x = surface.left + (left + (surface.width - right)) / 2
-        const y = surface.top + (surface.height - bottom) / 2
-        return Math.hypot(c!.x + c!.width / 2 - x, c!.y + c!.height / 2 - y)
-      }, card)
-    })
-    .toBeLessThan(4)
-}
-
 export interface Marks {
-  /** Every card the map shows, drawn or not. */
-  cards: string[]
-  routeLinks: string[]
-  routeCards: string[]
-  highlightLinks: string[]
-  highlightCards: string[]
-  highlightNeighbors: string[]
-  dimmedCards: string[]
-  splitPairs: string[]
   /** The route view is what the map draws. */
   routeView: boolean
 }
 
-/**
- * The projection's own route/highlight IDs, written on .flow-surface. Unlike
- * counting `.react-flow__edge.animated`, this does not depend on which cards
- * React Flow has drawn inside the current viewport (a pan hides offscreen ones).
- */
+/** What the map says about itself, written on .flow-surface (every view has it). */
 export const marks = (page: Page): Promise<Marks> =>
-  page.locator('.flow-surface').evaluate((el) => {
-    const list = (name: string) =>
-      (el.getAttribute(name) ?? '').split(' ').filter(Boolean)
-    return {
-      cards: list('data-cards'),
-      routeLinks: list('data-route-links'),
-      routeCards: list('data-route-cards'),
-      highlightLinks: list('data-highlight-links'),
-      highlightCards: list('data-highlight-cards'),
-      highlightNeighbors: list('data-highlight-neighbors'),
-      dimmedCards: list('data-dimmed-cards'),
-      splitPairs: list('data-split-pairs'),
-      routeView: el.getAttribute('data-route-view') === 'true',
-    }
-  })
+  page.locator('.flow-surface').evaluate((el) => ({
+    routeView: el.getAttribute('data-route-view') === 'true',
+  }))
 
 /** Waits until the given marks hold; the others are not looked at. */
 export async function expectMarks(page: Page, expected: Partial<Marks>) {
@@ -151,8 +65,6 @@ export async function expectMarks(page: Page, expected: Partial<Marks>) {
     })
     .toEqual(expected)
 }
-
-export const ROUTE_AGG_03 = ['cable-a01', 'cable-a02', 'cable-a03', 'cable-a04']
 
 /** Chooses an item in a trace picker (Start or Destination) by searching and clicking a match. */
 export async function pick(
@@ -250,27 +162,6 @@ export async function highlightLocation(page: Page, name: string) {
   await page
     .getByRole('button', { name: `Highlight ${name} on the map` })
     .click()
-}
-
-/** Select a card (which opens the inspector) and show its Ports or Positions tab. */
-export async function openPorts(page: Page, card: string) {
-  await page.getByTestId(`rf__node-${card.toLowerCase()}`).click()
-  await page.getByRole('tab', { name: /^(Ports|Positions)$/ }).click()
-}
-
-/** Pin the first position matching the query from the inspector, then close it. */
-export async function pinFromInspector(
-  page: Page,
-  card: string,
-  query: string,
-) {
-  await openPorts(page, card)
-  await page.getByLabel('Search endpoints').fill(query)
-  await page
-    .getByRole('button', { name: /^Pin on map: / })
-    .first()
-    .click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
 }
 
 /**

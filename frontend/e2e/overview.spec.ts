@@ -26,10 +26,6 @@ const positions = async (page: Page) =>
 async function toOverview(page: Page) {
   await page.goto('/')
   await fitted(page)
-  await page
-    .getByRole('group', { name: 'Map view' })
-    .getByRole('button', { name: 'Overview' })
-    .click()
   await expect(root(page)).toBeVisible()
   await expect(root(page)).toHaveAttribute('data-fitted', 'true')
 }
@@ -156,10 +152,6 @@ test('CM-09 a dragged card stays where it was dropped after a reload, and Reset 
 
   await page.reload()
   await fitted(page)
-  await page
-    .getByRole('group', { name: 'Map view' })
-    .getByRole('button', { name: 'Overview' })
-    .click()
   await expect(root(page)).toHaveAttribute('data-fitted', 'true')
   expect(await positions(page)).toEqual(moved)
 
@@ -384,4 +376,25 @@ test('CM-09 fix: the note is clear of the tool rail, and of the left drawer when
   await expect
     .poll(async () => (await note.boundingBox())!.x)
     .toBeGreaterThanOrEqual(d.x + d.width)
+})
+
+test('CM-09 the map has no Devices view', async ({ page }) => {
+  await page.goto('/')
+  await fitted(page)
+  await expect(page.getByRole('group', { name: 'Map view' })).toHaveCount(0)
+  await expect(page.locator('.react-flow__node-equipment')).toHaveCount(0)
+  // Focus has no switch either, and ‹ Overview returns to the overview.
+  await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
+  const search = page.getByLabel('Find equipment')
+  await search.fill('EDGE-17')
+  await search.press('Enter')
+  await expect(page.locator('[data-view="focus"]')).toHaveAttribute(
+    'data-focus-id',
+    'edge-17',
+  )
+  await expect(page.getByRole('group', { name: 'Map view' })).toHaveCount(0)
+  await expect(page.locator('.react-flow__node-equipment')).toHaveCount(0)
+  await page.getByRole('button', { name: '‹ Overview' }).click()
+  await expect(root(page)).toBeVisible()
+  await expect(page.locator('[data-view="focus"]')).toHaveCount(0)
 })

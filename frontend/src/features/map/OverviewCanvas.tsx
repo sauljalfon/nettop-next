@@ -42,7 +42,7 @@ import { routeMarks } from '../physical/inventory'
 import { NODE_WIDTH, type Position as Point } from '../physical/layout'
 import { fitViewport } from './center'
 import { shouldClearOnEscape } from './keys'
-import { ClearHighlight, MapViewSwitch, ResetLayout } from './MapControls'
+import { ClearHighlight, ResetLayout } from './MapControls'
 import { mapSession, type MapSession } from './mapSession'
 import { networkColors } from './networkColors'
 import NodeCard from './NodeCard'
@@ -355,7 +355,7 @@ function Canvas({
     () => highlightedNodeIds(overview, highlight),
     [overview, highlight],
   )
-  // Esc clears the highlight without touching the trace (as on the device map).
+  // Esc clears the highlight without touching the trace.
   useEffect(() => {
     if (!highlight) return
     const onKey = (event: KeyboardEvent) => {
@@ -662,7 +662,6 @@ function Canvas({
             <Panel position="top-right" className="map-tools">
               {!active && (
                 <>
-                  <MapViewSwitch view="overview" onChange={session.setView} />
                   {highlight && (
                     <ClearHighlight
                       onClear={() => session.setHighlight(undefined)}
@@ -679,11 +678,6 @@ function Canvas({
             )}
           </ReactFlow>
         </Actions.Provider>
-      )}
-      {empty && (
-        <div className="map-tools overview-empty-tools">
-          <MapViewSwitch view="overview" onChange={session.setView} />
-        </div>
       )}
       {active && routeSheet && (
         <div className="route-layer" data-testid="route-layer">

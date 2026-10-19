@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test'
-import { openRackInPhysical, expandResults, useDevices } from './helpers'
+import { openRackInPhysical, expandResults } from './helpers'
 import { chooseRack } from './patching-helpers'
 import { getPlan } from './plan-api'
 
@@ -105,62 +105,6 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await expect(page.getByTestId('rack-slot-rack-a03-8')).toContainText(
     'EDGE-17',
-  )
-})
-
-test('empty canvas creates an unplaced preview and saves only after rack assignment', async ({
-  page,
-  request,
-}) => {
-  await page.goto('/?plan=expansion')
-  // Retired with the device map (D35): the empty-canvas library drop. Successor: the library's Add… form.
-  await useDevices(page)
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  const before = await (await request.get('/api/plans/expansion')).json()
-  await page
-    .locator('.library-item')
-    .filter({ hasText: 'Aggregation' })
-    .dragTo(page.locator('.react-flow__pane'), {
-      targetPosition: { x: 1300, y: 850 },
-    })
-  const form = page.getByTestId('equipment-form')
-  await expect(form).toHaveAccessibleName('Add Aggregation')
-  await expect(form.getByLabel('Rack', { exact: true })).toHaveValue('')
-  await expect(
-    page.getByText('Unplaced equipment preview', { exact: true }),
-  ).toBeVisible()
-  const after = await (await request.get('/api/plans/expansion')).json()
-  expect(after.revision).toBe(before.revision)
-  await form.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await expect(page.locator('.unplaced-card')).toHaveCount(0)
-  // A fresh draft takes the next one, which is saved after its rack is chosen.
-  const id = await newPlan(request, 'Map creation check')
-  await page.goto(`/?plan=${id}`)
-  await useDevices(page)
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page
-    .locator('.library-item')
-    .filter({ hasText: 'Access switch' })
-    .dragTo(page.locator('.react-flow__pane'), {
-      targetPosition: { x: 1300, y: 850 },
-    })
-  const next = page.getByTestId('equipment-form')
-  await next.getByLabel('Name').fill('BOARD-EDGE')
-  await next.getByLabel('Network').selectOption('net-a')
-  await chooseRack(next, 'Place', {
-    site: 'Main Campus',
-    node: 'Building A',
-    rack: 'Rack A03',
-  })
-  await next.getByLabel('Ports').fill('2')
-  await next.getByRole('button', { name: 'Add to plan' }).click()
-  await expect(page.locator('.unplaced-card')).toHaveCount(0)
-  await expect(
-    page.locator('.equipment-card').filter({ hasText: 'BOARD-EDGE' }),
-  ).toBeVisible()
-  await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await expect(page.getByTestId('rack-slot-rack-a03-1')).toContainText(
-    'BOARD-EDGE',
   )
 })
 

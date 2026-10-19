@@ -50,7 +50,6 @@ import {
   type StepPiece,
 } from './focusFlow'
 import { focusLayout } from './focusLayout'
-import { MapViewSwitch } from './MapControls'
 import { mapSession, type MapSession } from './mapSession'
 import NetworkBadge from './NetworkBadge'
 import { colorOf, networkColors } from './networkColors'
@@ -571,7 +570,6 @@ function Canvas({
     [session, onSelect],
   )
   const lastEmpty = known && focus.rings.length < hops
-  const back = session.focusReturn()
   const centerName = nameOf(focusId)
   const empty = known && focus.rings.length === 0 && focus.ends.length === 0
 
@@ -616,7 +614,7 @@ function Canvas({
         <>
           <div className="focus-toolbar">
             <button type="button" className="btn" onClick={session.back}>
-              ‹ {back === 'overview' ? 'Overview' : 'Devices'}
+              ‹ Overview
             </button>
             {known && (
               <>
@@ -642,9 +640,6 @@ function Canvas({
                 )}
               </>
             )}
-          </div>
-          <div className="map-tools focus-tools">
-            <MapViewSwitch view="focus" onChange={session.setView} />
           </div>
         </>
       )}

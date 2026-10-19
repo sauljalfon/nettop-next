@@ -10,7 +10,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
   useEffect,
@@ -26,7 +25,6 @@ import { patchingSession } from '../patching/patchingSession'
 import { DisconnectConfirm } from '../planning/EditConfirms'
 import type { PlanEdit } from '../planning/editing'
 import type { LocationRef } from '../map/highlight'
-import type { MapSession } from '../map/mapSession'
 import NetworkBadge from '../map/NetworkBadge'
 import { cardRoleLabel } from '../map/cardRole'
 import { colorOf, networkColors } from '../map/networkColors'
@@ -51,8 +49,6 @@ interface Props {
   index: SnapshotIndex
   equipment: Equipment
   installedIDs: ReadonlySet<string>
-  /** Pins are the map's manual facets. */
-  session: MapSession
   /** Find AGG / BB from every port of this device. */
   onFindFromDevice: () => void
   /** Find AGG / BB from one exact endpoint. */
@@ -91,7 +87,6 @@ export default function Inspector({
   index,
   equipment,
   installedIDs,
-  session,
   onFindFromDevice,
   onFindFromHere,
   onShowOnMap,
@@ -131,11 +126,6 @@ export default function Inspector({
   const groups = useMemo(
     () => inspectorGroups(snapshot, index, equipment.id),
     [snapshot, index, equipment.id],
-  )
-  const manual = useSyncExternalStore(session.subscribe, session.manualFacets)
-  const pinned = useMemo(
-    () => new Set(manual.get(equipment.id)),
-    [manual, equipment.id],
   )
   const networkName = (id: string) =>
     snapshot.networks.find((n) => n.id === id)?.name ?? id
@@ -350,12 +340,10 @@ export default function Inspector({
             groups={groups}
             networkName={networkName}
             networkColor={networkColor}
-            pinned={pinned}
             onFindFromHere={onFindFromHere}
             onShowInPhysical={(endpointId) =>
               onShowInPhysical(equipment.id, endpointId)
             }
-            onPin={(key) => session.toggleManual(equipment.id, key)}
             renderDisconnect={
               edit &&
               ((linkId, onClose, openerKey) => (

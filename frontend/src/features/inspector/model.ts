@@ -26,7 +26,7 @@ export interface InspectorSide {
 
 /** A switch port, or one panel/HDF position with both sides. */
 export interface InspectorUnit {
-  /** The facet key shared with "Show connections" and Pin. */
+  /** The row's key: the position label, or the port endpoint. */
   key: string
   label: string
   sides: InspectorSide[]

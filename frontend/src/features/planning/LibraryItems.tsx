@@ -8,7 +8,7 @@ import HdfForm from './HdfForm'
 import './editing.css'
 import './planning.css'
 
-/** A drop (or an unplaced preview) waiting for its details. */
+/** A drop on a rack waiting for its details. */
 export interface PendingEquipment {
   token: number
   kind: 'switch' | 'panel'
@@ -107,19 +107,10 @@ export default function LibraryItems({
         </strong>
         <p>
           {canEdit
-            ? 'Drop inside a rack to assign it. Drop on empty canvas to preview without saving.'
+            ? 'Drop inside a rack to assign it, or add an item with its form.'
             : 'Switch to a plan in the top bar to add or move equipment.'}
         </p>
       </div>
-      {pending && !pending.rackId && (
-        <div className="notice">
-          <strong>Unplaced equipment preview</strong>
-          <p>
-            Choose its rack before saving. This preview is not part of the
-            network or trace graph.
-          </p>
-        </div>
-      )}
       <div className="lib-list">
         {ITEMS.map((item) => (
           <div key={item.id} className="library-entry">

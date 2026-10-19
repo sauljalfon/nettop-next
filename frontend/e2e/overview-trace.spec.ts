@@ -1,8 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { fitted, highlightLocation, settledViewport } from './helpers'
 
-// CM-11. A new file: trace-map.spec.ts is about the device map only. A trace
-// highlights in place (locked 3): nothing moves.
+// CM-11. A trace highlights in place (locked 3): nothing moves.
 test.describe.configure({ mode: 'serial' })
 test.afterEach(async ({ request }) => {
   await request.delete('/api/map-layout')
@@ -19,10 +18,6 @@ const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
 const viewport = (page: Page) =>
   page.locator('.react-flow__viewport').getAttribute('style')
-const mapView = (page: Page, name: 'Overview' | 'Devices') =>
-  page
-    .getByRole('group', { name: 'Map view' })
-    .getByRole('button', { name, exact: true })
 const positions = (page: Page) =>
   overviewRoot(page).getAttribute('data-node-positions')
 /** Every drawn Focus card's transform. */
@@ -46,7 +41,6 @@ const OTHER_NODES = ['node-dr-access', 'node-dr-distribution', 'node-annex']
 async function toOverview(page: Page) {
   await page.goto('/')
   await fitted(page)
-  await mapView(page, 'Overview').click()
   await expect(overviewRoot(page)).toHaveAttribute('data-fitted', 'true')
 }
 
@@ -232,11 +226,9 @@ test('CM-11 Explore’s highlight marks the node amber and fits it into view onc
     .toBe(true)
   const fitView = await settledViewport(page)
   // Once: a drag of the view is not undone, and leaving and coming back keeps it.
-  await mapView(page, 'Devices').click()
-  await expect(
-    page.locator('.react-flow__node-equipment').first(),
-  ).toBeVisible()
-  await mapView(page, 'Overview').click()
+  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  await expect(page.locator('.physical-explorer')).toBeVisible()
+  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await expect(overviewRoot(page)).toHaveAttribute('data-fitted', 'true')
   await expect.poll(() => viewport(page)).toBe(fitView)
   await expect(target).toHaveAttribute('data-highlighted', 'true')

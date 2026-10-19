@@ -3,8 +3,6 @@ import {
   Cable,
   ChevronRight,
   GitFork,
-  Pin,
-  PinOff,
   Server,
   Unlink,
 } from 'lucide-react'
@@ -29,11 +27,8 @@ interface Props {
   /** Display name and shared color of a network ID. */
   networkName: (id: string) => string
   networkColor: (id: string) => string
-  /** Facet keys pinned on the map. */
-  pinned: ReadonlySet<string>
   onFindFromHere: (endpointId: string) => void
   onShowInPhysical: (endpointId: string) => void
-  onPin: (key: string) => void
   /**
    * In a current plan: the inline confirm for removing one cable. When given,
    * every cabled side gets a Disconnect action.
@@ -70,10 +65,8 @@ export default function PortTable({
   groups,
   networkName,
   networkColor,
-  pinned,
   onFindFromHere,
   onShowInPhysical,
-  onPin,
   renderDisconnect,
   onConnect,
   request,
@@ -152,12 +145,10 @@ export default function PortTable({
                       equipmentName={equipmentName}
                       networkName={networkName}
                       networkColor={networkColor}
-                      pinned={pinned.has(unit.key)}
                       selected={selected === unit.key}
                       onSelect={() => setSelected(unit.key)}
                       onFindFromHere={onFindFromHere}
                       onShowInPhysical={onShowInPhysical}
-                      onPin={onPin}
                       canDisconnect={!!renderDisconnect}
                       disconnecting={disconnecting}
                       onDisconnect={setDisconnecting}
@@ -212,12 +203,10 @@ function Row({
   equipmentName,
   networkName,
   networkColor,
-  pinned,
   selected,
   onSelect,
   onFindFromHere,
   onShowInPhysical,
-  onPin,
   canDisconnect,
   disconnecting,
   onDisconnect,
@@ -234,15 +223,12 @@ function Row({
   equipmentName: string
   networkName: (id: string) => string
   networkColor: (id: string) => string
-  pinned: boolean
   selected: boolean
   onSelect: () => void
   onFindFromHere: (endpointId: string) => void
   onShowInPhysical: (endpointId: string) => void
-  onPin: (key: string) => void
 }) {
   const name = `${equipmentName} ${unit.label}`
-  const pinLabel = pinned ? 'Unpin on map' : 'Pin on map'
   const open = unit.sides.find(
     (side) => side.cable && side.cable.linkId === disconnecting,
   )
@@ -335,18 +321,6 @@ function Row({
             }}
           >
             <Server size={14} />
-          </button>
-          <button
-            className={`row-action ${pinned ? 'active' : ''}`}
-            title={pinLabel}
-            aria-label={`${pinLabel}: ${name}`}
-            aria-pressed={pinned}
-            onClick={(event) => {
-              event.stopPropagation()
-              onPin(unit.key)
-            }}
-          >
-            {pinned ? <PinOff size={14} /> : <Pin size={14} />}
           </button>
           {onConnect &&
             unit.sides.map(

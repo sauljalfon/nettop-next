@@ -38,9 +38,7 @@ import type {
   Snapshot,
   TraceRequest,
 } from '../shared/types'
-import ConceptualMap, {
-  type PendingEquipment,
-} from '../features/map/ConceptualMap'
+import ConceptualMap from '../features/map/ConceptualMap'
 import { drawerSides } from '../features/map/drawers'
 import {
   buildSearchItems,
@@ -69,7 +67,9 @@ import MapResults from '../features/map/MapResults'
 import { walkOfRoute } from '../features/paths/follow'
 import { buildSheet } from '../features/paths/sheet'
 import MapTraceError from '../features/map/MapTraceError'
-import LibraryItems from '../features/planning/LibraryItems'
+import LibraryItems, {
+  type PendingEquipment,
+} from '../features/planning/LibraryItems'
 import { locationTree } from '../features/patching/patching'
 import PlacementEditor from '../features/planning/PlacementEditor'
 import TracePicker from '../features/pathfinding/TracePicker'
@@ -209,7 +209,6 @@ export default function App() {
       kind: 'switch' | 'panel',
       rackID?: string,
       unit?: number,
-      position?: { x: number; y: number },
       role?: 'aggregation',
     ) => {
       const current = topology.data
@@ -233,13 +232,11 @@ export default function App() {
         role,
         rackId: rackID ?? '',
         unit: unit ?? first ?? 1,
-        position: position ?? (!rackID ? { x: 70, y: 70 } : undefined),
       })
       setDrawer('library')
     },
     [topology.data, context, selectedPlan],
   )
-  const configurePreview = useCallback(() => setDrawer('library'), [])
   const openInspector = useCallback(() => setDrawer('inspector'), [])
   const toggleDrawer = (value: Drawer) =>
     setDrawer((previous) => (previous === value ? null : value))
@@ -419,12 +416,11 @@ export default function App() {
             closeDrawer={() => setDrawer(null)}
             pending={pending}
             onCreateEquipment={requestEquipment}
-            onCancelPreview={() => setPending(undefined)}
+            onCancelPending={() => setPending(undefined)}
             onEquipmentAdded={() => {
               setPending(undefined)
               setDrawer(null)
             }}
-            onConfigurePreview={configurePreview}
             onSelectEquipment={openInspector}
             onManageNetworks={() => setDrawer('networks')}
             onPlanSaved={saved}
@@ -529,11 +525,9 @@ interface WorkspaceProps {
     kind: 'switch' | 'panel',
     rackID?: string,
     unit?: number,
-    position?: { x: number; y: number },
     role?: 'aggregation',
   ) => void
-  onConfigurePreview: () => void
-  onCancelPreview: () => void
+  onCancelPending: () => void
   /** Equipment was added through the library form: the drawer is done. */
   onEquipmentAdded: () => void
   onSelectEquipment: () => void
@@ -556,8 +550,7 @@ function Workspace({
   closeDrawer,
   pending,
   onCreateEquipment,
-  onConfigurePreview,
-  onCancelPreview,
+  onCancelPending,
   onEquipmentAdded,
   onSelectEquipment,
   onManageNetworks,
@@ -881,7 +874,7 @@ function Workspace({
       startTrace({ mode: 'distribution', device: equipment.id })
     }
   }
-  // Select the card, show the map and center on the card. No highlight.
+  // Select the equipment and open Focus on it. No highlight.
   const focusOnMap = useCallback(
     (id: string) => {
       setSelected(id)
@@ -890,19 +883,9 @@ function Workspace({
     },
     [onViewChange],
   )
-  // On the device map, Show on map centers the card; on the overview or Focus it opens Focus.
-  const showOnMap = useCallback(
-    (id: string) => {
-      if (mapSession.view() !== 'devices') return focusOnMap(id)
-      setSelected(id)
-      onViewChange('conceptual')
-      mapSession.requestCenter(id)
-    },
-    [onViewChange, focusOnMap],
-  )
   // A port or cable chosen in Explore's search. In Physical it opens that endpoint
-  // on its equipment page; in Conceptual it selects the equipment, centers its
-  // card and opens the inspector's Ports/Positions tab filtered to that label.
+  // on its equipment page; in Conceptual it selects the equipment, opens Focus on
+  // it and opens the inspector's Ports/Positions tab filtered to that label.
   const [portSearch, setPortSearch] = useState<{
     equipmentId: string
     query: string
@@ -918,19 +901,19 @@ function Workspace({
         query: inspectorQuery(index, endpointId),
         serial: (previous?.serial ?? 0) + 1,
       }))
-      showOnMap(owner)
+      focusOnMap(owner)
       onSelectEquipment()
     },
-    [index, view, openEndpointPhysical, showOnMap, onSelectEquipment],
+    [index, view, openEndpointPhysical, focusOnMap, onSelectEquipment],
   )
   // Equipment chosen in Explore (a click, or Enter in its search) also opens the inspector.
   const chooseEquipment = useCallback(
     (id: string) => {
       if (view === 'physical') return openEquipmentPhysical(id)
-      showOnMap(id)
+      focusOnMap(id)
       onSelectEquipment()
     },
-    [view, openEquipmentPhysical, showOnMap, onSelectEquipment],
+    [view, openEquipmentPhysical, focusOnMap, onSelectEquipment],
   )
   const drawerEquipment = equipment && (
     <Inspector
@@ -940,10 +923,9 @@ function Workspace({
       index={index}
       equipment={equipment}
       installedIDs={installedIDs}
-      session={mapSession}
       onFindFromDevice={traceSelectedDevice}
       onFindFromHere={traceFromPort}
-      onShowOnMap={showOnMap}
+      onShowOnMap={focusOnMap}
       onFocus={focusOnMap}
       onShowInPhysical={showInPhysical}
       onHighlight={highlightLocation}
@@ -972,7 +954,6 @@ function Workspace({
           snapshot={snapshot}
           index={index}
           installedIDs={installedIDs}
-          installedLinkIDs={installedLinkIDs}
           selected={selected}
           route={route}
           routeSheet={routeSheet}
@@ -980,10 +961,6 @@ function Workspace({
           networkId={networkId}
           onSelect={select}
           onPort={traceFromPort}
-          canEdit={canEdit}
-          onCreateEquipment={onCreateEquipment}
-          preview={pending}
-          onConfigurePreview={onConfigurePreview}
           installedContainerIds={installedContainerIds}
         />
       ) : (
@@ -1002,12 +979,10 @@ function Workspace({
           edit={edit}
           installedContainerIds={installedContainerIds}
           onMoveEquipment={move}
-          onCreateEquipment={(kind, rackID, unit, role) =>
-            onCreateEquipment(kind, rackID, unit, undefined, role)
-          }
+          onCreateEquipment={onCreateEquipment}
           onSelectEquipment={setSelected}
           onFindFromEndpoint={traceFromPort}
-          onShowOnMap={showOnMap}
+          onShowOnMap={focusOnMap}
           onError={setPhysicalError}
         />
       )}
@@ -1025,7 +1000,7 @@ function Workspace({
             defaultRackId={current.rackId}
             near={{ siteId: current.siteId, nodeId: current.nodeId }}
             pending={pending}
-            onCancelPending={onCancelPreview}
+            onCancelPending={onCancelPending}
             onAdded={onEquipmentAdded}
             onManageNetworks={onManageNetworks}
             onHdfCreated={(saved, name) => {
@@ -1190,7 +1165,6 @@ function Workspace({
             if (!port) return
             if (view === 'physical') return openEndpointPhysical(endpointId)
             select(port.equipmentId)
-            mapSession.requestCenter(port.equipmentId)
           }}
           onShowInPhysical={showStepInPhysical}
           onClear={() => clearTrace()}
@@ -1234,7 +1208,7 @@ function Explorer({
   /** Ports and cables the search can find; built when the browser is idle. */
   searchItems: Lazy<SearchItems>
   selected: string
-  /** Select the equipment, open the inspector and center on its card. */
+  /** Select the equipment, open the inspector and open Focus on it. */
   onChoose: (id: string) => void
   /** A port or cable found by the search: open that endpoint (Physical), or select its equipment and filter the inspector (Conceptual). */
   onChooseHit: (endpointId: string) => void
