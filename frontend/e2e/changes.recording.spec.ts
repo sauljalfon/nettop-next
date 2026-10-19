@@ -49,13 +49,6 @@ const fillReview = async (page: Page, note: string, by?: string) => {
       .getByLabel(/^Recorded by/)
       .fill(by)
 }
-const expectRevision = (
-  request: APIRequestContext,
-  id: string,
-  revision: string,
-) =>
-  expect.poll(async () => (await getPlan(request, id)).revision).toBe(revision)
-
 /** A draft that adds a room with two switches joined by one cable: 6 changes. */
 async function roomDraft(request: APIRequestContext, label: string) {
   const id = await newPlan(request, `Record ${label}`)

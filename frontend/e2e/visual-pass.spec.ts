@@ -282,7 +282,7 @@ test('VP-03b without a drawer the HDF grid fills its card, and every jack number
 
 // VP-04 (D33): one form layout. Label above the control, a focus ring inside the
 // box, place selects on one row, proposed forms dashed, ink primary / paper Cancel.
-const rgbOf = (page: Page, locator: ReturnType<Page['locator']>) =>
+const rgbOf = (locator: ReturnType<Page['locator']>) =>
   locator.evaluate((el) => {
     const cs = getComputedStyle(el)
     return {
@@ -383,14 +383,13 @@ test('VP-04 the Add HDF form: label above, focus rings inside, place stacked in 
 
   // Ink submit, paper Cancel with a rule border; a proposed form is dashed.
   const submit = await rgbOf(
-    page,
     form.getByRole('button', { name: 'Add HDF to plan' }),
   )
   expect(submit.background).toBe('rgb(28, 43, 58)')
-  const cancel = await rgbOf(page, form.getByRole('button', { name: 'Cancel' }))
+  const cancel = await rgbOf(form.getByRole('button', { name: 'Cancel' }))
   expect(cancel.background).toBe('rgb(255, 255, 255)')
   expect(cancel.border).toBe('rgb(211, 218, 225)')
-  expect((await rgbOf(page, form)).borderStyle).toBe('dashed')
+  expect((await rgbOf(form)).borderStyle).toBe('dashed')
 })
 
 test('VP-04 a library item is one card: icon, then name over its description, then Add…', async ({
@@ -415,7 +414,7 @@ test('VP-04 a library item is one card: icon, then name over its description, th
   expect(
     Math.abs(add.y + add.height / 2 - (icon.y + icon.height / 2)),
   ).toBeLessThan(20)
-  expect((await rgbOf(page, item)).border).toBe('rgb(211, 218, 225)')
+  expect((await rgbOf(item)).border).toBe('rgb(211, 218, 225)')
 })
 
 test('VP-04 the patching screen: the far end Site, Node and Rack share a row, Equipment is below', async ({

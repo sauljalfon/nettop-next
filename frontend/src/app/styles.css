@@ -207,20 +207,6 @@ button:hover:not(:disabled) {
   inset: 0;
   background: var(--floor);
 }
-.board-caption {
-  position: absolute;
-  bottom: 22px;
-  left: 100px;
-  font-size: var(--t-sm);
-  pointer-events: none;
-  display: flex;
-  gap: 15px;
-  color: var(--ink-soft);
-}
-.board-caption strong {
-  color: var(--ink-soft);
-  font-weight: 500;
-}
 .react-flow__controls,
 .react-flow__controls.react-flow__panel {
   /* React Flow's own panel rule sets left too; without this the box stretches across the canvas. */
@@ -243,14 +229,6 @@ button:hover:not(:disabled) {
 .react-flow__attribution {
   font-size: var(--t-xs);
 }
-.equipment-card {
-  height: 124px;
-  width: 228px;
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 10px;
-  padding: 13px 15px;
-}
 .equipment-heading {
   display: flex;
   align-items: center;
@@ -266,14 +244,6 @@ button:hover:not(:disabled) {
   background: var(--paper-sunk);
   flex-shrink: 0;
 }
-.equipment-card h3 {
-  font-size: var(--t-md);
-  margin: 8px 0 4px;
-}
-.equipment-card > p {
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-}
 .badge {
   display: inline-block;
   background: var(--paper-sunk);
@@ -285,50 +255,6 @@ button:hover:not(:disabled) {
 .badge.green {
   background: var(--route-soft);
   color: var(--route);
-}
-.equipment-card.selected {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 2px var(--ink);
-}
-.equipment-card.traced {
-  border-color: var(--route);
-  box-shadow: 0 0 0 2px var(--route);
-}
-.equipment-card.proposed {
-  border-style: dashed;
-}
-.equipment-card .react-flow__handle {
-  width: 5px;
-  height: 5px;
-  min-width: 5px;
-  min-height: 5px;
-  background: var(--ink-soft);
-  border: 1px solid var(--paper);
-}
-.equipment-card.traced .react-flow__handle {
-  background: var(--route);
-}
-.unplaced-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  width: 240px;
-  height: 135px;
-  border: 2px dashed var(--proposed);
-  background: var(--proposed-soft);
-  border-radius: 12px;
-  color: var(--proposed);
-  padding: 17px;
-}
-.unplaced-card strong {
-  font-size: var(--t-md);
-}
-.unplaced-card span {
-  font-size: var(--t-xs);
-}
-.unplaced-card small {
-  font-size: var(--t-xs);
 }
 .studio-drawer {
   position: absolute;
@@ -756,9 +682,6 @@ button:hover:not(:disabled) {
   .trace-context {
     display: none;
   }
-  .board-caption span {
-    display: none;
-  }
 }
 @media (max-width: 600px) {
   .header-action {
@@ -789,10 +712,6 @@ button:hover:not(:disabled) {
   .results-drawer {
     left: 70px;
     right: 10px;
-  }
-  .board-caption {
-    left: 75px;
-    font-size: var(--t-xs);
   }
   .studio-drawer > header,
   .drawer-content {
