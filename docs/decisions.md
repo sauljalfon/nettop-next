@@ -57,6 +57,7 @@ Roles: `access`, `aggregation`, `backbone` (shown as BB) for switches, `passive`
 The production infrastructure has its own recorded answers in [infrastructure.md](infrastructure.md) §2.
 
 ## Background: the design review (2026-10-03)
+| D37 | 2026-10-19 | **The inventory view** (approved from [its demo](history/demos/inventory-demo.html), which replaces the M5 demo's inventory; design in [roadmap.md](roadmap.md) §1). The M5 layout in the paper look (D22, D33). The header's network choice **filters** the inventory: it is the `Network ==` pill, and the two follow each other (one network, or All networks); on the map and in Physical it still only marks. Status, state and cable status are a small shape and the word in ink; only **Faulty** is red. Ports and positions has a **Side** column (switch ports have none). A value picker with more than 10 values has a "Find a value" box. The CSV starts with a UTF-8 mark so Excel shows Hebrew. |
 
 The reasoning behind the locked decisions. Where a later decision changed one, the text says so.
 

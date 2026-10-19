@@ -6,15 +6,50 @@ Finished milestones (M1–M5c, M5b steps 11–13, P1, P2) and their designs, rec
 
 ## 1. Inventory view (M5b step 14)
 
-A third header choice next to Conceptual and Physical (an amendment to locked decision 1, see [decisions.md](decisions.md)): a table of the same inventory, not a third drawing. The network selector and Installed/Plan apply to it. The look was approved from the M5 demo ([history/demos/m5-demo.html](history/demos/m5-demo.html)).
+A third header choice next to Conceptual and Physical (an amendment to locked decision 1, see [decisions.md](decisions.md)): a table of the same inventory, not a third drawing. The network selector and Installed/Plan apply to it. **The look is the approved demo** [history/demos/inventory-demo.html](history/demos/inventory-demo.html) (approved by the owner 2026-10-19; it replaces the M5 demo's inventory). The rules that are new are D37. The plan is [plans/2026-10-19-inventory.md](plans/2026-10-19-inventory.md).
 
-**Design (agreed 2026-10-08 and 2026-10-10):**
-- `features/inventory/`: pure row builders per list from the snapshot index, filter and sort helpers, a CSV builder (unit-tested); a windowed table component (no new dependency unless measured necessary); **Open in inventory** in the inspector header and on the Physical equipment page (the Ports list with the pill `Equipment == <name>` set).
-- **Look: a cloud-portal resource list** (layout and style only, no vendor names or logos): breadcrumb and title; a left menu of lists (Equipment, Ports and positions, Cables) with counts; a command bar (Add in a plan, Refresh, Export to CSV, Edit columns, then actions on one selected row); a "Filter for any field..." box and `Field == value` pills, each opening a value picker (Operator, checkboxes, Select all, Apply/Cancel), and Reset filters; "Showing 1 to N of M records", the selected count and **Group by** (collapsible groups); a dense table with row checkboxes, ↑↓ sort headers, the name as a link with a type icon, status as icon plus text, network as a colored dot, and a "…" menu per row; paging (50 per page) when not grouped; **Export to CSV** and **Edit columns** as side panes (the CSV holds exactly the visible records and columns). Names open the existing inspector; there is no second details screen.
-- **One design system:** the portal-style tokens (colors, spacing, control sizes) live in one shared stylesheet, not inside the inventory component.
-- **Scale:** rows built once per snapshot, the search waits briefly while typing.
+**Design (agreed 2026-10-08 and 2026-10-10, reviewed against today's app and approved 2026-10-19):**
+- **Layout: a resource list** (layout only, no vendor names or logos):
+  - breadcrumb and title (Installed, or the plan's name with "proposed items are marked");
+  - a left menu of lists (Equipment, Ports and positions, Cables) with counts;
+  - a command bar: Add in a plan, Refresh, Export to CSV, Edit columns, then actions on one selected row: Open details, Show on map, Show in Physical, and in a plan Delete… (equipment) or Disconnect… (a connected port or a cable);
+  - a "Filter for any field..." box and `Field == value` pills, each opening a value picker (Operator, Find a value above 10 values, checkboxes, Select all, Apply/Cancel), and Reset filters;
+  - "Showing 1 to N of M records", the selected count and **Group by** (collapsible groups listing every record);
+  - a dense table: row checkboxes, ↑↓ sort headers, the first column as a link with a type icon, status as a shape plus the word, network as a coloured dot plus its name, a "⋯" menu per row;
+  - paging (50 per page) when not grouped;
+  - **Export to CSV** and **Edit columns** as side panes. The CSV holds exactly the visible records and columns.
+- **Lists and columns** (as in the demo):
+  - Equipment: Name, Kind, Role, Network, Site, Node, Rack, U, Manufacturer, Model, Serial number, IP address (hidden by default), Status.
+  - Ports and positions: Port, Equipment, Side, Network, Type, Connector, Speed, State, Cable, Far end, Site and Node (both hidden by default). Default sort: by equipment, then the natural order of its ports.
+  - Cables: Cable, A end, B end, Network, Label, Status.
+  - A port's network is its circuit's network (the map's rule); a cable's is its A end's, else its B end's.
+- **Behaviour:**
+  - Names open the existing inspector (a port or cable opens its equipment, with that port found in the inspector). There is no second details screen.
+  - Show on map opens Focus.
+  - Show in Physical opens the equipment page (at the port for a port or cable row).
+  - Delete… and Disconnect… open today's confirms in the inspector, so the page stays.
+  - The inspector narrows the page (D34).
+  - A stale draft shows its card, as on the map and in Physical.
+  - **Open in inventory** in the inspector and on the Physical equipment page opens Ports and positions with `Equipment == <name>`.
+- **Owner's answers (2026-10-19, D37):**
+  - The header's network choice filters the table: it is the Network pill, and the two follow each other.
+  - Status is shown in ink, and only Faulty is red.
+  - Ports have a Side column.
+  - The CSV starts with a UTF-8 mark.
+- **Built as:**
+  - `features/inventory/`: pure row builders per list, built once per snapshot from the snapshot index; filter, sort, group and page helpers; a CSV builder (all unit-tested).
+  - A windowed table component (no new dependency unless measured necessary).
+  - A session-only `inventorySession`.
+  - Styles only from `src/shared/theme.css` tokens (D33).
+- **Scale:** rows are built once per snapshot, and the search waits briefly while typing.
 
-**Tests:** INV-01 lists, pills, search, sort and Group by match the snapshot; INV-02 the CSV equals the visible records and columns; INV-03 row actions and the command bar open the same equipment on the map and in Physical; INV-04 Open in inventory sets the `Equipment ==` pill; INV-05 Edit columns hides a column in the table and the CSV; on the campus fixture the Ports list (about 51,000 rows) filters and sorts without blocking, and a 10,000-row table stays responsive (measured).
+**Tests:**
+- INV-01: the lists, pills, search, sort and Group by match the snapshot.
+- INV-02: the CSV equals the visible records and columns.
+- INV-03: row actions and the command bar open the same equipment on the map and in Physical.
+- INV-04: Open in inventory sets the `Equipment ==` pill.
+- INV-05: Edit columns hides a column in both the table and the CSV.
+- Campus fixture: the Ports list (about 51,000 rows) filters and sorts without blocking, and a 10,000-row table stays responsive. Both are measured.
 
 ## 2. M6 — Layout, undo and measured scale
 

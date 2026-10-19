@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventory demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Hebrew:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Tokens copied from frontend/src/shared/theme.css (D33). In the app the inventory adds no colours of its own. */
+:root {
+  --floor: #eef1f3; --paper: #ffffff; --paper-sunk: #f6f8f9; --ink: #1c2b3a; --ink-soft: #56636f;
+  --rule: #d3dae1; --rule-soft: #e6ebef; --rule-strong: #b6c1cc; --ink-hover: #2b3d50;
+  --proposed: #8a6100; --proposed-soft: #fff6dd; --danger: #b4361f; --unresolved: #9bacc0;
+  --scrim: #1c2b3a66; --shadow-drawer: 0 18px 40px -18px #1c2b3a40, 0 2px 6px #1c2b3a12; --shadow-pop: 0 10px 30px -10px #1c2b3a80;
+  --sans: 'IBM Plex Sans', 'IBM Plex Sans Hebrew', 'Segoe UI', Arial, sans-serif; --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
+  --t-xs: 12px; --t-sm: 13px; --t-md: 14px; --t-lg: 16px; --t-xl: 20px; --t-2xl: 26px;
+  --r-drawer: 10px; --r-control: 6px; --h-control: 32px; --h-input: 34px;
+  --row-h: 34px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--floor); color: var(--ink); font-family: var(--sans); font-size: var(--t-md); line-height: 1.45; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-weight: 600; }
+bdi { unicode-bidi: isolate; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+svg { flex: none; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--h-control); padding: 0 12px; border-radius: var(--r-control); font-size: var(--t-sm); font-weight: 500; border: 1px solid var(--rule); background: var(--paper); white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--rule-strong); }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.primary:hover:not(:disabled) { background: var(--ink-hover); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--ink); padding-inline: 8px; }
+.btn.quiet:hover:not(:disabled) { background: var(--paper-sunk); }
+.btn.danger-outline { color: var(--danger); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper); font-size: var(--t-xs); white-space: nowrap; }
+.chip.role { background: var(--paper-sunk); }
+.chip.proposed { border: 1.5px dashed var(--proposed); background: var(--proposed-soft); color: var(--proposed); font-weight: 600; height: 20px; padding: 0 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; }
+
+/* App shell, as today */
+.studio-header { height: 52px; background: var(--paper); border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 18px; padding: 0 18px; position: relative; z-index: 60; }
+.brand { display: flex; align-items: center; gap: 8px; font-size: var(--t-lg); font-weight: 600; letter-spacing: -.02em; }
+.seg { display: inline-flex; align-items: center; border: 1px solid var(--rule); border-radius: var(--r-control); padding: 2px; background: var(--paper-sunk); }
+.seg button { display: flex; align-items: center; gap: 7px; border: 0; background: transparent; color: var(--ink-soft); padding: 5px 12px; font-size: var(--t-sm); border-radius: 4px; }
+.seg .active { background: var(--paper); color: var(--ink); font-weight: 500; box-shadow: 0 0 0 1px var(--rule); }
+.view-switch { margin-left: auto; }
+.network-select { display: flex; align-items: center; gap: 8px; font-size: var(--t-sm); color: var(--ink-soft); }
+.network-select select { width: 170px; height: 30px; border: 1px solid var(--rule); border-radius: var(--r-control); background: var(--paper); padding: 0 8px; font-size: var(--t-sm); color: var(--ink); }
+.header-action { display: flex; align-items: center; gap: 8px; height: var(--h-control); border: 0; background: transparent; color: var(--ink-soft); padding: 0 8px; border-radius: var(--r-control); font-size: var(--t-sm); font-weight: 500; }
+.header-action:hover { color: var(--ink); background: var(--paper-sunk); }
+.env { font-size: var(--t-xs); font-weight: 600; color: #7a5200; border: 1px solid #ecd49a; background: #fdf3dc; padding: 1px 6px; border-radius: 4px; }
+.tool-rail { position: absolute; left: 17px; top: 76px; padding: 4px; border: 1px solid var(--rule); background: var(--paper); border-radius: var(--r-drawer); display: flex; flex-direction: column; gap: 2px; z-index: 65; }
+.tool-rail button { border: 0; background: transparent; width: 56px; height: 54px; border-radius: var(--r-control); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--ink-soft); font-size: var(--t-xs); }
+.tool-rail button:hover { background: var(--paper-sunk); color: var(--ink); }
+
+/* The inventory page */
+.inv-page { position: absolute; top: 52px; left: 91px; right: 0; bottom: 0; padding: 18px 24px 14px 8px; display: flex; flex-direction: column; min-width: 0; }
+.drawer-right .inv-page { padding-right: 433px; } /* D34: an open drawer keeps the page clear */
+.demo-strip { display: flex; gap: 10px; align-items: center; font-size: var(--t-sm); color: var(--ink-soft); background: var(--paper); border: 1px dashed var(--rule-strong); border-radius: var(--r-control); padding: 6px 10px; margin-bottom: 12px; }
+.demo-strip b { color: var(--ink); font-weight: 600; }
+.demo-strip .x { margin-left: auto; }
+.crumb { display: flex; gap: 6px; align-items: center; font-size: var(--t-sm); color: var(--ink-soft); }
+.link { border: 0; background: none; padding: 0; color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: 3px; font-weight: 500; text-align: start; }
+.link:hover { text-decoration-color: var(--ink); }
+.title { display: flex; align-items: baseline; gap: 12px; margin: 4px 0 14px; }
+.title h1 { font-size: var(--t-2xl); letter-spacing: -.01em; }
+.title .sub { font-size: var(--t-sm); color: var(--ink-soft); display: inline-flex; gap: 8px; align-items: center; }
+.inv-wrap { flex: 1; min-height: 0; display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 16px; }
+.inv-menu { align-self: start; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); padding: 8px; }
+.inv-menu h3 { font-size: var(--t-xs); color: var(--ink-soft); font-weight: 500; padding: 4px 8px 6px; }
+.inv-menu button { width: 100%; display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 7px 8px; border-radius: var(--r-control); font-size: var(--t-sm); color: var(--ink); text-align: start; }
+.inv-menu button:hover { background: var(--paper-sunk); }
+.inv-menu button[aria-current='page'] { background: var(--ink); color: var(--paper); }
+.inv-menu button[aria-current='page'] svg { color: var(--paper); }
+.inv-menu .count { margin-left: auto; font-family: var(--mono); font-size: var(--t-xs); opacity: .8; }
+.inv-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); }
+.cmdbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--rule-soft); }
+.cmdbar .sep { width: 1px; height: 20px; background: var(--rule); margin: 0 6px; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px 4px; }
+.search { display: flex; align-items: center; gap: 6px; height: var(--h-control); border: 1px solid var(--rule); border-radius: var(--r-control); padding: 0 8px; width: 240px; color: var(--ink-soft); }
+.search:focus-within { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.search input { border: 0; outline: 0; min-width: 0; flex: 1; height: 100%; font-size: var(--t-sm); color: var(--ink); background: none; }
+.pill-wrap { position: relative; }
+.pill { height: 26px; border: 1px solid var(--rule); background: var(--paper-sunk); border-radius: 999px; padding: 0 10px; font-size: var(--t-xs); color: var(--ink-soft); display: inline-flex; align-items: center; gap: 4px; }
+.pill b { font-family: var(--mono); font-weight: 500; }
+.pill.on { background: var(--paper); border-color: var(--ink); color: var(--ink); font-weight: 500; }
+.pill .v { color: var(--ink); }
+.pop { position: absolute; z-index: 30; top: 32px; left: 0; width: 260px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); box-shadow: var(--shadow-pop); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.pop .row { display: flex; gap: 8px; }
+.pop .op { display: flex; justify-content: space-between; font-size: var(--t-sm); color: var(--ink-soft); border: 1px solid var(--rule-soft); border-radius: var(--r-control); padding: 4px 8px; }
+.pop .lbl { font-size: var(--t-xs); color: var(--ink-soft); }
+.pop .vsearch { height: 30px; border: 1px solid var(--rule); border-radius: var(--r-control); padding: 0 8px; font-size: var(--t-sm); }
+.checks { max-height: 220px; overflow: auto; display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--rule-soft); padding-top: 6px; }
+.checks label { display: flex; gap: 8px; align-items: center; font-size: var(--t-sm); padding: 3px 2px; }
+.checks input { accent-color: var(--ink); margin: 0; }
+.meta { display: flex; align-items: center; gap: 10px; padding: 6px 12px 8px; font-size: var(--t-sm); color: var(--ink-soft); }
+.meta b { color: var(--ink); font-weight: 600; }
+.meta select { height: 28px; border: 1px solid var(--rule); border-radius: var(--r-control); background: var(--paper); font-size: var(--t-sm); padding: 0 6px; }
+.scroll { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--rule-soft); position: relative; }
+table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: var(--t-sm); }
+th { position: sticky; top: 0; z-index: 2; background: var(--paper-sunk); text-align: start; font-weight: 500; color: var(--ink-soft); border-bottom: 1px solid var(--rule); height: 34px; padding: 0 8px; white-space: nowrap; }
+th button { border: 0; background: none; padding: 0; display: inline-flex; gap: 4px; align-items: center; color: inherit; font-weight: 500; font-size: var(--t-sm); }
+th[aria-sort='ascending'] button, th[aria-sort='descending'] button { color: var(--ink); }
+.sorti { font-size: var(--t-xs); color: var(--rule-strong); }
+th[aria-sort='ascending'] .sorti, th[aria-sort='descending'] .sorti { color: var(--ink); }
+td { height: var(--row-h); padding: 0 8px; border-bottom: 1px solid var(--rule-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+td.ck, th.ck { width: 36px; padding: 0 0 0 12px; }
+td.ck input, th.ck input { accent-color: var(--ink); margin: 0; }
+td.more, th.more { width: 40px; padding: 0 4px; text-align: center; }
+tr.sel td { background: #e9edf1; }
+tr.sel td.ck { box-shadow: inset 3px 0 0 var(--ink); }
+tbody tr:not(.grp):hover td { background: var(--paper-sunk); }
+tr.sel:hover td { background: #e2e7ec; }
+tr.grp td { background: var(--paper); font-weight: 500; color: var(--ink); }
+.grp-btn { border: 0; background: none; display: inline-flex; gap: 8px; align-items: center; padding: 0; font-weight: 600; font-size: var(--t-sm); }
+.grp-btn .n { color: var(--ink-soft); font-weight: 400; }
+.nm { display: inline-flex; gap: 6px; align-items: center; max-width: 100%; min-width: 0; color: var(--ink-soft); }
+.nm .link { overflow: hidden; text-overflow: ellipsis; }
+.dim { color: var(--ink-soft); }
+.st { display: inline-flex; gap: 6px; align-items: center; }
+.st.bad { color: var(--danger); font-weight: 500; }
+.net { display: inline-flex; gap: 6px; align-items: center; }
+.more-btn { width: 28px; height: 26px; border: 1px solid transparent; background: none; border-radius: var(--r-control); color: var(--ink-soft); font-weight: 600; letter-spacing: 1px; }
+.more-btn:hover, .more-btn[aria-expanded='true'] { border-color: var(--rule); background: var(--paper); color: var(--ink); }
+.empty { padding: 40px 12px; text-align: center; color: var(--ink-soft); }
+.pager { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--rule-soft); font-size: var(--t-sm); color: var(--ink-soft); }
+.pager .note { margin-left: auto; font-size: var(--t-xs); }
+.menu { position: fixed; z-index: 80; min-width: 210px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); box-shadow: var(--shadow-pop); padding: 4px; display: flex; flex-direction: column; }
+.menu button { display: flex; gap: 10px; align-items: center; border: 0; background: none; padding: 7px 10px; border-radius: var(--r-control); font-size: var(--t-sm); text-align: start; }
+.menu button:hover { background: var(--paper-sunk); }
+.menu button.danger { color: var(--danger); }
+.menu hr { border: 0; border-top: 1px solid var(--rule-soft); margin: 4px 0; }
+
+/* Side panes and the inspector */
+.scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 90; }
+.pane { position: fixed; z-index: 91; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100vw; background: var(--paper); border-left: 1px solid var(--rule); box-shadow: var(--shadow-drawer); display: flex; flex-direction: column; }
+.pane-h { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--rule-soft); }
+.pane-h h2 { font-size: var(--t-xl); }
+.pane-b { flex: 1; overflow: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; font-size: var(--t-sm); }
+.pane-f { display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--rule-soft); }
+.pane .checks { max-height: none; border: 0; }
+.pane textarea { width: 100%; height: 260px; font-family: var(--mono); font-size: var(--t-xs); border: 1px solid var(--rule); border-radius: var(--r-control); padding: 8px; resize: vertical; white-space: pre; }
+.x { width: 30px; height: 30px; border: 0; background: none; border-radius: var(--r-control); font-size: 18px; color: var(--ink-soft); }
+.x:hover { background: var(--paper-sunk); color: var(--ink); }
+.drawer { position: absolute; z-index: 70; top: 68px; right: 17px; bottom: 17px; width: 400px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); box-shadow: var(--shadow-drawer); display: flex; flex-direction: column; }
+.drawer .pane-b { gap: 14px; }
+.insp-title { display: flex; flex-direction: column; gap: 6px; }
+.insp-title h2 { font-size: var(--t-xl); display: flex; gap: 8px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.place { color: var(--ink-soft); font-size: var(--t-sm); }
+.place .sep { white-space: pre; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.facts { display: grid; grid-template-columns: 130px 1fr; gap: 6px 10px; }
+.facts dt { color: var(--ink-soft); }
+.facts dd { margin: 0; }
+.callout { border: 1px solid var(--rule); background: var(--paper-sunk); border-radius: var(--r-control); padding: 8px 10px; color: var(--ink-soft); }
+.toast { position: fixed; z-index: 99; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 9px 14px; border-radius: var(--r-control); box-shadow: var(--shadow-pop); font-size: var(--t-sm); max-width: min(560px, calc(100vw - 32px)); }
+
+@media (max-width: 900px) {
+  .inv-page { left: 0; padding: 12px 16px; }
+  .tool-rail, .network-select span, .header-action span { display: none; }
+  .inv-wrap { grid-template-columns: 1fr; }
+  .inv-menu { display: flex; gap: 4px; overflow-x: auto; }
+  .inv-menu h3 { display: none; }
+  .inv-menu button { width: auto; white-space: nowrap; }
+  .drawer-right .inv-page { padding-right: 16px; }
+  .drawer { left: 16px; right: 16px; width: auto; }
+}
+</style>
+</head>
+<body>
+<div id="app" class="studio"></div>
+<script>
+'use strict';
+/* ---------------- Icons (line, ink) ---------------- */
+var I = (function () {
+  function s(d, size) { size = size || 16; return '<svg aria-hidden="true" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>'; }
+  return {
+    switch: s('<rect x="2" y="7" width="20" height="10" rx="1.5"/><path d="M6 11v2M9.5 11v2M13 11v2M16.5 11v2"/>'),
+    panel: s('<rect x="2" y="7" width="20" height="10" rx="1.5"/><circle cx="7" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="17" cy="12" r="1.2"/>'),
+    hdf: s('<rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>'),
+    port: s('<rect x="4" y="5" width="16" height="14" rx="1.5"/><path d="M8 10h8v5H8zM10 15v-2M14 15v-2"/>'),
+    cable: s('<path d="M4 18c5 0 5-12 10-12s3 7 6 7"/><circle cx="4" cy="18" r="1.6"/><circle cx="20" cy="13" r="1.6"/>'),
+    plus: s('<path d="M12 5v14M5 12h14"/>'),
+    refresh: s('<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4.5h-4.5"/>'),
+    export: s('<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/>'),
+    columns: s('<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M9 4v16M15 4v16"/>'),
+    info: s('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.1"/>'),
+    focus: s('<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>'),
+    rack: s('<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M8.5 8h7M8.5 12h7M8.5 16h7"/>'),
+    table: s('<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 10h18M3 15h18M10 4v16"/>'),
+    trash: s('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
+    unlink: s('<path d="M9.5 7.5 11 6a4 4 0 0 1 5.7 5.7L15 13.5M14.5 16.5 13 18a4 4 0 0 1-5.7-5.7L9 10.5M4 4l16 16"/>'),
+    edit: s('<path d="M5 19l1.2-4.5L15.5 5.2l3.3 3.3-9.3 9.3z"/>'),
+    search: s('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>', 14),
+    network: s('<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-2h12v2"/>', 21),
+    branch: s('<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 4-6 3-12 7"/>', 14),
+    layers: s('<path d="m12 3 9 5-9 5-9-5 9-5ZM3 13l9 5 9-5"/>'),
+    add: s('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/>', 20),
+    explore: s('<path d="M4 5h6M4 12h10M4 19h7M17 15l3 3M15 17.5a3 3 0 1 0 0-.1"/>', 20),
+    trace: s('<circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 6h7a3 3 0 0 1 0 6H10a3 3 0 0 0 0 6h7"/>', 20),
+    inspect: s('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', 20),
+    changes: s('<path d="m12 3 9 5-9 5-9-5 9-5ZM3 13l9 5 9-5"/>', 20),
+    ok: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.2 8.2 7.2 10.1 10.9 6.3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+    off: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 8h6" stroke="currentColor" stroke-width="1.5"/></svg>',
+    warn: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><path d="M8 1.8 14.6 13.8H1.4Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6.3v3.4M8 11.6v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    bad: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="currentColor"/><path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8" stroke="#fff" stroke-width="1.6"/></svg>',
+    hold: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.5V8l2.4 1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+  };
+})();
+
+/* ---------------- Fictional data shaped like the owner's ---------------- */
+var NETWORKS = [{ id: 'a', name: 'Network A', color: '#2f6fdb' }, { id: 'b', name: 'Network B', color: '#9a4fc7' }, { id: 'c', name: 'מצלמות', color: '#c2542d' }];
+var SITES = [{ id: 's1', name: 'בניין ראשי' }, { id: 's2', name: 'Campus North' }];
+var NODES = [
+  { id: 'md', site: 's1', name: 'Main Distribution', code: 'MD', racks: 4 },
+  { id: 'f1', site: 's1', name: 'קומה 1', code: 'F1', racks: 2 },
+  { id: 'f2', site: 's1', name: 'קומה 2', code: 'F2', racks: 2 },
+  { id: 'f3', site: 's1', name: 'קומה 3', code: 'F3', racks: 2 },
+  { id: 'nh', site: 's2', name: 'North Hub', code: 'NH', racks: 2 },
+  { id: 'l3', site: 's2', name: 'Lab 3', code: 'L3', racks: 2 },
+  { id: 'l4', site: 's2', name: 'Lab 4', code: 'L4', racks: 2 }
+];
+var RACKS = [];
+NODES.forEach(function (n) { for (var i = 1; i <= n.racks; i++) RACKS.push({ id: n.id + '-r' + i, node: n.id, name: 'R0' + i }); });
+var seed = 7;
+function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+var EQ = [], EP = [], CAB = [];
+var byId = {}, epById = {}, cabByEp = {};
+function addEq(o) {
+  o.proposed = !!o.proposed; EQ.push(o); byId[o.id] = o; o.ports = [];
+  if (o.kind === 'switch') {
+    for (var p = 1; p <= o.count; p++) {
+      var fiber = p > o.count - 4;
+      addEp({ id: o.id + ':' + p, eq: o.id, label: (fiber ? 'Te1/1/' + (p - o.count + 4) : 'Gi1/0/' + p), order: p, side: '', net: o.net, type: fiber ? 'fiber' : 'copper', connector: fiber ? 'SFP+' : 'RJ45', speed: fiber ? '10G' : '1G', state: '', proposed: o.proposed });
+    }
+  } else if (o.kind === 'panel') {
+    ['front', 'rear'].forEach(function (side) { for (var p = 1; p <= 24; p++) addEp({ id: o.id + ':' + side + ':' + p, eq: o.id, label: String(p).padStart(2, '0'), order: p, side: side, net: '', type: 'copper', connector: 'RJ45', speed: '', state: '', proposed: o.proposed }); });
+  } else {
+    ['front', 'rear'].forEach(function (side) {
+      var p = 0;
+      for (var r = 1; r <= 4; r++) 'ABCD'.split('').forEach(function (c) { for (var k = 1; k <= 6; k++) { p++; addEp({ id: o.id + ':' + side + ':' + p, eq: o.id, label: r + c + '-' + String(k).padStart(2, '0'), order: p, side: side, net: '', type: 'fiber', connector: 'LC', speed: '', state: '', proposed: o.proposed }); } });
+    });
+  }
+  return o;
+}
+function addEp(e) { EP.push(e); epById[e.id] = e; byId[e.eq].ports.push(e); }
+var cableNo = 1000;
+function addCable(a, b, label, opts) {
+  opts = opts || {};
+  var c = { id: 'C-' + (++cableNo), a: a, b: b, label: label || '', status: opts.status != null ? opts.status : (rnd() < 0.85 ? 'active' : rnd() < 0.5 ? 'testing' : ''), proposed: !!opts.proposed };
+  CAB.push(c); cabByEp[a] = c; cabByEp[b] = c; return c;
+}
+function freeEp(eqId, side, from) { var list = byId[eqId].ports; for (var i = 0; i < list.length; i++) { var e = list[i]; if (e.side === side && e.order >= (from || 1) && !cabByEp[e.id]) return e; } return null; }
+var MODELS = { access48: ['Cisco', 'C9200-48P'], access24: ['Cisco', 'C9200-24P'], agg: ['Cisco', 'C9300-48S'], bb: ['Cisco', 'C9500-24Y4C'], panel: ['Panduit', 'CP24BL'], hdf: ['Corning', 'EDGE-4U'] };
+var ipNo = 10;
+function sw(id, name, role, net, rack, unit, count, model, status) {
+  var m = MODELS[model];
+  return addEq({ id: id, name: name, kind: 'switch', role: role, net: net, rack: rack, unit: unit, height: 1, count: count, manufacturer: m[0], model: m[1], serial: 'FOC' + Math.floor(2400000 + rnd() * 99999), ip: '10.20.' + (net === 'a' ? 1 : net === 'b' ? 2 : 3) + '.' + (ipNo++), status: status != null ? status : 'active' });
+}
+function pp(id, name, rack, unit) { var m = MODELS.panel; return addEq({ id: id, name: name, kind: 'panel', role: 'passive', net: '', rack: rack, unit: unit, height: 1, manufacturer: m[0], model: m[1], serial: '', ip: '', status: '' }); }
+function hdf(id, name, rack) { var m = MODELS.hdf; return addEq({ id: id, name: name, kind: 'hdf', role: 'passive', net: '', rack: rack, unit: 1, height: 4, manufacturer: m[0], model: m[1], serial: 'CRN-' + Math.floor(10000 + rnd() * 89999), ip: '', status: 'active' }); }
+
+hdf('hdf-01', 'HDF-01', 'md-r1'); hdf('hdf-02', 'HDF-02', 'md-r2');
+sw('bb-01', 'BB-01', 'backbone', 'a', 'md-r3', 20, 24, 'bb'); sw('bb-02', 'BB-02', 'backbone', 'b', 'md-r3', 22, 24, 'bb');
+sw('agg-01', 'AGG-01', 'aggregation', 'a', 'md-r4', 10, 48, 'agg'); sw('agg-02', 'AGG-02', 'aggregation', 'b', 'md-r4', 12, 48, 'agg'); sw('agg-03', 'AGG-03', 'aggregation', 'c', 'md-r4', 14, 48, 'agg', 'maintenance');
+hdf('hdf-03', 'HDF-03', 'nh-r1');
+sw('agg-04', 'AGG-04', 'aggregation', 'a', 'nh-r2', 10, 48, 'agg'); sw('agg-05', 'AGG-05', 'aggregation', 'c', 'nh-r2', 12, 48, 'agg');
+var AGG = { s1: { a: 'agg-01', b: 'agg-02', c: 'agg-03' }, s2: { a: 'agg-04', b: 'agg-04', c: 'agg-05' } };
+var HDF = { s1: 'hdf-01', s2: 'hdf-03' };
+
+function carry(epId, net) { var e = epById[epId]; if (e && !e.net) e.net = net; }
+function passThrough(eqId, pos, net) { carry(eqId + ':front:' + pos, net); carry(eqId + ':rear:' + pos, net); }
+NODES.forEach(function (n) {
+  if (n.id === 'md' || n.id === 'nh') return;
+  var site = n.site, c = n.code;
+  var p1 = pp(n.id + '-pp1', 'PP-' + c + '-01', n.id + '-r1', 1), p2 = pp(n.id + '-pp2', 'PP-' + c + '-02', n.id + '-r1', 2), p3 = pp(n.id + '-pp3', 'PP-' + c + '-03', n.id + '-r2', 1);
+  var acc = [
+    sw(n.id + '-acc1', 'ACC-' + c + '-01', 'access', 'a', n.id + '-r1', 4, 48, 'access48'),
+    sw(n.id + '-acc2', 'ACC-' + c + '-02', 'access', site === 's2' ? 'a' : 'b', n.id + '-r1', 5, 48, 'access48', n.id === 'f3' ? 'inactive' : null),
+    sw(n.id + '-acc3', 'ACC-' + c + '-03', 'access', 'c', n.id + '-r2', 3, 24, 'access24')
+  ];
+  var users = [26, 18, 16], panels = [p1, p2, p3], pi = 0;
+  acc.forEach(function (s, k) {
+    for (var port = 1; port <= users[k]; port++) {
+      var f = null;
+      while (pi < 3 && !(f = freeEp(panels[pi].id, 'front'))) pi++;
+      if (!f || (panels[pi] === p3 && f.order > 18)) break;
+      addCable(s.id + ':' + port, f.id, rnd() < 0.3 ? 'Room ' + (100 + Math.floor(rnd() * 80)) : '');
+      passThrough(panels[pi].id, f.order, s.net);
+    }
+    var up = p3.id + ':front:' + (19 + k);
+    addCable(s.id + ':' + (s.count - 3), up, 'Uplink ' + s.name);
+    passThrough(p3.id, 19 + k, s.net);
+    var h = freeEp(HDF[site], 'front');
+    addCable(p3.id + ':rear:' + (19 + k), h.id, 'Riser ' + c);
+    passThrough(HDF[site], h.order, s.net);
+    var agg = AGG[site][s.net], ap = freeEp(agg, '', 1);
+    addCable(HDF[site] + ':rear:' + h.order, ap.id, '');
+  });
+});
+['agg-01', 'agg-03'].forEach(function (a, k) { var h = freeEp('hdf-02', 'front'); addCable(a + ':45', h.id, 'Core ' + byId[a].name); passThrough('hdf-02', h.order, byId[a].net); addCable('hdf-02:rear:' + h.order, 'bb-01:' + (1 + k), 'Core ' + byId[a].name); });
+addCable('agg-02:45', 'bb-02:1', 'Core AGG-02');
+addCable('agg-04:45', 'bb-01:3', 'Inter-site fiber 1', { status: 'active' });
+addCable('agg-05:45', 'bb-01:4', 'Inter-site fiber 2', { status: 'testing' });
+['f1-acc1:7', 'f1-acc1:8', 'f2-acc2:3', 'l3-acc1:12', 'f3-acc3:30'].forEach(function (id) { if (epById[id]) epById[id].state = 'reserved'; });
+['f2-acc1:40', 'f2-acc1:41', 'l4-acc2:44'].forEach(function (id) { if (epById[id]) epById[id].state = 'disabled'; });
+['f1-acc2:14', 'hdf-01:front:5'].forEach(function (id) { if (epById[id]) epById[id].state = 'faulty'; });
+EP.forEach(function (e) { if (!e.state && e.eq.indexOf('acc') >= 0 && !cabByEp[e.id] && rnd() < 0.15) e.state = 'available'; });
+
+/* The draft "Expansion": one new access switch and its cables, proposed. */
+var PLAN = { name: 'Expansion', eq: [], cab: [] };
+(function () {
+  var before = { eq: EQ.length, cab: CAB.length };
+  var s = sw('f2-acc4', 'ACC-F2-04', 'access', 'a', 'f2-r2', 10, 24, 'access24');
+  s.proposed = true; s.ports.forEach(function (e) { e.proposed = true; });
+  for (var port = 1; port <= 5; port++) {
+    var f = freeEp('f2-pp3', 'front') || freeEp('f2-pp2', 'front');
+    if (!f) break;
+    addCable(s.id + ':' + port, f.id, 'Room 2' + (10 + port), { proposed: true, status: '' });
+    passThrough(f.eq, f.order, 'a');
+  }
+  PLAN.eq = EQ.slice(before.eq); PLAN.cab = CAB.slice(before.cab);
+})();
+
+/* ---------------- Places and labels ---------------- */
+function rackOf(e) { return RACKS.filter(function (r) { return r.id === e.rack; })[0]; }
+function nodeOf(e) { var r = rackOf(e); return NODES.filter(function (n) { return n.id === r.node; })[0]; }
+function siteOf(e) { var n = nodeOf(e); return SITES.filter(function (s) { return s.id === n.site; })[0]; }
+function netName(id) { var n = NETWORKS.filter(function (x) { return x.id === id; })[0]; return n ? n.name : ''; }
+function netColor(id) { var n = NETWORKS.filter(function (x) { return x.id === id; })[0]; return n ? n.color : 'var(--unresolved)'; }
+function far(c, epId) { return c.a === epId ? c.b : c.a; }
+function sideText(s) { return s === 'front' ? 'Front' : s === 'rear' ? 'Rear' : ''; }
+function epText(id) { var e = epById[id]; return byId[e.eq].name + ' ' + e.label + (e.side ? ' ' + e.side : ''); }
+var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+function bdi(s) { return '<bdi>' + esc(s) + '</bdi>'; }
+function epHtml(id) { var e = epById[id]; return bdi(byId[e.eq].name) + ' <span class="mono">' + esc(e.label) + '</span>' + (e.side ? ' <span class="dim">' + e.side + '</span>' : ''); }
+function visible(o) { return state.ctx === 'planned' || !o.proposed; }
+function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+/* ---------------- Lists: columns, pills, group by ---------------- */
+var COLS = {
+  equipment: [
+    { k: 'name', l: 'Name', w: 190, first: true }, { k: 'kind', l: 'Kind', w: 90 }, { k: 'role', l: 'Role', w: 110 }, { k: 'net', l: 'Network', w: 130, net: true },
+    { k: 'site', l: 'Site', w: 140, name: true }, { k: 'node', l: 'Node', w: 150, name: true }, { k: 'rack', l: 'Rack', w: 70, name: true }, { k: 'unit', l: 'U', w: 56, mono: true },
+    { k: 'manufacturer', l: 'Manufacturer', w: 120 }, { k: 'model', l: 'Model', w: 130 }, { k: 'serial', l: 'Serial number', w: 130, mono: true }, { k: 'ip', l: 'IP address', w: 120, mono: true }, { k: 'status', l: 'Status', w: 130, status: true }
+  ],
+  ports: [
+    { k: 'port', l: 'Port', w: 120, first: true, mono: true }, { k: 'equipment', l: 'Equipment', w: 150, eqlink: true }, { k: 'side', l: 'Side', w: 70 }, { k: 'net', l: 'Network', w: 130, net: true },
+    { k: 'type', l: 'Type', w: 80 }, { k: 'connector', l: 'Connector', w: 90 }, { k: 'speed', l: 'Speed', w: 70 }, { k: 'state', l: 'State', w: 120, status: true },
+    { k: 'cable', l: 'Cable', w: 90, mono: true }, { k: 'far', l: 'Far end', w: 210, ep: true }, { k: 'site', l: 'Site', w: 140, name: true }, { k: 'node', l: 'Node', w: 150, name: true }
+  ],
+  cables: [
+    { k: 'id', l: 'Cable', w: 110, first: true, mono: true }, { k: 'a', l: 'A end', w: 220, ep: true }, { k: 'b', l: 'B end', w: 220, ep: true }, { k: 'net', l: 'Network', w: 130, net: true },
+    { k: 'label', l: 'Label', w: 180 }, { k: 'status', l: 'Status', w: 120, status: true }
+  ]
+};
+var PILLS = {
+  equipment: [['site', 'Site'], ['node', 'Node'], ['net', 'Network'], ['kind', 'Kind'], ['role', 'Role'], ['status', 'Status']],
+  ports: [['equipment', 'Equipment'], ['site', 'Site'], ['net', 'Network'], ['side', 'Side'], ['state', 'State'], ['type', 'Type']],
+  cables: [['net', 'Network'], ['status', 'Status']]
+};
+var GROUPS = {
+  equipment: [['site', 'Site'], ['node', 'Node'], ['net', 'Network'], ['kind', 'Kind'], ['role', 'Role'], ['status', 'Status']],
+  ports: [['equipment', 'Equipment'], ['node', 'Node'], ['side', 'Side'], ['state', 'State']],
+  cables: [['net', 'Network'], ['status', 'Status']]
+};
+var LISTS = [['equipment', 'Equipment', I.switch], ['ports', 'Ports and positions', I.port], ['cables', 'Cables', I.cable]];
+var PAGE = 50;
+
+/* Rows: built once per snapshot (Installed or the plan) in the app. */
+var rowCache = {};
+function rows(list) {
+  var key = list + ':' + state.ctx;
+  if (rowCache[key]) return rowCache[key];
+  var out;
+  if (list === 'equipment') out = EQ.filter(visible).map(function (e) {
+    return { key: e.id, eq: e.id, icon: e.kind, proposed: e.proposed, v: { name: e.name, kind: cap(e.kind === 'hdf' ? 'HDF' : e.kind), role: cap(e.role), net: e.net, site: siteOf(e).name, node: nodeOf(e).name, rack: rackOf(e).name, unit: e.unit, manufacturer: e.manufacturer, model: e.model, serial: e.serial, ip: e.ip, status: e.status } };
+  });
+  else if (list === 'ports') { out = []; EQ.filter(visible).forEach(function (e) { e.ports.forEach(function (p) { var c = cabByEp[p.id]; if (c && !visible(c)) c = null; out.push({ key: p.id, eq: e.id, ep: p.id, icon: 'port', cable: c && c.id, proposed: p.proposed || !!(c && c.proposed), v: { port: p.label, equipment: e.name, side: sideText(p.side), net: p.net, type: cap(p.type), connector: p.connector, speed: p.speed, state: p.state, cable: c ? c.id : '', far: c ? far(c, p.id) : '', site: siteOf(e).name, node: nodeOf(e).name } }); }); }); }
+  else out = CAB.filter(visible).map(function (c) { return { key: c.id, eq: epById[c.a].eq, ep: c.a, icon: 'cable', cable: c.id, proposed: c.proposed, v: { id: c.id, a: c.a, b: c.b, net: epById[c.a].net || epById[c.b].net, label: c.label, status: c.status } }; });
+  out.forEach(function (r, i) { r.i = i; }); /* the natural order (equipment, then side, then position) breaks ties */
+  return (rowCache[key] = out);
+}
+function col(list, k) { return COLS[list].filter(function (c) { return c.k === k; })[0]; }
+/* The text of a cell: what search, sort, the pills and the CSV use. */
+function text(list, row, k) {
+  var v = row.v[k], c = col(list, k);
+  if (c && c.ep) return v ? epText(v) : '';
+  if (c && c.net) return v ? netName(v) : '';
+  if (c && c.status) return cap(v);
+  return v == null ? '' : String(v);
+}
+function emptyText(list, k) { var c = col(list, k); if (k === 'side') return 'No side (switch ports)'; return c && c.net ? 'No network' : c && c.status ? 'Not set' : '(empty)'; }
+
+/* ---------------- State ---------------- */
+function defaultSort(list) { return { k: list === 'ports' ? 'equipment' : COLS[list][0].k, dir: 1 }; }
+function listDefault(list) { return { list: list, q: '', f: {}, sort: defaultSort(list), group: '', page: 1, sel: {}, collapsed: {} }; }
+var state = {
+  ctx: 'installed', view: 'inventory', netChoice: '', strip: true,
+  inv: listDefault('equipment'),
+  hidden: { equipment: { ip: true }, ports: { site: true, node: true }, cables: {} },
+  pop: null, menu: null, pane: null, insp: null, inspAt: null, toast: null
+};
+function visibleCols() { var h = state.hidden[state.inv.list]; return COLS[state.inv.list].filter(function (c) { return c.first || !h[c.k]; }); }
+function filtered() {
+  var inv = state.inv, list = inv.list, all = rows(list), q = inv.q.trim().toLowerCase(), cols = COLS[list];
+  var out = all.filter(function (r) {
+    for (var k in inv.f) { var vals = inv.f[k]; if (vals && vals.length && vals.indexOf(String(r.v[k] == null ? '' : r.v[k])) < 0) return false; }
+    if (!q) return true;
+    for (var i = 0; i < cols.length; i++) if (text(list, r, cols[i].k).toLowerCase().indexOf(q) >= 0) return true;
+    return false;
+  });
+  var s = inv.sort;
+  out = out.slice().sort(function (a, b) {
+    var x = a.v[s.k], y = b.v[s.k];
+    var d = typeof x === 'number' && typeof y === 'number' ? x - y : text(list, a, s.k).localeCompare(text(list, b, s.k), undefined, { numeric: true });
+    return d * s.dir || a.i - b.i;
+  });
+  return out;
+}
+function options(k) {
+  var list = state.inv.list, seen = {}, out = [];
+  rows(list).forEach(function (r) { var raw = String(r.v[k] == null ? '' : r.v[k]); if (!seen[raw]) { seen[raw] = 1; out.push({ raw: raw, text: raw === '' ? emptyText(list, k) : text(list, r, k) }); } });
+  return out.sort(function (a, b) { return a.raw === '' ? 1 : b.raw === '' ? -1 : a.text.localeCompare(b.text, undefined, { numeric: true }); });
+}
+
+/* ---------------- Rendering ---------------- */
+var app = document.getElementById('app');
+function render() {
+  var cur = filtered();
+  state._rows = cur;
+  app.className = 'studio' + (state.insp ? ' drawer-right' : '');
+  app.innerHTML = header() + rail() + (state.view === 'inventory' ? page(cur) : other()) + inspector() + pane(cur) + (state.toast ? '<div class="toast" role="status">' + state.toast + '</div>' : '');
+  if (state.view === 'inventory') drawRows();
+  var s = document.getElementById('q'); if (s && state._focusQ) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  var vs = document.getElementById('vsearch'); if (vs && state._focusV) { vs.focus(); vs.setSelectionRange(vs.value.length, vs.value.length); }
+  state._focusQ = state._focusV = false;
+}
+function header() {
+  var views = [['conceptual', 'Conceptual'], ['physical', 'Physical'], ['inventory', 'Inventory']];
+  var many = (state.inv.f.net || []).length > 1;
+  return '<header class="studio-header"><div class="brand">' + I.network + '<span>net<span>top</span></span></div><span class="env">DEV</span>' +
+    '<div class="seg view-switch" role="group" aria-label="View">' + views.map(function (v) { return '<button data-act="view" data-v="' + v[0] + '" class="' + (state.view === v[0] ? 'active' : '') + '" aria-pressed="' + (state.view === v[0]) + '">' + v[1] + '</button>'; }).join('') + '</div>' +
+    '<label class="network-select"><span>Network</span><select id="netsel" aria-label="Network">' + (many ? '<option selected disabled>' + state.inv.f.net.length + ' networks</option>' : '') + '<option value=""' + (!many && !state.netChoice ? ' selected' : '') + '>All networks</option>' + NETWORKS.map(function (n) { return '<option value="' + n.id + '"' + (!many && state.netChoice === n.id ? ' selected' : '') + '>' + esc(n.name) + '</option>'; }).join('') + '</select></label>' +
+    '<div class="seg"><button data-act="ctx" data-v="installed" class="' + (state.ctx === 'installed' ? 'active' : '') + '" aria-pressed="' + (state.ctx === 'installed') + '">Installed</button><button data-act="ctx" data-v="planned" class="' + (state.ctx === 'planned' ? 'active' : '') + '" aria-pressed="' + (state.ctx === 'planned') + '">' + I.branch + 'Plan: ' + PLAN.name + '</button></div>' +
+    '<button class="header-action" data-act="todo" data-v="The Changes drawer opens, as today.">' + I.layers + '<span>Changes</span></button></header>';
+}
+function rail() {
+  return '<nav class="tool-rail" aria-label="Tools">' + [['add', 'Add'], ['explore', 'Explore'], ['trace', 'Trace'], ['inspect', 'Inspect'], ['changes', 'Changes']].map(function (t) { return '<button data-act="rail" data-v="' + t[1] + '">' + I[t[0]] + '<span>' + t[1] + '</span></button>'; }).join('') + '</nav>';
+}
+function other() {
+  return '<main class="inv-page"><div class="callout" style="margin-top:20px">This demo shows only the Inventory. <b>' + (state.view === 'conceptual' ? 'Conceptual' : 'Physical') + '</b> stays as it is today. <button class="link" data-act="view" data-v="inventory">Back to Inventory</button></div></main>';
+}
+function page(cur) {
+  var inv = state.inv, list = inv.list, cols = visibleCols(), sel = selectedRows();
+  var counts = { equipment: rows('equipment').length, ports: rows('ports').length, cables: rows('cables').length };
+  var planned = state.ctx === 'planned', one = sel.length === 1 ? sel[0] : null;
+  var anyFilter = inv.q || Object.keys(inv.f).some(function (k) { return inv.f[k] && inv.f[k].length; });
+  var h = '<main class="inv-page">';
+  if (state.strip) h += '<div class="demo-strip"><b>Demo</b><span>Fictional data shaped like yours. Try: a name, a pill, Group by, the ⋯ menu, Export to CSV, Edit columns, the header\'s Network, and Plan.</span><button class="x" data-act="strip" aria-label="Hide the demo note">×</button></div>';
+  h += '<div class="crumb"><span>net-top</span><span aria-hidden="true">›</span><span>Inventory</span></div>';
+  h += '<div class="title"><h1>Inventory</h1><span class="sub">' + (planned ? I.branch + 'Plan: ' + PLAN.name + ' · proposed items are marked <span class="chip proposed">Proposed</span>' : 'Installed') + '</span></div>';
+  h += '<div class="inv-wrap"><nav class="inv-menu" aria-label="Inventory lists"><h3>Lists</h3>' + LISTS.map(function (t) { return '<button data-act="list" data-v="' + t[0] + '"' + (list === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span><span class="count">' + counts[t[0]].toLocaleString('en') + '</span></button>'; }).join('') + '</nav>';
+  h += '<section class="inv-main" aria-label="' + esc(LISTS.filter(function (t) { return t[0] === list; })[0][1]) + '">';
+  /* Command bar: list actions, then actions on one selected row. */
+  var need = one ? '' : ' disabled title="Select one row"';
+  h += '<div class="cmdbar" role="toolbar" aria-label="Commands">' +
+    '<button class="btn quiet" data-act="add"' + (planned ? '' : ' disabled title="Switch to a plan to add equipment"') + '>' + I.plus + 'Add in a plan</button>' +
+    '<button class="btn quiet" data-act="refresh">' + I.refresh + 'Refresh</button>' +
+    '<button class="btn quiet" data-act="pane" data-v="csv">' + I.export + 'Export to CSV</button>' +
+    '<button class="btn quiet" data-act="pane" data-v="cols">' + I.columns + 'Edit columns</button><span class="sep" aria-hidden="true"></span>' +
+    '<button class="btn quiet" data-act="row" data-v="open"' + need + '>' + I.info + 'Open details</button>' +
+    '<button class="btn quiet" data-act="row" data-v="focus"' + need + '>' + I.focus + 'Show on map</button>' +
+    '<button class="btn quiet" data-act="row" data-v="phys"' + need + '>' + I.rack + 'Show in Physical</button>';
+  if (planned && list === 'equipment') h += '<button class="btn quiet danger-outline" data-act="row" data-v="delete"' + (one && !one.proposed ? '' : ' disabled title="' + (one ? 'Use Changes to undo a proposed item' : 'Select one row') + '"') + '>' + I.trash + 'Delete…</button>';
+  if (planned && list !== 'equipment') h += '<button class="btn quiet danger-outline" data-act="row" data-v="disconnect"' + (one && one.cable ? '' : ' disabled title="Select one connected row"') + '>' + I.unlink + 'Disconnect…</button>';
+  h += '</div>';
+  /* Search and pills */
+  h += '<div class="filters"><label class="search">' + I.search + '<span class="sr-only">Filter for any field</span><input id="q" type="search" value="' + esc(inv.q) + '" placeholder="Filter for any field..." autocomplete="off"></label>' + PILLS[list].map(pill).join('') + (anyFilter ? '<button class="btn quiet" data-act="reset">Reset filters</button>' : '') + '</div>';
+  /* Meta line */
+  var grouped = !!inv.group, pages = Math.max(1, Math.ceil(cur.length / PAGE));
+  if (inv.page > pages) inv.page = pages;
+  var start = (inv.page - 1) * PAGE, shown = grouped ? cur.length : Math.min(PAGE, cur.length - start);
+  h += '<div class="meta" aria-live="polite"><span>' + (cur.length ? 'Showing ' + (grouped ? 1 : start + 1).toLocaleString('en') + ' to ' + (grouped ? cur.length : start + shown).toLocaleString('en') + ' of ' + cur.length.toLocaleString('en') + ' records.' : 'No records.') + (sel.length ? ' <b>' + sel.length + ' selected.</b>' : '') + '</span><span style="flex:1"></span><label for="grp">Group by</label><select id="grp"><option value="">No grouping</option>' + GROUPS[list].map(function (g) { return '<option value="' + g[0] + '"' + (inv.group === g[0] ? ' selected' : '') + '>' + g[1] + '</option>'; }).join('') + '</select></div>';
+  /* Table: header here, rows drawn by drawRows (only those on screen). */
+  var allOnPage = pageKeys().length && pageKeys().every(function (k) { return inv.sel[k]; });
+  h += '<div class="scroll" id="scroll"><table style="width:' + (36 + 40 + cols.reduce(function (n, c) { return n + c.w; }, 0)) + 'px"><colgroup><col style="width:36px">' + cols.map(function (c) { return '<col style="width:' + c.w + 'px">'; }).join('') + '<col style="width:40px"></colgroup><thead><tr><th class="ck"><input type="checkbox" data-act="selall" aria-label="Select all on this page"' + (allOnPage ? ' checked' : '') + '></th>' +
+    cols.map(function (c) { var s = inv.sort.k === c.k; return '<th aria-sort="' + (s ? (inv.sort.dir > 0 ? 'ascending' : 'descending') : 'none') + '"><button data-act="sort" data-v="' + c.k + '">' + c.l + '<span class="sorti" aria-hidden="true">' + (s ? (inv.sort.dir > 0 ? '↑' : '↓') : '↑↓') + '</span></button></th>'; }).join('') + '<th class="more"><span class="sr-only">More actions</span></th></tr></thead><tbody id="tb"></tbody></table></div>';
+  h += grouped
+    ? '<div class="pager"><span>Grouped: every record is listed (the table draws only the rows on screen).</span></div>'
+    : '<div class="pager"><button class="btn" data-act="page" data-v="-1"' + (inv.page <= 1 ? ' disabled' : '') + '>‹ Previous</button><span>Page ' + inv.page + ' of ' + pages + '</span><button class="btn" data-act="page" data-v="1"' + (inv.page >= pages ? ' disabled' : '') + '>Next ›</button><span class="note">Names open the inspector; ⋯ opens the same item on the map and in Physical.</span></div>';
+  return h + '</section></div></main>';
+}
+function pill(p) {
+  var inv = state.inv, k = p[0], vals = inv.f[k] || [], open = state.pop && state.pop.k === k, list = inv.list;
+  var txt = !vals.length ? 'all' : vals.length === 1 ? (vals[0] === '' ? emptyText(list, k) : options(k).filter(function (o) { return o.raw === vals[0]; }).map(function (o) { return o.text; })[0]) : vals.length + ' selected';
+  var h = '<div class="pill-wrap"><button class="pill' + (vals.length ? ' on' : '') + '" data-act="pop" data-v="' + k + '" aria-expanded="' + !!open + '" aria-haspopup="dialog">' + p[1] + ' <b>==</b> <span class="v">' + bdi(txt) + '</span></button>';
+  if (open) {
+    var opts = options(k), pend = state.pop.vals, q = (state.pop.q || '').toLowerCase();
+    var shown = opts.filter(function (o) { return !q || o.text.toLowerCase().indexOf(q) >= 0; });
+    h += '<div class="pop" role="dialog" aria-label="Filter ' + p[1] + '"><b>' + p[1] + '</b><div class="op"><span>Operator</span><span class="mono">==</span></div>' +
+      (opts.length > 10 ? '<input id="vsearch" class="vsearch" type="search" placeholder="Find a value" value="' + esc(state.pop.q || '') + '" aria-label="Find a value">' : '') +
+      '<span class="lbl">Value</span><div class="checks"><label><input type="checkbox" data-act="pop-all"' + (pend.length === opts.length ? ' checked' : '') + '> Select all</label>' +
+      shown.map(function (o) { return '<label><input type="checkbox" data-act="pop-toggle" data-v="' + esc(o.raw) + '"' + (pend.indexOf(o.raw) >= 0 ? ' checked' : '') + '> ' + (k === 'net' && o.raw ? '<span class="dot" style="background:' + netColor(o.raw) + '"></span>' : '') + bdi(o.text) + '</label>'; }).join('') +
+      '</div><div class="row"><button class="btn primary" data-act="pop-apply">Apply</button><button class="btn" data-act="pop-cancel">Cancel</button></div></div>';
+  }
+  return h + '</div>';
+}
+function cell(list, r, c) {
+  var v = r.v[c.k];
+  if (c.first) {
+    var link = '<button class="link' + (c.mono ? ' mono' : '') + '" data-act="open" data-v="' + esc(r.key) + '">' + bdi(v) + '</button>';
+    return '<span class="nm">' + I[r.icon] + link + (r.proposed ? '<span class="chip proposed">Proposed</span>' : '') + '</span>';
+  }
+  if (v === '' || v == null) return '<span class="dim">—</span>';
+  if (c.net) return '<span class="net"><span class="dot" style="background:' + netColor(v) + '"></span>' + bdi(netName(v)) + '</span>';
+  if (c.status) return status(v);
+  if (c.eqlink) return '<button class="link" data-act="open" data-v="' + esc(r.key) + '">' + bdi(v) + '</button>';
+  if (c.ep) return epHtml(v);
+  if (c.name) return bdi(v);
+  return c.mono ? '<span class="mono">' + esc(v) + '</span>' : esc(v);
+}
+/* Status: a shape and the word, in ink; only Faulty is red (it is an error). */
+function status(v) {
+  var icon = { active: I.ok, available: I.ok, inactive: I.off, disabled: I.off, maintenance: I.hold, reserved: I.hold, testing: I.warn, faulty: I.bad }[v] || I.off;
+  return '<span class="st' + (v === 'faulty' ? ' bad' : '') + '">' + icon + cap(v) + '</span>';
+}
+function pageKeys() { var inv = state.inv, cur = state._rows || []; if (inv.group) return cur.map(function (r) { return r.key; }); var s = (inv.page - 1) * PAGE; return cur.slice(s, s + PAGE).map(function (r) { return r.key; }); }
+function selectedRows() { var inv = state.inv; return rows(inv.list).filter(function (r) { return inv.sel[r.key]; }); }
+/* The items on screen: grouped lists are windowed; the app draws only these rows. */
+function items() {
+  var inv = state.inv, cur = state._rows;
+  if (!inv.group) { var s = (inv.page - 1) * PAGE; return cur.slice(s, s + PAGE).map(function (r) { return { row: r }; }); }
+  var order = [], groups = {}, list = inv.list;
+  cur.forEach(function (r) { var g = String(r.v[inv.group] == null ? '' : r.v[inv.group]); if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(r); });
+  order.sort(function (a, b) { return a === '' ? 1 : b === '' ? -1 : text(list, groups[a][0], inv.group).localeCompare(text(list, groups[b][0], inv.group), undefined, { numeric: true }); });
+  var out = [];
+  order.forEach(function (g) { var key = inv.group + ':' + g; out.push({ group: g, key: key, n: groups[g].length, sample: groups[g][0] }); if (!inv.collapsed[key]) groups[g].forEach(function (r) { out.push({ row: r }); }); });
+  return out;
+}
+var ROW_H = 34;
+function drawRows() {
+  var tb = document.getElementById('tb'), sc = document.getElementById('scroll');
+  if (!tb) return;
+  var inv = state.inv, list = inv.list, cols = visibleCols(), all = items(), span = cols.length + 2;
+  if (!all.length) { tb.innerHTML = '<tr><td colspan="' + span + '" class="empty">No records match. Change the filters or <button class="link" data-act="reset">reset them</button>.</td></tr>'; return; }
+  var from = Math.max(0, Math.floor(sc.scrollTop / ROW_H) - 8), to = Math.min(all.length, from + Math.ceil(sc.clientHeight / ROW_H) + 16);
+  var h = from ? '<tr aria-hidden="true"><td colspan="' + span + '" style="height:' + from * ROW_H + 'px;padding:0;border:0"></td></tr>' : '';
+  for (var i = from; i < to; i++) {
+    var it = all[i];
+    if (it.group != null) {
+      var closed = !!inv.collapsed[it.key], label = it.group === '' ? emptyText(list, inv.group) : text(list, it.sample, inv.group);
+      h += '<tr class="grp"><td colspan="' + span + '"><button class="grp-btn" data-act="collapse" data-v="' + esc(it.key) + '" aria-expanded="' + !closed + '"><span aria-hidden="true">' + (closed ? '›' : '⌄') + '</span>' + (inv.group === 'net' && it.group ? '<span class="dot" style="background:' + netColor(it.group) + '"></span>' : '') + bdi(label) + '<span class="n">(' + it.n.toLocaleString('en') + ')</span></button></td></tr>';
+      continue;
+    }
+    var r = it.row, sel = !!inv.sel[r.key], first = r.v[cols[0].k];
+    h += '<tr class="' + (sel ? 'sel' : '') + '"><td class="ck"><input type="checkbox" data-act="sel" data-v="' + esc(r.key) + '" aria-label="Select ' + esc(first) + '"' + (sel ? ' checked' : '') + '></td>' +
+      cols.map(function (c) { return '<td>' + cell(list, r, c) + '</td>'; }).join('') +
+      '<td class="more"><button class="more-btn" data-act="menu" data-v="' + esc(r.key) + '" aria-haspopup="menu" aria-expanded="' + (state.menu && state.menu.key === r.key) + '" aria-label="More actions for ' + esc(first) + '">⋯</button></td></tr>';
+  }
+  if (to < all.length) h += '<tr aria-hidden="true"><td colspan="' + span + '" style="height:' + (all.length - to) * ROW_H + 'px;padding:0;border:0"></td></tr>';
+  tb.innerHTML = h;
+  sc.onscroll = function () { if (!drawRows.raf) drawRows.raf = requestAnimationFrame(function () { drawRows.raf = 0; drawRows(); }); };
+  drawMenu();
+}
+function rowByKey(k) { return rows(state.inv.list).filter(function (r) { return r.key === k; })[0]; }
+function drawMenu() {
+  var old = document.getElementById('menu'); if (old) old.remove();
+  if (!state.menu) return;
+  var r = rowByKey(state.menu.key), list = state.inv.list, planned = state.ctx === 'planned';
+  var it = [];
+  if (list === 'equipment') {
+    it.push(['open', I.info, 'Open details'], ['focus', I.focus, 'Show on map'], ['phys', I.rack, 'Show in Physical'], ['ports', I.port, 'View its ports']);
+    if (planned && !r.proposed) it.push(['-'], ['delete', I.trash, 'Delete…', 'danger']);
+  } else {
+    it.push(['phys', I.rack, list === 'ports' ? 'Show in Physical' : 'Show A end in Physical'], ['open', I.info, 'Open equipment details'], ['focus', I.focus, 'Show equipment on map']);
+    if (list === 'ports' && !planned) it.push(['editport', I.edit, 'Edit port details']);
+    if (planned && r.cable) it.push(['-'], ['disconnect', I.unlink, 'Disconnect…', 'danger']);
+  }
+  var m = document.createElement('div');
+  m.id = 'menu'; m.className = 'menu'; m.setAttribute('role', 'menu');
+  m.innerHTML = it.map(function (x) { return x[0] === '-' ? '<hr>' : '<button role="menuitem" class="' + (x[3] || '') + '" data-act="do" data-v="' + x[0] + '" data-k="' + esc(r.key) + '">' + x[1] + '<span>' + x[2] + '</span></button>'; }).join('');
+  document.body.appendChild(m);
+  var b = state.menu.rect, top = b.bottom + 4;
+  if (top + m.offsetHeight > innerHeight - 8) top = b.top - m.offsetHeight - 4;
+  m.style.top = top + 'px'; m.style.left = Math.max(8, b.right - m.offsetWidth) + 'px';
+}
+function inspector() {
+  if (!state.insp) return '';
+  var e = byId[state.insp], at = state.inspAt && epById[state.inspAt], planned = state.ctx === 'planned';
+  var conn = e.ports.filter(function (p) { var c = cabByEp[p.id]; return c && visible(c); }).length;
+  var h = '<aside class="drawer" aria-label="Inspector"><div class="pane-h"><span class="dim">Inspector</span><button class="x" data-act="close-insp" aria-label="Close the inspector">×</button></div><div class="pane-b">';
+  h += '<div class="insp-title"><h2>' + I[e.kind] + bdi(e.name) + (e.proposed ? '<span class="chip proposed">Proposed</span>' : '') + '</h2><div class="place">' + bdi(siteOf(e).name) + '<span class="sep"> › </span>' + bdi(nodeOf(e).name) + '<span class="sep"> › </span>' + bdi(rackOf(e).name) + '<span class="sep"> · </span><span class="mono">U' + e.unit + '</span></div>';
+  h += '<div class="chips"><span class="chip role">' + cap(e.role) + '</span>' + (e.net ? '<span class="chip"><span class="dot" style="background:' + netColor(e.net) + '"></span>' + bdi(netName(e.net)) + '</span>' : '') + '<span class="chip">' + conn + ' of ' + e.ports.length + ' connected</span></div></div>';
+  h += '<div class="actions"><button class="btn" data-act="do" data-v="focus" data-k="eq:' + e.id + '">' + I.focus + 'Focus</button><button class="btn" data-act="do" data-v="phys" data-k="eq:' + e.id + '">' + I.rack + 'Show in Physical</button><button class="btn primary" data-act="open-inv" data-v="' + e.id + '">' + I.table + 'Open in inventory</button>' + (planned && !e.proposed ? '<button class="btn danger-outline" data-act="do" data-v="delete" data-k="eq:' + e.id + '">' + I.trash + 'Delete…</button>' : '') + '</div>';
+  if (at) h += '<div class="callout">Opened from the port <span class="mono">' + esc(at.label) + '</span>' + (at.side ? ' (' + at.side + ')' : '') + ': in the app its row is selected in the port table below.</div>';
+  h += '<dl class="facts"><dt>Kind</dt><dd>' + cap(e.kind === 'hdf' ? 'HDF' : e.kind) + '</dd><dt>Manufacturer</dt><dd>' + (esc(e.manufacturer) || '—') + '</dd><dt>Model</dt><dd>' + (esc(e.model) || '—') + '</dd><dt>Serial number</dt><dd class="mono">' + (esc(e.serial) || '—') + '</dd><dt>IP address</dt><dd class="mono">' + (esc(e.ip) || '—') + '</dd><dt>Status</dt><dd>' + (e.status ? status(e.status) : '—') + '</dd></dl>';
+  h += '<p class="dim">The rest of the inspector (ports, details, history, Edit) is as today.</p>';
+  return h + '</div></aside>';
+}
+function pane(cur) {
+  if (!state.pane) return '';
+  var list = state.inv.list, cols = visibleCols(), title, body, foot;
+  if (state.pane === 'csv') {
+    title = 'Export to CSV';
+    body = '<p>The file holds exactly the records and columns shown: <b>' + cur.length.toLocaleString('en') + ' records</b>, ' + cols.length + ' columns, with the current filters, search and sort' + (state.inv.group ? ' (not grouped: a CSV is flat)' : '') + '.</p><div><span class="dim">File name</span><div class="mono">' + fileName() + '</div></div><p class="dim">The file starts with a UTF-8 mark, so Excel shows Hebrew names correctly.</p><label><span class="dim">Preview (first 20 records)</span><textarea readonly>' + esc(csv(cur.slice(0, 20), cols)) + '</textarea></label>';
+    foot = '<button class="btn primary" data-act="download">' + I.export + 'Download</button><button class="btn" data-act="pane-close">Close</button>';
+  } else {
+    title = 'Edit columns';
+    body = '<p>Choose the columns of <b>' + esc(LISTS.filter(function (t) { return t[0] === list; })[0][1]) + '</b>. The first column is always shown. The CSV export follows this choice.</p><div class="checks">' + COLS[list].map(function (c) { var on = c.first || !state.hidden[list][c.k]; return '<label><input type="checkbox" data-act="col" data-v="' + c.k + '"' + (on ? ' checked' : '') + (c.first ? ' disabled' : '') + '> ' + c.l + '</label>'; }).join('') + '</div>';
+    foot = '<button class="btn primary" data-act="pane-close">Done</button>';
+  }
+  return '<div class="scrim" data-act="pane-close"></div><aside class="pane" role="dialog" aria-label="' + title + '"><div class="pane-h"><h2>' + title + '</h2><button class="x" aria-label="Close" data-act="pane-close">×</button></div><div class="pane-b">' + body + '</div><div class="pane-f">' + foot + '</div></aside>';
+}
+function fileName() { return 'inventory-' + state.inv.list + (state.ctx === 'planned' ? '-plan-' + PLAN.name.toLowerCase() : '') + '-2026-10-19.csv'; }
+function csvCell(v) { v = String(v == null ? '' : v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function csv(rs, cols) { var list = state.inv.list; return [cols.map(function (c) { return csvCell(c.l); }).join(',')].concat(rs.map(function (r) { return cols.map(function (c) { return csvCell(text(list, r, c.k)); }).join(','); })).join('\r\n'); }
+
+/* ---------------- Actions ---------------- */
+var toastTimer;
+function toast(msg) { state.toast = msg; clearTimeout(toastTimer); toastTimer = setTimeout(function () { state.toast = null; render(); }, 3200); }
+function setList(list, keepOpen) { state.inv = listDefault(list); applyHeaderNet(); state.pop = null; state.menu = null; if (!keepOpen) state.insp = null; }
+function applyHeaderNet() { if (state.netChoice) state.inv.f.net = [state.netChoice]; else delete state.inv.f.net; }
+function target(k) {
+  if (k.indexOf('eq:') === 0) return { eq: k.slice(3) };
+  var r = rowByKey(k); return { eq: r.eq, ep: r.ep, cable: r.cable, row: r };
+}
+var DO = {
+  open: function (t) { state.insp = t.eq; state.inspAt = state.inv.list === 'equipment' ? null : t.ep; },
+  focus: function (t) { toast('In the app: Conceptual opens Focus on ' + bdi(byId[t.eq].name) + '.'); },
+  phys: function (t) { toast('In the app: Physical opens ' + (t.ep ? 'the equipment page of ' + bdi(byId[t.eq].name) + ' at ' + esc(epById[t.ep].label) : 'the equipment page of ' + bdi(byId[t.eq].name)) + '.'); },
+  ports: function (t) { openInv(t.eq); },
+  editport: function (t) { toast('In the app: Physical opens ' + esc(epById[t.ep].label) + ' on ' + bdi(byId[t.eq].name) + ' with its details form open.'); },
+  delete: function (t) { state.insp = t.eq; toast('In the app: the inspector shows the delete preview of ' + bdi(byId[t.eq].name) + ' (what it cuts), then Delete adds it to the plan.'); },
+  disconnect: function (t) { toast('In the app: the confirm of today opens for cable ' + esc(t.cable) + ', then it is removed in the plan.'); }
+};
+function openInv(eqId) {
+  var name = byId[eqId].name;
+  state.view = 'inventory'; setList('ports', true);
+  state.inv.f.equipment = [name];
+}
+var ACT = {
+  view: function (d) { state.view = d.v; state.pop = state.menu = null; },
+  ctx: function (d) { state.ctx = d.v; state.inv.sel = {}; state.pop = state.menu = null; if (state.insp && byId[state.insp].proposed && d.v === 'installed') state.insp = null; },
+  strip: function () { state.strip = false; },
+  rail: function (d) { toast('The ' + d.v + ' drawer opens as today.' + (d.v === 'Inspect' ? '' : ' On this page it keeps the table clear (D34).')); },
+  todo: function (d) { toast(d.v); },
+  list: function (d) { setList(d.v); },
+  add: function () { toast('In the app: the Add library opens, as from the tool rail.'); },
+  refresh: function () { rowCache = {}; toast('Refreshed: ' + (state.ctx === 'planned' ? 'Plan: ' + PLAN.name : 'Installed') + '. Filters, sort and selection are kept.'); },
+  pane: function (d) { state.pane = d.v; state.pop = state.menu = null; },
+  'pane-close': function () { state.pane = null; },
+  col: function (d) { var h = state.hidden[state.inv.list]; h[d.v] = !h[d.v]; if (state.inv.sort.k === d.v && h[d.v]) state.inv.sort = defaultSort(state.inv.list); if (state.inv.group === d.v && h[d.v]) state.inv.group = ''; },
+  download: function () {
+    var blob = new Blob(['﻿' + csv(state._rows, visibleCols())], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fileName(); document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    toast('Saved ' + fileName() + ' (' + state._rows.length.toLocaleString('en') + ' records).');
+  },
+  sort: function (d) { var s = state.inv.sort; if (s.k === d.v) s.dir = -s.dir; else state.inv.sort = { k: d.v, dir: 1 }; },
+  reset: function () { state.inv.f = {}; state.inv.q = ''; state.inv.page = 1; state.netChoice = ''; },
+  page: function (d) { state.inv.page += +d.v; var sc = document.getElementById('scroll'); if (sc) sc.scrollTop = 0; },
+  pop: function (d) { if (state.pop && state.pop.k === d.v) { state.pop = null; return; } var cur = state.inv.f[d.v] || []; state.pop = { k: d.v, vals: cur.length ? cur.slice() : options(d.v).map(function (o) { return o.raw; }), q: '' }; state.menu = null; },
+  'pop-toggle': function (d) { var p = state.pop, i = p.vals.indexOf(d.v); if (i >= 0) p.vals.splice(i, 1); else p.vals.push(d.v); },
+  'pop-all': function () { var p = state.pop, all = options(p.k).map(function (o) { return o.raw; }); p.vals = p.vals.length === all.length ? [] : all; },
+  'pop-apply': function () {
+    var p = state.pop, n = options(p.k).length;
+    state.inv.f[p.k] = p.vals.length === 0 || p.vals.length === n ? [] : p.vals.slice();
+    if (p.k === 'net') state.netChoice = state.inv.f.net.length === 1 ? state.inv.f.net[0] : '';
+    state.pop = null; state.inv.page = 1;
+  },
+  'pop-cancel': function () { state.pop = null; },
+  sel: function (d) { state.inv.sel[d.v] = !state.inv.sel[d.v]; if (!state.inv.sel[d.v]) delete state.inv.sel[d.v]; },
+  selall: function () { var inv = state.inv, keys = pageKeys(), all = keys.every(function (k) { return inv.sel[k]; }); keys.forEach(function (k) { if (all) delete inv.sel[k]; else inv.sel[k] = true; }); },
+  collapse: function (d) { state.inv.collapsed[d.v] = !state.inv.collapsed[d.v]; },
+  menu: function (d, el) { state.menu = state.menu && state.menu.key === d.v ? null : { key: d.v, rect: el.getBoundingClientRect() }; state.pop = null; },
+  open: function (d) { var t = target(d.v); DO.open(t); state.menu = null; },
+  row: function (d) { var r = selectedRows()[0]; if (!r) return; DO[d.v === 'open' ? 'open' : d.v](target(r.key)); },
+  do: function (d) { DO[d.v](target(d.k)); state.menu = null; },
+  'open-inv': function (d) { openInv(d.v); },
+  'close-insp': function () { state.insp = null; state.inspAt = null; }
+};
+document.addEventListener('click', function (ev) {
+  var el = ev.target.closest('[data-act]');
+  if (!el) {
+    var changed = false;
+    if (state.menu && !ev.target.closest('#menu')) { state.menu = null; changed = true; }
+    if (state.pop && !ev.target.closest('.pop')) { state.pop = null; changed = true; }
+    if (changed) render();
+    return;
+  }
+  if (el.tagName === 'INPUT' && el.type === 'checkbox') { /* the change event handles it */ }
+  var f = ACT[el.dataset.act]; if (!f) return;
+  if (state.pop && !el.closest('.pop') && el.dataset.act !== 'pop') state.pop = null;
+  f(el.dataset, el);
+  if (el.dataset.act === 'menu' || el.dataset.act === 'sel' || el.dataset.act === 'collapse') { if (el.dataset.act === 'menu') { drawRows(); } else { var top = document.getElementById('scroll') && document.getElementById('scroll').scrollTop; render(); var sc = document.getElementById('scroll'); if (sc && top) { sc.scrollTop = top; drawRows(); } } return; }
+  render();
+});
+var qTimer;
+document.addEventListener('input', function (ev) {
+  if (ev.target.id === 'q') { var v = ev.target.value; clearTimeout(qTimer); qTimer = setTimeout(function () { state.inv.q = v; state.inv.page = 1; state._focusQ = true; render(); }, 150); }
+  if (ev.target.id === 'vsearch') { state.pop.q = ev.target.value; state._focusV = true; render(); }
+});
+document.addEventListener('change', function (ev) {
+  if (ev.target.id === 'grp') { state.inv.group = ev.target.value; state.inv.page = 1; state.inv.collapsed = {}; render(); }
+  if (ev.target.id === 'netsel') { state.netChoice = ev.target.value; applyHeaderNet(); state.inv.page = 1; render(); }
+});
+document.addEventListener('keydown', function (ev) {
+  if (ev.key !== 'Escape') return;
+  if (state.menu) state.menu = null; else if (state.pop) state.pop = null; else if (state.pane) state.pane = null; else if (state.insp) { state.insp = null; state.inspAt = null; } else return;
+  render();
+});
+addEventListener('resize', function () { if (state.menu) { state.menu = null; } drawRows(); });
+render();
+</script>
+</body>
+</html>

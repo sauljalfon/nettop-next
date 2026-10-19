@@ -3,9 +3,9 @@
 **This is the only document that says where the project is.** Everything else links here.
 
 > **Now / Next** (updated 2026-10-19)
-> - **Done:** M1–M4.2, M5a, M5c, M5b steps 11–13, P1, P2 (the data-entry fixes), Explanatory paths (2026-10-14) and the visual pass (2026-10-15), both deployed. The test server runs `main` with real data entered by hand. The conceptual map for real data (2026-10-19, D35, D36) is finished and merged into `main`: not deployed yet.
-> - **Now:** deploy the conceptual map to the test server. It has a migration (009), so take a backup first ([infra/compose/README.md](../infra/compose/README.md), "Update to a new version").
-> - **Then:** [the inventory view](roadmap.md#1-inventory-view-m5b-step-14) (M5b step 14), M6, M7. See [roadmap.md](roadmap.md).
+> - **Done:** M1–M4.2, M5a, M5c, M5b steps 11–13, P1, P2 (the data-entry fixes), Explanatory paths (2026-10-14), the visual pass (2026-10-15) and the conceptual map for real data (2026-10-19, D35, D36, migration 009), all deployed. The test server runs `main` with real data entered by hand.
+> - **Now:** [the inventory view](roadmap.md#1-inventory-view-m5b-step-14) (M5b step 14): its design was agreed in 2026-10-08/10; next is reviewing it against today's app and writing its plan.
+> - **Then:** M6, M7 and the production servers. See [roadmap.md](roadmap.md).
 
 Below is what the code runs today, by area. The headings name the milestone that built each part (the milestones themselves are in [history/implementation-plan-m1-to-p2.md](history/implementation-plan-m1-to-p2.md)). The rules behind it are [architecture.md](architecture.md), [ui-spec.md](ui-spec.md) and [decisions.md](decisions.md).
 
