@@ -2,7 +2,13 @@ import { useState } from 'react'
 import type { Network } from '../../shared/types'
 import { MANAGE_NETWORKS } from '../networks/model'
 
-export type MapView = 'conceptual' | 'physical'
+export type MapView = 'conceptual' | 'physical' | 'inventory'
+
+const VIEW_LABEL: Record<MapView, string> = {
+  conceptual: 'Conceptual',
+  physical: 'Physical',
+  inventory: 'Inventory',
+}
 
 export function ViewSwitch({
   view,
@@ -13,19 +19,21 @@ export function ViewSwitch({
 }) {
   return (
     <div className="view-switch" role="group" aria-label="View">
-      {(['conceptual', 'physical'] as const).map((v) => (
+      {(['conceptual', 'physical', 'inventory'] as const).map((v) => (
         <button
           key={v}
           aria-pressed={view === v}
           className={view === v ? 'active' : ''}
           onClick={() => onChange(v)}
         >
-          {v === 'conceptual' ? 'Conceptual' : 'Physical'}
+          {VIEW_LABEL[v]}
         </button>
       ))}
     </div>
   )
 }
+
+const MANY = '__many'
 
 /** Presentation filter only; never changes what a trace finds. */
 export function NetworkSelect({
@@ -33,24 +41,32 @@ export function NetworkSelect({
   value,
   onChange,
   onManage,
+  many,
 }: {
   networks: readonly Network[]
   value: string | undefined
   onChange: (networkId: string | undefined) => void
   /** The last entry opens the networks drawer; the choice above is left as it is. */
   onManage?: () => void
+  /** The Inventory's Network pill holds this many networks: shown, disabled, until the user chooses again. */
+  many?: number
 }) {
   return (
     <label className="network-select">
       <span>Network</span>
       <select
         aria-label="Show network"
-        value={value ?? ''}
+        value={many ? MANY : (value ?? '')}
         onChange={(e) => {
           if (e.target.value === MANAGE_NETWORKS) onManage?.()
           else onChange(e.target.value || undefined)
         }}
       >
+        {many ? (
+          <option value={MANY} disabled>
+            {many} networks
+          </option>
+        ) : null}
         <option value="">All networks</option>
         {networks.map((n) => (
           <option key={n.id} value={n.id}>

@@ -45,6 +45,8 @@ interface Props {
   onConnect?: (endpointId: string, openerKey: string) => void
   /** A search from Explore: fills the search with a label (and shows every endpoint) each time `serial` changes. */
   request?: { query: string; serial: number }
+  /** The Inventory's Disconnect…: this cable's confirm opens at once; a new serial asks again. */
+  disconnectRequest?: { linkId: string; serial: number }
 }
 
 const FILTERS: { mode: EndpointFilter; label: string }[] = [
@@ -70,6 +72,7 @@ export default function PortTable({
   renderDisconnect,
   onConnect,
   request,
+  disconnectRequest,
 }: Props) {
   const total = unitCount(groups)
   const [mode, setMode] = useState<EndpointFilter>(() =>
@@ -85,7 +88,14 @@ export default function PortTable({
   }, [request?.serial])
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = useState<string>()
-  const [disconnecting, setDisconnecting] = useState<string>()
+  const [disconnecting, setDisconnecting] = useState<string | undefined>(
+    disconnectRequest?.linkId,
+  )
+  useEffect(() => {
+    if (disconnectRequest) setDisconnecting(disconnectRequest.linkId)
+    // Only a new request opens a confirm.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disconnectRequest?.serial])
   const shown = filterGroups(groups, { mode, query })
   const ports = groups[0]?.id === 'ports'
   return (

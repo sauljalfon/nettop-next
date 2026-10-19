@@ -3,6 +3,7 @@ import {
   Focus,
   GitFork,
   Network,
+  Table2,
   PanelTop,
   Server,
 } from 'lucide-react'
@@ -59,11 +60,16 @@ interface Props {
   onFocus: (equipmentId: string) => void
   /** Open the equipment page in Physical, with an endpoint selected when given. */
   onShowInPhysical: (equipmentId: string, endpointId?: string) => void
+  /** Open the Inventory's Ports list with only this equipment. */
+  onOpenInInventory: (equipmentName: string) => void
   /** Highlight the site or node on the map. */
   onHighlight: (location: LocationRef) => void
   onOpenRack: (rackId: string) => void
   /** A port chosen in Explore: opens the Ports/Positions tab with its search filled. */
   searchRequest?: { equipmentId: string; query: string; serial: number }
+  /** The Inventory's Delete… or Disconnect…: opens that confirm at once, then `onOpenRequestHandled`. */
+  openRequest?: OpenRequest
+  onOpenRequestHandled?: () => void
   /** Set in a current plan: Delete… in the header and Disconnect on cabled rows. */
   edit?: PlanEdit
   /** After a direct fix: refetch and toast. */
@@ -74,6 +80,10 @@ interface Props {
   /** The plan placement form, shown on the Overview tab when a plan is open. */
   children?: ReactNode
 }
+
+export type OpenRequest = { equipmentId: string; serial: number } & (
+  { kind: 'delete' } | { kind: 'disconnect'; linkId: string }
+)
 
 type Tab = 'overview' | 'ports' | 'history'
 const TABS: readonly Tab[] = ['overview', 'ports', 'history']
@@ -92,9 +102,12 @@ export default function Inspector({
   onShowOnMap,
   onFocus,
   onShowInPhysical,
+  onOpenInInventory,
   onHighlight,
   onOpenRack,
   searchRequest,
+  openRequest,
+  onOpenRequestHandled,
   edit,
   onFixed,
   installedLinkIDs,
@@ -109,6 +122,19 @@ export default function Inspector({
     // Only a new request switches the tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forMe?.serial])
+  // A request is taken once: held here for the confirms, and the owner forgets it.
+  const [asked, setAsked] = useState<OpenRequest>()
+  useEffect(() => {
+    if (!openRequest) return
+    setAsked(openRequest)
+    onOpenRequestHandled?.()
+    // Only a new request is taken.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest?.serial])
+  useEffect(() => {
+    if (asked) setAsked(undefined)
+  }, [asked])
+  const askedHere = asked?.equipmentId === equipment.id ? asked : undefined
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({})
   // WAI-ARIA tabs: only the selected tab is in the tab order; arrows move and select.
   const onTabKey = (event: KeyboardEvent) => {
@@ -236,6 +262,14 @@ export default function Inspector({
             <Server size={14} />
             Show in Physical
           </button>
+          <button
+            className="btn"
+            aria-label={`Open in inventory: ${equipment.name}`}
+            onClick={() => onOpenInInventory(equipment.name)}
+          >
+            <Table2 size={14} />
+            Open in inventory
+          </button>
           {canFindFromDevice(equipment) && (
             <button
               className="btn primary"
@@ -264,6 +298,9 @@ export default function Inspector({
             proposed={header.proposed}
             edit={edit}
             where="inspector"
+            startOpen={
+              askedHere?.kind === 'delete' ? askedHere.serial : undefined
+            }
           />
         )}
         <div className="inspector-tabs" role="tablist" onKeyDown={onTabKey}>
@@ -369,6 +406,11 @@ export default function Inspector({
                 }))
             }
             request={forMe}
+            disconnectRequest={
+              askedHere?.kind === 'disconnect'
+                ? { linkId: askedHere.linkId, serial: askedHere.serial }
+                : undefined
+            }
           />
         )}
       </div>

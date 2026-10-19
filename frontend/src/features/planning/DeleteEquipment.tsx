@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import { DeleteEquipmentConfirm } from './EditConfirms'
@@ -18,6 +18,7 @@ export default function DeleteEquipment({
   proposed,
   edit,
   where,
+  startOpen,
 }: {
   snapshot: Snapshot
   index: SnapshotIndex
@@ -25,8 +26,13 @@ export default function DeleteEquipment({
   proposed: boolean
   edit: PlanEdit
   where: 'inspector' | 'page'
+  /** A request to open the confirm at once (the Inventory's Delete…); a new number asks again. */
+  startOpen?: number
 }) {
-  const [asking, setAsking] = useState(false)
+  const [asking, setAsking] = useState(startOpen !== undefined)
+  useEffect(() => {
+    if (startOpen !== undefined) setAsking(true)
+  }, [startOpen])
   const key = `delete:${where}:${equipmentId}`
   return (
     <div className="delete-equipment" data-testid={`delete-equipment-${where}`}>

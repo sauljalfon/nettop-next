@@ -77,6 +77,8 @@ interface Props {
   onFindFromEndpoint: (endpointId: string) => void
   /** Show an equipment on the conceptual map. */
   onShowOnMap: (equipmentId: string) => void
+  /** The equipment page's Open in inventory. */
+  onOpenInInventory: (equipmentName: string) => void
   onError: (message: string) => void
   session?: PhysicalSession
 }
@@ -106,6 +108,7 @@ export default function PhysicalExplorer({
   onSelectEquipment,
   onFindFromEndpoint,
   onShowOnMap,
+  onOpenInInventory,
   onError,
   session = physicalSession,
 }: Props) {
@@ -419,6 +422,7 @@ export default function PhysicalExplorer({
             }}
             onFind={onFindFromEndpoint}
             onShowOnMap={onShowOnMap}
+            onOpenInInventory={onOpenInInventory}
             onPrint={() => setSheet('equipment')}
             marks={marks}
             edit={edit}

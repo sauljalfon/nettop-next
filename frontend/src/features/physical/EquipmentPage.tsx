@@ -45,6 +45,7 @@ export default function EquipmentPage({
   onFind,
   onShowOnMap,
   onPrint,
+  onOpenInInventory,
   marks,
   routeName,
   edit,
@@ -75,6 +76,8 @@ export default function EquipmentPage({
   onFind: (endpointId: string) => void
   onShowOnMap: (equipmentId: string) => void
   onPrint: () => void
+  /** Open the Inventory's Ports list with only this equipment. */
+  onOpenInInventory: (equipmentName: string) => void
   /** The selected route's marks and its destination's name. */
   marks: RouteMarks
   routeName?: string
@@ -172,6 +175,7 @@ export default function EquipmentPage({
             }}
             onSide={onSide}
             onPrint={onPrint}
+            onOpenInventory={() => onOpenInInventory(equipment.name)}
             proposed={
               snapshot.context === 'planned' && !installedIds.has(equipment.id)
             }

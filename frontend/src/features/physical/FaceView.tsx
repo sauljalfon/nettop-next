@@ -77,6 +77,8 @@ interface Props {
   onSide: (side: 'front' | 'rear') => void
   /** The "Print sheet" button next to the title. */
   onPrint?: () => void
+  /** The "Open in inventory" button before it: this equipment's ports in the Inventory. */
+  onOpenInventory?: () => void
   /** For a printed sheet: no controls, no tab stop. */
   printing?: boolean
   /** Proposed equipment (only in this plan): the title carries the PROPOSED tag. */
@@ -112,6 +114,7 @@ export default function FaceView({
   onSelect,
   onSide,
   onPrint,
+  onOpenInventory,
   printing,
   proposed,
   editSlot,
@@ -236,6 +239,11 @@ export default function FaceView({
               >
                 Proposed
               </Chip>
+            )}
+            {onOpenInventory && !printing && (
+              <button className="btn print-button" onClick={onOpenInventory}>
+                Open in inventory
+              </button>
             )}
             {onPrint && !printing && (
               <button className="btn print-button" onClick={onPrint}>

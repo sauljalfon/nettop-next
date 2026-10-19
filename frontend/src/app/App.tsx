@@ -49,6 +49,8 @@ import {
 import { useDebounced, useIdleLazy, type Lazy } from '../shared/lazy'
 import NetworksDrawer from '../features/networks/NetworksDrawer'
 import PhysicalExplorer from '../features/physical/PhysicalExplorer'
+import InventoryPage from '../features/inventory/InventoryPage'
+import { inventorySession } from '../features/inventory/inventorySession'
 import { openLocation } from '../features/physical/explorerModel'
 import { physicalSession } from '../features/physical/physicalSession'
 import {
@@ -77,7 +79,7 @@ import { pickerItems } from '../features/pathfinding/picker'
 import { filterTree } from '../features/explore/tree'
 import { canFindFromDevice } from '../features/inspector/model'
 import { endpointLabel } from '../features/pathfinding/projection'
-import Inspector from '../features/inspector/Inspector'
+import Inspector, { type OpenRequest } from '../features/inspector/Inspector'
 import {
   indexSnapshot,
   type SnapshotIndex,
@@ -292,6 +294,15 @@ export default function App() {
   const networkId = networks.some((n) => n.id === networkChoice)
     ? networkChoice
     : undefined
+  // The Inventory's Network pill may hold several networks: the header says how many.
+  const inventory = useSyncExternalStore(
+    inventorySession.subscribe,
+    inventorySession.getSnapshot,
+  )
+  const pillNetworks =
+    view === 'inventory'
+      ? (inventory.lists[inventory.list].filters.net?.length ?? 0)
+      : 0
   return (
     <div
       className={`studio ${drawerSides(drawer).left ? 'drawer-left' : ''} ${drawerSides(drawer).right ? 'drawer-right' : ''}`}
@@ -307,7 +318,12 @@ export default function App() {
         <NetworkSelect
           networks={networks}
           value={networkId}
-          onChange={setNetworkChoice}
+          many={pillNetworks > 1 ? pillNetworks : undefined}
+          onChange={(id) => {
+            setNetworkChoice(id)
+            // Choosing the network already chosen must still replace "N networks".
+            if (view === 'inventory') inventorySession.setHeaderNetwork(id)
+          }}
           onManage={() => setDrawer('networks')}
         />
         <div className="context-switch">
@@ -425,6 +441,8 @@ export default function App() {
             onManageNetworks={() => setDrawer('networks')}
             onPlanSaved={saved}
             onRefresh={refresh}
+            onOpenAdd={() => setDrawer('library')}
+            onNetworkChange={setNetworkChoice}
             view={view}
             onViewChange={setView}
             networkId={networkId}
@@ -535,6 +553,10 @@ interface WorkspaceProps {
   onManageNetworks: () => void
   onPlanSaved: (plan: Plan) => Promise<void>
   onRefresh: () => Promise<void>
+  /** The Inventory's Add in a plan: opens the Add drawer. */
+  onOpenAdd: () => void
+  /** The Inventory's Network pill chose one network (or none). */
+  onNetworkChange: (networkId: string | undefined) => void
   /** After a direct fix: refetch and toast. */
   onFixed: (message: string) => Promise<void>
   view: MapView
@@ -556,6 +578,8 @@ function Workspace({
   onManageNetworks,
   onPlanSaved,
   onRefresh,
+  onOpenAdd,
+  onNetworkChange,
   onFixed,
   view,
   onViewChange,
@@ -883,6 +907,57 @@ function Workspace({
     },
     [onViewChange],
   )
+  // A row of the Inventory: select its equipment and open the inspector, on the
+  // port when the row has one (the same request Explore's port hits make).
+  const openFromInventory = useCallback(
+    (equipmentId: string, endpointId?: string) => {
+      setSelected(equipmentId)
+      if (endpointId)
+        setPortSearch((previous) => ({
+          equipmentId,
+          query: inspectorQuery(index, endpointId),
+          serial: (previous?.serial ?? 0) + 1,
+        }))
+      onSelectEquipment()
+    },
+    [index, onSelectEquipment],
+  )
+  // The Inventory's Delete… and Disconnect…: the inspector on that equipment with
+  // the confirm already open (the Inspector takes the request once).
+  const [openRequest, setOpenRequest] = useState<OpenRequest>()
+  const askDelete = useCallback(
+    (equipmentId: string) => {
+      openFromInventory(equipmentId)
+      setOpenRequest((previous) => ({
+        kind: 'delete',
+        equipmentId,
+        serial: (previous?.serial ?? 0) + 1,
+      }))
+    },
+    [openFromInventory],
+  )
+  const askDisconnect = useCallback(
+    (equipmentId: string, endpointId: string | undefined, linkId: string) => {
+      openFromInventory(equipmentId, endpointId)
+      setOpenRequest((previous) => ({
+        kind: 'disconnect',
+        equipmentId,
+        linkId,
+        serial: (previous?.serial ?? 0) + 1,
+      }))
+    },
+    [openFromInventory],
+  )
+  // Open in inventory (and View its ports): this equipment's ports, from any
+  // network; the header's network is cleared so the pill and the header agree.
+  const openInInventory = useCallback(
+    (equipmentName: string) => {
+      inventorySession.openPorts(equipmentName)
+      onNetworkChange(undefined)
+      onViewChange('inventory')
+    },
+    [onNetworkChange, onViewChange],
+  )
   // A port or cable chosen in Explore's search. In Physical it opens that endpoint
   // on its equipment page; in Conceptual it selects the equipment, opens Focus on
   // it and opens the inspector's Ports/Positions tab filtered to that label.
@@ -896,6 +971,7 @@ function Workspace({
       const owner = index.owner.get(endpointId)
       if (!owner) return
       if (view === 'physical') return openEndpointPhysical(endpointId)
+      if (view === 'inventory') return openFromInventory(owner, endpointId)
       setPortSearch((previous) => ({
         equipmentId: owner,
         query: inspectorQuery(index, endpointId),
@@ -904,16 +980,30 @@ function Workspace({
       focusOnMap(owner)
       onSelectEquipment()
     },
-    [index, view, openEndpointPhysical, focusOnMap, onSelectEquipment],
+    [
+      index,
+      view,
+      openEndpointPhysical,
+      openFromInventory,
+      focusOnMap,
+      onSelectEquipment,
+    ],
   )
   // Equipment chosen in Explore (a click, or Enter in its search) also opens the inspector.
   const chooseEquipment = useCallback(
     (id: string) => {
       if (view === 'physical') return openEquipmentPhysical(id)
+      if (view === 'inventory') return openFromInventory(id)
       focusOnMap(id)
       onSelectEquipment()
     },
-    [view, openEquipmentPhysical, focusOnMap, onSelectEquipment],
+    [
+      view,
+      openEquipmentPhysical,
+      openFromInventory,
+      focusOnMap,
+      onSelectEquipment,
+    ],
   )
   const drawerEquipment = equipment && (
     <Inspector
@@ -928,6 +1018,9 @@ function Workspace({
       onShowOnMap={focusOnMap}
       onFocus={focusOnMap}
       onShowInPhysical={showInPhysical}
+      onOpenInInventory={openInInventory}
+      openRequest={openRequest}
+      onOpenRequestHandled={() => setOpenRequest(undefined)}
       onHighlight={highlightLocation}
       onOpenRack={openRack}
       searchRequest={portSearch}
@@ -963,6 +1056,25 @@ function Workspace({
           onPort={traceFromPort}
           installedContainerIds={installedContainerIds}
         />
+      ) : view === 'inventory' ? (
+        <InventoryPage
+          snapshot={snapshot}
+          index={index}
+          installedIDs={installedIDs}
+          installedLinkIDs={installedLinkIDs}
+          planName={plan?.name}
+          canEdit={canEdit}
+          networkId={networkId}
+          onNetworkChange={onNetworkChange}
+          onOpenAdd={onOpenAdd}
+          onRefresh={onRefresh}
+          onOpenEquipment={openFromInventory}
+          onShowOnMap={focusOnMap}
+          onShowInPhysical={showInPhysical}
+          onAskDelete={askDelete}
+          onAskDisconnect={askDisconnect}
+          onViewPorts={openInInventory}
+        />
       ) : (
         <PhysicalExplorer
           planId={plan?.id}
@@ -983,6 +1095,7 @@ function Workspace({
           onSelectEquipment={setSelected}
           onFindFromEndpoint={traceFromPort}
           onShowOnMap={focusOnMap}
+          onOpenInInventory={openInInventory}
           onError={setPhysicalError}
         />
       )}
