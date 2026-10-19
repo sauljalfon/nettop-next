@@ -169,6 +169,20 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 
 Since step 6 the overview is the default view and every spec reaches equipment through Explore (`selectEquipment`), an overview card or Focus. The specs of the retired device map were deleted with it in step 7 (D35); the map has only the overview and Focus.
 
+## The inventory view (2026-10-19)
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| INV-01 | Rows equal the snapshot: one equipment row per equipment, one port row per endpoint (both sides of each position), one cable row per cable (never a bridge); Far end and A/B ends as separate names; a port's network from its circuit; proposed rows only in a plan. Pills, the search over hidden columns, sort (numeric, ties in natural order, flip), Group by (counts add up, empty last, folding), paging; a Hebrew name stays one isolated name; a port row opens the inspector on its port | `rows.test.ts`, `query.test.ts`, `columns.test.ts`, `model.test.ts`; `inventory` |
+| INV-02 | The CSV: UTF-8 mark, header, quoting (`"`, `,`, newline, Hebrew), CRLF, exactly the visible columns and every filtered record (not the page); the downloaded file equals it | `csv.test.ts`; `inventory` |
+| INV-03 | One-row commands and the ⋯ menu: Open details (a port row finds its port), Show on map opens Focus, Show in Physical opens the page at the port (a cable at its A end), View its ports; in a plan Delete… and Disconnect… open the inspector's confirms and Cancel changes nothing (off for a proposed row or a free port, with the reason); nothing that edits in Installed; the menu by keyboard, one at a time, Escape returns focus | `model.test.ts`; `inventory` |
+| INV-04 | Open in inventory from the inspector and from the equipment page lists only that equipment's ports, with the header on All networks | `inventory` |
+| INV-05 | Edit columns hides a column in the table and the CSV; the first column cannot be hidden; the choice survives a list change | `inventorySession.test.ts`; `inventory` |
+| INV-06 | The header's network and the Network pill follow each other (D37), also after a list change; several networks read "N networks"; Reset filters clears both; Conceptual is unchanged | `inventorySession.test.ts`, `model.test.ts`; `inventory` |
+| INV-07 | Campus: opening the view and Ports and positions, a search, a sort, Group by, scrolling a grouped list, a pill and the CSV timed (measurements, not budgets); fewer than 100 rows drawn at any time | `scale` (`SCALE=1`; with SC-02) |
+
+Explore while the Inventory is shown (equipment and port hits open the inspector and the page stays; a site or node still highlights on the map) and the Plan's Proposed chip run in `inventory` too.
+
 ## M5–M7 — Editing, persistence, scale, and governance
 
 - Valid rack assignment is required to save equipment (the empty-canvas preview was retired with the device map, D35).

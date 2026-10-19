@@ -15,9 +15,9 @@ A calm, spacious technical workspace: paper on a light floor, restrained borders
 
 ## 2. Shell
 
-- A compact header: workspace title, **Conceptual / Physical** (and Inventory later), the **network selector** (All networks, one network, **Manage networks…**), and **Installed / Plan** (the draft picker). They are independent; switching one never changes another. A DEV or TEST badge outside production.
+- A compact header: workspace title, **Conceptual / Physical / Inventory**, the **network selector** (All networks, one network, **Manage networks…**), and **Installed / Plan** (the draft picker). They are independent; switching one never changes another. A DEV or TEST badge outside production.
 - A tool rail: **Add** (the equipment library), **Explore** (the location tree and search), **Trace**, **Inspect**, **Changes**. Each opens a drawer over the canvas and closes independently.
-- Selecting equipment opens the **inspector**: a sticky header (identity, network and Installed/Proposed badges, the cabling meter, the location breadcrumb, Show on map, Show in Physical, Find AGG / BB for switches), then Overview (details, placement, Edit details), Ports/Positions (a compact table with row actions) and History (direct fixes and recorded plans).
+- Selecting equipment opens the **inspector**: a sticky header (identity, network and Installed/Proposed badges, the cabling meter, the location breadcrumb, Show on map, Show in Physical, Open in inventory, Find AGG / BB for switches), then Overview (details, placement, Edit details), Ports/Positions (a compact table with row actions) and History (direct fixes and recorded plans).
 - The **results overlay** of a trace is expandable, lists every AGG/BB route (AGG first) and the mismatches, and never takes the canvas permanently.
 
 ## 3. Conceptual map (locked 2, 3, 9, 11; D35, D36)
@@ -44,7 +44,17 @@ Sites → site → node → rack → equipment → exact port or position (front
 - **Navigation:** clickable breadcrumbs and an in-app Back that restores the exact location, endpoint and side; Show in Physical from the inspector, its rows and every walk sheet row; switching back to Conceptual finds the map exactly as it was. A selected route shows as a trail of steps across levels.
 - Not a geographic map or floor plan; real photos or plans need real data.
 
-## 5. Find AGG / BB (locked 7)
+## 5. Inventory (D37)
+
+- A **table of the same inventory**, not a third drawing (locked 1 amended): the lists **Equipment**, **Ports and positions** and **Cables**, with their counts. Installed or the plan's name ("proposed items are marked"), and proposed rows carry a Proposed chip.
+- **Finding records:** one "Filter for any field..." box (it also reads hidden columns) and `Field == value` pills, each with a value picker (a "Find a value" box above 10 values, Select all, Apply/Cancel); Reset filters; ↑↓ sort on every column; **Group by** with folding groups that list every record; 50 records a page when not grouped. The meta line says "Showing A to B of N records." and how many are selected.
+- **The header's network is the Network pill.** Choosing a network in the header filters the table, and one network chosen in the pill sets the header; several show "N networks" in the header; Reset filters clears both. The map and Physical are unchanged by the pill.
+- **Cells keep their meaning:** the first column is a link with a type icon; a network is a coloured dot and its name; a status is a small shape and the word in ink, only Faulty red; a port's network is its circuit's; names are isolated, never joined.
+- **Actions open what already exists:** a name, Open details and the row's ⋯ menu open the inspector (on the port for a port or cable row); Show on map opens Focus; Show in Physical opens the equipment page at the port; in a plan Delete… and Disconnect… open today's confirms in the inspector, and the page stays. **Open in inventory** (inspector, equipment page) lists that equipment's ports.
+- **Export to CSV** holds exactly the records and columns shown (all filtered records, not the page), with a UTF-8 mark; **Edit columns** hides columns in the table and the CSV (the first column always shows).
+- Readable at campus size: only the rows on screen are drawn, and the table scrolls in its own box; an open drawer narrows the page (D34).
+
+## 6. Find AGG / BB (locked 7)
 
 - Started from a switch (all ports), a port or position row, a circuit of a Focus line, or the Trace drawer; exact port-to-port tracing stays in the Trace drawer.
 - Every reachable route is listed with destination, actual role, network, start port and its length (cables, bridges); AGG first, BB never dropped; mismatches separately as "on another network"; truncation said plainly. An unreachable device is never a result.
@@ -57,7 +67,7 @@ EDGE-17 / Network A
   port 3 → BB-01
 ```
 
-## 6. Editing and plans (locked 10, D17–D22, D28, D29)
+## 7. Editing and plans (locked 10, D17–D22, D28, D29)
 
 - **Everything that changes topology happens in a plan** (the header's Plan): add containers (in Physical, at their level), add equipment (library items by drag or Add… forms, HDF form), move (rack drops or the placement form), connect (the patching screen), disconnect, delete (with a preview of the cables and circuits it cuts), and the bulk tools (Connect a range, Duplicate with overrides, Copy rack layout). Installed shows a hint instead of editing.
 - **Choosing a place** is always Site › Node › Rack (› Equipment), starting where the user is (D28); never one long list. The three selects share a row and stack one per line when the picker is narrower than 480px (D33).
@@ -67,6 +77,6 @@ EDGE-17 / Network A
 - **Server refusals appear inline, in the server's words and in names.**
 - Live dragging never updates app-wide state or calls the API per pointer move; a drag saves once at the drop. An empty-canvas drop is an unsaved preview until it gets a rack.
 
-## 7. Acceptance
+## 8. Acceptance
 
 The whole flow must let a user: choose a network and find equipment; inspect every reachable AGG and BB route; understand the exact passive panels and HDF positions on the map; find the same endpoint physically; switch sides, follow the cable peer and return to the route; and plan a change, check its trace, and record it as installed only when it is physically done. The fictional data for this is [acceptance-example.md](acceptance-example.md); the cases are [acceptance-tests.md](acceptance-tests.md); the walkthrough is the smoke flow in [testing.md](testing.md).

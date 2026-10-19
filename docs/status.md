@@ -3,8 +3,8 @@
 **This is the only document that says where the project is.** Everything else links here.
 
 > **Now / Next** (updated 2026-10-19)
-> - **Done:** M1–M4.2, M5a, M5c, M5b steps 11–13, P1, P2 (the data-entry fixes), Explanatory paths (2026-10-14), the visual pass (2026-10-15) and the conceptual map for real data (2026-10-19, D35, D36, migration 009), all deployed. The test server runs `main` with real data entered by hand.
-> - **Now:** [the inventory view](roadmap.md#1-inventory-view-m5b-step-14) (M5b step 14): its design was agreed in 2026-10-08/10; next is reviewing it against today's app and writing its plan.
+> - **Done:** M1–M4.2, M5a, M5c, M5b steps 11–13, P1, P2 (the data-entry fixes), Explanatory paths (2026-10-14), the visual pass (2026-10-15) and the conceptual map for real data (2026-10-19, D35, D36, migration 009), all deployed. The test server runs `main` with real data entered by hand. **The inventory view** (M5b step 14, D37) is finished on the branch `inventory`, not merged or deployed yet.
+> - **Now:** [a more useful inventory](roadmap.md#1-a-more-useful-inventory): a clickable demo of a plan's work list, free capacity and editing details of many rows at once, for the owner to approve.
 > - **Then:** M6, M7 and the production servers. See [roadmap.md](roadmap.md).
 
 Below is what the code runs today, by area. The headings name the milestone that built each part (the milestones themselves are in [history/implementation-plan-m1-to-p2.md](history/implementation-plan-m1-to-p2.md)). The rules behind it are [architecture.md](architecture.md), [ui-spec.md](ui-spec.md) and [decisions.md](decisions.md).
@@ -70,20 +70,28 @@ Frontend and test-fixture work only: no new domain behavior, no new commands and
 
 | Step | Time |
 | --- | --- |
-| Topology load (6 MB) | 0.78 s |
-| First overview render (43 nodes, fitted at zoom 0.6) | 2.0 s |
-| Open the busiest node card (68 equipment, 35 racks) | 0.37 s |
-| Focus opens on an access switch | 1.5 s |
-| +1 hop (21 neighbour cards) | 0.33 s |
-| Find AGG / BB (click to route drawn) | 0.67 s |
-| Trace drawer opens | 0.06 s |
+| Topology load (6 MB) | 0.82 s |
+| First overview render (43 nodes, fitted at zoom 0.6) | 2.1 s |
+| Open the busiest node card (68 equipment, 35 racks) | 0.34 s |
+| Focus opens on an access switch | 1.4 s |
+| +1 hop (21 neighbour cards) | 0.28 s |
+| Find AGG / BB (click to route drawn) | 0.60 s |
+| Trace drawer opens | 0.08 s |
 | Picker search answers | 0.25 s |
-| Explore opens | 0.99 s |
-| Explore cable search | 0.57 s |
-| 32-row HDF page opens | 0.71 s |
-| Campus site screen opens (40 nodes) | 0.54 s |
+| Explore opens | 0.89 s |
+| Explore cable search | 0.60 s |
+| Inventory opens from Conceptual (Equipment drawn) | 0.57 s |
+| Inventory: Ports and positions opens (51,456 rows) | 0.23 s |
+| Inventory: a search, last keystroke to result (with the 150 ms wait) | 0.32 s |
+| Inventory: sort Ports, and flip | 0.07 s, 0.06 s |
+| Inventory: Group by Node on Ports | 0.15 s |
+| Inventory: scroll a grouped list of 51,456 rows, slowest of 20 steps | 0.16 s |
+| Inventory: Network pill, Apply to result | 0.21 s |
+| Inventory: Export to CSV of 14,772 ports | 0.08 s |
+| 32-row HDF page opens | 0.69 s |
+| Campus site screen opens (40 nodes) | 0.50 s |
 
-Before the conceptual map was redesigned, its first render (1,541 device cards) took 3.6 s.
+Before the conceptual map was redesigned, its first render (1,541 device cards) took 3.6 s. The Inventory draws at most 33 rows at any time; before the port sort was fixed it took 1.5–3.6 s to open.
 
 ### Editing and recording installed changes (M5a)
 
@@ -182,7 +190,7 @@ Optional descriptive fields on the physical objects, as in the step 11 design: f
 - **A port's state is data (locked 6):** `faulty`, `disabled` or `reserved` ports and every other detail leave every trace unchanged (domain and HTTP tests).
 - **Duplicate and Copy rack layout still copy no details** (the serial number least of all).
 - **Renaming in a plan (P2 item 3).** **`rename_equipment {target: {id}, name}`** renames equipment **the plan adds** (switch, panel or HDF); the rules are `add_equipment`'s (trimmed, 1–100 characters, unique ignoring case in the proposed topology), and installed equipment is 422 "Installed equipment is renamed with a direct fix, not in a plan". It is stored in `Plan.renames` (one entry per equipment; renaming back to the added name removes it), applied after the additions and before details, and named `rename_equipment:<id>` by `Check`. Renames are checked as a set, so swapping two names or reusing a freed one works in any order. `remove_change` undoes it, deleting the equipment drops it, and it is allowed in a `batch`. The Changes drawer lists it as "Rename A → B" in Equipment added and counts it in the badge. Equipment name length now counts characters (not bytes) in `add_equipment` and `add_hdf` as well.
-- **Not yet:** the inventory view (step 14). The Changes drawer does not list `update_details` entries yet; saving details in a plan creates them, but only renames get a line.
+- **Not yet:** the Changes drawer does not list `update_details` entries yet; saving details in a plan creates them, but only renames get a line.
 
 ### Interface names and mixed port types (M5b step 11b)
 
@@ -226,7 +234,7 @@ Raised while entering the real network: the far port could not be found in one s
 - **Refresh after a fix.** A fix keeps the topology revision, so App's `onFixed` refetches Installed, every plan and the history, then shows the toast.
 - **Step 12 review fixes.** `PATCH /api/installed/...` answers a body with a topology field and an unknown field with the same 422 every time (the first topology field in sorted order); a JSON `null` for `name`, `details` or `note` means "not given". **Campus measurement:** one direct fix on the campus fixture (1541 equipment, 51456 endpoints, 13272 links) took 437 ms: a measurement, not a budget.
 - **Tests.** `features/details/model.test.ts` (9), FD-05 in `faces.test.ts`, FD-04 and FD-05 in `e2e/details.recording.spec.ts`, `TestFixAnswersAreDeterministicAndNullMeansNotGiven`, `TestFixOnCampusIsMeasured`. The two POL-20 tab specs in `e2e/inspector.spec.ts` now expect three tabs.
-- **Not yet:** editing cable, site, node and rack details in the UI (the API supports them); the inventory view (step 14).
+- **Not yet:** editing cable, site, node and rack details in the UI (the API supports them).
 
 ### Data-entry fixes (P2, 2026-10-13/14)
 
@@ -266,6 +274,10 @@ The rules are D35 and D36 in [decisions.md](decisions.md) (locked 2 and 9 amende
 - **Endpoints.** `GET /api/map-layout` returns `{positions: [{nodeId, x, y}]}` (only moved nodes); `PUT /api/map-layout/nodes/{nodeId}` with `{x, y}` upserts one position (last write wins, no revision check); `DELETE /api/map-layout` removes every position (204). 404 "Node not found", 422 for a missing or out-of-range coordinate, 400 for unknown fields. No write changes the topology revision or a plan.
 - **Retired with the device map:** the map of every device and its layout, map facets and **Pin on map**, split cable pairs, the drop of a library item on the empty canvas, the temporary Overview | Devices switch, and their tests; [acceptance-tests.md](acceptance-tests.md) names the successor of each retired check.
 
+### The inventory view (M5b step 14, 2026-10-19)
+
+Frontend only (no API or database change). The rules are D37 in [decisions.md](decisions.md); the design, the plan and its steps are in [history/plans/2026-10-19-inventory.md](history/plans/2026-10-19-inventory.md), and the approved look is [history/demos/inventory-demo.html](history/demos/inventory-demo.html). The screen is described under Frontend, "Inventory", below.
+
 ### Seeds and fixtures
 
 - **`cmd/db seed` loads the acceptance fixture** (`internal/acceptance`, built from [acceptance-example.md](acceptance-example.md)): Networks A and B, 2 sites, 5 physical nodes, 7 racks (12U), 11 equipment (7 active, 4 passive), HDF-01 (4 rows: 16 subpanels, 96 positions, 192 endpoints) and HDF-02 (3 rows: 72 positions, 144 endpoints), and cables A01–B04. AGG-15 is intentionally uncabled. The seed creates **no draft plans**; create one in the UI or through the API. The revision is `acceptance-1`. The fixture is fictional development data, not imported inventory.
@@ -287,7 +299,7 @@ The rules are D35 and D36 in [decisions.md](decisions.md) (locked 2 and 9 amende
 
 React/TypeScript, TanStack Query, React Flow. The conceptual map lives in `frontend/src/features/map/`, the inspector in `frontend/src/features/inspector/`, the physical explorer in `frontend/src/features/physical/`, and the Manage networks drawer in `frontend/src/features/networks/`; `App.tsx` only wires them in. Two libraries are loaded lazily, on the first export only: **`html-to-image`** and **`jspdf`** (separate chunks; the main chunk is about 528 kB).
 
-**Shell.** The header (the nettop brand, no page title) holds the **Conceptual / Physical** switch, a **Show network** selector ("All networks", one network, and a last entry **Manage networks…**), and the **Installed / Plan** control. They are independent. Tools and drawers overlay the full-page map, and the map's results overlay and controls stay clear of whichever drawers are open. The view and network choice are not part of the URL.
+**Shell.** The header (the nettop brand, no page title) holds the **Conceptual / Physical / Inventory** switch, a **Show network** selector ("All networks", one network, and a last entry **Manage networks…**), and the **Installed / Plan** control. They are independent. Tools and drawers overlay the full-page map, and the map's results overlay and controls stay clear of whichever drawers are open. The view and network choice are not part of the URL.
 
 **Conceptual map** (`features/map/`, D35, D36). Two views: the **overview** (the default) and **Focus** on one device; `ConceptualMap` only picks one. `mapSession` (session-only, shared by Installed and Plan, never persisted) holds the view, the overview's viewport and open cards, proposed nodes' positions, the focus with its hops and open groups, the location highlight, the route view's switch and the pending fit request.
 - **Overview.** One card per node inside a frame per site (the box around its nodes; frames may overlap): the node name, its equipment count and role tags from explicit roles (access, AGG, BB, passive only); a proposed node is dashed. One line per node pair with cables, within and between sites, with a pill counting the real cables, in the network's colour (grey when the cables mix networks); the pill sits on the longest stretch of the line clear of every card and above the cards. Lines are a summary and never feed traversal. Default arrangement: inside each site the Physical large-site layering (access left, passive corridors in the middle, AGG/BB right), sites side by side. A click (or Enter) on a card opens its equipment by rack; a long list scrolls, and the opened card is panned into view and drawn above the pills. A click on a row selects that equipment and opens the inspector, which offers **Focus**.
@@ -301,7 +313,7 @@ React/TypeScript, TanStack Query, React Flow. The conceptual map lives in `front
 - **Library.** An item is dropped on a free rack unit in Physical or added with its Add… form; nothing is dropped on the map. Placement proposals go through the inspector's placement form (Overview tab, in a plan) and the rack level in Physical.
 
 **Inspector** (`features/inspector/`). It opens when equipment is selected: a row of an overview card, a Focus card, or Explore.
-- A **sticky header** stays visible while the content scrolls: icon, name, role, network and Installed/Proposed badges, the "N of M cabled" meter, the location breadcrumb (site and node highlight, the rack opens in Physical), **Focus** and **Show on map** (both open Focus on it), **Show in Physical** (opens the equipment page), and **Find AGG / BB** for switches only (a panel or HDF starts from one position).
+- A **sticky header** stays visible while the content scrolls: icon, name, role, network and Installed/Proposed badges, the "N of M cabled" meter, the location breadcrumb (site and node highlight, the rack opens in Physical), **Focus** and **Show on map** (both open Focus on it), **Show in Physical** (opens the equipment page), and **Open in inventory** (its ports in the Inventory) and **Find AGG / BB** for switches only (a panel or HDF starts from one position).
 - Two **tabs**, with arrow keys moving between them: **Overview** (role, placement, cabled counts per network, and the placement form in a plan) and **Ports** (**Positions** for panels and HDFs).
 - The Ports/Positions tab is a **compact table**: label, far end, cable ID, network badge. A position shows front and rear as two lines in one row (an F/R marker; the far end's own Front/Rear suffix is in its tooltip). HDF positions are grouped under **collapsible subpanel rows**. A **Cabled / Free / All** filter (Cabled by default above 48 ports or positions) and a label search ("3C/5" and "3C / 5" alike) sit above it. Each row has two always-visible, small icon actions with tooltips: **Find AGG / BB from here** and **Show in Physical** (opens the equipment page with that endpoint selected; for a position, the first cabled side, else the front). Clicking a row selects it. Network badges use the same colors as the map. Per-snapshot lookups (`snapshotIndex`) back every row; nothing scans all links.
 
@@ -327,6 +339,18 @@ React/TypeScript, TanStack Query, React Flow. The conceptual map lives in `front
 - **Switching views and contexts.** **Conceptual** shows the map exactly as it was (the same route, card positions and viewport, no automatic centering); the selected equipment is shared, so the inspector shows the last physical equipment. The **Installed / Plan** switch keeps the physical location and, where the place does not exist in the other context (EDGE-18 is only in the plan), falls back to the nearest one that does (its rack) instead of Sites. The physical state lives in `physicalSession` outside the Workspace.
 - **Pure modules** (`features/physical/`, unit-tested): `location` (`resolveLocation` with fallback), `history` (navigate, replace, back, breadcrumbs), `physicalSession`, `inventory` (counts per site/node/rack and route marks, one pass per snapshot), `connections` (cables between nodes, inside a node, to other sites), `layout` (the default arrangement), `elevation`, `faces`, `detail` (external peer, internal peer, side switch), `explorerModel` (mixes, scope note, location marks, rack previews, cable rows, saved-position updates, `openLocation`), `equipmentModel` (cell look, accessible names, face meta, detail model), `drops`, plus the components.
 
+**Inventory** (`features/inventory/`, D37). The header's third choice; the map and Physical are not mounted while it is shown, and a stale draft shows its card instead.
+- **Page.** "net-top › Inventory", the title with "Installed" or "Plan: <name> · proposed items are marked"; a left menu of **Equipment**, **Ports and positions** and **Cables** with their counts; a command bar (**Add in a plan**, off in Installed with the title "Switch to a plan to add equipment"; **Refresh**; **Export to CSV**; **Edit columns**; then the one-row commands); the search, the pills and Reset filters; the meta line ("Showing A to B of N records." and "N selected.", `aria-live`) and **Group by**; the table; the pager (50 a page) or, when grouped, "Grouped: every record is listed".
+- **Lists.** Equipment: Name, Kind, Role, Network, Site, Node, Rack, U, Manufacturer, Model, Serial number, IP address (hidden), Status. Ports and positions: Port, Equipment, Side, Network, Type, Connector, Speed, State, Cable, Far end, Site and Node (hidden); sorted by equipment, then port order. Cables: Cable, A end, B end, Network, Label, Status. A port's network is its circuit's; a cable's its A end's, else its B end's. Rows are built once per snapshot (`buildRows`, about 0.12 s for the campus's 51,456 ports in Node).
+- **Filters.** The search (150 ms after typing) reads every column, hidden ones too. A pill opens a value picker: Operator ==, **Find a value** above 10 values, Select all, Apply / Cancel; none or all values clears it. Choosing another list resets that list's query; hidden columns stay.
+- **The header's network (D37).** A header choice sets the Network pill (also on a list shown afresh); one network applied in the pill sets the header, none clears it, and several show a disabled "N networks" in the header until it is chosen again; Reset filters clears both. The map and Physical are unchanged by the pill.
+- **Table.** Windowed: 34 px rows, only those on screen and 8 more each way are drawn between two spacers (a few dozen at any time), sticky header, its own scroll box, the ⋯ column stuck to the right. Row checkboxes and a header checkbox for the page (every row when grouped); ↑↓ sort with `aria-sort` (numbers as numbers, ties in natural order); group rows fold and show their count. Cells: the first column a link with a type icon and a Proposed chip on proposed rows; network a dot and its name; status a small shape and the word in ink, only Faulty red; Far end and A/B ends as separate names; "—" when empty.
+- **Actions.** A name or Open details selects the equipment and opens the inspector (a port or cable row also finds the port in its Ports tab). Show on map opens Focus; Show in Physical the equipment page at the port (a cable at its A end); View its ports opens Ports with that equipment and the header on All networks; Edit port details (Installed, Ports) opens the port in Physical. In a plan, **Delete…** (Equipment, not on proposed rows: "Use Changes to undo a proposed item") and **Disconnect…** (a row with a cable) open the inspector with that confirm already open; the page stays. The one-row commands act on the one selected row still listed ("Select one row" otherwise). The ⋯ menu has `role="menu"`, arrows, Home/End, Escape and focus return; one at a time.
+- **Open in inventory** in the inspector and next to Print sheet on the Physical equipment page opens Ports and positions with only that equipment, the header on All networks.
+- **Panes.** **Export to CSV** says what the file holds (N records, M columns, the filters, never grouped), the file name `inventory-<list>[-plan-<name>]-YYYY-MM-DD.csv`, the UTF-8 note and a preview of 20 records; **Download** saves every filtered record in the visible columns, with a UTF-8 mark and CRLF. **Edit columns** has one checkbox per column, the first always on.
+- **Explore while it is shown.** Equipment and port or cable hits open the inspector and the page stays; a site or node still highlights it on the map (which switches to Conceptual).
+- An open drawer narrows the page (D34). The root carries `data-inventory-list`, `-total`, `-shown`, `-page`, `-group`, `-sort` and `-filters`, which the specs assert. `inventorySession` (outside the Workspace) keeps the list, each list's query and selection, the hidden columns and the header's network for the session; nothing is persisted.
+
 **Networks** (`features/networks/`). **Manage networks…**, the last entry of the header's network selector, opens a right drawer (the filter choice is left as it was): a compact table of networks in snapshot order, each with its color dot (the same palette as the map), its name and "N devices" (active devices only); a pencil renames in place (Enter or ✓ saves, Esc or ✕ cancels, the add row shows the color dot the new network will get), and a quiet last row adds a network, showing the color it will take. Duplicate names (ignoring case), empty and over-64-character names are rejected with the server's message next to the field. After a save the topology and plans are refetched; the map does not remount, refit or move, and the filter keeps the same network ID. Colors follow the order networks were added, so renaming never changes one and a new network takes the next palette color. There is **no delete**. Before M7 anyone can create or rename.
 
 **Equipment forms.** The old plan editor in the Changes drawer (Saved plan select, Add equipment, Add cable, Refresh draft) was replaced in M5a: the draft picker and the Changes drawer (see M5a above), the library's Add… forms and the HDF form, and Connect… in Physical. A switch's **Network** is required; there is no backbone item in the library (a backbone switch can still be added through the API).
@@ -336,12 +360,12 @@ React/TypeScript, TanStack Query, React Flow. The conceptual map lives in `front
 ### Verification and tooling
 
 - **Go:** domain, engine, API and database tests with `-race`; PostgreSQL tests use unique schemas and skip without `TEST_DATABASE_URL`. `internal/scalefixture` checks the campus fixture (SC-01).
-- **Frontend unit tests:** 826 in 71 files (2026-10-19), plus strict TypeScript, the build, Prettier and the OpenAPI lint.
-- **Playwright:** against a test-only API (`cmd/testserver`: the acceptance fixture plus the Expansion draft, in an isolated schema) on ports 18080/5175; 215 tests in two projects, `main` then `recording` (214 run and pass; the opt-in `scale` spec is skipped without `SCALE=1`). Specs assert the projection's and the explorer's own `data-*` marks instead of counting elements React Flow may not have drawn. How to run them is in [testing.md](testing.md); the test IDs map to [acceptance-tests.md](acceptance-tests.md) and to the step tables in history.
+- **Frontend unit tests:** 931 in 77 files (2026-10-19), plus strict TypeScript, the build, Prettier and the OpenAPI lint.
+- **Playwright:** against a test-only API (`cmd/testserver`: the acceptance fixture plus the Expansion draft, in an isolated schema) on ports 18080/5175; 247 tests in two projects, `main` then `recording` (245 run and pass; the two opt-in `scale` tests are skipped without `SCALE=1`). Specs assert the projection's and the explorer's own `data-*` marks instead of counting elements React Flow may not have drawn. How to run them is in [testing.md](testing.md); the test IDs map to [acceptance-tests.md](acceptance-tests.md) and to the step tables in history.
 
 ## Not built yet
 
-What is still to come is in [roadmap.md](roadmap.md): the inventory view (next), M6 (scale, scoped APIs and undo), M7 (identity and governance), the production cluster, and a small backlog.
+What is still to come is in [roadmap.md](roadmap.md): a more useful inventory (next), M6 (scale, scoped APIs and undo), M7 (identity and governance), the production cluster, and a small backlog.
 
 ## Known limits
 
@@ -366,6 +390,8 @@ What is still to come is in [roadmap.md](roadmap.md): the inventory view (next),
 - **Opening an access switch runs Find AGG / BB for it.** The uplinks summary (inspector and Physical) makes one `POST /api/traces` per access switch opened, kept until the revision changes. Its cost on real data has not been measured.
 - **A long route is wider than the screen in Route view.** The picture scrolls sideways with no hint that more is to the right; the export always holds the whole route.
 - **The test data has no switch port that ends at another switch or at a free position, and no mismatch from a switch,** so those walk sheet endings and the uplinks mismatch line are covered by unit tests only.
+- **The Inventory's selection only feeds the one-row commands and the count;** nothing acts on several rows yet. Its filters, sort, selection and hidden columns are session-only.
+- **The Inventory builds every row of a snapshot at once** (equipment, ports and cables), again after each refetch; measured about 0.12 s on the campus in Node, not yet in a production browser.
 - **Explore takes about 1 s to open on the campus.** The time is the browser laying out its 1,500-row tree, not application code.
 
 ## Retired artifacts
