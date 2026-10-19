@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
 import {
-  ROUTE_AGG_03,
-  expectMarks,
+  fitted,
   openRackInPhysical,
+  overviewState,
   pick,
   expandResults,
 } from './helpers'
@@ -13,23 +13,25 @@ test('trace physical continuity on the map and in rack elevations', async ({
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
-  await expect(
-    page.locator('.react-flow__node-equipment').first(),
-  ).toBeVisible()
+  await fitted(page)
   await expect(page.locator('.studio-drawer')).toHaveCount(0)
   await page
     .getByRole('button', { name: 'Open trace tools', exact: true })
     .click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
-  // The selected route's four cables are highlighted and reveal exact positions.
-  await expectMarks(page, { routeLinks: ROUTE_AGG_03 })
-  await expect(page.getByLabel('HDF-01 shown connections')).toContainText(
-    '3C / 5',
-  )
-  await expect(page.getByLabel('HDF-02 shown connections')).toContainText(
-    '2B / 3',
-  )
+  // The selected route lights its node cards and lines, and its walk sheet names the exact positions.
+  await expect
+    .poll(async () => (await overviewState(page)).nodes)
+    .toEqual([
+      'node-building-a',
+      'node-main-distribution',
+      'node-north-sub-main',
+    ])
+  expect((await overviewState(page)).pairs.length).toBeGreaterThan(0)
+  const sheet = page.getByTestId('walk-sheet')
+  await expect(sheet).toContainText('3C/5')
+  await expect(sheet).toContainText('2B/3')
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await page.screenshot({
     path: testInfo.outputPath('map.png'),
@@ -96,27 +98,32 @@ test('trace physical continuity on the map and in rack elevations', async ({
   expect(errors).toEqual([])
 })
 
+// Dragging a node card saves the shared arrangement on the server: clear it after the test.
+test.afterEach(async ({ request }) => {
+  await request.delete('/api/map-layout')
+})
+
 test('panels overlay the full-page map and dragging does not render the shell', async ({
   page,
 }) => {
   await page.goto('/')
+  await fitted(page)
   const bounds = await page.locator('.flow-surface').boundingBox()
   await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
   await page.getByLabel('Find equipment').fill('agg-12')
   await expect(page.locator('.tree-equipment')).toHaveCount(1)
   await page.locator('.tree-equipment').click()
-  // Choosing equipment in Explore opens the inspector on it, with no highlight.
+  // Choosing equipment in Explore opens the inspector on it (and Focus), with no highlight.
   await expect(page.locator('.inspector-header h2')).toHaveText('AGG-12')
   await expect(page.locator('.location-breadcrumb')).toContainText(
     'DR Site › DR Distribution › Rack DR02 › AGG-12',
   )
   expect(await page.locator('.flow-surface').boundingBox()).toEqual(bounds)
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  // Explore centered AGG-12, so it is the card in view.
-  const item = page.getByTestId('rf__node-agg-12')
-  await item.click()
-  await expect(page.locator('.inspector-header h2')).toHaveText('AGG-12')
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
+  // Back on the overview, DR Distribution holds AGG-12: that is the card to drag.
+  await page.getByRole('button', { name: '‹ Overview' }).click()
+  await fitted(page)
+  const item = page.locator('[data-node-id="node-dr-distribution"]')
   await page.evaluate(() => {
     ;(window as unknown as { shellMutations: number }).shellMutations = 0
     new MutationObserver(() => {
@@ -129,9 +136,9 @@ test('panels overlay the full-page map and dragging does not render the shell', 
   })
   const before = await item.boundingBox()
   if (!before) throw new Error('Node not visible')
-  await page.mouse.move(before.x + 60, before.y + 20)
+  await page.mouse.move(before.x + 30, before.y + 14)
   await page.mouse.down()
-  await page.mouse.move(before.x + 75, before.y + 40, { steps: 12 })
+  await page.mouse.move(before.x + 45, before.y + 44, { steps: 12 })
   await page.mouse.up()
   const after = await item.boundingBox()
   expect(after?.y).toBeGreaterThan(before.y + 8)

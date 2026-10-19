@@ -1,21 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
-import {
-  expectCenteredInVisibleArea,
-  fitted,
-  layout,
-  settledViewport,
-  viewport,
-  expandResults,
-} from './helpers'
+import { fitted, expandResults, selectEquipment } from './helpers'
 
-const cards = (page: Page) => page.locator('.react-flow__node-equipment')
 const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
-const scaleOf = (style: string | null) =>
-  Number(/scale\(([\d.]+)\)/.exec(style ?? '')?.[1])
 
 async function traceFromEdge17(page: Page) {
-  await page.getByTestId('rf__node-edge-17').click()
+  await selectEquipment(page, 'EDGE-17')
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
@@ -79,34 +69,32 @@ test('POL-04 the map overlay lists the same walk rows in Physical, in order', as
   await expect(page.getByRole('button', { name: 'Route view' })).toHaveCount(0)
 })
 
-test('POL-05 clicking a walk row selects its equipment and centers without changing zoom', async ({
+test('POL-05 clicking a walk row selects its equipment and opens the inspector, keeping the route and the focus', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await traceFromEdge17(page)
-  const before = await viewport(page)
-  const positions = await layout(page)
+  const focus = page.locator('[data-view="focus"]')
+  await expect(focus).toHaveAttribute('data-focus-id', 'edge-17')
 
   await page
     .getByTestId('walk-row')
     .filter({ hasText: 'in front 2B/3' })
     .click()
   await expect(page.locator('.inspector-header h2')).toHaveText('HDF-02')
-  await expectCenteredInVisibleArea(page, 'hdf-02')
-  const after = await settledViewport(page)
-  expect(scaleOf(after)).toBeCloseTo(scaleOf(before), 3)
-  expect(after).not.toBe(before) // panned, not refit
-  // Panning hides cards that scroll offscreen; every card still drawn is where it was.
-  const afterLayout = await layout(page)
-  for (const [id, transform] of Object.entries(afterLayout))
-    expect(transform).toBe(positions[id])
+  // The row selects; it does not move the map (D35: Focus is where Show on map goes).
+  await expect(focus).toHaveAttribute('data-focus-id', 'edge-17')
+  await expect(rows(page)).toHaveCount(3)
+  await expect(focus.locator('[data-equipment-id="edge-17"]')).toHaveAttribute(
+    'data-on-route',
+    'true',
+  )
 
-  // The new viewport is recorded in the session: it survives a context switch.
+  // The focus survives a context switch.
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
-  await expect(page.locator('.board-caption')).toContainText('12 of 12') // the plan's EDGE-18 too; it may be offscreen after the pan
-  expect(await settledViewport(page)).toBe(after)
+  await expect(focus).toHaveAttribute('data-focus-id', 'edge-17')
 })
 
 test('there is exactly one search field labelled "Find equipment" in the whole app', async ({

@@ -4,7 +4,7 @@ import {
   type APIRequestContext,
   type Page,
 } from '@playwright/test'
-import { fitted } from './helpers'
+import { fitted, selectEquipment } from './helpers'
 import { addSwitch, newPlan, unique } from './plan-api'
 
 // VP-01: Hebrew names read correctly everywhere. The renames are direct fixes
@@ -54,23 +54,26 @@ test('VP-01 Hebrew names sit in their own bdi, and a location reads site › nod
   await page.goto('/')
   await fitted(page)
 
-  // Map cards.
-  const panel = page.getByTestId('rf__node-panel-a')
-  await expect(panel.locator('h3 bdi')).toHaveText(HEBREW.equipment.now)
+  // Overview node cards: the node's name sits in its own bdi.
+  await expect(
+    page
+      .locator(`[data-node-id="${HEBREW.nodes.id}"]`)
+      .locator('bdi', { hasText: HEBREW.nodes.now }),
+  ).toBeVisible()
+
+  // Focus card: the equipment's name and its place, each name in its own bdi.
+  await selectEquipment(page, HEBREW.equipment.now)
+  const panel = page.locator(`[data-equipment-id="${HEBREW.equipment.id}"]`)
+  await expect(panel.locator('.focus-card-name bdi')).toHaveText(
+    HEBREW.equipment.now,
+  )
   expect(await texts(panel.locator('.place-path bdi'))).toEqual([
     'Main Campus',
     'Building A',
     HEBREW.racks.now,
   ])
-  const hdf = page.getByTestId('rf__node-hdf-01')
-  expect(await texts(hdf.locator('.place-path bdi'))).toEqual([
-    'Main Campus',
-    HEBREW.nodes.now,
-    'Rack SM01',
-  ])
 
   // Inspector.
-  await panel.click()
   await expect(page.locator('.inspector-header h2 bdi')).toHaveText(
     HEBREW.equipment.now,
   )

@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
+import { useDevices } from './helpers'
 
 // SC-02, opt-in: `SCALE=1 npx playwright test -c playwright.scale.config.ts`.
 // Runs against the generated campus (backend/internal/scalefixture) and records
@@ -46,6 +47,8 @@ test('SC-02 the campus at realistic size', async ({ page }) => {
 
   await timed('first map render (cards drawn and fitted)', async () => {
     await page.goto('/')
+    // Step 8 rewrites this spec for the overview and Focus; until then it measures the device map.
+    await useDevices(page)
     await expect(
       page.locator('.react-flow__node-equipment').first(),
     ).toBeVisible({ timeout: 60_000 })

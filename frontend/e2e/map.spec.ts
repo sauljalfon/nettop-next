@@ -4,6 +4,7 @@ import {
   fitted,
   highlightLocation,
   pick,
+  useDevices,
   viewport,
 } from './helpers'
 import { chooseRack } from './patching-helpers'
@@ -15,10 +16,12 @@ const transform = (page: Page, id: string) =>
     .getByTestId(`rf__node-${id}`)
     .evaluate((n) => (n as HTMLElement).style.transform)
 
+// Retired with the device map (D35): the map of every device. Successor: CM-09 (e2e/overview.spec.ts), node cards and cable counts.
 test('C01 default map shows equipment and actual cable references, not an inventory tree', async ({
   page,
 }) => {
   await page.goto('/')
+  await useDevices(page)
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
   await expect(page.locator('.canvas-container')).toHaveCount(0)
   const edge17 = page.getByTestId('rf__node-edge-17')
@@ -36,10 +39,12 @@ test('C01 default map shows equipment and actual cable references, not an invent
   await expect(hdf).toContainText('Network B')
 })
 
+// Retired with the device map (D35): the filter hiding device cards. Successor: CM-09 "choosing Network B dims a Network-A-only node and keeps it visible" and CM-04.
 test('C07/C08 network filter retains shared HDFs and leaves positions alone', async ({
   page,
 }) => {
   await page.goto('/')
+  await useDevices(page)
   const before = await transform(page, 'hdf-01')
   const filter = page.getByRole('combobox', { name: 'Show network' })
   await filter.selectOption({ label: 'Network A' })
@@ -60,9 +65,8 @@ test('C10 opening and closing tools keeps the full-page canvas and viewport', as
   page,
 }) => {
   await page.goto('/')
-  await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
-  const bounds = await page.locator('.flow-surface').boundingBox()
   await fitted(page) // read the viewport only after the one-time fit has settled
+  const bounds = await page.locator('.flow-surface').boundingBox()
   const port = await viewport(page)
   for (const name of [
     'Open explorer',
@@ -78,11 +82,13 @@ test('C10 opening and closing tools keeps the full-page canvas and viewport', as
   await expect(page.locator('.studio-drawer')).toHaveCount(0)
 })
 
+// Retired with the device map (D35): dragging a device card. Successor: CM-09 "a dragged card stays where it was dropped after a reload" (saved on the server, once, at the drop).
 test('C11 dragging a card is local: no requests, no viewport change, kept across context', async ({
   page,
   request,
 }) => {
   await page.goto('/')
+  await useDevices(page)
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
   const requests: string[] = []
   page.on('request', (r) => {
@@ -121,14 +127,18 @@ test('C12 saving and refetching reconcile by ID without remounting or resetting'
   page,
 }) => {
   await page.goto('/?plan=expansion')
-  await expect(page.locator('.react-flow__node-equipment')).toHaveCount(12)
+  await fitted(page) // read the viewport only after the one-time fit has settled
+  const building = page.locator('[data-node-id="node-building-a"]')
+  const count = async () =>
+    Number(/(\d+) equipment/.exec((await building.textContent()) ?? '')![1])
+  const equipment = await count()
   await page.evaluate(() => {
     document.querySelector('.flow-surface')!.setAttribute('data-mounted', 'yes')
   })
-  await fitted(page) // read the viewport only after the one-time fit has settled
   const port = await viewport(page)
-  const edge17 = await transform(page, 'edge-17')
-  const agg03 = await transform(page, 'agg-03')
+  const positions = await page
+    .locator('[data-view="overview"]')
+    .getAttribute('data-node-positions')
 
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   await page.getByRole('button', { name: 'Add Access switch…' }).click()
@@ -144,24 +154,26 @@ test('C12 saving and refetching reconcile by ID without remounting or resetting'
   await form.getByRole('button', { name: 'Add to plan' }).click()
   await expect(page.getByRole('status')).toContainText('revision 2')
 
-  await expect(
-    page.locator('.equipment-card').filter({ hasText: 'EDGE-SAVED' }),
-  ).toHaveCount(1)
-  await expect(page.locator('.react-flow__node-equipment')).toHaveCount(13)
+  // The refetched plan shows the new equipment in its node, in the same mounted canvas.
+  await expect.poll(count).toBe(equipment + 1)
   await expect(page.locator('.flow-surface')).toHaveAttribute(
     'data-mounted',
     'yes',
   )
   expect(await viewport(page)).toBe(port)
-  expect(await transform(page, 'edge-17')).toBe(edge17)
-  expect(await transform(page, 'agg-03')).toBe(agg03)
+  await expect(page.locator('[data-view="overview"]')).toHaveAttribute(
+    'data-node-positions',
+    positions!,
+  )
 })
 
+// Retired with the device map (D35): a route revealing device cards the filter hides. Successor: CM-11 "with Network B selected the route's nodes stay undimmed" (e2e/overview-trace.spec.ts).
 test('C13 a route and a highlight reveal objects the network filter hides, and hide them again', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   const underB = ['agg-12', 'edge-22', 'hdf-01', 'hdf-02', 'panel-dr']
   await page
     .getByRole('combobox', { name: 'Show network' })
@@ -191,11 +203,13 @@ test('C13 a route and a highlight reveal objects the network filter hides, and h
   await expectMarks(page, { cards: underB })
 })
 
+// Retired with the device map (D35): the device card's look. Successor: CM-02 / CM-09 (node cards) and CM-10 (Focus cards), which carry the same role, network and state words.
 test('VP-06 a card reads role, network and state in the paper look', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   await expect(page.getByText('Connected infrastructure.')).toHaveCount(0)
   const edge17 = page.getByTestId('rf__node-edge-17')
   const panel = page.getByTestId('rf__node-panel-a')

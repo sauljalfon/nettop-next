@@ -6,9 +6,9 @@ import {
 } from '@playwright/test'
 import {
   expandResults,
-  expectMarks,
   fitted,
   openRackInPhysical,
+  overviewState,
   pick,
   viewport,
 } from './helpers'
@@ -17,15 +17,6 @@ const rows = (page: Page) => page.getByTestId('route-row')
 const root = (page: Page) => page.locator('.physical-explorer')
 const note = (page: Page) => page.getByTestId('route-note')
 const NOTE = 'The selected route is not in this context; showing the first.'
-const layout = (page: Page) =>
-  page.evaluate(() =>
-    Object.fromEntries(
-      [...document.querySelectorAll('.react-flow__node')].map((n) => [
-        n.getAttribute('data-id'),
-        (n as HTMLElement).style.transform,
-      ]),
-    ),
-  )
 
 async function toPlan(page: Page) {
   await page.getByRole('button', { name: /^Plan: / }).click()
@@ -64,28 +55,27 @@ test('TR-05 the same Find AGG / BB is rerun in the plan with AGG-08 still select
   await fitted(page)
   await findFromEdge17(page)
   await rows(page).nth(1).click() // AGG-08
-  await expectMarks(page, {
-    routeLinks: ['cable-a05', 'cable-a06', 'cable-a07', 'cable-a08'],
-  })
-  const before = { viewport: await viewport(page), layout: await layout(page) }
+  const lit = await overviewState(page)
+  expect(lit.nodes).toEqual([
+    'node-building-a',
+    'node-main-distribution',
+    'node-north-sub-main',
+  ])
+  expect(lit.pairs.length).toBeGreaterThan(0)
+  const before = { viewport: await viewport(page), state: lit }
 
   await toPlan(page)
   await expect(rows(page)).toHaveCount(3)
   await expect(rows(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
-  await expectMarks(page, {
-    routeLinks: ['cable-a05', 'cable-a06', 'cable-a07', 'cable-a08'],
-  })
+  await expect.poll(() => overviewState(page)).toEqual(before.state)
   await expect(note(page)).toHaveCount(0)
   expect(await viewport(page)).toBe(before.viewport)
-  // Every card that was there is where it was (the plan adds EDGE-18's own card).
-  const after = await layout(page)
-  for (const [id, where] of Object.entries(before.layout))
-    expect(after[id], id).toBe(where)
 
   // And back: the trace follows the switch both ways.
   await toInstalled(page)
   await expect(rows(page)).toHaveCount(3)
   await expect(rows(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
+  expect(await overviewState(page)).toEqual(before.state)
   expect(await viewport(page)).toBe(before.viewport)
 })
 

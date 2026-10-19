@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { fitted, openRackInPhysical } from './helpers'
+import { fitted, openRackInPhysical, selectEquipment } from './helpers'
 import { chooseRack } from './patching-helpers'
 import {
   addRoom,
@@ -84,7 +84,7 @@ test('BK-03 a duplicate that runs out of free units is blocked, from the inspect
   const id = await newPlan(request, unique('Dup'))
   await page.goto(`/?plan=${id}`)
   await fitted(page)
-  await page.getByTestId('rf__node-edge-17').click()
+  await selectEquipment(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Duplicate EDGE-17…' }).click()
   const dup = box(page, 'Duplicate')
   await dup.getByLabel('Count').fill('5')

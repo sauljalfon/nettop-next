@@ -4,7 +4,7 @@ import {
   type APIRequestContext,
   type Page,
 } from '@playwright/test'
-import { fitted, openRackInPhysical } from './helpers'
+import { fitted, openRackInPhysical, selectEquipment } from './helpers'
 import {
   chooseFar,
   chooseRack,
@@ -46,12 +46,9 @@ async function openPlan(page: Page, id: string) {
   await page.goto(`/?plan=${id}`)
   await fitted(page)
 }
-/** Select a card on the map, which opens the inspector on it. */
+/** Select equipment through Explore, which opens the inspector on it. */
 async function inspect(page: Page, card: string) {
-  await page.getByTestId(`rf__node-${card}`).click()
-  await expect(page.locator('.inspector-header h2')).toHaveText(
-    card.toUpperCase(),
-  )
+  await selectEquipment(page, card.toUpperCase())
 }
 async function toSites(page: Page) {
   await page.getByRole('button', { name: 'Physical', exact: true }).click()

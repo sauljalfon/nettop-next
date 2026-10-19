@@ -1,11 +1,16 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expandResults, fitted, openRackInPhysical } from './helpers'
+import {
+  expandResults,
+  fitted,
+  openRackInPhysical,
+  selectEquipment,
+} from './helpers'
 
 const results = (page: Page) => page.getByLabel('Map trace results')
 const sheet = (page: Page) => page.getByTestId('walk-sheet')
 
 async function traceFromEdge17(page: Page) {
-  await page.getByTestId('rf__node-edge-17').click()
+  await selectEquipment(page, 'EDGE-17')
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
@@ -246,7 +251,7 @@ test('WS-03 EDGE-17’s page lists its uplinks, AGG first; a line selects its po
 test('WS-04 the inspector lists the same lines; a click finds AGG / BB from that port', async ({
   page,
 }) => {
-  await page.getByTestId('rf__node-edge-17').click()
+  await selectEquipment(page, 'EDGE-17')
   await expect(lines(page)).toHaveCount(3)
   await expect(uplinks(page)).toContainText('3 of 24 ports reach an AGG or BB')
   await expect(lines(page).nth(0)).toContainText('→ AGG-03 · Port 1AGG')

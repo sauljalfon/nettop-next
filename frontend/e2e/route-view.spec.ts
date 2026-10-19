@@ -4,8 +4,8 @@ import {
   expectMarks,
   fitted,
   highlightLocation,
-  layout,
-  pinFromInspector,
+  pick,
+  selectEquipment,
   settledViewport,
 } from './helpers'
 
@@ -18,15 +18,15 @@ const steps = (page: Page) => diagram(page).getByTestId('rd-step')
 const cables = (page: Page) => diagram(page).getByTestId('rd-cable')
 
 /** Find AGG / BB from a switch; the first route is the active one. */
-async function traceFrom(page: Page, id: string, name: string, count: number) {
-  await page.getByTestId(`rf__node-${id}`).click()
+async function traceFrom(page: Page, name: string, count: number) {
+  await selectEquipment(page, name)
   await page
     .getByRole('button', { name: `Find AGG / BB from ${name}`, exact: true })
     .click()
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(rows(page)).toHaveCount(count)
 }
-const traceFromEdge17 = (page: Page) => traceFrom(page, 'edge-17', 'EDGE-17', 3)
+const traceFromEdge17 = (page: Page) => traceFrom(page, 'EDGE-17', 3)
 
 /** The step names in drawing order, read from the cards' own names. */
 const stepNames = (page: Page) =>
@@ -34,31 +34,40 @@ const stepNames = (page: Page) =>
     els.map((el) => el.querySelector('.rd-name')!.textContent),
   )
 
-// POL-22 (kept, rewritten): the old assertions on the route-view map (only the route's cards
-// and cables drawn, only its facets) are replaced by the opposite: the map is not touched while
-// the picture is on. Everything about restoring the map is kept as it was.
+// POL-22 (kept, rewritten for the overview): the map under the picture is not touched while the
+// picture is on. Everything about restoring the map is kept as it was.
 test('POL-22 the toggle covers the map with the route, and turning it off leaves the same map', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
-  // State on the full map: a pin, a highlight, a filter, a split pair.
-  await pinFromInspector(page, 'hdf-01', '1A/2')
+  const overview = page.locator('[data-view="overview"]')
+  // State on the overview: a highlight and a network filter, then a trace from the tools.
   await highlightLocation(page, 'Building A')
   await page.getByRole('button', { name: 'Open explorer', exact: true }).click() // close Explore
   await page
     .getByRole('combobox', { name: 'Show network' })
     .selectOption({ label: 'Network A' })
-  // EDGE-17–PANEL-A (a05, a09 stay bundled when a01 becomes the route's).
-  await page.locator('.map-pill[data-cable-ids~="cable-a05"]').click()
-  await traceFromEdge17(page)
-  const marksBefore = await page.locator('.flow-surface').evaluate((el) => ({
-    highlight: el.getAttribute('data-highlight-cards'),
-    split: el.getAttribute('data-split-pairs'),
-    cards: el.getAttribute('data-cards'),
-  }))
-  expect(marksBefore.split).not.toBe('')
-  const positions = await layout(page)
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
+  await pick(page, 'Start', 'edge-17 all ports')
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await expect(rows(page)).toHaveCount(3)
+  const mapState = () =>
+    overview.evaluate((el) => ({
+      positions: el.getAttribute('data-node-positions'),
+      highlighted: [...el.querySelectorAll('[data-highlighted="true"]')].map(
+        (n) => n.getAttribute('data-node-id'),
+      ),
+      onRoute: [...el.querySelectorAll('[data-on-route="true"]')].map((n) =>
+        n.getAttribute('data-node-id'),
+      ),
+    }))
+  const before = await mapState()
+  expect(before.highlighted).toEqual(['node-building-a'])
+  expect(before.onRoute.length).toBeGreaterThan(0)
   const port = await settledViewport(page)
 
   await expect(diagram(page)).toHaveCount(0)
@@ -67,47 +76,24 @@ test('POL-22 the toggle covers the map with the route, and turning it off leaves
   await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true')
   await expectMarks(page, { routeView: true })
   await expect(diagram(page)).toBeVisible()
-  // The map underneath is untouched: same cards, highlight, pairs, positions and view.
-  await expect(page.locator('.flow-surface')).toHaveAttribute(
-    'data-cards',
-    marksBefore.cards!,
-  )
-  await expect(page.locator('.flow-surface')).toHaveAttribute(
-    'data-split-pairs',
-    marksBefore.split!,
-  )
-  expect(await layout(page)).toEqual(positions)
+  // The map underneath is untouched: same highlight, route marks, positions and view.
+  expect(await mapState()).toEqual(before)
   expect(await settledViewport(page)).toBe(port)
   // The map's own controls are not offered over the picture.
   await expect(page.locator('.react-flow__controls')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Reset layout' })).toHaveCount(
-    0,
-  )
+  await expect(
+    page.getByRole('button', { name: 'Reset arrangement' }),
+  ).toHaveCount(0)
 
   await toggle(page).click()
   await expectMarks(page, { routeView: false })
   await expect(diagram(page)).toHaveCount(0)
-  await expect(page.locator('.flow-surface')).toHaveAttribute(
-    'data-cards',
-    marksBefore.cards!,
-  )
-  await expect(page.locator('.flow-surface')).toHaveAttribute(
-    'data-highlight-cards',
-    marksBefore.highlight!,
-  )
-  await expect(page.locator('.flow-surface')).toHaveAttribute(
-    'data-split-pairs',
-    marksBefore.split!,
-  )
-  expect(await layout(page)).toEqual(positions)
+  expect(await mapState()).toEqual(before)
   expect(await settledViewport(page)).toBe(port)
   await expect(page.locator('.react-flow__controls')).toHaveCount(1)
   await expect(
     page.getByRole('combobox', { name: 'Show network' }),
   ).toHaveValue('net-a')
-  await expect(
-    page.getByLabel('HDF-01 shown connections').locator('.map-facet-label'),
-  ).toHaveText(['1A / 2', '3C / 5'])
 })
 
 // POL-23 (rewritten): was "cards on one row, left to right". Now the steps are numbered in
@@ -220,7 +206,7 @@ test('POL-24 a path across sites has a site-gap cable that says it leaves DR Sit
 }) => {
   await page.goto('/')
   await fitted(page)
-  await traceFrom(page, 'edge-22', 'EDGE-22', 1)
+  await traceFrom(page, 'EDGE-22', 1)
   await toggle(page).click()
   const sites = diagram(page).getByTestId('rd-site')
   // DR Site, Main Campus, then DR Site again: two frames of the same name, kept apart.
@@ -343,7 +329,7 @@ test('POL-31 the picture starts at the left, clear of the drawers, and scrolls s
   // With the inspector open instead.
   await toggle(page).click()
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
-  await page.getByTestId('rf__node-edge-17').click()
+  await selectEquipment(page, 'EDGE-17')
   await expect(page.locator('.studio-drawer.right')).toBeVisible()
   await toggle(page).click()
   await expect(diagram(page)).toBeVisible()

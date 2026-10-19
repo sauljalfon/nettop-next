@@ -74,19 +74,19 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 
 | ID | Scenario | Expected behavior |
 | --- | --- | --- |
-| C01 | Default map | Equipment and actual-cable references, not a forced inventory tree |
-| C02 | Select AGG-03 → AGG-08 → BB-01 | Highlight changes in place; all results stay available; no viewport reset |
-| C03 | HDF overview | Parent name, location, capacity, shared network context; no hundreds of detached blocks |
-| C04 | Selected route uses 3C/5 and 2B/3 | Only those automatic details are revealed |
-| C05 | Manual expansion plus route clearing/change | Manual detail remains; automatic detail is independently updated |
-| C06 | Route uses multiple positions of one HDF | Show each exact position independently, under the same parent |
-| C07 | Network A filter | Active A devices plus relevant passive infrastructure; B labels/circuits remain distinguishable where shown |
-| C08 | Network B filter | Same shared chassis, different exact positions; no active equipment with two memberships |
-| C09 | Cable bundle | Parallel cables between two cards are one line that keeps every real cable ID (shown in its tooltip), splits into one real line per cable, and joins again; summary anchors are never traversal vertices. Covered by the `edges` unit tests (bundles keep real IDs, lines are drawing aids) and browser specs POL-17 and POL-18 |
-| C10 | Open/close tools | Full-page canvas dimensions/viewport remain stable; avoid permanent oversized forms |
-| C11 | Drag/pan/zoom | Local interaction state; stable node references; no per-pointer backend request |
-| C12 | Save/refetch | Incremental reconciliation by IDs, not revision-keyed workspace remount |
-| C13 | Highlight and distant route | The location highlight (a site or node chosen in Explore) and a selected route reveal the objects the network filter would hide, with only the needed exact positions, and hide them again when cleared. Covered by POL-14, POL-16, the route-reveal check in P18, and the browser spec "C13 a route and a highlight reveal objects the network filter hides" (a Network B filter with a Network A route, and with a highlight of Building A) |
+| C01 | Default map | Equipment and actual-cable references, not a forced inventory tree. Retired with the device map in step 7 (D35); successor CM-09 (node cards and cable counts). Until then the spec `map` runs it on the Devices view |
+| C02 | Select AGG-03 → AGG-08 → BB-01 | Highlight changes in place; all results stay available; no viewport reset. Retired with the device map in step 7 (D35); successor CM-11 (the route lights its node cards and lines in place), `overview-trace`. Until then `trace-map` runs it on the Devices view |
+| C03 | HDF overview | Parent name, location, capacity, shared network context; no hundreds of detached blocks. Retired with the device map in step 7 (D35); no successor on the map (an HDF is not expanded there; its grid is PHY-08, Focus on an HDF is CM-07). Until then `manual-expansion` runs it on the Devices view |
+| C04 | Selected route uses 3C/5 and 2B/3 | Only those automatic details are revealed. Retired with the device map in step 7 (D35); no successor (facets are gone; the walk sheet, WS-01, names the positions). Until then `trace-map` runs it on the Devices view |
+| C05 | Manual expansion plus route clearing/change | Manual detail remains; automatic detail is independently updated. Retired with the device map in step 7 (D35); no successor (Pin on map is gone). Until then `manual-expansion` runs it on the Devices view |
+| C06 | Route uses multiple positions of one HDF | Show each exact position independently, under the same parent. Retired with the device map in step 7 (D35); no successor (same reason as C04). Until then `trace-map` runs it on the Devices view |
+| C07 | Network A filter | Active A devices plus relevant passive infrastructure; B labels/circuits remain distinguishable where shown. Retired with the device map in step 7 (D35); successor CM-04 and CM-09 (the selector dims nodes and never hides). Until then `map` runs it on the Devices view |
+| C08 | Network B filter | Same shared chassis, different exact positions; no active equipment with two memberships. Retired with the device map in step 7 (D35); successor CM-04 and CM-09. Until then `map` runs it on the Devices view |
+| C09 | Cable bundle | Parallel cables between two cards are one line that keeps every real cable ID (shown in its tooltip), splits into one real line per cable, and joins again; summary anchors are never traversal vertices. Covered by the `edges` unit tests (bundles keep real IDs, lines are drawing aids) and browser specs POL-17 and POL-18. Retired with the device map in step 7 (D35); successors CM-03 and CM-09 (one line per node pair with its real-cable count) and PHY-19 (the pair's cables listed). Until then `polish` runs POL-17 and POL-18 on the Devices view |
+| C10 | Open/close tools | Full-page canvas dimensions/viewport remain stable; avoid permanent oversized forms. Rewritten on the overview in step 6 (`map`, "C10 opening and closing tools…") |
+| C11 | Drag/pan/zoom | Local interaction state; stable node references; no per-pointer backend request. The device-card drag is retired with the device map in step 7 (D35); successor CM-09 (a drag is sent once, at the drop, and survives a reload). Until then `map` runs it on the Devices view |
+| C12 | Save/refetch | Incremental reconciliation by IDs, not revision-keyed workspace remount. Rewritten on the overview in step 6 (`map`, "C12 saving and refetching reconcile by ID…": the node card gains the equipment, the canvas stays mounted, the viewport and positions stay) |
+| C13 | Highlight and distant route | The location highlight (a site or node chosen in Explore) and a selected route reveal the objects the network filter would hide, with only the needed exact positions, and hide them again when cleared. Covered by POL-14, POL-16, the route-reveal check in P18, and the browser spec "C13 a route and a highlight reveal objects the network filter hides" (a Network B filter with a Network A route, and with a highlight of Building A). Retired with the device map in step 7 (D35); successor CM-11 (with Network B the route's nodes stay undimmed; an Explore highlight marks its nodes). POL-14, POL-15 (rewritten: Explore opens Focus), POL-16 and the Esc spec are in `highlight`; P18 was rewritten on the overview (`trace-map`). Until step 7 the retired ones run on the Devices view |
 
 ## M4 — Physical explorer and view synchronization
 
@@ -99,7 +99,7 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | F05 | Conceptual endpoint → Physical | Correct site/node/rack/chassis/subpanel/position/side is opened. Covered by "F05 a conceptual endpoint opens the exact place in Physical…" (`views`: the inspector header, a Positions row, a walk sheet row) and the inspector model unit tests |
 | F06 | HDF-01 3C/5 rear → front | Same position; A02/PANEL-A rear versus A03/HDF-02 2B/3 front. Covered by "F06 HDF-01 3C/5 rear…" (`equipment`), PHY-10 (`views`) and the `detail` and `equipmentModel` unit tests |
 | F07 | HDF-02 2B/3 front → rear | A03/HDF-01 front versus A04/AGG-03 port 1. Covered by "F07 HDF-02 2B/3 front…" (`equipment`) |
-| F08 | Inspect peer equipment and return | Same route, equipment identities, context, and useful previous view. Covered by "F08 Go to peer opens the far equipment…" (`equipment`: Back restores the exact endpoint and side) and PHY-10 and PHY-11 (`views`: back on the map with the same route, positions and viewport) |
+| F08 | Inspect peer equipment and return | Same route, equipment identities, context, and useful previous view. Covered by "F08 Go to peer opens the far equipment…" (`equipment`: Back restores the exact endpoint and side) and PHY-10 and PHY-11 (`views`, rewritten on the overview in step 6: back on the overview with the same route marks, node positions and viewport) |
 | F09 | Network B physical HDF grid | 3C/2 selected; 3C/5 remains visibly a separate A circuit. Covered by "PHY-08 / F09 the HDF-01 face has 16 blocks…" (`equipment`), PHY-11 (`views`), and the `equipmentModel` unit tests (state decides the color, never the network ID) |
 | F10 | Standard panels/device banks | Correct local positions, terminal ports, occupancy, cable peers, and sides. Covered by the two "F10" specs, a switch bank and a standard panel (`equipment`), and the `faces` unit tests |
 | F11 | Breadcrumb/back navigation | Restore context consistently; no nested modal stack. Covered by "F11 breadcrumbs and Back…" (`physical`), "F11 Installed/Plan keeps the physical location…" (`views`), and the `history`, `location` and `physicalSession` unit tests |
@@ -135,20 +135,30 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | WS-03 | An access switch's page lists its uplinks (AGG first, cables, via); a line selects that port; those jacks carry the uplink mark | `walk-sheet`, `uplinks.test.ts` |
 | WS-04 | The inspector shows the same uplinks; a line runs Find AGG / BB from that port | `walk-sheet` |
 | WS-05 | An AGG or BB page says paths end there and makes no trace request; the mismatch line is unit-tested only | `walk-sheet`, `uplinks.test.ts` |
-| POL-22 and the route-view specs | Route view is a picture over the map: steps in route order, sites and nodes with each cable's gap, a cross-site path; a step opens Physical; another route redraws; turning it off restores the map exactly; PNG/PDF hold the whole picture | `route-view`, `export`, `diagram.test.ts`, `exportRoute.test.ts` |
+| POL-22 and the route-view specs | (rewritten in step 6: reached through Explore and the overview, POL-22 checks the overview underneath) Route view is a picture over the map: steps in route order, sites and nodes with each cable's gap, a cross-site path; a step opens Physical; another route redraws; turning it off restores the map exactly; PNG/PDF hold the whole picture | `route-view`, `export`, `diagram.test.ts`, `exportRoute.test.ts` |
 
 ## The visual pass (2026-10-15)
 
 | ID | Scenario | Where it runs |
 | --- | --- | --- |
 | VP-01 | Hebrew names sit in their own `<bdi>` on cards, in the inspector, the walk sheet and the Changes drawer, and a location reads Site › Node › Rack as separate names; every summary line has pieces that read as its text | `visual-pass.recording`, `textPieces.test.ts`, `summary.test.ts` |
-| VP-02 | On Physical and the equipment pages an open right drawer keeps every block clear of it, with no sideways scroll; on the map and the site canvas a drawer floats and nothing moves | `visual-pass` |
+| VP-02 | On Physical and the equipment pages an open right drawer keeps every block clear of it, with no sideways scroll; on the map (rewritten on Focus in step 6) and the site canvas a drawer floats and nothing moves | `visual-pass` |
 | VP-03 | A 42U rack keeps 26px rows, scrolls inside its panel and labels every unit; scrolled to the bottom U1 is fully visible; on Rack A03 no name is clipped on its label strip. Rows are 26–30px by the available height | `visual-pass`, `cabinet.test.ts` |
 | VP-03b | With the inspector open all 24 ports of EDGE-17 and the whole HDF grid sit inside the face card with no sideways scroll and the endpoint detail below it; without a drawer the HDF grid fills its card and every jack number is at least 11px | `visual-pass` |
 | VP-04 | Forms: label above the control; a focus ring that stays inside the form; Site › Node › Rack stacked in the narrow drawer and in one row, with Equipment below, in the patching screen; submit is ink, Cancel is paper with a rule border; a form that adds an object is dashed; a library item is one card | `visual-pass` |
-| VP-05 | No visible text is under 11px on the map with the inspector open, the site canvas, Rack A03, HDF-01's page, the HDF form in the library and the Changes drawer | `visual-pass` |
-| VP-06 | A map card reads role, network and state in the paper look | `map`, `cardRole.test.ts` |
+| VP-05 | No visible text is under 11px on the map (Focus on EDGE-17, step 6) with the inspector open, the site canvas, Rack A03, HDF-01's page, the HDF form in the library and the Changes drawer | `visual-pass` |
+| VP-06 | A map card reads role, network and state in the paper look. Retired with the device map in step 7 (D35); successors CM-02, CM-09 (node cards) and CM-10 (Focus cards) | `map` (Devices view until step 7), `cardRole.test.ts` |
 | — | No stylesheet outside `theme.css` has a colour, a font size under 11px or an uppercase transform; none uses `--purple`, `--line`, `--muted`, `--green`, `.button` or `.outline-button` (the allowlist is empty) | `theme.test.ts` |
+
+## The conceptual map for real data (2026-10-18)
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| CM-09 | The map opens on node cards inside site frames, with the cable counts; a node opens its equipment; a drag is sent once at the drop and survives a reload; Reset arrangement; the network selector dims and never hides; a count pill is never under a card | `overview` |
+| CM-10 | Focus from the inspector, from Explore and from Show on map; a neighbour moves the focus; a line opens its circuits; +1 hop; ‹ Overview restores the overview; a proposed card; no text under 11 px | `focus` |
+| CM-11 | A trace lights the route's node cards and lines (overview) and cards and lines (Focus) in place; with Network B the route stays undimmed; the Route view covers and restores; Explore's highlight marks and fits once and can be cleared | `overview-trace` |
+
+Since step 6 the overview is the default view and every spec reaches equipment through Explore (`selectEquipment`), an overview card or Focus. Specs of the retired device map switch to the Devices view (`useDevices`) and are deleted with the map in step 7.
 
 ## M5–M7 — Editing, persistence, scale, and governance
 

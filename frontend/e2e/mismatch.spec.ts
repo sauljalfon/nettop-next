@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Plan } from '../src/shared/types'
-import { fitted, expandResults } from './helpers'
+import { expandResults, fitted, selectEquipment } from './helpers'
 
 // A cable from EDGE-17 (Network A) to AGG-12 (Network B) is physically valid. Find
 // AGG / BB reports the Network B destination apart from the routes.
@@ -24,7 +24,7 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
 
   await page.goto(`/?plan=${plan.id}`)
   await fitted(page)
-  await page.getByTestId('rf__node-edge-17').click()
+  await selectEquipment(page, 'EDGE-17')
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
@@ -60,7 +60,7 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
   // The installed topology has no such cable: no mismatch there.
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-  await page.getByTestId('rf__node-edge-17').click()
+  await selectEquipment(page, 'EDGE-17')
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()

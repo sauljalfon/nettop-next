@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Plan } from '../src/shared/types'
-import { expectMarks, fitted, pick, viewport } from './helpers'
+import { expectMarks, fitted, pick, useDevices, viewport } from './helpers'
 
 /** Every card's transform, keyed by equipment ID. */
 const layout = (page: Page) =>
@@ -26,10 +26,13 @@ async function traceFromEdge17(page: Page) {
   await expect(rows(page)).toHaveCount(3)
 }
 
+// Retired with the device map (D35): route facets and marks on device cards. Successor: CM-11 "the route lights its node cards and lines in place; choosing another route moves nothing" (e2e/overview-trace.spec.ts).
+
 test('C02 selecting AGG-03, AGG-08 then BB-01 changes the highlight in place', async ({
   page,
 }) => {
   await page.goto('/')
+  await useDevices(page)
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
   await fitted(page)
   const port = await viewport(page)
@@ -62,10 +65,13 @@ test('C02 selecting AGG-03, AGG-08 then BB-01 changes the highlight in place', a
   }
 })
 
+// Retired with the device map (D35): automatic facets on the HDF cards. No successor: an HDF is not expanded on the map; the route's positions are in the walk sheet (WS-01).
+
 test('C04 the AGG-03 route reveals only 3C/5 and 2B/3 on the HDFs', async ({
   page,
 }) => {
   await page.goto('/')
+  await useDevices(page)
   await traceFromEdge17(page)
   await expect(facets(page, 'HDF-01')).toHaveText(['3C / 5'])
   await expect(facets(page, 'HDF-02')).toHaveText(['2B / 3'])
@@ -77,6 +83,8 @@ test('C04 the AGG-03 route reveals only 3C/5 and 2B/3 on the HDFs', async ({
   )
   await expect(page.getByTestId('rf__node-hdf-01')).toContainText('HDF-01')
 })
+
+// Retired with the device map (D35): several positions of one HDF as facets under one parent. No successor: same reason as C04.
 
 test('C06 a route through several positions of one HDF shows each under the same parent', async ({
   page,
@@ -118,6 +126,7 @@ test('C06 a route through several positions of one HDF shows each under the same
     })
 
   await page.goto(`/?plan=${plan.id}`)
+  await useDevices(page)
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(12)
   await page.getByTestId('rf__node-edge-17').click()
   await page
@@ -134,63 +143,82 @@ test('C06 a route through several positions of one HDF shows each under the same
   await expect(hdfX.locator('.map-facet-label')).toHaveCount(2)
 })
 
-test('P18 a route through equipment the network filter hides is still found and shown', async ({
+// The trace from the Trace tools, so the overview stays the view.
+async function traceFromTools(page: Page) {
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
+  await pick(page, 'Start', 'edge-17 all ports')
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await expect(rows(page)).toHaveCount(3)
+  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+}
+const overview = (page: Page) => page.locator('[data-view="overview"]')
+const positions = (page: Page) =>
+  overview(page).getAttribute('data-node-positions')
+
+test('P18 a route through equipment the network filter dims is still found and shown', async ({
   page,
 }) => {
   await page.goto('/')
-  await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
-  const all = await layout(page)
   await fitted(page)
+  const all = await positions(page)
   const port = await viewport(page)
   await page
     .getByRole('combobox', { name: 'Show network' })
     .selectOption({ label: 'Network B' })
-  await expect(page.locator('.react-flow__node-equipment')).toHaveCount(5)
-  await expect(page.getByTestId('rf__node-edge-17')).toHaveCount(0)
+  // Building A is Network A only: dimmed by the filter.
+  const building = page.locator('[data-node-id="node-building-a"]')
+  await expect(building).toHaveClass(/dimmed/)
 
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await pick(page, 'Start', 'edge-17 all ports')
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  // The backend result is complete even though EDGE-17 is not displayed.
+  await traceFromTools(page)
+  // The backend result is complete even though Building A is dimmed.
   await expect(rows(page)).toHaveCount(3)
-  // The route's hidden cards appear in place while it is selected.
-  for (const id of ['edge-17', 'panel-a', 'agg-03'])
-    await expect(page.getByTestId(`rf__node-${id}`)).toBeVisible()
-  await expect(page.getByTestId('rf__node-agg-08')).toHaveCount(0)
-  const shown = await layout(page)
-  for (const [id, transform] of Object.entries(shown))
-    expect(transform).toBe(all[id])
+  // The route's nodes are lit in place and no longer dimmed.
+  for (const id of [
+    'node-building-a',
+    'node-north-sub-main',
+    'node-main-distribution',
+  ]) {
+    const node = page.locator(`[data-node-id="${id}"]`)
+    await expect(node).toHaveAttribute('data-on-route', 'true')
+    await expect(node).not.toHaveClass(/dimmed/)
+  }
+  expect(await positions(page)).toBe(all)
   expect(await viewport(page)).toBe(port)
 
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await page.getByRole('button', { name: 'Clear trace' }).click()
-  await expect(page.locator('.react-flow__node-equipment')).toHaveCount(5)
-  await expect(page.getByTestId('rf__node-edge-17')).toHaveCount(0)
+  await expect(building).toHaveClass(/dimmed/)
+  await expect(building).toHaveAttribute('data-on-route', 'false')
+  expect(await positions(page)).toBe(all)
   expect(await viewport(page)).toBe(port)
 })
 
-test('Clear trace removes the automatic facets and highlights only', async ({
-  page,
-}) => {
+test('Clear trace removes the route marks only', async ({ page }) => {
   await page.goto('/')
   await fitted(page)
   const port = await viewport(page)
-  const cards = await layout(page)
-  await traceFromEdge17(page)
+  const all = await positions(page)
+  await traceFromTools(page)
+  await expect(
+    overview(page).locator('[data-on-route="true"]'),
+  ).not.toHaveCount(0)
   await page.getByRole('button', { name: 'Clear trace' }).click()
   await expect(page.getByLabel('Map trace results')).toHaveCount(0)
-  await expect(page.locator('.map-facets')).toHaveCount(0)
+  await expect(overview(page).locator('[data-on-route="true"]')).toHaveCount(0)
   await expectMarks(page, { routeLinks: [] })
-  await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
-  expect(await layout(page)).toEqual(cards)
+  expect(await positions(page)).toBe(all)
   expect(await viewport(page)).toBe(port)
 })
+
+// Retired with the device map (D35): a facet button starting Find AGG / BB. Successor: Find AGG / BB from a Focus line's circuit panel (CM-10) and from the inspector (POL-10).
 
 test('a clicked facet starts Find AGG / BB from that exact position', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   const port = await viewport(page)
   await traceFromEdge17(page)
   const cards = await layout(page)

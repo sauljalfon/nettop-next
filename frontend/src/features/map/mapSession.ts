@@ -2,7 +2,7 @@ import type { ManualFacets } from './facets'
 import type { LocationRef } from './highlight'
 import type { Position } from './layout'
 
-/** Which conceptual map is drawn; 'devices' stays the default until the old map is removed. */
+/** Which conceptual map is drawn; 'devices' (the old map) goes in step 7. */
 export type MapMode = 'overview' | 'focus' | 'devices'
 
 export interface Viewport {
@@ -140,7 +140,7 @@ export function createMapSession(): MapSession {
   let layoutVersion = 0
   let center: { id: string; serial: number } | undefined
   let centerHandled = 0
-  let view: MapMode = 'devices'
+  let view: MapMode = 'overview'
   let overviewViewport: Viewport | undefined
   let openNodes: ReadonlySet<string> = new Set()
   let proposed: ReadonlyMap<string, Position> = new Map()

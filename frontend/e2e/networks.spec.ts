@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, viewport } from './helpers'
+import { fitted, selectEquipment, viewport } from './helpers'
 
 // The test database is shared by every spec in a run and networks cannot be
 // deleted, so this spec uses unique names and puts Network A back.
@@ -116,14 +116,18 @@ test('NET-05 renaming Network A updates the selector, badges and inspector; its 
   await page.goto('/')
   await fitted(page)
   await select(page).selectOption('net-a')
+  // EDGE-17's Focus card carries its network's badge.
+  await selectEquipment(page, 'EDGE-17')
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
+  await fitted(page)
   const badge = (text: string) =>
     page
-      .getByTestId('rf__node-panel-a')
+      .locator('[data-equipment-id="edge-17"]')
       .locator('.network-badge', { hasText: text })
   const color = await badge('Network A').evaluate(
     (el) => (el.querySelector('.dot') as HTMLElement).style.backgroundColor,
   )
-  const card = page.getByTestId('rf__node-edge-17')
+  const card = page.locator('[data-equipment-id="edge-17"]')
   const box = await card.boundingBox()
   const before = await viewport(page)
 
@@ -172,7 +176,7 @@ test('NET-05 renaming Network A updates the selector, badges and inspector; its 
 
   // Inspector.
   await page.getByRole('button', { name: 'Close Manage networks' }).click()
-  await card.click()
+  await selectEquipment(page, 'EDGE-17')
   await expect(page.getByRole('tabpanel')).toContainText(renamed)
 })
 

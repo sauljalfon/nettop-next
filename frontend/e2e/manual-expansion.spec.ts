@@ -3,6 +3,7 @@ import {
   fitted,
   openPorts,
   pinFromInspector,
+  useDevices,
   viewport,
   expectMarks,
 } from './helpers'
@@ -13,11 +14,13 @@ const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
 const pin = pinFromInspector
 
+// Retired with the device map (D35): the HDF card on the map and its facets. Successor: none on the map (an HDF is not expanded there); Physical's HDF face is PHY-08, Focus on an HDF is CM-07.
 test('C03 HDF overview shows one card with parent, location, capacity and network badges', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   const hdf = page.getByTestId('rf__node-hdf-01')
   await expect(hdf.getByRole('heading', { name: 'HDF-01' })).toBeVisible()
   await expect(hdf).toContainText('Main Campus › North Sub-main › Rack SM01')
@@ -35,11 +38,13 @@ test('C03 HDF overview shows one card with parent, location, capacity and networ
   await expect(page.locator('.map-facets')).toHaveCount(0)
 })
 
+// Retired with the device map (D35): manual facets and Pin on map. No successor: facets and pins are gone.
 test('C05 a manual position stays while automatic facets follow the route', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   await expect(page.locator('.react-flow__node-equipment')).toHaveCount(11)
   await pin(page, 'HDF-01', '1A/2')
   await expect(facets(page, 'HDF-01')).toHaveText([/1A \/ 2.*pinned/])
@@ -91,11 +96,13 @@ test('C05 a manual position stays while automatic facets follow the route', asyn
   await expect(page.getByLabel('HDF-01 shown connections')).toHaveCount(0)
 })
 
+// Retired with the device map (D35): a pinned position's facet button. Successor: Find AGG / BB from a position in the inspector (POL-10) and from a Focus line's circuit panel (CM-10).
 test('a pinned position can start Find AGG / BB without any route', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   await pin(page, 'PANEL-A', '2')
   await page
     .getByRole('button', { name: 'PANEL-A 2, find AGG / BB from here' })

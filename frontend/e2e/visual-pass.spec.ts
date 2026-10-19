@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, openRackInPhysical, viewport } from './helpers'
+import {
+  fitted,
+  openRackInPhysical,
+  selectEquipment,
+  settledViewport,
+  viewport,
+} from './helpers'
 
 // VP-02 (D34): on pages an open right drawer keeps the content clear; on the
 // conceptual map a drawer floats over the canvas and never moves it.
@@ -89,9 +95,16 @@ test('VP-02 the rack keeps clear of the Changes drawer', async ({ page }) => {
 test('VP-02 on the map the inspector floats over the canvas and nothing moves', async ({
   page,
 }) => {
+  // Focus on EDGE-17 with the drawers closed, then open the inspector over it.
+  await selectEquipment(page, 'EDGE-17')
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
+  await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
+  await fitted(page)
   const surface = await page.locator('.flow-surface').boundingBox()
-  const before = await viewport(page)
-  await page.getByTestId('rf__node-edge-17').click()
+  const before = await settledViewport(page)
+  await page
+    .getByRole('button', { name: 'Open inspector', exact: true })
+    .click()
   await expect(inspector(page)).toBeVisible()
   expect(await page.locator('.flow-surface').boundingBox()).toEqual(surface)
   expect(await viewport(page)).toBe(before)
@@ -472,7 +485,7 @@ async function smallText(page: Page) {
 test('VP-05 the map with EDGE-17 selected and the inspector open has no text under 11px', async ({
   page,
 }) => {
-  await page.getByTestId('rf__node-edge-17').click()
+  await selectEquipment(page, 'EDGE-17')
   await expect(inspector(page)).toBeVisible()
   expect(await smallText(page)).toEqual([])
 })

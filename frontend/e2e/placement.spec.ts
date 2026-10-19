@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test'
-import { openRackInPhysical, expandResults } from './helpers'
+import { openRackInPhysical, expandResults, useDevices } from './helpers'
 import { chooseRack } from './patching-helpers'
 import { getPlan } from './plan-api'
 
@@ -113,6 +113,8 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
   request,
 }) => {
   await page.goto('/?plan=expansion')
+  // Retired with the device map (D35): the empty-canvas library drop. Successor: the library's Add… form.
+  await useDevices(page)
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   const before = await (await request.get('/api/plans/expansion')).json()
   await page
@@ -134,6 +136,7 @@ test('empty canvas creates an unplaced preview and saves only after rack assignm
   // A fresh draft takes the next one, which is saved after its rack is chosen.
   const id = await newPlan(request, 'Map creation check')
   await page.goto(`/?plan=${id}`)
+  await useDevices(page)
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   await page
     .locator('.library-item')

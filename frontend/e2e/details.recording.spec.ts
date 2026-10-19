@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, openRackInPhysical } from './helpers'
+import { fitted, openRackInPhysical, selectEquipment } from './helpers'
 import {
   addSwitch,
   getPlan,
@@ -14,10 +14,9 @@ const shot = (page: Page, name: string) =>
 const details = (page: Page) => page.getByTestId('equipment-details')
 const form = (page: Page) => page.getByTestId('details-form')
 
-/** Select a map card by equipment ID; the inspector opens with its name. */
+/** Select equipment by its name through Explore; the inspector opens with it. */
 async function inspect(page: Page, id: string, name = id.toUpperCase()) {
-  await page.getByTestId(`rf__node-${id}`).click()
-  await expect(page.locator('.inspector-header h2')).toHaveText(name)
+  await selectEquipment(page, name)
 }
 test('FD-04 a direct fix on Installed: Edit details saves, the Overview shows it at once, and History lists it with its note', async ({
   page,
@@ -112,7 +111,7 @@ test('P2-3 rename equipment the plan adds: the name saves in the plan, shows on 
   const changes = page.getByRole('complementary', { name: 'Changes & plans' })
   const edit = async () => {
     await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-    await page.getByTestId(`rf__node-${sw}`).click()
+    await selectEquipment(page, 'REN-1')
     await details(page).getByRole('button', { name: 'Edit details' }).click()
   }
   const showPage = async () => {

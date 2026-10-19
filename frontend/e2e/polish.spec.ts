@@ -3,7 +3,10 @@ import {
   expectMarks,
   fitted,
   highlightLocation,
+  pick,
   pinFromInspector,
+  selectEquipment,
+  useDevices,
   viewport,
 } from './helpers'
 
@@ -34,11 +37,13 @@ async function traceFromEdge17(page: Page) {
   await expect(rows(page)).toHaveCount(3)
 }
 
+// Retired with the device map (D35): pins and route facets on device cards. No successor: Pin on map and facets are gone.
 test('POL-19 cards have no connections popover, and pins and route facets still show on them', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   await expect(cards(page)).toHaveCount(11)
   await expect(
     page.getByRole('button', { name: /Show connections/ }),
@@ -64,11 +69,13 @@ test('POL-19 cards have no connections popover, and pins and route facets still 
   )
 })
 
+// Retired with the device map (D35): the selected device card. Successor: none (overview and Focus cards do not grow on selection; CM-09, CM-10).
 test('a selected card keeps its size and does not cover the card below it', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   const upper = page.getByTestId('rf__node-edge-17')
   const lower = page.getByTestId('rf__node-edge-22')
   const before = await upper.boundingBox()
@@ -80,12 +87,23 @@ test('a selected card keeps its size and does not cover the card below it', asyn
   expect(after!.y + after!.height).toBeLessThanOrEqual(below!.y)
 })
 
+// The trace from the Trace tools, so the overview stays the view and its own buttons are on screen.
+async function traceFromTools(page: Page) {
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
+  await pick(page, 'Start', 'edge-17 all ports')
+  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await expect(rows(page)).toHaveCount(3)
+}
+
 test('POL-02 every overlay button stays clickable with each drawer open', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
-  await traceFromEdge17(page)
+  await traceFromTools(page)
   const overlay = [
     page.getByRole('button', { name: 'Collapse results' }),
     page.getByRole('button', { name: 'Clear trace' }),
@@ -95,7 +113,7 @@ test('POL-02 every overlay button stays clickable with each drawer open', async 
     page.getByRole('button', { name: 'Zoom In' }),
     page.getByRole('button', { name: 'Zoom Out' }),
     page.getByRole('button', { name: 'Fit View' }),
-    page.getByRole('button', { name: 'Reset layout' }),
+    page.getByRole('button', { name: 'Reset arrangement' }),
   ]
   const check = async () => {
     // A trial click runs every actionability check, including that nothing covers the button.
@@ -124,11 +142,13 @@ test('POL-02 every overlay button stays clickable with each drawer open', async 
   }
 })
 
+// Retired with the device map (D35): Reset layout of the device map, with pins. Successor: CM-09 Reset arrangement (e2e/overview.spec.ts).
 test('POL-03 reset recomputes the first layout and keeps pins, highlight, filter and trace', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   await expect(cards(page)).toHaveCount(11)
   const first = await layout(page)
 
@@ -206,11 +226,13 @@ test('POL-03 reset recomputes the first layout and keeps pins, highlight, filter
 const pill = (page: Page, cable: string) =>
   page.locator(`.map-pill[data-cable-ids~="${cable}"]`)
 
+// Retired with the device map (D35): the cable bundle between two device cards. Successor: CM-09 cable counts between nodes (e2e/overview.spec.ts).
 test('POL-17 EDGE-17–PANEL-A is one line with a "3" pill in Network A\'s color whose tooltip lists the cables', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   const p = pill(page, 'cable-a01')
   await expect(p).toHaveText('3')
   await expect(p).toHaveAttribute(
@@ -248,11 +270,13 @@ test('POL-17 EDGE-17–PANEL-A is one line with a "3" pill in Network A\'s color
   )
 })
 
+// Retired with the device map (D35): split cable pairs. No successor: the overview lists a pair's cables in Physical (PHY-19).
 test('POL-18 clicking the pill splits the line into labeled cables, clicking again joins them, and width grows with the count', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   const widthOf = (id: string) =>
     page
       .locator(`g[data-cable-ids~="${id}"] path.react-flow__edge-path`)
@@ -333,7 +357,9 @@ test('POL-32 a trace that fails with every drawer closed shows its error on the 
 }) => {
   await page.goto('/')
   await fitted(page)
-  await pinFromInspector(page, 'edge-17', '1')
+  // Focus on EDGE-17 with every drawer closed; the trace starts from a line's circuit panel.
+  await selectEquipment(page, 'EDGE-17')
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(page.locator('.studio-drawer')).toHaveCount(0)
   await page.route('**/api/traces*', (route) =>
     route.fulfill({
@@ -342,8 +368,10 @@ test('POL-32 a trace that fails with every drawer closed shows its error on the 
       body: JSON.stringify({ error: 'Trace engine unavailable' }),
     }),
   )
+  await page.locator('[data-line="edge-17|agg-03"]').click()
   await page
-    .getByRole('button', { name: 'EDGE-17 Port 1, find AGG / BB from here' })
+    .getByRole('dialog', { name: /circuits/i })
+    .getByRole('button', { name: 'Find AGG / BB from Port 1' })
     .click()
   const alert = page
     .getByRole('alert')

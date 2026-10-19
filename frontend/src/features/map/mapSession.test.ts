@@ -342,9 +342,9 @@ describe('POL-22 route view state', () => {
 })
 
 describe('CM-09 overview session state', () => {
-  it('defaults: the device map stays the default view, nothing open, nothing proposed', () => {
+  it('defaults: the overview is the default view, nothing open, nothing proposed', () => {
     const session = createMapSession()
-    expect(session.view()).toBe('devices')
+    expect(session.view()).toBe('overview')
     expect(session.overviewViewport()).toBeUndefined()
     expect(session.overviewNeedsFit()).toBe(true)
     expect(session.openNodes().size).toBe(0)
@@ -356,13 +356,13 @@ describe('CM-09 overview session state', () => {
     const session = createMapSession()
     let calls = 0
     session.subscribe(() => calls++)
-    session.setView('overview')
-    expect(session.view()).toBe('overview')
-    expect(calls).toBe(1)
-    session.setView('overview')
-    expect(calls).toBe(1)
     session.setView('devices')
     expect(session.view()).toBe('devices')
+    expect(calls).toBe(1)
+    session.setView('devices')
+    expect(calls).toBe(1)
+    session.setView('overview')
+    expect(session.view()).toBe('overview')
   })
 
   it('keeps its own viewport, apart from the device map', () => {
@@ -451,6 +451,7 @@ describe('CM-10 focus session state', () => {
 
   it('back from a focus entered on the device map returns there', () => {
     const session = createMapSession()
+    session.setView('devices')
     session.focusOn('a')
     expect(session.focusReturn()).toBe('devices')
     session.back()

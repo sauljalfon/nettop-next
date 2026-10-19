@@ -326,7 +326,7 @@ test('F10 a standard panel shows positions 1..N on the chosen side, and switchin
   )
 })
 
-test('Show on map returns to the conceptual map with this equipment selected', async ({
+test('Show on map returns to the conceptual map with Focus on this equipment', async ({
   page,
 }) => {
   await openHdf01(page)
@@ -334,10 +334,14 @@ test('Show on map returns to the conceptual map with this equipment selected', a
   await endpoint(page, HDF01_3C5_REAR).click()
   await page.getByRole('button', { name: 'Show on map' }).click()
   await expect(root(page)).toHaveCount(0)
-  await expect(page.locator('.flow-surface')).toBeVisible()
+  // D35: Show on map is Focus; the equipment is its center.
+  await expect(page.locator('[data-view="focus"]')).toHaveAttribute(
+    'data-focus-id',
+    'hdf-01',
+  )
   await expect(
-    page.getByTestId('rf__node-hdf-01').locator('.equipment-card'),
-  ).toHaveClass(/selected/)
+    page.locator('[data-equipment-id="hdf-01"][data-side="center"]'),
+  ).toBeVisible()
 })
 
 test('a walk row opens the exact endpoint', async ({ page }) => {

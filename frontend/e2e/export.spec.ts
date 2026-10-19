@@ -6,7 +6,12 @@ import {
   exportHeader,
   pdfText,
 } from '../src/features/map/exportRoute'
-import { expectMarks, fitted, settledViewport } from './helpers'
+import {
+  expectMarks,
+  fitted,
+  selectEquipment,
+  settledViewport,
+} from './helpers'
 
 const toggle = (page: Page) => page.getByRole('button', { name: 'Route view' })
 const exportButton = (page: Page, format: 'PNG' | 'PDF') =>
@@ -15,7 +20,7 @@ const START = 'EDGE-17 · Port 1'
 const END = 'AGG-03 · Port 1'
 
 async function traceFromEdge17(page: Page) {
-  await page.getByTestId('rf__node-edge-17').click()
+  await selectEquipment(page, 'EDGE-17')
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()

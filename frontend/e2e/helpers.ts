@@ -3,8 +3,61 @@ import { expect, type Page } from '@playwright/test'
 export const viewport = (page: Page) =>
   page.locator('.react-flow__viewport').getAttribute('style')
 
-/** Waits for the one-time fit so later comparisons start from the settled view. */
+/**
+ * Waits for the map view that is showing to be ready: the overview fitted, Focus
+ * drawn, or the device map's first card with a settled viewport. Map-agnostic
+ * specs call it and need not know which view is the default.
+ */
 export async function fitted(page: Page) {
+  const overview = page.locator('[data-view="overview"]')
+  const focus = page.locator('[data-view="focus"]')
+  const device = page.locator('.react-flow__node-equipment').first()
+  await expect(overview.or(focus).or(device)).toBeVisible()
+  if (await overview.count()) {
+    await expect(overview).toHaveAttribute('data-fitted', 'true')
+  } else if (await focus.count()) {
+    await expect(focus.locator('[data-equipment-id]').first()).toBeVisible()
+    await settledViewport(page)
+  } else {
+    await expect
+      .poll(() => viewport(page))
+      .not.toBe('transform: translate(0px, 0px) scale(1);')
+  }
+}
+
+/** The overview as the user sees it: node positions and what the selected route lights. */
+export const overviewState = (page: Page) =>
+  page.locator('[data-view="overview"]').evaluate((el) => ({
+    positions: el.getAttribute('data-node-positions'),
+    nodes: [...el.querySelectorAll('[data-node-id][data-on-route="true"]')]
+      .map((n) => n.getAttribute('data-node-id'))
+      .sort(),
+    pairs: [...document.querySelectorAll('[data-pair][data-on-route="true"]')]
+      .map((n) => n.getAttribute('data-pair'))
+      .sort(),
+  }))
+
+/**
+ * Chooses equipment by its exact name through Explore: search, Enter. On the
+ * overview (or in Focus) this opens Focus on it and the inspector.
+ */
+export async function selectEquipment(page: Page, name: string) {
+  await openExplore(page)
+  const search = page.getByLabel('Find equipment')
+  await search.fill(name)
+  await search.press('Enter')
+  await expect(page.locator('.inspector-header h2')).toHaveText(name)
+}
+
+/**
+ * Switches the map to the device map and waits for it. Only for tests of the
+ * device map itself, which D35 retires in step 7.
+ */
+export async function useDevices(page: Page) {
+  await page
+    .getByRole('group', { name: 'Map view' })
+    .getByRole('button', { name: 'Devices', exact: true })
+    .click()
   await expect(
     page.locator('.react-flow__node-equipment').first(),
   ).toBeVisible()

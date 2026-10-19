@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
-  expectCenteredInVisibleArea,
   expectInsideVisibleArea,
   expectMarks,
   fitted,
@@ -8,6 +7,7 @@ import {
   layout,
   openExplore,
   settledViewport,
+  useDevices,
   viewport,
 } from './helpers'
 
@@ -38,11 +38,13 @@ async function traceFromEdge17(page: Page) {
   await expect(rows(page)).toHaveCount(3)
 }
 
+// Retired with the device map (D35): the equipment, neighbor and cable highlight on device cards. Successor: CM-11 (e2e/overview-trace.spec.ts), the node highlight on the overview.
 test('POL-14 clicking "Building A" in Explore highlights its equipment and cables, marks the neighbor, dims the rest and fits them in view', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   await expect(caption(page)).toContainText('11 of 11')
   const positions = await layout(page)
   const before = await viewport(page)
@@ -95,11 +97,13 @@ test('POL-14 clicking "Building A" in Explore highlights its equipment and cable
   await expect(clear(page)).toBeVisible()
 })
 
+// Retired with the device map (D35): the equipment, neighbor and cable highlight on device cards. Successor: CM-11 (e2e/overview-trace.spec.ts), the node highlight on the overview.
 test('POL-14 another location replaces the highlight; a site covers its nodes; Clear highlight and Esc clear it', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   await highlightLocation(page, 'Building A')
   await expectMarks(page, BUILDING_A)
 
@@ -141,11 +145,13 @@ test('POL-14 another location replaces the highlight; a site covers its nodes; C
   await expectMarks(page, { highlightCards: [], dimmedCards: [] })
 })
 
+// Retired with the device map (D35): the equipment, neighbor and cable highlight on device cards. Successor: CM-11 (e2e/overview-trace.spec.ts), the node highlight on the overview.
 test('Esc does not clear the highlight while a text field has focus', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   await highlightLocation(page, 'Building A')
   await expectMarks(page, BUILDING_A)
   const search = page.getByLabel('Find equipment')
@@ -157,7 +163,7 @@ test('Esc does not clear the highlight while a text field has focus', async ({
   await expectMarks(page, { highlightCards: [] })
 })
 
-test('POL-15 equipment in Explore is selected, opens the inspector and is centered, with no highlight', async ({
+test('POL-15 equipment in Explore is selected, opens the inspector and Focus on it, with no highlight', async ({
   page,
 }) => {
   await page.goto('/')
@@ -166,18 +172,14 @@ test('POL-15 equipment in Explore is selected, opens the inspector and is center
   await page.locator('.tree-equipment').filter({ hasText: 'AGG-08' }).click()
 
   await expect(page.locator('.inspector-header h2')).toHaveText('AGG-08')
+  const focus = page.locator('[data-view="focus"]')
+  await expect(focus).toHaveAttribute('data-focus-id', 'agg-08')
   await expect(
-    page.getByTestId('rf__node-agg-08').locator('.equipment-card'),
+    focus.locator('[data-equipment-id="agg-08"][data-side="center"]'),
   ).toHaveClass(/selected/)
-  await expectCenteredInVisibleArea(page, 'agg-08')
-  await expectMarks(page, {
-    highlightCards: [],
-    highlightNeighbors: [],
-    highlightLinks: [],
-    dimmedCards: [],
-  })
+  await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
   await expect(clear(page)).toHaveCount(0)
-  await expect(page.locator('.equipment-card.dimmed')).toHaveCount(0)
+  await expect(page.locator('.focus-card.dimmed')).toHaveCount(0)
 
   // Enter in the search chooses the first match the same way.
   await openExplore(page)
@@ -185,8 +187,8 @@ test('POL-15 equipment in Explore is selected, opens the inspector and is center
   await search.fill('bb')
   await search.press('Enter')
   await expect(page.locator('.inspector-header h2')).toHaveText('BB-01')
-  await expectCenteredInVisibleArea(page, 'bb-01')
-  await expectMarks(page, { highlightCards: [], dimmedCards: [] })
+  await expect(focus).toHaveAttribute('data-focus-id', 'bb-01')
+  await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
 
   // In Physical, Explore follows the view: equipment opens its rack there, and
   // neither the map nor the inspector is touched.
@@ -203,11 +205,13 @@ test('POL-15 equipment in Explore is selected, opens the inspector and is center
   await expect(page.getByLabel('Equipment inspector')).toHaveCount(0)
 })
 
+// Retired with the device map (D35): the equipment, neighbor and cable highlight on device cards. Successor: CM-11 (e2e/overview-trace.spec.ts), the node highlight on the overview.
 test('POL-16 highlight, route and network filter combine and clear independently', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
+  await useDevices(page)
   const positions = await layout(page)
 
   // The network filter hides Network A; the highlighted part is shown anyway.

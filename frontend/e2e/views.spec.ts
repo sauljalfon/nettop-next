@@ -1,9 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
-  expectMarks,
   fitted,
   openRackInPhysical,
+  overviewState,
   pick,
+  selectEquipment,
+  settledViewport,
   viewport,
   expandResults,
 } from './helpers'
@@ -22,15 +24,10 @@ const side = (page: Page) => page.getByRole('group', { name: 'Side' })
 const select = (page: Page) =>
   page.getByRole('combobox', { name: 'Show network' })
 
-const layout = (page: Page) =>
-  page.evaluate(() =>
-    Object.fromEntries(
-      [...document.querySelectorAll('.react-flow__node')].map((n) => [
-        n.getAttribute('data-id'),
-        (n as HTMLElement).style.transform,
-      ]),
-    ),
-  )
+// Dragging a node card saves the shared arrangement on the server: clear it after each test.
+test.afterEach(async ({ request }) => {
+  await request.delete('/api/map-layout')
+})
 
 async function findFromEdge17(page: Page, route: number) {
   await page.getByRole('button', { name: 'Open trace tools' }).click()
@@ -40,25 +37,32 @@ async function findFromEdge17(page: Page, route: number) {
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 
-/** Drag EDGE-17 so the saved positions are not just the first layout. */
-async function rearrange(page: Page, id = 'edge-17') {
-  const card = page.getByTestId(`rf__node-${id}`)
+/** Drag a node card so the saved arrangement is not just the first layout. */
+async function rearrange(page: Page, id = 'node-building-a') {
+  const card = page.locator(`[data-node-id="${id}"]`)
+  const start = (await overviewState(page)).positions
   const box = (await card.boundingBox())!
-  await page.mouse.move(box.x + 60, box.y + 20)
+  await page.mouse.move(box.x + 30, box.y + 14)
   await page.mouse.down()
-  await page.mouse.move(box.x + 200, box.y + 120, { steps: 10 })
+  await page.mouse.move(box.x + 30 + 120, box.y + 14 + 90, { steps: 10 })
   await page.mouse.up()
   await page.getByRole('button', { name: 'Zoom Out' }).click()
+  await expect
+    .poll(async () => (await overviewState(page)).positions)
+    .not.toBe(start)
 }
 
 async function expectMapUnchanged(
   page: Page,
-  before: { viewport: string | null; layout: Record<string, string> },
+  before: {
+    viewport: string | null
+    state: Awaited<ReturnType<typeof overviewState>>
+  },
 ) {
-  await expect(page.locator('.flow-surface')).toBeVisible()
+  await expect(page.locator('[data-view="overview"]')).toBeVisible()
   await expect.poll(() => viewport(page)).toBe(before.viewport)
-  expect(await layout(page)).toEqual(before.layout)
-  // No automatic centering follows: still the same a moment later.
+  expect(await overviewState(page)).toEqual(before.state)
+  // No automatic fit or centering follows: still the same a moment later.
   await page.waitForTimeout(600)
   expect(await viewport(page)).toBe(before.viewport)
 }
@@ -105,12 +109,18 @@ for (const w of WALKS)
     await page.goto('/')
     await fitted(page)
     await findFromEdge17(page, w.route)
-    await expectMarks(page, { routeLinks: w.links })
     await rearrange(page)
     const before = {
-      viewport: await viewport(page),
-      layout: await layout(page),
+      viewport: await settledViewport(page),
+      state: await overviewState(page),
     }
+    // The route lights its node cards and the lines between them.
+    expect(before.state.nodes).toEqual([
+      'node-building-a',
+      'node-main-distribution',
+      'node-north-sub-main',
+    ])
+    expect(before.state.pairs.length).toBeGreaterThan(0)
 
     // a. Physical → Main Campus → North Sub-main → SM01 → HDF-01.
     await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
@@ -158,7 +168,6 @@ for (const w of WALKS)
 
     // d. Back on the map: the same route, positions and viewport; no centering.
     await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-    await expectMarks(page, { routeLinks: w.links })
     await expectMapUnchanged(page, before)
     await expect(page.getByTestId('route-row').nth(w.route)).toHaveAttribute(
       'aria-pressed',
@@ -180,11 +189,14 @@ test('PHY-11 the same walkthrough with Network B and AGG-12: 3C/2 is selected, a
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(1)
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
-  await expectMarks(page, {
-    routeLinks: ['cable-b01', 'cable-b02', 'cable-b03', 'cable-b04'],
-  })
-  await rearrange(page, 'edge-22')
-  const before = { viewport: await viewport(page), layout: await layout(page) }
+  await rearrange(page, 'node-dr-access')
+  const before = {
+    viewport: await settledViewport(page),
+    state: await overviewState(page),
+  }
+  // The Network B route lights the DR nodes and the Main Campus nodes it crosses.
+  expect(before.state.nodes).toContain('node-dr-access')
+  expect(before.state.pairs.length).toBeGreaterThan(0)
 
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
@@ -223,9 +235,6 @@ test('PHY-11 the same walkthrough with Network B and AGG-12: 3C/2 is selected, a
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:2:f')
 
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-  await expectMarks(page, {
-    routeLinks: ['cable-b01', 'cable-b02', 'cable-b03', 'cable-b04'],
-  })
   await expectMapUnchanged(page, before)
   await expect(select(page)).toHaveValue('net-b') // the filter is the one chosen
 })
@@ -235,8 +244,7 @@ test('F05 a conceptual endpoint opens the exact place in Physical: from the insp
 }) => {
   await page.goto('/')
   await fitted(page)
-  await page.getByTestId('rf__node-hdf-01').click()
-  await expect(page.locator('.inspector-header h2')).toHaveText('HDF-01')
+  await selectEquipment(page, 'HDF-01')
 
   // The header button opens the equipment page.
   await page.getByRole('button', { name: 'Show in Physical: HDF-01' }).click()
