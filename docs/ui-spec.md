@@ -20,17 +20,16 @@ A calm, spacious technical workspace: paper on a light floor, restrained borders
 - Selecting equipment opens the **inspector**: a sticky header (identity, network and Installed/Proposed badges, the cabling meter, the location breadcrumb, Show on map, Show in Physical, Find AGG / BB for switches), then Overview (details, placement, Edit details), Ports/Positions (a compact table with row actions) and History (direct fixes and recorded plans).
 - The **results overlay** of a trace is expandable, lists every AGG/BB route (AGG first) and the mismatches, and never takes the canvas permanently.
 
-## 3. Conceptual map (locked 2, 3, 9, 11)
+## 3. Conceptual map (locked 2, 3, 9, 11; D35, D36)
 
-- A full-page map of **equipment connected by real cables**, freely arranged; positions are the user's (session today; saved on the server in roadmap §1). Not an ownership tree, not a nested inventory, not a route strip.
-- Cards are compact: name, kind/role, location label, "N of M cabled", network badges (one for an active device; one per circuit network for a passive one), and facets. Panels and HDFs are single objects; front and rear are sides of one object.
-- Cables attach to exact endpoints. Parallel cables between two cards on one network are one line whose width and count show how many; it lists the cable IDs and splits into one line per cable on demand. Lines are drawing aids, never traversal.
-- **The network filter** shows one network's active devices plus the passive equipment that carries its circuits; it never changes what a trace finds.
-- **A trace highlights the map in place:** the route is teal, cards and the viewport do not move, other cables stay visible and quieter. The route's cards are shown even where the filter or a highlight would hide them.
-- **HDF states:** compact by default; the selected route reveals only its positions automatically (tagged "route", the parent name always visible, each used position separately); positions pinned by the user (only from the inspector) stay until unpinned and survive route changes. Automatic and manual detail are separate state. Counts keep subpanels, positions, cabled positions and networks apart.
-- **Highlight a location:** a site or node from Explore or the inspector highlights its equipment, the cables leaving it and their far ends, fading the rest; it is independent of the trace.
+- A full-page map built only from **real cables**, never an ownership tree, a nested inventory or a route strip. Two views: the **overview** (the default) and **Focus** on one device.
+- **Overview.** One card per node inside a frame per site: the node name, its equipment count and role tags (access, AGG, BB, passive only); a proposed node is dashed. One straight line per pair of nodes with cables, within and between sites, with a pill counting the real cables; lines are a summary, never traversal. A click opens the node's equipment by rack in the card; a row selects that equipment. Cards are dragged freely and their positions are saved for everyone (last write wins); **Reset arrangement** puts the default back (inside each site: access left, passive corridors in the middle, AGG/BB right). Readable at real size: above 12 nodes it fits at zoom 0.6 or more from the top and you pan.
+- **Focus.** The device in a large card in the middle; around it the **active** equipment it reaches through passive chains, access side left, core side right. Each neighbour card says how it is reached: "via" and the passive steps (panel ports, HDF positions), "direct", or "N circuits"; the lines carry no text. A row opens the line's circuits, each with Find AGG / BB. More than 24 neighbours are grouped by node; +1 / −1 hop (at most 3); a card moves the focus; ‹ Overview returns. Laid out automatically, never saved. "Show on map" and choosing equipment in Explore open Focus.
+- **The network selector** dims what is not in that network; it never hides shared passive equipment and never changes what a trace finds.
+- **A trace highlights the map in place:** the route's nodes and lines (overview) or cards and lines (Focus) are teal; nothing moves and the viewport stays. What the route touches is never dimmed.
+- **An HDF is not expanded on the map:** on the overview it is a row of its node's card; in Focus its positions are steps in the "via" rows; Physical shows its full grid.
+- **Highlight a location:** a site or node from Explore or the inspector marks its node cards amber and fits them once; it is independent of the trace.
 - **Route view** (opt-in, locked 3 amendment): a picture of only the active route over the map, left to right: sites as frames, nodes as boxes with their steps close together and far apart from each other, each step with its rack and the ports used, one thick line with arrows and the cable names on it. Exportable as PNG and PDF; turning it off restores the map exactly.
-- **Readable at real size** is roadmap §1: an overview by node, a focus on one device's neighbourhood, and a saved arrangement.
 
 ## 4. Physical explorer (locked 4, 8, 9)
 
@@ -47,7 +46,7 @@ Sites → site → node → rack → equipment → exact port or position (front
 
 ## 5. Find AGG / BB (locked 7)
 
-- Started from a switch (all ports), a port or position row, a facet, or the Trace drawer; exact port-to-port tracing stays in the Trace drawer.
+- Started from a switch (all ports), a port or position row, a circuit of a Focus line, or the Trace drawer; exact port-to-port tracing stays in the Trace drawer.
 - Every reachable route is listed with destination, actual role, network, start port and its length (cables, bridges); AGG first, BB never dropped; mismatches separately as "on another network"; truncation said plainly. An unreachable device is never a result.
 - Choosing another route changes the highlight and the revealed positions, never the layout. Each route expands to its **walk sheet**: one row per equipment grouped by place (Site › Node › Rack, with the unit), the bridge folded into the row ("in front 2 → out rear 2"), cables by label (else a short ID), a note when the path leaves a node or site, a line saying how it ends, and right-to-left names kept readable.
 

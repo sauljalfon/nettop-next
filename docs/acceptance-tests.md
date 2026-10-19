@@ -150,19 +150,28 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | VP-06 | A map card reads role, network and state in the paper look. Deleted in step 7 with the device map (D35); successors CM-02, CM-09 (node cards) and CM-10 (Focus cards) | `cardRole.test.ts` |
 | — | No stylesheet outside `theme.css` has a colour, a font size under 11px or an uppercase transform; none uses `--purple`, `--line`, `--muted`, `--green`, `.button` or `.outline-button` (the allowlist is empty) | `theme.test.ts` |
 
-## The conceptual map for real data (2026-10-18)
+## The conceptual map for real data (2026-10-19)
 
 | ID | Scenario | Where it runs |
 | --- | --- | --- |
+| CM-01 | `GET`/`PUT`/`DELETE /api/map-layout`: round trip, last write wins, reset, a deleted node's position goes (cascade), 404 unknown node, 422 out of range or missing, 400 unknown field; no write changes the topology revision | `persistence/map_layout_test.go`, `httpapi/map_layout_api_test.go`, `src/shared/api.test.ts` |
+| CM-02 | Overview cards: one per node, equipment count, tags from explicit roles, proposed dashed | `overview.test.ts` |
+| CM-03 | Pair counts equal the real cables, within and between sites; a cable inside one node is not a line | `overview.test.ts` |
+| CM-04 | The network selector dims nodes without that network and never hides shared passive equipment | `overview.test.ts` |
+| CM-05 | Default arrangement is deterministic, cards never overlap, saved positions win; above 12 nodes the automatic fit keeps zoom 0.6 from the top (`overviewFit.test.ts`) | `overviewLayout.test.ts` |
+| CM-06 | Focus on EDGE-17 (the acceptance fixture) shows AGG-03, AGG-08 and BB-01 on the right, AGG-03's card "via PANEL-A 1, HDF-01 3C/5, HDF-02 2B/3" (D36: the via rows are in the card a line leads to; a card reached by several lines has one row per line); AGG-15 (unconnected) is absent; several circuits to one neighbour merge with their count; a dead end is listed; a loop terminates | `focus.test.ts` |
+| CM-07 | Focus on a panel and on an HDF walks both sides; a reserved/faulty port changes nothing (locked 6) | `focus.test.ts` |
+| CM-08 | More than 24 neighbours group per node; +1 hop adds the next ring, never repeats, stops at 3 | `focus.test.ts` (campus-shaped fixture) |
 | CM-09 | The map opens on node cards inside site frames, with the cable counts; a node opens its equipment; a drag is sent once at the drop and survives a reload; Reset arrangement; the network selector dims and never hides; a count pill is never under a card | `overview` |
-| CM-10 | Focus from the inspector, from Explore and from Show on map; a neighbour moves the focus; a line opens its circuits; +1 hop; ‹ Overview restores the overview; a proposed card; no text under 11 px | `focus` |
+| CM-10 | Focus from the inspector, from Explore and from Show on map; a neighbour moves the focus; a via row opens its line's circuits; +1 hop; ‹ Overview restores the overview; a proposed card; no text under 11 px; a via row never covers another card | `focus` |
 | CM-11 | A trace lights the route's node cards and lines (overview) and cards and lines (Focus) in place; with Network B the route stays undimmed; the Route view covers and restores; Explore's highlight marks and fits once and can be cleared | `overview-trace` |
+| CM-12 | Campus: overview render and Focus open timings recorded (measurements, not budgets) | `scale` (`SCALE=1`; with SC-02) |
 
 Since step 6 the overview is the default view and every spec reaches equipment through Explore (`selectEquipment`), an overview card or Focus. The specs of the retired device map were deleted with it in step 7 (D35); the map has only the overview and Focus.
 
 ## M5–M7 — Editing, persistence, scale, and governance
 
-- Empty-canvas preview is unsaved and not traceable; valid rack assignment is required to save equipment.
+- Valid rack assignment is required to save equipment (the empty-canvas preview was retired with the device map, D35).
 - Diagram movement differs from an explicit physical-placement proposal; both have non-drag alternatives.
 - Delete/disconnect commands and capacity/occupancy conflicts are atomic and revision checked.
 - Removing a board reference does not delete infrastructure.

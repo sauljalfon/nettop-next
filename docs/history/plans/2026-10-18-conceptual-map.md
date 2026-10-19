@@ -1,6 +1,6 @@
 # Plan: Conceptual map for real data (2026-10-18)
 
-The item is [roadmap §1](../roadmap.md#1-conceptual-map-for-real-data-next); its approved design and the owner's answers are there, and the rule is D35 in [decisions.md](../decisions.md) (locked 2 and 9 amended). The approved demo is [history/demos/conceptual-map-demo.html](../history/demos/conceptual-map-demo.html), restyled to the paper look (D33). One backend change (migration 009 and three layout endpoints); the rest is frontend.
+The item is the roadmap entry (moved below, at the end of this file); its approved design and the owner's answers are there, and the rule is D35 in [decisions.md](../../decisions.md) (locked 2 and 9 amended). The approved demo is [history/demos/conceptual-map-demo.html](../demos/conceptual-map-demo.html), restyled to the paper look (D33). One backend change (migration 009 and three layout endpoints); the rest is frontend.
 
 ## What the user gets
 
@@ -80,3 +80,36 @@ Delete the `devices` view and the modules listed above after grepping each; Pin 
 ### 8. Docs and scale
 
 CM-12 on the campus fixture; status.md (what runs, the timings, Now / Next), ui-spec.md §3, CLAUDE.md's code map, testing.md, acceptance-tests.md; roadmap §1 and this plan move to `docs/history/`.
+
+## Done (2026-10-19)
+
+Built on the branch `conceptual-map`, one commit per step, each reviewed by Opus with the whole Playwright suite run before approval:
+113d2b5 (1, docs and the saved arrangement: migration 009 and `GET`/`PUT`/`DELETE /api/map-layout`), 23a308d (2, pure modules), 145741d (3, the overview), f7fb9cc (4, Focus), e8ed036 (5, traces and highlights), 42a4650 (6, the overview the default, specs off the old map), c141f93 (7, the old map removed), 4a6efea (8a, CM-12 campus timings), 5d2caa4 (8b, readable at campus size), then the docs.
+
+- **Changes from the plan.** The 8a campus run showed the overview fitting at zoom 0.20 (text about 2 px) and Focus labels covering each other and the names at 2 hops. Fixed in 8b: above 12 nodes the overview fits at 0.6 or more from the top, below its note, the site screen's rule; Focus's "via" text moved from the lines into the card each line leads to (D36, the owner's choice). A walk-sheet row selects its equipment and opens the inspector; it does not open Focus, although the design below lists walk-sheet rows with Show on map (status.md, known limits).
+- **Kept from the old map:** `facets.ts` only for `endpointLookup`, `facetKey` and `facetLabel` (the inspector, Physical and Explore use them); `connections.ts` (`labelMatches`); `center`, `viewArea`, `keys`, `drawers`.
+
+## The roadmap entry (moved here when the item closed, 2026-10-19)
+
+
+Recorded 2026-10-13; moves the map part of M6 forward. Photos showed the map unusable at real size: cards in long rows too small to read and lines crossing the whole screen (the layered layout places by role, so a building's switches and its panel end up far apart).
+
+**Owner's answer:** the map is used for an **overview of the whole network**, the **neighbourhood of one device**, and **arranging it by hand** (kept).
+
+**Design:**
+- **Overview:** the map opens on **nodes** as cards grouped by site, one line per pair of nodes with the cable count, arranged by cable distance (access → passive corridors → AGG/BB, as the large-site layout in Physical); a node opens its equipment in place.
+- **Neighbourhood (Focus):** a selected device shown with only what is cabled to it (one hop, "+1 hop" to widen), with large readable cards.
+- **Saved arrangement:** dragged positions are saved on the server, shared and kept after reload, like the site screen's node positions (a new table and migration).
+
+**Demo (2026-10-14):** [history/demos/conceptual-map-demo.html](../demos/conceptual-map-demo.html), liked by the owner the same day (overview by node within site frames, Focus with ±1 hop, a saved arrangement). It stays a separate item from Explanatory paths (decided 2026-10-14).
+
+**Approved design (2026-10-18).** The owner's answers: the overview shows the whole network (all sites) and follows the network selector; the map of every device **goes** (locked 2 and locked 9 amended, D35); Focus is laid out automatically and not saved; Focus folds passive equipment away; above 24 neighbours Focus groups them by node; "Show on map" opens Focus; the empty-canvas library drop and "Pin on map" go. The plan is [plans/2026-10-18-conceptual-map.md](2026-10-18-conceptual-map.md).
+
+- **Overview (the default).** One card per node inside a frame per site (the frame is the box around its nodes, so a drag stretches it; frames may overlap). A card shows the node name, its equipment count and tags (access, AGG, BB, passive only); a proposed node is dashed. One line per node pair, within and **between** sites, with the cable count (a summary, never traversal). Default arrangement: inside each site the cable-distance layering of the Physical large-site layout (access left, passive corridors middle, AGG/BB right); sites side by side. The network selector dims nodes without equipment in that network; shared passive equipment is never hidden (D11). A click on a node opens its equipment in the card, by rack; a click on equipment selects it (inspector), which offers **Focus**.
+- **Saved arrangement.** Dragging a node card saves its position once at drag stop, shared and kept after reload, last write wins, optimistic with rollback, like the site screen. **Reset arrangement** clears every saved overview position. Proposed nodes are held for the session only. A new table (migration 009) separate from the site screen's `node_layouts`, so the two arrangements never overwrite each other.
+- **Focus (one device).** The device in the middle in a large card; around it the **active** equipment it reaches through passive chains (access side left, core side right), each line labelled with what lies between ("via PANEL-A 10, HDF-01 3C/5") and, when several circuits join the same neighbour, "N circuits" with each listed on click. Built on `followPort` (stored links only, locked 6); a passive device is walked from both sides of each position. Focus lines are a neighbourhood, never a route, and never feed a trace. More than 24 neighbours are grouped into one card per node ("Building 4 · 18 switches"), opened on click. **+1 hop** adds the active equipment one step further out (the same cap). A click on a card moves the focus; Back returns to the overview with its viewport. A device with no active neighbour says where its circuits end. Laid out automatically, never saved.
+- **Traces.** Highlight in place, nothing moves: in the overview the route's nodes and lines are teal; in Focus the route's devices and lines. The Route view (PNG/PDF) is unchanged and lies over either.
+- **Show on map** (inspector, Physical endpoint detail, walk-sheet rows) opens Focus on that equipment.
+- **Gone:** the map of every device, its HDF expansion on the map, pinned facets and **Pin on map**, split cable pairs, and the drop of a library item on the empty canvas (the Add… forms and the drop on a rack in Physical stay).
+
+**Tests:** CM-01–CM-12 in the plan; specs written against the old map move to selection by search or the inspector before the old map is removed.
