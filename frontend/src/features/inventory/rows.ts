@@ -94,10 +94,21 @@ export function buildRows(
   })
 
   const proposedEquipment = (id: string) => planned && !installedIDs.has(id)
+  // Ports by equipment name: the names are ranked once (equal names share a
+  // rank), so the 50,000-port sort compares numbers, not names.
+  const rank = new Map<string, number>()
+  const byEquipmentName = [...snapshot.equipment].sort((a, b) =>
+    byName.compare(a.name, b.name),
+  )
+  byEquipmentName.forEach((e, i) => {
+    const before = byEquipmentName[i - 1]
+    const same = before && byName.compare(before.name, e.name) === 0
+    rank.set(e.id, same ? rank.get(before.id)! : i)
+  })
+  const rankOf = (equipmentId: string) => rank.get(equipmentId) ?? -1
   const ordered = [...snapshot.endpoints].sort(
     (a, b) =>
-      byName.compare(nameOf(a.equipmentId), nameOf(b.equipmentId)) ||
-      comparePorts(a, b),
+      rankOf(a.equipmentId) - rankOf(b.equipmentId) || comparePorts(a, b),
   )
   const ports = ordered.map((p, i): InventoryRow => {
     const cable = index.cableByEndpoint.get(p.id)

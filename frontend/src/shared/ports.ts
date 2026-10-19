@@ -1,5 +1,9 @@
 import type { Endpoint } from './types'
 
+// The same order as `localeCompare(…, { numeric: true })`, made once: a
+// collator per call is far slower on tens of thousands of ports.
+const byLabel = new Intl.Collator(undefined, { numeric: true })
+
 /**
  * A switch's ports in the order they were made: by `position` (1…N in port
  * group order) when both have one; ports saved before groups have none and are
@@ -15,7 +19,7 @@ export function comparePorts(
   const pb = b.position ?? 0
   if (pa > 0 && pb > 0) return pa - pb
   if (pa > 0 || pb > 0) return pa > 0 ? -1 : 1
-  return a.label.localeCompare(b.label, undefined, { numeric: true })
+  return byLabel.compare(a.label, b.label)
 }
 
 /**

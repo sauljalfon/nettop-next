@@ -354,3 +354,222 @@ test('SC-02 / CM-12 the campus at realistic size', async ({ page }) => {
   })
   await shot(page, '5-explore-cable-search')
 })
+
+// INV-07: the Inventory at campus size. Each step runs from the user's action
+// until the page's data-inventory-* marks show the result (no fixed sleeps).
+test('INV-07 the inventory at campus size', async ({ page }) => {
+  await mkdir(out, { recursive: true })
+  const topology = await (
+    await page.request.get('/api/topology?context=installed')
+  ).json()
+  const equipmentCount: number = topology.equipment.length
+  const portCount: number = topology.endpoints.length
+  timings.push([
+    `INV-07 (campus: ${equipmentCount} equipment, ${portCount} ports)`,
+    0,
+  ])
+
+  const inv = page.locator('[data-inventory-list]')
+  const attr = (name: string) => inv.getAttribute(name)
+  const waitFor = (name: string, expected: string) =>
+    page.waitForFunction(
+      ([n, e]) =>
+        document.querySelector('[data-inventory-list]')?.getAttribute(n) === e,
+      [name, expected],
+      { polling: 'raf', timeout: 60_000 },
+    )
+  const waitChanged = (name: string, from: string) =>
+    page.waitForFunction(
+      ([n, f]) => {
+        const v = document
+          .querySelector('[data-inventory-list]')
+          ?.getAttribute(n)
+        return v != null && v !== f
+      },
+      [name, from],
+      { polling: 'raf', timeout: 60_000 },
+    )
+  const drawn = () =>
+    page.evaluate(() => ({
+      shown: Number(
+        document
+          .querySelector('[data-inventory-list]')
+          ?.getAttribute('data-inventory-shown'),
+      ),
+      rows: document.querySelectorAll('.inv-scroll tbody tr').length,
+    }))
+  const recordDrawn = async (label: string) => {
+    const d = await drawn()
+    timings.push([
+      `  (${label}: ${d.shown} rows rendered, ${d.rows} <tr> in the body)`,
+      0,
+    ])
+    expect(d.shown).toBeLessThan(100)
+    expect(d.rows).toBeLessThan(100)
+  }
+
+  await page.goto('/')
+  await expect(page.locator('[data-view="overview"]')).toHaveAttribute(
+    'data-fitted',
+    'true',
+    { timeout: 60_000 },
+  )
+
+  await timed(
+    'INV-07 open Inventory from Conceptual (Equipment drawn)',
+    async () => {
+      await page
+        .getByRole('group', { name: 'View' })
+        .getByRole('button', { name: 'Inventory', exact: true })
+        .click()
+      await waitFor('data-inventory-total', String(equipmentCount))
+    },
+  )
+  await recordDrawn('Equipment list')
+
+  await timed('INV-07 open Ports and positions', async () => {
+    await page
+      .getByRole('navigation', { name: 'Inventory lists' })
+      .getByRole('button', { name: /^Ports and positions/ })
+      .click()
+    await waitFor('data-inventory-list', 'ports')
+    await waitFor('data-inventory-total', String(portCount))
+  })
+  await recordDrawn('Ports list opened')
+  await shot(page, 'inv-1-ports')
+
+  // One node name whose ports run to a few hundred rows (a search reads the
+  // hidden columns too, and the name may also match other nodes).
+  const nodeOfRack = new Map<string, string>(
+    topology.racks.map((r: { id: string; nodeId: string }) => [r.id, r.nodeId]),
+  )
+  const nodeOfEquipment = new Map<string, string>()
+  for (const e of topology.equipment as { id: string; rackId?: string }[]) {
+    const node = e.rackId && nodeOfRack.get(e.rackId)
+    if (node) nodeOfEquipment.set(e.id, node)
+  }
+  const perNode = new Map<string, number>()
+  for (const p of topology.endpoints as { equipmentId: string }[]) {
+    const node = nodeOfEquipment.get(p.equipmentId)
+    if (node) perNode.set(node, (perNode.get(node) ?? 0) + 1)
+  }
+  const nodeNames = new Map<string, string>(
+    topology.nodes.map((n: { id: string; name: string }) => [n.id, n.name]),
+  )
+  const term = [...perNode]
+    .filter(([, n]) => n >= 150 && n <= 600)
+    .map(([id]) => nodeNames.get(id)!)
+    .sort((a, b) => b.length - a.length)[0]
+  expect(term, 'campus has a node with 150–600 ports').toBeTruthy()
+  const search = page.getByLabel('Filter for any field')
+  await search.pressSequentially(term, { delay: 20 })
+  let found = 0
+  await timed(
+    `INV-07 search "${term}", last keystroke to result (includes the 150 ms debounce)`,
+    async () => {
+      await waitChanged('data-inventory-total', String(portCount))
+      found = Number(await attr('data-inventory-total'))
+    },
+  )
+  timings.push([`  (the search matched ${found} rows)`, 0])
+  await search.fill('')
+  await waitFor('data-inventory-total', String(portCount))
+
+  await timed('INV-07 sort Ports by Speed', async () => {
+    await page.getByRole('button', { name: /^Speed/ }).click()
+    await waitFor('data-inventory-sort', 'speed:asc')
+  })
+  await timed('INV-07 flip the sort', async () => {
+    await page.getByRole('button', { name: /^Speed/ }).click()
+    await waitFor('data-inventory-sort', 'speed:desc')
+  })
+  await page.getByRole('button', { name: /^Port/ }).first().click() // sort by the first column again
+
+  await timed('INV-07 Group by Node on Ports', async () => {
+    await page.getByLabel('Group by').selectOption({ label: 'Node' })
+    await waitFor('data-inventory-group', 'node')
+    await page.locator('.inv-scroll tr.group-row').first().waitFor()
+  })
+  await recordDrawn('Ports grouped by Node')
+
+  // Scroll the grouped list (every port is an item) from top to bottom.
+  const box = page.locator('.inv-scroll')
+  const firstDrawn = () =>
+    page.evaluate(
+      () =>
+        document.querySelector('.inv-scroll tbody tr:not(.inv-spacer)')
+          ?.textContent ?? '',
+    )
+  const height = await box.evaluate((el) => el.scrollHeight - el.clientHeight)
+  expect(height).toBeGreaterThan(10_000 * 34)
+  const STEPS = 20
+  const steps: number[] = []
+  let mostShown = 0
+  let mostRows = 0
+  for (let i = 1; i <= STEPS; i++) {
+    const before = await firstDrawn()
+    const start = Date.now()
+    await box.evaluate(
+      (el, top) => (el.scrollTop = top),
+      Math.round((height * i) / STEPS),
+    )
+    await page.waitForFunction(
+      (b) =>
+        (document.querySelector('.inv-scroll tbody tr:not(.inv-spacer)')
+          ?.textContent ?? '') !== b,
+      before,
+      { polling: 'raf', timeout: 60_000 },
+    )
+    steps.push(Date.now() - start)
+    const d = await drawn()
+    mostShown = Math.max(mostShown, d.shown)
+    mostRows = Math.max(mostRows, d.rows)
+  }
+  timings.push([
+    `INV-07 scroll the grouped list top to bottom (${STEPS} steps, ${portCount} rows): total`,
+    steps.reduce((a, b) => a + b, 0),
+  ])
+  timings.push([`INV-07 scroll step, slowest of ${STEPS}`, Math.max(...steps)])
+  timings.push([
+    `  (scroll steps: ${steps.join(' ')} ms; at most ${mostShown} rows rendered, ${mostRows} <tr> in the body)`,
+    0,
+  ])
+  expect(mostShown).toBeLessThan(100)
+  expect(mostRows).toBeLessThan(100)
+
+  await page.getByLabel('Group by').selectOption({ label: 'No grouping' })
+  await waitFor('data-inventory-group', '')
+
+  let afterPill = 0
+  await timed(
+    'INV-07 Network pill applied on Ports (one network)',
+    async () => {
+      await page.getByRole('button', { name: /^Network == / }).click()
+      const picker = page.getByRole('dialog', { name: 'Filter Network' })
+      await picker.getByLabel('Select all').uncheck()
+      await picker.getByRole('checkbox').nth(1).check()
+      const start = Date.now()
+      await picker.getByRole('button', { name: 'Apply' }).click()
+      await waitChanged('data-inventory-total', String(portCount))
+      timings.push([
+        `INV-07   (Apply to result only: ${Date.now() - start} ms)`,
+        0,
+      ])
+      afterPill = Number(await attr('data-inventory-total'))
+    },
+  )
+  timings.push([`  (the pill left ${afterPill} rows)`, 0])
+  expect(afterPill).toBeLessThan(portCount)
+
+  await page.getByRole('button', { name: 'Export to CSV' }).click()
+  const download = page.waitForEvent('download', { timeout: 60_000 })
+  await timed(
+    'INV-07 Export to CSV, Download to the download event',
+    async () => {
+      await page.getByRole('button', { name: 'Download', exact: true }).click()
+      await download
+    },
+  )
+  await page.keyboard.press('Escape')
+  await shot(page, 'inv-2-filtered-ports')
+})

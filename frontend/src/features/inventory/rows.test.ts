@@ -73,6 +73,28 @@ describe('buildRows', () => {
     expect(rows.ports.map((r) => r.i)).toEqual(rows.ports.map((_, i) => i))
   })
 
+  it('orders equipment names numerically, and equal names by port order', () => {
+    const named = (names: Record<string, string>): Snapshot => ({
+      ...s,
+      equipment: s.equipment.map((e) =>
+        names[e.id] ? { ...e, name: names[e.id] } : e,
+      ),
+    })
+    const owners = (r: ReturnType<typeof build>, ids: string[]) =>
+      r.ports.filter((p) => ids.includes(p.equipmentId))
+    const numeric = owners(
+      build(named({ 'EDGE-17': 'SW-10', 'EDGE-22': 'SW-9' })),
+      ['EDGE-17', 'EDGE-22'],
+    )
+    expect(numeric[0].equipmentId).toBe('EDGE-22')
+    expect(numeric.at(-1)!.equipmentId).toBe('EDGE-17')
+    const same = owners(build(named({ 'EDGE-17': 'SW', 'EDGE-22': 'SW' })), [
+      'EDGE-17',
+      'EDGE-22',
+    ])
+    expect(same.slice(0, 2).map((p) => p.values.port)).toEqual(['1', '1'])
+  })
+
   it('has one cable row per cable link, never a bridge', () => {
     const cables = s.links.filter((l) => l.kind === 'cable')
     expect(cables.length).toBeLessThan(s.links.length)
