@@ -6,7 +6,9 @@ import { buildFocus } from './focus'
 import {
   FOCUS_CARD_HEIGHT,
   FOCUS_COLUMN,
+  FOCUS_ROW_LINE,
   FOCUS_GAP,
+  focusCardHeight,
   focusLayout,
   groupKey,
 } from './focusLayout'
@@ -53,10 +55,12 @@ describe('CM-10 focus layout', () => {
         x: FOCUS_COLUMN,
         side: 'right',
         ring: 1,
-        height: FOCUS_CARD_HEIGHT,
       })
     }
-    const pitch = FOCUS_CARD_HEIGHT + FOCUS_GAP
+    // Every card here says "via" and three steps: four lines more than the bare card.
+    const height = focusCardHeight([{ kind: 'steps', shown: 3, more: 0 }])
+    expect(right.map((i) => i.height)).toEqual([height, height, height])
+    const pitch = height + FOCUS_GAP
     expect(right.map((i) => i.y)).toEqual([-pitch, 0, pitch])
   })
 
@@ -65,8 +69,13 @@ describe('CM-10 focus layout', () => {
     const left = items.filter((i) => i.side === 'left')
     expect(left.map((i) => i.id)).toEqual(['EDGE-17', 'EDGE-22'])
     expect(left.every((i) => i.x === -FOCUS_COLUMN)).toBe(true)
-    const pitch = FOCUS_CARD_HEIGHT + FOCUS_GAP
-    expect(left.map((i) => i.y)).toEqual([-pitch / 2, pitch / 2])
+    // Heights differ with the rows each card carries; the column is centered.
+    const gap =
+      left[1].y - left[1].height / 2 - (left[0].y + left[0].height / 2)
+    expect(gap).toBe(FOCUS_GAP)
+    expect(
+      left[0].y - left[0].height / 2 + left[1].y + left[1].height / 2,
+    ).toBe(0)
     const right = items.filter((i) => i.side === 'right')
     expect(right).toHaveLength(4)
     expect(right.reduce((n, i) => n + i.y, 0)).toBeCloseTo(0, 6)
@@ -124,7 +133,55 @@ describe('CM-10 focus layout', () => {
     )
     expect(lines.every((l) => l.circuits.length === 0)).toBe(true)
     expect(
-      groups.every((g) => g.height === FOCUS_CARD_HEIGHT && g.side === 'left'),
+      groups.every(
+        (g) =>
+          g.height === focusCardHeight([{ kind: 'count', count: 10 }]) &&
+          g.side === 'left',
+      ),
     ).toBe(true)
+  })
+})
+
+describe('CM-10 focus layout: cards grow with the rows they carry', () => {
+  const mixed = () => {
+    const t = acceptanceSnapshot()
+    t.links.push({ id: 'X1', kind: 'cable', a: 'EDGE-17:p4', b: 'AGG-15:p1' })
+    return layout(t, 'EDGE-17').items
+  }
+
+  it('a card with three step lines is taller than a direct card', () => {
+    const items = mixed()
+    const steps = items.find((i) => i.id === 'AGG-03')!
+    const direct = items.find((i) => i.id === 'AGG-15')!
+    expect(steps.height).toBeGreaterThan(direct.height)
+    expect(direct.height).toBe(focusCardHeight([{ kind: 'direct' }]))
+    // "via" and three steps are four lines; "direct" is one.
+    expect(steps.height - direct.height).toBe(3 * FOCUS_ROW_LINE)
+    expect(direct.height).toBeGreaterThan(FOCUS_CARD_HEIGHT)
+  })
+
+  it('a bare card is the base height; a second row adds its parent line and its own', () => {
+    expect(focusCardHeight([])).toBe(FOCUS_CARD_HEIGHT)
+    const one = focusCardHeight([{ kind: 'direct' }])
+    const two = focusCardHeight([{ kind: 'direct' }, { kind: 'direct' }])
+    expect(two - one).toBe(3 * FOCUS_ROW_LINE) // two parent lines, one more row, minus nothing shared
+  })
+
+  it('stacks mixed heights with exactly FOCUS_GAP between cards, centered on y = 0', () => {
+    const items = mixed()
+    const column = items
+      .filter((i) => i.side === 'right')
+      .sort((a, b) => a.y - b.y)
+    expect(new Set(column.map((i) => i.height)).size).toBeGreaterThan(1)
+    for (let i = 1; i < column.length; i++)
+      expect(
+        column[i].y -
+          column[i].height / 2 -
+          (column[i - 1].y + column[i - 1].height / 2),
+      ).toBeCloseTo(FOCUS_GAP, 6)
+    const top = column[0].y - column[0].height / 2
+    const bottom = column.at(-1)!.y + column.at(-1)!.height / 2
+    expect((top + bottom) / 2).toBeCloseTo(0, 6)
+    expectNoOverlap(items)
   })
 })

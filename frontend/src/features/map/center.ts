@@ -142,3 +142,8 @@ export function fitViewport(
     )
   return viewportFor(target, at, zoom)
 }
+
+/** The automatic fit of a map of cards: everything in view, at zoom 1 at most. */
+export const FIT = { padding: 40, minZoom: 0.1, maxZoom: 1 }
+/** More than 12 nodes: cards stay readable (zoom 0.6 at least); the rest is panned or scrolled to. */
+export const FIT_MANY = { ...FIT, minZoom: 0.6, anchor: 'top' as const }

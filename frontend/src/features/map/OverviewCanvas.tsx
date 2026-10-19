@@ -40,7 +40,7 @@ import type { Sheet } from '../paths/sheet'
 import { positionMarks } from '../physical/explorerModel'
 import { routeMarks } from '../physical/inventory'
 import { NODE_WIDTH, type Position as Point } from '../physical/layout'
-import { fitViewport } from './center'
+import { FIT, fitViewport } from './center'
 import { shouldClearOnEscape } from './keys'
 import { ClearHighlight, ResetLayout } from './MapControls'
 import { mapSession, type MapSession } from './mapSession'
@@ -60,6 +60,7 @@ import {
 } from './overviewFlow'
 import { overviewLayout, siteFrames } from './overviewLayout'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
+import { overviewFit } from './overviewFit'
 import { visibleArea } from './viewArea'
 import Name from '../../shared/ui/Name'
 import './map.css'
@@ -67,7 +68,6 @@ import './map.css'
 /** Handles are points at the card's centre, so a line runs exactly between centres. */
 const POINT = { width: 0, height: 0, minWidth: 0, minHeight: 0 }
 const KEY = ['map-layout']
-const FIT = { padding: 40, minZoom: 0.1, maxZoom: 1 }
 
 const Actions = createContext<{
   onToggle: (nodeId: string) => void
@@ -161,6 +161,17 @@ export interface OverviewProps {
   routeSheet?: Sheet
   onRouteStep?: (endpointId: string) => void
   session?: MapSession
+}
+
+/** The note at the top-left also covers the canvas: the automatic fit starts below it. */
+function belowNote(
+  where: ReturnType<typeof visibleArea>,
+  surface: HTMLElement | null,
+): ReturnType<typeof visibleArea> {
+  const note = surface?.querySelector('.overview-note')?.getBoundingClientRect()
+  if (!where || !note) return where
+  const top = Math.max(where.covers.top, note.bottom - where.box.top)
+  return { ...where, covers: { ...where.covers, top } }
 }
 
 /**
@@ -445,6 +456,9 @@ function Canvas({
   )
 
   const surface = useRef<HTMLDivElement>(null)
+  // Read when a fit runs; a refetch that changes the count never refits.
+  const nodeCount = useRef(overview.nodes.length)
+  nodeCount.current = overview.nodes.length
   const [fitted, setFitted] = useState(false)
   const frame = useRef(0)
   // Fits everything into the part of the canvas the drawers and overlays leave
@@ -453,7 +467,7 @@ function Canvas({
     cancelAnimationFrame(frame.current)
     let frames = 0
     const attempt = () => {
-      const where = visibleArea(surface.current)
+      const where = belowNote(visibleArea(surface.current), surface.current)
       const all = nodesRef.current.map((n) => flow.getInternalNode(n.id))
       if (where && all.length && all.every((c) => c?.measured.width)) {
         const xs = all.flatMap((c) => [
@@ -471,7 +485,14 @@ function Canvas({
           height: Math.max(...ys) - Math.min(...ys),
         }
         void flow
-          .setViewport(fitViewport(bounds, where.box, where.covers, FIT))
+          .setViewport(
+            fitViewport(
+              bounds,
+              where.box,
+              where.covers,
+              overviewFit(nodeCount.current),
+            ),
+          )
           .then(() => {
             session.setOverviewViewport(flow.getViewport())
             setFitted(true)

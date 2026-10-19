@@ -53,6 +53,16 @@ const node = <T extends FocusFlowNode['type']>(
   return n as Extract<FocusFlowNode, { type: T }>
 }
 
+type Projected = ReturnType<typeof project>
+/** What a card says about the lines that end at it. */
+const incoming = (p: Projected, id: string) => {
+  const n = p.nodes.find((x) => x.id === id)!
+  return (n.data as { incoming: { label: unknown; parentName: string }[] })
+    .incoming
+}
+const edgeOf = (p: Projected, id: string) =>
+  p.edges.find((x) => x.id === `line:${id}`)!
+
 describe('CM-10 focus projection: cards', () => {
   const s = acceptanceSnapshot()
   const p = project(s, 'EDGE-17')
@@ -118,42 +128,65 @@ describe('CM-10 focus projection: lines and labels', () => {
   const s = acceptanceSnapshot()
 
   it('one circuit reads as its via steps, names and places kept apart', () => {
-    const { edges } = project(s, 'EDGE-17')
-    const e = edges.find((x) => x.id === 'line:EDGE-17|AGG-03')!
+    const p = project(s, 'EDGE-17')
+    const e = edgeOf(p, 'EDGE-17|AGG-03')
     expect(e).toMatchObject({
       source: 'EDGE-17',
       target: 'AGG-03',
       type: 'focusLine',
     })
-    expect(e.data!.label).toEqual({
-      kind: 'steps',
-      steps: [
-        { name: 'PANEL-A', place: '1' },
-        { name: 'HDF-01', place: '3C/5' },
-        { name: 'HDF-02', place: '2B/3' },
-      ],
-      more: 0,
-    })
-    expect(e.data!.pill).toBeDefined()
+    // The label is on the card the line leads to (its outer end), not on the line.
+    expect(node(p.nodes, 'AGG-03', 'focusCard').data.incoming).toEqual([
+      {
+        lineId: 'line:EDGE-17|AGG-03',
+        label: {
+          kind: 'steps',
+          steps: [
+            { name: 'PANEL-A', place: '1' },
+            { name: 'HDF-01', place: '3C/5' },
+            { name: 'HDF-02', place: '2B/3' },
+          ],
+          more: 0,
+        },
+        onRoute: false,
+        hasCircuits: true,
+        parentName: 'EDGE-17',
+      },
+    ])
+    expect(e.data!.label).toBeUndefined()
+    expect(e.data!.pill).toBeUndefined()
+    expect(e.data!.circuits).toHaveLength(1)
+  })
+
+  it('a card reached by two lines has two rows, each with its parent’s name', () => {
+    const t = acceptanceSnapshot()
+    t.links.push(
+      { id: 'Z1', kind: 'cable', a: 'AGG-03:p2', b: 'AGG-15:p1' },
+      { id: 'Z2', kind: 'cable', a: 'AGG-08:p2', b: 'AGG-15:p2' },
+    )
+    const p = project(t, 'EDGE-17', { hops: 2 })
+    const rows = incoming(p, 'AGG-15')
+    expect(rows.map((r) => r.parentName)).toEqual(['AGG-03', 'AGG-08'])
+    expect(rows.map((r) => r.label)).toEqual([
+      { kind: 'direct' },
+      { kind: 'direct' },
+    ])
   })
 
   it('no via steps reads "direct"', () => {
     const t = acceptanceSnapshot()
     t.links.push({ id: 'X1', kind: 'cable', a: 'EDGE-17:p4', b: 'AGG-15:p1' })
-    const e = project(t, 'EDGE-17').edges.find(
-      (x) => x.id === 'line:EDGE-17|AGG-15',
-    )!
-    expect(e.data!.label).toEqual({ kind: 'direct' })
+    expect(incoming(project(t, 'EDGE-17'), 'AGG-15')[0].label).toEqual({
+      kind: 'direct',
+    })
   })
 
   it('several circuits read "N circuits"', () => {
     const t = acceptanceSnapshot()
     t.links.push({ id: 'X2', kind: 'cable', a: 'EDGE-17:p5', b: 'AGG-03:p2' })
-    const e = project(t, 'EDGE-17').edges.find(
-      (x) => x.id === 'line:EDGE-17|AGG-03',
-    )!
-    expect(e.data!.label).toEqual({ kind: 'count', count: 2 })
-    expect(e.data!.circuits).toHaveLength(2)
+    const p = project(t, 'EDGE-17')
+    expect(incoming(p, 'AGG-03')[0].label).toEqual({ kind: 'count', count: 2 })
+    expect(edgeOf(p, 'EDGE-17|AGG-03').data!.circuits).toHaveLength(2)
   })
 
   it('above three via steps shows the first two and how many more', () => {
@@ -166,10 +199,7 @@ describe('CM-10 focus projection: lines and labels', () => {
       { id: 'Y4', kind: 'cable', a: 'PANEL-A:8:r', b: 'PANEL-A:9:f' },
       { id: 'Y5', kind: 'cable', a: 'PANEL-A:9:r', b: 'AGG-15:p1' },
     )
-    const e = project(t, 'EDGE-17').edges.find(
-      (x) => x.id === 'line:EDGE-17|AGG-15',
-    )!
-    expect(e.data!.label).toEqual({
+    expect(incoming(project(t, 'EDGE-17'), 'AGG-15')[0].label).toEqual({
       kind: 'steps',
       steps: [
         { name: 'PANEL-A', place: '6' },
@@ -194,31 +224,6 @@ describe('CM-10 focus projection: lines and labels', () => {
         ],
       },
     ])
-  })
-
-  it('a pill never sits on a card that is not an end of its line', () => {
-    const q = project(s, 'HDF-01')
-    const rects = q.layout.items.map((i) => ({
-      id: i.id,
-      left: i.x - i.width / 2,
-      right: i.x + i.width / 2,
-      top: i.y - i.height / 2,
-      bottom: i.y + i.height / 2,
-    }))
-    for (const e of q.edges) {
-      const pill = e.data!.pill as { x: number; y: number }
-      const hit = rects.filter(
-        (r) =>
-          pill.x > r.left &&
-          pill.x < r.right &&
-          pill.y > r.top &&
-          pill.y < r.bottom,
-      )
-      expect(
-        hit.map((r) => r.id),
-        e.id,
-      ).toEqual([])
-    }
   })
 
   it('ring 2 lines start at the ring 1 equipment', () => {
@@ -271,10 +276,19 @@ describe('CM-10 focus projection: ends and groups', () => {
       { id: 'SW-04', name: 'SW-04' },
     ])
     expect(opened.data.members).toHaveLength(10)
-    // One line from the center to each group, labeled with its circuit count.
+    // One line from the center to each group; the group card says its circuit count.
     const line = open.edges.find((e) => e.target === groups[0].id)!
     expect(line.source).toBe('AGG-1')
-    expect(line.data!.label).toEqual({ kind: 'count', count: 10 })
+    expect(line.data!.label).toBeUndefined()
+    expect(opened.data.incoming).toEqual([
+      {
+        lineId: line.id,
+        label: { kind: 'count', count: 10 },
+        onRoute: false,
+        hasCircuits: false,
+        parentName: 'AGG-1',
+      },
+    ])
   })
 })
 

@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react'
-import type { Position, Rect } from '../physical/layout'
+import type { Position } from '../physical/layout'
 import type { RouteMarks } from '../physical/inventory'
 import { cardRoleLabel } from './cardRole'
 import {
@@ -12,10 +12,10 @@ import {
   FOCUS_CENTER_HEIGHT,
   FOCUS_GAP,
   groupKey,
+  labelShape,
   type FocusItem,
   type FocusLine,
 } from './focusLayout'
-import { pillPoint } from './overviewFlow'
 import type { SnapshotIndex } from './snapshotIndex'
 
 /** A passive equipment on a circuit and where, kept apart so the name can be isolated (D33). */
@@ -43,16 +43,25 @@ export interface PanelCircuit {
   via: StepPiece[]
 }
 
+/** A line is drawn and opens the circuit panel; it carries no text (its label is on the card it leads to). */
 export interface FocusLineData extends Record<string, unknown> {
   from: string
   to: string
   circuits: PanelCircuit[]
-  /** Absent for a group reached from several parents. */
-  label?: FocusLabel
-  /** Where the label sits: on the line, clear of every card. */
-  pill: Position
   /** A cable of the selected route is among the line's circuits. */
   onRoute: boolean
+}
+
+/** One line that ends at a card, as a row of that card. */
+export interface FocusIncoming {
+  /** The edge's ID: what the row opens. */
+  lineId: string
+  label: FocusLabel
+  onRoute: boolean
+  /** The line has circuits to list; a group's line does not. */
+  hasCircuits: boolean
+  /** The card the line comes from. */
+  parentName: string
 }
 
 export interface FocusCardData extends Record<string, unknown> {
@@ -70,6 +79,10 @@ export interface FocusCardData extends Record<string, unknown> {
   /** The selected route passes through this equipment (teal; never dimmed). */
   onRoute: boolean
   side: 'center' | 'left' | 'right'
+  /** The lines that end here, one row each. */
+  incoming: FocusIncoming[]
+  /** The card's height, from focusCardHeight; the layout stacks with the same number. */
+  height: number
 }
 
 export interface FocusGroupData extends Record<string, unknown> {
@@ -83,6 +96,9 @@ export interface FocusGroupData extends Record<string, unknown> {
   members: { id: string; name: string }[]
   /** The selected route passes through a member. */
   onRoute: boolean
+  /** The lines that end here, one row each. */
+  incoming: FocusIncoming[]
+  height: number
 }
 
 export interface FocusEndRow {
@@ -103,15 +119,12 @@ export type FocusEndsNode = Node<{ rows: FocusEndRow[] }, 'focusEnds'>
 export type FocusFlowNode =
   FocusCenterNode | FocusCardNode | FocusGroupNode | FocusEndsNode
 
-/** More than this many via steps are cut to the first two and "+N more". */
-const MAX_STEPS = 3
-const KEPT_STEPS = 2
 const ENDS_WIDTH = 360
 
 /**
  * A Focus as React Flow nodes and edges: the center, a card per neighbour, a
- * card per group, the box of the center's dead ends, and a line per pair with a
- * label made of pieces. A projection only; it never feeds a trace.
+ * card per group (each with a row per line that ends there, made of pieces),
+ * the box of the center's dead ends, and a line per pair. A projection only; it never feeds a trace.
  */
 export function projectFocus(args: {
   index: SnapshotIndex
@@ -151,18 +164,42 @@ export function projectFocus(args: {
     for (const g of ring.groups) groups.set(groupKey(i + 1, g), g)
   })
 
+  // A line's row goes to the card it leads to: line.to, the outer end.
+  const edgeOnRoute = (line: FocusLine) =>
+    !!marks &&
+    (line.circuits.length > 0
+      ? line.circuits.some((c) => c.linkIds.some((id) => marks.links.has(id)))
+      : onRouteEquipment(line.from) &&
+        !!groups.get(line.to)?.equipmentIds.some(onRouteEquipment))
+  const incomingOf = (id: string): FocusIncoming[] =>
+    layout.lines
+      .filter((line) => line.to === id)
+      .flatMap((line) => {
+        const shape = labelShape(line)
+        if (!shape) return []
+        let label: FocusLabel
+        if (shape.kind === 'steps') {
+          const via = steps(line.circuits[0].via)
+          label = {
+            kind: 'steps',
+            steps: via.slice(0, shape.shown),
+            more: shape.more,
+          }
+        } else label = shape
+        return [
+          {
+            lineId: `line:${line.id}`,
+            label,
+            onRoute: edgeOnRoute(line),
+            hasCircuits: line.circuits.length > 0,
+            parentName: nameOf(line.from),
+          },
+        ]
+      })
+
   const nodes: FocusFlowNode[] = []
-  const rects: Rect[] = []
-  const centres = new Map<string, Position>()
   for (const item of layout.items) {
     const topLeft = { x: item.x - item.width / 2, y: item.y - item.height / 2 }
-    rects.push({
-      left: topLeft.x,
-      top: topLeft.y,
-      right: topLeft.x + item.width,
-      bottom: topLeft.y + item.height,
-    })
-    centres.set(item.id, { x: item.x, y: item.y })
     if (item.kind === 'group') {
       const g = groups.get(item.id)!
       const open = openGroups.has(item.id)
@@ -184,6 +221,8 @@ export function projectFocus(args: {
             ? g.equipmentIds.map((id) => ({ id, name: nameOf(id) }))
             : [],
           onRoute: g.equipmentIds.some(onRouteEquipment),
+          incoming: incomingOf(item.id),
+          height: item.height,
         },
       })
       continue
@@ -209,6 +248,8 @@ export function projectFocus(args: {
       selected: e.id === selected,
       onRoute,
       side: item.side,
+      incoming: incomingOf(item.id),
+      height: item.height,
     }
     nodes.push({
       id: item.id,
@@ -252,33 +293,12 @@ export function projectFocus(args: {
       end: port(c.end),
       via: steps(c.via),
     }))
-    let label: FocusLabel | undefined
-    if (line.circuits.length === 1) {
-      const via = steps(line.circuits[0].via)
-      label =
-        via.length === 0
-          ? { kind: 'direct' }
-          : via.length > MAX_STEPS
-            ? {
-                kind: 'steps',
-                steps: via.slice(0, KEPT_STEPS),
-                more: via.length - KEPT_STEPS,
-              }
-            : { kind: 'steps', steps: via, more: 0 }
-    } else if (line.count > 0) label = { kind: 'count', count: line.count }
-    const onRoute =
-      !!marks &&
-      (line.circuits.length > 0
-        ? line.circuits.some((c) => c.linkIds.some((id) => marks.links.has(id)))
-        : onRouteEquipment(line.from) &&
-          !!groups.get(line.to)?.equipmentIds.some(onRouteEquipment))
+    const onRoute = edgeOnRoute(line)
     const data: FocusLineData = {
       onRoute,
       from: line.from,
       to: line.to,
       circuits,
-      label,
-      pill: pillPoint(centres.get(line.from)!, centres.get(line.to)!, rects),
     }
     return {
       id: `line:${line.id}`,

@@ -138,6 +138,27 @@ test('SC-02 / CM-12 the campus at realistic size', async ({ page }) => {
     0,
   ])
   await shot(page, '0-campus-focus-2-hops')
+  // How many lines end at one card (its via rows), at 2 and then 3 hops: info, not an assertion.
+  const mostRows = () =>
+    focus.evaluate((root) =>
+      Math.max(
+        0,
+        ...[
+          ...root.querySelectorAll('[data-equipment-id], [data-group-node]'),
+        ].map((c) => c.querySelectorAll('[data-line]').length),
+      ),
+    )
+  timings.push([
+    `  (Focus at 2 hops: most via rows on one card: ${await mostRows()})`,
+    0,
+  ])
+  await page.getByRole('button', { name: '+1 hop' }).click()
+  await expect(focus).toHaveAttribute('data-hops', '3')
+  await settledViewport(page)
+  timings.push([
+    `  (Focus at 3 hops: ${await focusCards()} neighbour cards, most via rows on one card: ${await mostRows()})`,
+    0,
+  ])
 
   await timed('‹ Overview back', async () => {
     await page.getByRole('button', { name: '‹ Overview' }).click()

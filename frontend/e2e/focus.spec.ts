@@ -12,8 +12,9 @@ const focusRoot = (page: Page) => page.locator('[data-view="focus"]')
 const overviewRoot = (page: Page) => page.locator('[data-view="overview"]')
 const equipmentCard = (page: Page, id: string) =>
   page.locator(`[data-equipment-id="${id}"]`)
+// A line carries no text: its via row is inside the card the line leads to.
 const line = (page: Page, from: string, to: string) =>
-  page.locator(`[data-line="${from}|${to}"]`)
+  equipmentCard(page, to).locator(`[data-line="${from}|${to}"]`)
 const viewport = (page: Page) =>
   page.locator('.react-flow__viewport').getAttribute('style')
 
@@ -58,15 +59,28 @@ test('CM-10 Focus on EDGE-17: the AGGs and BB on the right, the AGG-03 line thro
   // AGG-15 is not cabled: it is not here.
   await expect(equipmentCard(page, 'agg-15')).toHaveCount(0)
   // docs/acceptance-example.md section 3: PANEL-A 1, HDF-01 3C/5, HDF-02 2B/3.
-  await expect(line(page, 'edge-17', 'agg-03')).toContainText(
-    'PANEL-A 1 · HDF-01 3C/5 · HDF-02 2B/3',
-  )
-  await expect(line(page, 'edge-17', 'agg-08')).toContainText(
-    'PANEL-A 2 · HDF-01 1A/2 · HDF-02 1D/2',
-  )
-  await expect(line(page, 'edge-17', 'bb-01')).toContainText(
-    'PANEL-A 3 · HDF-01 2D/4 · HDF-02 3A/1',
-  )
+  const steps = (to: string) => line(page, 'edge-17', to).locator('.focus-step')
+  await expect(line(page, 'edge-17', 'agg-03')).toContainText('via')
+  await expect(steps('agg-03')).toHaveText([
+    'PANEL-A 1',
+    'HDF-01 3C/5',
+    'HDF-02 2B/3',
+  ])
+  await expect(steps('agg-08')).toHaveText([
+    'PANEL-A 2',
+    'HDF-01 1A/2',
+    'HDF-02 1D/2',
+  ])
+  await expect(steps('bb-01')).toHaveText([
+    'PANEL-A 3',
+    'HDF-01 2D/4',
+    'HDF-02 3A/1',
+  ])
+  // Nothing is written on the lines, and the old pill is gone.
+  await expect(page.locator('.focus-pill')).toHaveCount(0)
+  await expect(
+    focusRoot(page).locator('.react-flow__edgelabel-renderer [data-line]'),
+  ).toHaveCount(0)
 })
 
 test('CM-10 +1 hop and −1 hop; a ring that comes back empty says "Nothing further"', async ({
@@ -214,4 +228,40 @@ test('CM-10 readability: with the inspector open on Focus on PANEL-A, no text in
     await page.locator('.react-flow__viewport').getAttribute('style'),
   )
   expect(small.found).toEqual([])
+})
+
+test('CM-10 a via row never covers another card', async ({ page }) => {
+  await focusEdge17(page)
+  await page.getByRole('button', { name: '+1 hop' }).click()
+  await expect(focusRoot(page)).toHaveAttribute('data-hops', '2')
+  await settledViewport(page)
+  const rows = await focusRoot(page).evaluate((root) => {
+    const cards = [
+      ...root.querySelectorAll<HTMLElement>(
+        '[data-equipment-id], [data-group-node]',
+      ),
+    ]
+    const hits: string[] = []
+    const lines = [...root.querySelectorAll<HTMLElement>('[data-line]')]
+    for (const row of lines) {
+      const r = row.getBoundingClientRect()
+      const own = row.closest('[data-equipment-id], [data-group-node]')
+      for (const card of cards) {
+        if (card === own) continue
+        const c = card.getBoundingClientRect()
+        if (
+          r.left < c.right &&
+          c.left < r.right &&
+          r.top < c.bottom &&
+          c.top < r.bottom
+        )
+          hits.push(
+            `${row.dataset.line} on ${card.dataset.equipmentId ?? card.dataset.groupNode}`,
+          )
+      }
+    }
+    return { count: lines.length, hits }
+  })
+  expect(rows.count).toBeGreaterThanOrEqual(3)
+  expect(rows.hits).toEqual([])
 })

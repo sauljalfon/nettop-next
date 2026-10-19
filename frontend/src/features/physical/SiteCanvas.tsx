@@ -32,7 +32,7 @@ import {
   saveNodePosition,
 } from '../../shared/api'
 import type { NodePosition, SiteLayout, Snapshot } from '../../shared/types'
-import { fitViewport } from '../map/center'
+import { FIT, FIT_MANY, fitViewport } from '../map/center'
 import { defaultNodeLayout } from './layout'
 import { ResetLayout } from '../map/MapControls'
 import { visibleArea } from '../map/viewArea'
@@ -62,9 +62,6 @@ import Chip from '../../shared/ui/Chip'
 
 const TEAL = 'var(--route)'
 const MIXED = 'var(--mixed-networks)'
-const FIT = { padding: 40, minZoom: 0.1, maxZoom: 1 }
-/** More than 12 nodes: cards stay readable (zoom 0.6 at least); the rest is panned or scrolled to. */
-const FIT_MANY = { ...FIT, minZoom: 0.6, anchor: 'top' as const }
 
 interface CardData extends Record<string, unknown> {
   id: string

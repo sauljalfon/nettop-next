@@ -4,7 +4,6 @@ import {
   BackgroundVariant,
   BaseEdge,
   Controls,
-  EdgeLabelRenderer,
   getStraightPath,
   Handle,
   Position,
@@ -44,6 +43,7 @@ import {
   type FocusEndsNode,
   type FocusFlowNode,
   type FocusGroupNode,
+  type FocusIncoming,
   type FocusLabel,
   type FocusLineData,
   type PanelCircuit,
@@ -113,6 +113,7 @@ const EquipmentCard = memo(function EquipmentCard({
       data-equipment-id={data.equipmentId}
       data-side={data.side}
       data-on-route={data.onRoute}
+      style={{ height: data.height }}
     >
       <Handles />
       <button
@@ -143,6 +144,7 @@ const EquipmentCard = memo(function EquipmentCard({
           <span className="num"> U{data.unit}</span>
         </span>
       </button>
+      <IncomingRows rows={data.incoming} />
     </article>
   )
 })
@@ -164,6 +166,7 @@ const GroupView = memo(function GroupView({ data }: NodeProps<FocusGroupNode>) {
       data-group-node={data.nodeId ?? ''}
       data-side={data.side}
       data-on-route={data.onRoute}
+      style={data.open ? undefined : { height: data.height }}
     >
       <Handles />
       <button
@@ -179,6 +182,7 @@ const GroupView = memo(function GroupView({ data }: NodeProps<FocusGroupNode>) {
           {data.count} {data.count === 1 ? 'switch' : 'switches'}
         </span>
       </button>
+      <IncomingRows rows={data.incoming} />
       {data.open && (
         <ul className="focus-group-list nodrag nopan nowheel">
           {data.members.map((m) => (
@@ -214,14 +218,74 @@ const StepsText = ({ steps }: { steps: readonly StepPiece[] }) => (
   </>
 )
 
-function LabelText({ label }: { label: FocusLabel }) {
-  if (label.kind === 'direct') return <>direct</>
-  if (label.kind === 'count') return <>{label.count} circuits</>
+/** The lines of a row, one per element: "via" and each step, "+N more", "direct" or "N circuits". */
+function RowLines({ label }: { label: FocusLabel }) {
+  if (label.kind === 'direct')
+    return <span className="focus-via-line">direct</span>
+  if (label.kind === 'count')
+    return <span className="focus-via-line">{label.count} circuits</span>
   return (
     <>
-      <StepsText steps={label.steps} />
-      {label.more > 0 && ` · +${label.more} more`}
+      <span className="focus-via-line">via</span>
+      {label.steps.map((step, i) => (
+        <span key={i} className="focus-via-line focus-step">
+          <Name text={step.name} /> <span className="num">{step.place}</span>
+        </span>
+      ))}
+      {label.more > 0 && (
+        <span className="focus-via-line">+{label.more} more</span>
+      )}
     </>
+  )
+}
+
+/**
+ * What the lines that end at a card say, one row each: where each comes from
+ * (with two or more) and its via steps. With circuits a row is the button that
+ * opens the line's circuit panel; a group's row only says.
+ */
+function IncomingRows({ rows }: { rows: readonly FocusIncoming[] }) {
+  const { onOpenLine } = useContext(Actions)
+  if (rows.length === 0) return null
+  return (
+    <div className="focus-rows">
+      {rows.map((row) => {
+        const className = `focus-via nodrag nopan${row.onRoute ? ' on-route' : ''}`
+        const key = row.lineId.slice('line:'.length)
+        const content = (
+          <>
+            {rows.length > 1 && (
+              <span className="focus-via-line focus-via-parent">
+                <Name text={row.parentName} />
+              </span>
+            )}
+            <RowLines label={row.label} />
+          </>
+        )
+        return row.hasCircuits ? (
+          <button
+            key={row.lineId}
+            type="button"
+            className={className}
+            data-on-route={row.onRoute}
+            data-line={key}
+            {...{ [OPENER]: row.lineId }}
+            onClick={() => onOpenLine(row.lineId)}
+          >
+            {content}
+          </button>
+        ) : (
+          <span
+            key={row.lineId}
+            className={className}
+            data-on-route={row.onRoute}
+            data-line={key}
+          >
+            {content}
+          </span>
+        )
+      })}
+    </div>
   )
 }
 
@@ -257,54 +321,16 @@ const EndsView = memo(function EndsView({ data }: NodeProps<FocusEndsNode>) {
   )
 })
 
-/**
- * A line between two cards, with its label at a point clear of the cards. With
- * circuits it is a button that opens the circuit panel. A drawing aid; it never
- * feeds a trace.
- */
+/** A line between two cards. It carries no text; a drawing aid that never feeds a trace. */
 function FocusLine(props: EdgeProps) {
-  const data = props.data as FocusLineData
-  const { onOpenLine } = useContext(Actions)
   const [path] = getStraightPath(props)
-  const key = `${data.from}|${data.to}`
-  const style = {
-    transform: `translate(-50%, -50%) translate(${data.pill.x}px, ${data.pill.y}px)`,
-  }
   return (
-    <>
-      <BaseEdge
-        id={props.id}
-        path={path}
-        style={props.style}
-        interactionWidth={20}
-      />
-      {data.label && (
-        <EdgeLabelRenderer>
-          {data.circuits.length > 0 ? (
-            <button
-              type="button"
-              className={`focus-pill nodrag nopan${data.onRoute ? ' on-route' : ''}`}
-              data-on-route={data.onRoute}
-              data-line={key}
-              {...{ [OPENER]: props.id }}
-              style={style}
-              onClick={() => onOpenLine(props.id)}
-            >
-              <LabelText label={data.label} />
-            </button>
-          ) : (
-            <span
-              className={`focus-pill group nodrag nopan${data.onRoute ? ' on-route' : ''}`}
-              data-on-route={data.onRoute}
-              data-line={key}
-              style={style}
-            >
-              <LabelText label={data.label} />
-            </span>
-          )}
-        </EdgeLabelRenderer>
-      )}
-    </>
+    <BaseEdge
+      id={props.id}
+      path={path}
+      style={props.style}
+      interactionWidth={20}
+    />
   )
 }
 
