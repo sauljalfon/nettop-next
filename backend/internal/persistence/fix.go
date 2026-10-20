@@ -19,6 +19,29 @@ import (
 // one change_log row per changed field. The topology revision never changes,
 // so drafts stay current. It returns the rows written ([] when nothing changed).
 func (s *Store) Fix(ctx context.Context, f fixes.Fix) ([]fixes.Entry, error) {
+	return s.writeFixes(ctx, []fixes.Fix{f}, f.Note, func(current topology.Snapshot) (topology.Snapshot, [][]fixes.Change, error) {
+		next, changes, err := fixes.Apply(current, f)
+		return next, [][]fixes.Change{changes}, err
+	})
+}
+
+// FixMany applies the fixes in order in one transaction, like Fix does for one:
+// the installed root is locked once, the whole list is checked on the installed
+// snapshot (fixes.ApplyMany), and each fix with changes writes its object and
+// its change_log rows, all with the same note. Any refusal writes nothing. It
+// returns every row written, in the order of the fixes.
+func (s *Store) FixMany(ctx context.Context, list []fixes.Fix, note string) ([]fixes.Entry, error) {
+	list = slices.Clone(list)
+	for i := range list {
+		list[i].Note = note
+	}
+	return s.writeFixes(ctx, list, note, func(current topology.Snapshot) (topology.Snapshot, [][]fixes.Change, error) {
+		return fixes.ApplyMany(current, list)
+	})
+}
+
+// writeFixes is the transaction both share: lock, load, apply, write.
+func (s *Store) writeFixes(ctx context.Context, list []fixes.Fix, note string, apply func(topology.Snapshot) (topology.Snapshot, [][]fixes.Change, error)) ([]fixes.Entry, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -36,26 +59,28 @@ func (s *Store) Fix(ctx context.Context, f fixes.Fix) ([]fixes.Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	next, changes, err := fixes.Apply(current, f)
+	next, changes, err := apply(current)
 	if err != nil {
 		return nil, err
 	}
 	entries := []fixes.Entry{}
-	if len(changes) == 0 {
-		return entries, tx.Commit(ctx)
-	}
-	if err = writeFixed(ctx, tx, next, f); err != nil {
-		return nil, err
-	}
-	note := strings.TrimSpace(f.Note)
-	for _, c := range changes {
-		e := fixes.Entry{EntityKind: f.Kind, EntityID: f.ID, Field: c.Field, OldValue: c.OldValue, NewValue: c.NewValue, Note: note}
-		if err = tx.QueryRow(ctx, `INSERT INTO change_log(entity_kind,entity_id,field,old_value,new_value,note)
-			VALUES ($1,$2,$3,$4,$5,NULLIF($6,'')) RETURNING id, at`,
-			e.EntityKind, e.EntityID, e.Field, e.OldValue, e.NewValue, e.Note).Scan(&e.ID, &e.At); err != nil {
+	note = strings.TrimSpace(note)
+	for i, f := range list {
+		if len(changes[i]) == 0 {
+			continue
+		}
+		if err = writeFixed(ctx, tx, next, f); err != nil {
 			return nil, err
 		}
-		entries = append(entries, e)
+		for _, c := range changes[i] {
+			e := fixes.Entry{EntityKind: f.Kind, EntityID: f.ID, Field: c.Field, OldValue: c.OldValue, NewValue: c.NewValue, Note: note}
+			if err = tx.QueryRow(ctx, `INSERT INTO change_log(entity_kind,entity_id,field,old_value,new_value,note)
+				VALUES ($1,$2,$3,$4,$5,NULLIF($6,'')) RETURNING id, at`,
+				e.EntityKind, e.EntityID, e.Field, e.OldValue, e.NewValue, e.Note).Scan(&e.ID, &e.At); err != nil {
+				return nil, err
+			}
+			entries = append(entries, e)
+		}
 	}
 	return entries, tx.Commit(ctx)
 }

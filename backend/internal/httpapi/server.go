@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"nettop.local/backend/internal/fixes"
 	"nettop.local/backend/internal/pathfinding"
@@ -56,8 +57,13 @@ type Repository interface {
 	// Direct fixes of installed names and details (never topology): one
 	// change_log row per changed field; the topology revision never changes.
 	Fix(ctx context.Context, f fixes.Fix) ([]fixes.Entry, error)
+	// FixMany applies up to 500 fixes in one transaction, all or nothing.
+	FixMany(ctx context.Context, list []fixes.Fix, note string) ([]fixes.Entry, error)
 	ChangeLog(ctx context.Context, entityKind, entityID string) ([]fixes.Entry, error)
 }
+
+// maxFixes is the most fixes one POST /api/installed/fixes applies.
+const maxFixes = 500
 
 // fixKinds maps the PATCH path's plural to change_log's entity kind.
 var fixKinds = map[string]string{
@@ -71,6 +77,48 @@ var topologyFields = map[string]bool{
 	"id": true, "kind": true, "role": true, "networkId": true, "rackId": true, "unit": true, "height": true,
 	"siteId": true, "nodeId": true, "units": true, "equipmentId": true, "subpanelId": true,
 	"position": true, "side": true, "portGroup": true, "a": true, "b": true,
+}
+
+// fixFields reads the fields of one fix's JSON object into f, as the single
+// PATCH and each fix of POST /api/installed/fixes both need: a topology field
+// is 422 (named first, in sorted order, so the answer never depends on map
+// order), anything unknown 400, a JSON null means "not given" and "" clears.
+// A note is read only when withNote is set. It returns the status and message
+// of a refusal, or 0.
+func fixFields(body map[string]json.RawMessage, f *fixes.Fix, withNote bool) (int, string) {
+	keys := slices.Sorted(maps.Keys(body))
+	for _, key := range keys {
+		if topologyFields[key] {
+			return 422, key + " changes the topology: use a plan"
+		}
+	}
+	for _, key := range keys {
+		raw := body[key]
+		if string(bytes.TrimSpace(raw)) == "null" {
+			continue
+		}
+		switch {
+		case key == "name":
+			var name string
+			if json.Unmarshal(raw, &name) != nil {
+				return 400, "Invalid request JSON"
+			}
+			f.Name = &name
+		case key == "note" && withNote:
+			if json.Unmarshal(raw, &f.Note) != nil {
+				return 400, "Invalid request JSON"
+			}
+		case key == "details":
+			decoder := json.NewDecoder(bytes.NewReader(raw))
+			decoder.DisallowUnknownFields()
+			if decoder.Decode(&f.Details) != nil {
+				return 400, "Invalid request JSON"
+			}
+		default:
+			return 400, "Invalid request JSON"
+		}
+	}
+	return 0, ""
 }
 
 func respond(w http.ResponseWriter, code int, value any) {
@@ -104,6 +152,11 @@ func repositoryError(w http.ResponseWriter, err error) {
 	case errors.Is(err, topology.ErrNetworkNotFound):
 		problem(w, 404, "Network not found")
 	case errors.Is(err, fixes.ErrNotFound):
+		var many *fixes.ManyError
+		if errors.As(err, &many) {
+			problem(w, 404, fmt.Sprintf("Not found: fix %d (%s): %s", many.Position, many.Object, strings.TrimPrefix(many.Err.Error(), "not found: ")))
+			return
+		}
 		problem(w, 404, "Not found: "+strings.TrimPrefix(err.Error(), "not found: "))
 	case errors.Is(err, topology.ErrDuplicateName):
 		problem(w, 409, err.Error())
@@ -411,46 +464,68 @@ func New(repo Repository, environment string) http.Handler {
 			return
 		}
 		f := fixes.Fix{Kind: kind, ID: r.PathValue("id")}
-		keys := slices.Sorted(maps.Keys(body))
-		// Topology fields first, in sorted order, so a body that also has an
-		// unknown field always gets the same answer.
-		for _, key := range keys {
-			if topologyFields[key] {
-				problem(w, 422, key+" changes the topology: use a plan")
-				return
-			}
+		if code, msg := fixFields(body, &f, true); code != 0 {
+			problem(w, code, msg)
+			return
 		}
-		for _, key := range keys {
-			raw := body[key]
-			if string(bytes.TrimSpace(raw)) == "null" {
-				continue // null means "not given"
-			}
-			switch key {
-			case "name":
-				var name string
-				if json.Unmarshal(raw, &name) != nil {
-					problem(w, 400, "Invalid request JSON")
-					return
-				}
-				f.Name = &name
-			case "note":
-				if json.Unmarshal(raw, &f.Note) != nil {
-					problem(w, 400, "Invalid request JSON")
-					return
-				}
-			case "details":
-				decoder := json.NewDecoder(bytes.NewReader(raw))
-				decoder.DisallowUnknownFields()
-				if decoder.Decode(&f.Details) != nil {
-					problem(w, 400, "Invalid request JSON")
-					return
-				}
-			default:
+		entries, err := repo.Fix(r.Context(), f)
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, map[string]any{"changes": entries})
+	})
+	// Many direct fixes in one request, all or nothing.
+	mux.HandleFunc("POST /api/installed/fixes", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Note  *string                      `json:"note"`
+			Fixes []map[string]json.RawMessage `json:"fixes"`
+		}
+		if !decodeUpTo(w, r, &body, maxCommandBody) {
+			return
+		}
+		if len(body.Fixes) < 1 || len(body.Fixes) > maxFixes {
+			problem(w, 422, fmt.Sprintf("Send 1–%d fixes in one request", maxFixes))
+			return
+		}
+		var note string
+		if body.Note != nil {
+			note = *body.Note
+		}
+		if utf8.RuneCountInString(strings.TrimSpace(note)) > fixes.MaxNote {
+			problem(w, 422, fmt.Sprintf("A note has at most %d characters", fixes.MaxNote))
+			return
+		}
+		list := make([]fixes.Fix, 0, len(body.Fixes))
+		for i, fix := range body.Fixes {
+			if fix == nil {
 				problem(w, 400, "Invalid request JSON")
 				return
 			}
+			var wire struct{ kind, id string }
+			for key, dst := range map[string]*string{"kind": &wire.kind, "id": &wire.id} {
+				if raw, ok := fix[key]; ok && json.Unmarshal(raw, dst) != nil {
+					problem(w, 400, "Invalid request JSON")
+					return
+				}
+				delete(fix, key)
+			}
+			kind, ok := fixKinds[wire.kind]
+			if !ok {
+				problem(w, 404, fmt.Sprintf("Not found: fix %d: kind %q", i+1, wire.kind))
+				return
+			}
+			f := fixes.Fix{Kind: kind, ID: wire.id}
+			if code, msg := fixFields(fix, &f, false); code != 0 {
+				if code == 422 {
+					msg = fmt.Sprintf("fix %d: %s", i+1, msg)
+				}
+				problem(w, code, msg)
+				return
+			}
+			list = append(list, f)
 		}
-		entries, err := repo.Fix(r.Context(), f)
+		entries, err := repo.FixMany(r.Context(), list, note)
 		if err != nil {
 			repositoryError(w, err)
 			return

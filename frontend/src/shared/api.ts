@@ -5,6 +5,7 @@ import type {
   ChangeLogKind,
   Context,
   DirectFix,
+  DirectFixItem,
   Network,
   NodePosition,
   Plan,
@@ -235,6 +236,19 @@ export const fixInstalled = (kind: ChangeLogKind, id: string, fix: DirectFix) =>
   request<{ changes: ChangeLogEntry[] }>(
     `/installed/${FIX_PATH[kind]}/${encodeURIComponent(id)}`,
     json('PATCH', fix),
+  )
+/**
+ * Up to 500 direct fixes of details in one request, applied in order and all
+ * or nothing: any refusal (422, naming the fix by its position) writes
+ * nothing. The note goes on every change-log row.
+ */
+export const fixInstalledMany = (fixes: DirectFixItem[], note?: string) =>
+  request<{ changes: ChangeLogEntry[] }>(
+    '/installed/fixes',
+    json('POST', {
+      fixes: fixes.map((f) => ({ ...f, kind: FIX_PATH[f.kind] })),
+      ...(note === undefined ? {} : { note }),
+    }),
   )
 /** An object's direct fixes, newest first. */
 export const getChangeLog = (

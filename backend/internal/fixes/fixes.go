@@ -120,6 +120,20 @@ func placeValues(name, location, description string) map[string]string {
 // mutates s. Errors wrap ErrNotFound, topology.ErrDuplicateName or
 // topology.ErrInvalidInput and are written in names.
 func Apply(s topology.Snapshot, f Fix) (topology.Snapshot, []Change, error) {
+	after, changes, err := apply(s, f)
+	if err != nil {
+		return s, nil, err
+	}
+	// The safety net: value sets, lengths, IP addresses and unique serial
+	// numbers are checked by Validate, as for every installed or proposed topology.
+	if err := topology.Validate(after); err != nil {
+		return s, nil, invalid("%v", err)
+	}
+	return after, changes, nil
+}
+
+// apply is Apply without the final Validate, which ApplyMany runs once.
+func apply(s topology.Snapshot, f Fix) (topology.Snapshot, []Change, error) {
 	if utf8.RuneCountInString(strings.TrimSpace(f.Note)) > MaxNote {
 		return s, nil, invalid("a note has at most %d characters", MaxNote)
 	}
@@ -283,10 +297,5 @@ func Apply(s topology.Snapshot, f Fix) (topology.Snapshot, []Change, error) {
 		return s, nil, notFound
 	}
 
-	// The safety net: value sets, lengths, IP addresses and unique serial
-	// numbers are checked by Validate, as for every installed or proposed topology.
-	if err := topology.Validate(s); err != nil {
-		return s, nil, invalid("%v", err)
-	}
 	return s, diff(before, after), nil
 }

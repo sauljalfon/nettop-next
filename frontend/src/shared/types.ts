@@ -99,6 +99,19 @@ export interface DirectFix {
   note?: string
 }
 
+/** One fix of POST /installed/fixes: details only (names are changed one at a time). */
+export interface DirectFixItem {
+  kind: ChangeLogKind
+  id: string
+  details?: Details
+}
+
+/** Up to 500 direct fixes applied in order, all or nothing. */
+export interface DirectFixMany {
+  fixes: DirectFixItem[]
+  note?: string
+}
+
 /** update_details changes on objects the plan adds, one entry per object. */
 export interface DetailUpdate {
   id: string

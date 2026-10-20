@@ -13,6 +13,7 @@ import {
   APIError,
   createNetwork,
   fixInstalled,
+  fixInstalledMany,
   getChangeLog,
   getMapLayout,
   getSiteLayout,
@@ -412,6 +413,36 @@ it('FX client: a direct fix PATCHes the plural path with only name, details and 
     note: 'relabelled',
   })
   expect(answer.changes).toHaveLength(1)
+})
+
+it('FX client: many direct fixes POST one request with the kinds as plural paths and the note', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ changes: [{ id: 1, field: 'model' }] }),
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  const answer = await fixInstalledMany(
+    [
+      { kind: 'equipment', id: 'sw/1', details: { model: 'C9300' } },
+      { kind: 'link', id: 'cable-1', details: { status: 'inactive' } },
+    ],
+    'model audit',
+  )
+  const [url, init] = fetchMock.mock.calls[0]
+  expect(url).toBe('/api/installed/fixes')
+  expect(init.method).toBe('POST')
+  expect(JSON.parse(init.body)).toEqual({
+    fixes: [
+      { kind: 'equipment', id: 'sw/1', details: { model: 'C9300' } },
+      { kind: 'links', id: 'cable-1', details: { status: 'inactive' } },
+    ],
+    note: 'model audit',
+  })
+  expect(answer.changes).toHaveLength(1)
+  await fixInstalledMany([{ kind: 'rack', id: 'r' }])
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+    fixes: [{ kind: 'racks', id: 'r' }],
+  })
 })
 
 it('FX client: history asks for one object by kind and ID', async () => {

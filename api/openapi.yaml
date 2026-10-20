@@ -3,7 +3,7 @@ security: []
 info:
   title: Net-Top Next API
   version: 0.6.0
-  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing (point-to-point and Find AGG / BB). Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/status.md. Networks can be created and renamed, and Physical site-screen node positions are saved and shared; both are presentation or reference data and never change a topology revision. The only way installed topology changes is recording a draft (POST /plans/{id}/record). Names and detail fields of installed objects can be corrected directly (PATCH /installed/{kind}/{id}); each changed field is written to the change log, and the topology revision does not change.
+  description: Current prototype contract for PostgreSQL-backed installed topology, saved drafts, and physical tracing (point-to-point and Find AGG / BB). Network membership, the backbone role, and stored HDF subpanel structure are readable in snapshots. HDFs are created in drafts with the atomic add_hdf command; see docs/architecture.md and docs/status.md. Networks can be created and renamed, and Physical site-screen node positions are saved and shared; both are presentation or reference data and never change a topology revision. The only way installed topology changes is recording a draft (POST /plans/{id}/record). Names and detail fields of installed objects can be corrected directly (PATCH /installed/{kind}/{id}, or up to 500 at once with POST /installed/fixes); each changed field is written to the change log, and the topology revision does not change.
 servers:
   - url: http://127.0.0.1:8080/api
 paths:
@@ -468,6 +468,33 @@ paths:
         '409': {$ref: '#/components/responses/Error'}
         '422': {$ref: '#/components/responses/Error'}
         '500': {$ref: '#/components/responses/Error'}
+  /installed/fixes:
+    post:
+      operationId: fixInstalledMany
+      summary: Correct the details of many installed objects in one request (direct fixes)
+      description: "Applies 1–500 fixes in order, each to the result of the one before (two fixes of one object are allowed), in one transaction: nothing is written when any fix is refused, and the topology revision does not change. A fix is the kind (as in the URL of the single fix), the object's id and its `details`, with the same rules as the single fix. Names are not changed here (a fix with a `name` is 422: names are unique, so they are changed one at a time). A refusal names the fix by its position and its object: `fix 3 (ACC-F1-02): …`. One change-log row is written per changed field, all with the request's note; a fix that changes nothing writes none. 422 for no fixes or more than 500, a topology field, a name, an invalid value or a note over 500 characters; 404 for an unknown kind or object; 400 for unknown fields or malformed JSON."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DirectFixMany'}
+      responses:
+        '200':
+          description: The change-log rows written, in the order of the fixes and then of the fields; empty when nothing changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changes]
+                properties:
+                  changes:
+                    type: array
+                    items: {$ref: '#/components/schemas/ChangeLogEntry'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
   /change-log:
     get:
       operationId: getChangeLog
@@ -530,6 +557,24 @@ components:
         name: {type: string, description: The display name; a switch port's label for an endpoint.}
         details: {$ref: '#/components/schemas/Details'}
         note: {type: string, maxLength: 500}
+    DirectFixMany:
+      type: object
+      additionalProperties: false
+      required: [fixes]
+      properties:
+        note: {type: string, maxLength: 500, description: The same note on every change-log row written.}
+        fixes:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, id]
+            properties:
+              kind: {type: string, enum: [equipment, endpoints, links, sites, nodes, racks]}
+              id: {type: string}
+              details: {$ref: '#/components/schemas/Details'}
     ChangeLogEntry:
       type: object
       required: [id, at, entityKind, entityId, field, oldValue, newValue]
