@@ -573,3 +573,298 @@ test('INV-07 the inventory at campus size', async ({ page }) => {
   await page.keyboard.press('Escape')
   await shot(page, 'inv-2-filtered-ports')
 })
+
+// INV-16: the lists and commands added to the Inventory, at campus size. The
+// same rules as INV-07: from the user's action until the data-inventory-* marks
+// (or the pane) show the result, no fixed sleeps, measurements and not budgets.
+// Nothing is saved: the 500 direct fixes are measured in Go.
+test('INV-16 the new lists and commands at campus size', async ({ page }) => {
+  test.setTimeout(900_000)
+  await mkdir(out, { recursive: true })
+  const topology = await (
+    await page.request.get('/api/topology?context=installed')
+  ).json()
+  const equipmentCount: number = topology.equipment.length
+  const cableCount: number = topology.links.filter(
+    (l: { kind: string }) => l.kind === 'cable',
+  ).length
+  timings.push([
+    `INV-16 (campus: ${equipmentCount} equipment, ${topology.racks.length} racks, ${cableCount} cables)`,
+    0,
+  ])
+
+  const inv = page.locator('[data-inventory-list]')
+  const attr = (name: string) => inv.getAttribute(name)
+  const raf = { polling: 'raf' as const, timeout: 120_000 }
+  const waitFor = (name: string, expected: string) =>
+    page.waitForFunction(
+      ([n, e]) =>
+        document.querySelector('[data-inventory-list]')?.getAttribute(n) === e,
+      [name, expected],
+      raf,
+    )
+  const waitChanged = (name: string, from: string) =>
+    page.waitForFunction(
+      ([n, f]) => {
+        const v = document
+          .querySelector('[data-inventory-list]')
+          ?.getAttribute(n)
+        return v != null && v !== f
+      },
+      [name, from],
+      raf,
+    )
+  const lists = page.getByRole('navigation', { name: 'Inventory lists' })
+  const chooseList = (name: RegExp) =>
+    lists.getByRole('button', { name }).click()
+  const drawn = () =>
+    page.evaluate(() => ({
+      shown: Number(
+        document
+          .querySelector('[data-inventory-list]')
+          ?.getAttribute('data-inventory-shown'),
+      ),
+      rows: document.querySelectorAll('.inv-scroll tbody tr').length,
+    }))
+  const recordDrawn = async (label: string) => {
+    const d = await drawn()
+    timings.push([
+      `  (${label}: ${d.shown} rows rendered, ${d.rows} <tr> in the body)`,
+      0,
+    ])
+    expect(d.shown).toBeLessThan(100)
+    expect(d.rows).toBeLessThan(100)
+  }
+
+  await page.goto('/')
+  await expect(page.locator('[data-view="overview"]')).toHaveAttribute(
+    'data-fitted',
+    'true',
+    { timeout: 60_000 },
+  )
+  await timed(
+    'INV-16 open Inventory from Conceptual (Equipment drawn)',
+    async () => {
+      await page
+        .getByRole('group', { name: 'View' })
+        .getByRole('button', { name: 'Inventory', exact: true })
+        .click()
+      await waitFor('data-inventory-total', String(equipmentCount))
+    },
+  )
+
+  // Building Racks and Problems, read apart from the page: the same modules
+  // the page calls, on the same snapshot, in the page's own JavaScript.
+  const build = await page.evaluate(async () => {
+    const load = (path: string) => import(/* @vite-ignore */ path)
+    const [index, racks, problems] = await Promise.all([
+      load('/src/features/map/snapshotIndex.ts'),
+      load('/src/features/inventory/racks.ts'),
+      load('/src/features/inventory/problems.ts'),
+    ])
+    const snapshot = await (
+      await fetch('/api/topology?context=installed')
+    ).json()
+    const ids = new Set<string>(
+      snapshot.equipment.map((e: { id: string }) => e.id),
+    )
+    const time = <T>(f: () => T): [number, T] => {
+      const start = performance.now()
+      const result = f()
+      return [Math.round((performance.now() - start) * 10) / 10, result]
+    }
+    const [indexMs, built] = time(() => index.indexSnapshot(snapshot))
+    const [racksMs, rackRows] = time(() => racks.buildRackRows(snapshot, built))
+    const [problemsMs, problemRows] = time(() =>
+      problems.buildProblems(snapshot, built, ids),
+    )
+    const [racksWarm] = time(() => racks.buildRackRows(snapshot, built))
+    const [problemsWarm] = time(() =>
+      problems.buildProblems(snapshot, built, ids),
+    )
+    return {
+      indexMs,
+      racksMs,
+      problemsMs,
+      racksWarm,
+      problemsWarm,
+      racks: rackRows.length as number,
+      problems: problemRows.length as number,
+    }
+  })
+  timings.push([
+    'INV-16 build Racks (buildRackRows), first call',
+    build.racksMs,
+  ])
+  timings.push(['INV-16 build Racks, second call', build.racksWarm])
+  timings.push([
+    'INV-16 build Problems (buildProblems), first call',
+    build.problemsMs,
+  ])
+  timings.push(['INV-16 build Problems, second call', build.problemsWarm])
+  timings.push([
+    `  (for scale: indexSnapshot of the campus ${build.indexMs} ms; the build lines are in ms to one decimal; ${build.racks} rack rows, ${build.problems} problems; dev build, no StrictMode here)`,
+    0,
+  ])
+
+  const problemCount = Number(
+    (
+      await lists
+        .getByRole('button', { name: /^Problems/ })
+        .locator('.count')
+        .innerText()
+    ).replace(/,/g, ''),
+  )
+  expect(problemCount).toBe(build.problems)
+
+  await timed('INV-16 open Racks (list drawn)', async () => {
+    await chooseList(/^Racks/)
+    await waitFor('data-inventory-list', 'racks')
+    await waitFor('data-inventory-total', String(topology.racks.length))
+    await page
+      .locator('.inv-scroll tbody tr:not(.inv-spacer)')
+      .first()
+      .waitFor()
+  })
+  await recordDrawn(`Racks list: ${topology.racks.length} rows in the list`)
+  await shot(page, 'inv16-1-racks')
+
+  await timed('INV-16 open Problems (list drawn)', async () => {
+    await chooseList(/^Problems/)
+    await waitFor('data-inventory-list', 'problems')
+    await waitFor('data-inventory-total', String(problemCount))
+    if (problemCount > 0)
+      await page
+        .locator('.inv-scroll tbody tr:not(.inv-spacer)')
+        .first()
+        .waitFor()
+  })
+  await recordDrawn(`Problems list: ${problemCount} rows in the list`)
+  await shot(page, 'inv16-2-problems')
+
+  await chooseList(/^Ports and positions/)
+  await waitFor('data-inventory-list', 'ports')
+  await timed('INV-16 Group by Node on Ports, group counts shown', async () => {
+    await page.getByLabel('Group by').selectOption({ label: 'Node' })
+    await waitFor('data-inventory-group', 'node')
+    await page.locator('.inv-scroll tr.group-row .inv-use').first().waitFor()
+  })
+  timings.push([
+    `  (first group row says: ${await page.locator('.inv-scroll tr.group-row').first().innerText()})`,
+    0,
+  ])
+  await recordDrawn('Ports grouped by Node')
+  await shot(page, 'inv16-3-ports-grouped')
+  await page.getByLabel('Group by').selectOption({ label: 'No grouping' })
+  await waitFor('data-inventory-group', '')
+
+  // Equipment with the Missing pill: one value.
+  await chooseList(/^Equipment/)
+  await waitFor('data-inventory-list', 'equipment')
+  await waitFor('data-inventory-total', String(equipmentCount))
+  await page.getByRole('button', { name: /^Missing == / }).click()
+  const picker = page.getByRole('dialog', { name: 'Filter Missing' })
+  await picker.getByLabel('Select all').uncheck()
+  await picker.getByLabel('IP address', { exact: true }).check()
+  let missing = 0
+  await timed(
+    'INV-16 Missing pill, one value (IP address): Apply to result',
+    async () => {
+      await picker.getByRole('button', { name: 'Apply' }).click()
+      await waitChanged('data-inventory-total', String(equipmentCount))
+      missing = Number(await attr('data-inventory-total'))
+    },
+  )
+  timings.push([
+    `  (the Missing pill left ${missing} of ${equipmentCount} rows)`,
+    0,
+  ])
+  await page.getByRole('button', { name: 'Reset filters' }).click()
+  await waitFor('data-inventory-total', String(equipmentCount))
+
+  // Select the first 500 equipment rows (through the session, as a click on
+  // 500 boxes would), open Edit details…, set a model, time What changes.
+  const ids = (topology.equipment as { id: string }[])
+    .slice(0, 500)
+    .map((e) => e.id)
+  await page.evaluate(async (keys) => {
+    const m = await import(
+      /* @vite-ignore */ '/src/features/inventory/inventorySession.ts'
+    )
+    m.inventorySession.setSelected(keys, true)
+  }, ids)
+  await page.getByText('500 selected.').waitFor()
+  const edit = page.getByRole('button', { name: 'Edit details…' })
+  await timed('INV-16 open Edit details… with 500 rows selected', async () => {
+    await edit.click()
+    await page
+      .getByRole('dialog', { name: 'Edit details of 500 equipment' })
+      .waitFor()
+  })
+  const pane = page.getByRole('dialog', {
+    name: 'Edit details of 500 equipment',
+  })
+  await timed(
+    'INV-16 set a model: What changes updated (500 rows)',
+    async () => {
+      await pane.getByLabel('Model', { exact: true }).fill('C9500-SCALE')
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector('[data-testid="what-changes"]')
+            ?.textContent?.includes('500') ?? false,
+        undefined,
+        raf,
+      )
+    },
+  )
+  timings.push([
+    `  (What changes: ${(await pane.getByTestId('what-changes').innerText()).replace(/\s+/g, ' ')}; Save is not pressed)`,
+    0,
+  ])
+  await shot(page, 'inv16-4-edit-500')
+  await pane.getByRole('button', { name: 'Cancel' }).click()
+  await page.evaluate(async (keys) => {
+    const m = await import(
+      /* @vite-ignore */ '/src/features/inventory/inventorySession.ts'
+    )
+    m.inventorySession.setSelected(keys, false)
+  }, ids)
+
+  // Print labels… with Listed on Cables.
+  await chooseList(/^Cables/)
+  await waitFor('data-inventory-list', 'cables')
+  await waitFor('data-inventory-total', String(cableCount))
+  const labels = page.getByRole('dialog', { name: 'Print cable labels' })
+  await timed(
+    'INV-16 Print labels… (Listed): click to the preview',
+    async () => {
+      await page.getByRole('button', { name: 'Print labels…' }).click()
+      await expect(labels.locator('.inv-label')).toHaveCount(16, {
+        timeout: 120_000,
+      })
+    },
+  )
+  const pagesText = (
+    await labels.getByText(/labels a page:/).innerText()
+  ).replace(/\s+/g, ' ')
+  timings.push([`  (${pagesText}; ${cableCount} cables listed)`, 0])
+  await shot(page, 'inv16-5-labels')
+  const download = page.waitForEvent('download', { timeout: 840_000 })
+  await timed('INV-16 labels: Download PDF to the download event', async () => {
+    await labels.getByRole('button', { name: 'Download PDF' }).click()
+    await download
+  })
+  await labels.getByRole('button', { name: 'Close' }).first().click()
+
+  // The Work list is for a plan: measure it only if the campus setup has one.
+  const plans = await (await page.request.get('/api/plans')).json()
+  if (Array.isArray(plans) && plans.length > 0) {
+    timings.push([`INV-16 Work list: ${plans.length} draft(s) found`, 0])
+  } else {
+    timings.push([
+      'INV-16 Work list: not measured (the campus setup has no draft)',
+      0,
+    ])
+  }
+})

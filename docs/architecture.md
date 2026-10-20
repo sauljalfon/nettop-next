@@ -8,7 +8,7 @@ Net-Top Next is a pathfinding-centered physical infrastructure manager with **tw
 
 - **Conceptual:** an overview of nodes connected by real cables, freely arranged, and a Focus on one device with the active equipment it reaches (D35). A trace highlights it in place.
 - **Physical:** site → node → rack → equipment → exact ports, following the useful drill-down of legacy NetTop.
-- **Inventory:** a table of the same inventory (equipment, ports and positions, cables), not a third drawing (D37).
+- **Inventory:** a table of the same inventory (equipment, ports and positions, cables, racks, the problems the data shows and, in a plan, its work list), not a third drawing, that also acts on many rows at once (D37, D38).
 
 The real network has a large main campus with a dense main distribution node (BB and AGG switches), nodes connected directly, through sub-main nodes or through passive routes that cross many nodes, a DR site with a smaller LAN, and small sites with one or two nodes. It is entered by hand in the app (D16).
 

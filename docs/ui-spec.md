@@ -44,7 +44,7 @@ Sites → site → node → rack → equipment → exact port or position (front
 - **Navigation:** clickable breadcrumbs and an in-app Back that restores the exact location, endpoint and side; Show in Physical from the inspector, its rows and every walk sheet row; switching back to Conceptual finds the map exactly as it was. A selected route shows as a trail of steps across levels.
 - Not a geographic map or floor plan; real photos or plans need real data.
 
-## 5. Inventory (D37)
+## 5. Inventory (D37, D38)
 
 - A **table of the same inventory**, not a third drawing (locked 1 amended): the lists **Equipment**, **Ports and positions** and **Cables**, with their counts. Installed or the plan's name ("proposed items are marked"), and proposed rows carry a Proposed chip.
 - **Finding records:** one "Filter for any field..." box (it also reads hidden columns) and `Field == value` pills, each with a value picker (a "Find a value" box above 10 values, Select all, Apply/Cancel); Reset filters; ↑↓ sort on every column; **Group by** with folding groups that list every record; 50 records a page when not grouped. The meta line says "Showing A to B of N records." and how many are selected.
@@ -52,6 +52,8 @@ Sites → site → node → rack → equipment → exact port or position (front
 - **Cells keep their meaning:** the first column is a link with a type icon; a network is a coloured dot and its name; a status is a small shape and the word in ink, only Faulty red; a port's network is its circuit's; names are isolated, never joined.
 - **Actions open what already exists:** a name, Open details and the row's ⋯ menu open the inspector (on the port for a port or cable row); Show on map opens Focus; Show in Physical opens the equipment page at the port; in a plan Delete… and Disconnect… open today's confirms in the inspector, and the page stays. **Open in inventory** (inspector, equipment page) lists that equipment's ports.
 - **Export to CSV** holds exactly the records and columns shown (all filtered records, not the page), with a UTF-8 mark; **Edit columns** hides columns in the table and the CSV (the first column always shows).
+- **Lists that answer questions** (D38): in a plan a **Work list** of its changes in the order to do them, with where each happens; **Racks** with their free units and largest free block; **Problems** the data shows, with a count (two networks on one circuit, a faulty or disabled port with a cable, an IP address twice, a switch with no serial number). Equipment shows ports used and free, group rows count used and free, and **Missing** finds equipment with empty details.
+- **Acting on many rows** (D38): **Edit details…** sets manufacturer, model, status or port fields on the selected rows (on Installed one direct fix for all, in a plan only what the plan adds), with "What changes" before saving; in a plan **Delete N…** and **Disconnect N…** send one batch, Undo per change. **Print labels…** makes A4 sheets of cable labels. **Saved views** keep a list with its filters and columns in this browser.
 - Readable at campus size: only the rows on screen are drawn, and the table scrolls in its own box; an open drawer narrows the page (D34).
 
 ## 6. Find AGG / BB (locked 7)

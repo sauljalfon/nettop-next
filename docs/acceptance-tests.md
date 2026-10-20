@@ -183,6 +183,20 @@ Since step 6 the overview is the default view and every spec reaches equipment t
 
 Explore while the Inventory is shown (equipment and port hits open the inspector and the page stays; a site or node still highlights on the map) and the Plan's Proposed chip run in `inventory` too.
 
+## A more useful inventory (2026-10-20)
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| INV-08 | Racks: units used and free, the largest free block and Fits from the snapshot (a 4U HDF covers 4 units; a move in a plan changes them); Show in Physical opens the rack | `racks.test.ts`; `inventory-more` |
+| INV-09 | Problems: each rule on a fixture made to break it (two networks on one circuit, a faulty or disabled port with a cable, an IP address twice, a switch with no serial number); stable keys; the count in the menu; a row opens its equipment | `problems.test.ts`; `inventory-more` (the fixture's switches with no serial number) |
+| INV-10 | Free capacity: used and free per equipment (switch ports; panel and HDF positions by either side), the Connected pill, group counts; Connect… on a free port in a plan opens the patching screen on it | `rows.test.ts`, `model.test.ts`; `inventory-more` |
+| INV-11 | Work list: one row per Changes line in order with its place (the Expansion draft: EDGE-18 added in Rack A03, then its cable to AGG-15); its CSV; a container row opens its place, a removed one has nothing to open | `workList.test.ts`; `inventory-more` |
+| INV-12 | Edit details of many rows: the Missing pill; "What changes" counts; on Installed one request writes each fix and its History line with the note, all or nothing, 500 at most, a refusal naming the fix; in a plan one batch of `update_details`, off with an installed row | `bulkEdit.test.ts`; Go `fixes`, `persistence`, `httpapi`; `api.test.ts`; `inventory-more.recording` |
+| INV-13 | Delete N… and Disconnect N… send one batch; the Work list and Changes list them; Undo per change; a 422 shows in the pane | `model.test.ts`, `manyPreview.test.ts`; `inventory-more.recording` |
+| INV-14 | Saved views: save, replace, open (list, query, columns, header network), delete; a view whose column or value is gone; storage that throws keeps them for the session | `savedViews.test.ts`, `inventorySession.test.ts`; `inventory-more` |
+| INV-15 | Cable labels: sources, label pieces (a Hebrew name in its own bdi), 16 a page, the file name; the download is a PDF with the right page count | `labels.test.ts`; `inventory-more` |
+| INV-16 | Campus: Racks and Problems built and opened, Group by with counts, the Missing pill, Edit details of 500 rows, the label preview and PDF timed; 500 direct fixes in one request (measurements, not budgets) | `scale` (`SCALE=1`); Go `TestFixManyOnCampusIsMeasured` |
+
 ## M5–M7 — Editing, persistence, scale, and governance
 
 - Valid rack assignment is required to save equipment (the empty-canvas preview was retired with the device map, D35).
