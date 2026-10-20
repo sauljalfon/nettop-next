@@ -23,15 +23,21 @@ export function toCsv(
 
 const two = (n: number) => String(n).padStart(2, '0')
 
+/** A plan's name as it goes into a file name (Hebrew letters stay). */
+export const fileSlug = (planName: string) =>
+  planName
+    .toLowerCase()
+    .replace(/[^a-z0-9א-ת]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+/** The date as YYYY-MM-DD, in local time. */
+export const fileDay = (date: Date) =>
+  `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`
+
 export function csvFileName(
   list: InventoryList,
   planName: string | undefined,
   date: Date,
 ): string {
-  const slug = (planName ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9א-ת]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  const day = `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`
-  return `inventory-${list}${planName === undefined ? '' : `-plan-${slug}`}-${day}.csv`
+  return `inventory-${list}${planName === undefined ? '' : `-plan-${fileSlug(planName)}`}-${fileDay(date)}.csv`
 }

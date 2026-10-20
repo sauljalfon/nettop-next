@@ -48,11 +48,12 @@ interface Props {
 }
 
 const iconOf = (list: InventoryList, row: InventoryRow): TypeIconKind =>
-  list === 'ports'
+  row.icon ??
+  (list === 'ports'
     ? 'port'
     : list === 'cables'
       ? 'cable'
-      : ((row.values.kind ?? '').toLowerCase() as TypeIconKind)
+      : ((row.values.kind ?? '').toLowerCase() as TypeIconKind))
 
 /**
  * The table, windowed: only the rows in view (and a margin) are drawn, between
@@ -201,6 +202,9 @@ export default function InventoryTable(props: Props) {
                         <span className="n">
                           ({item.count.toLocaleString('en')})
                         </span>
+                        {item.summary && (
+                          <span className="inv-use">{item.summary}</span>
+                        )}
                       </button>
                     </td>
                   </tr>

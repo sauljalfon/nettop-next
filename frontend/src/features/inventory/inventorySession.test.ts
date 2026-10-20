@@ -17,7 +17,11 @@ describe('inventorySession', () => {
     expect(q.group).toBeUndefined()
     expect(q.collapsed.size).toBe(0)
     expect(q.selected.size).toBe(0)
-    expect([...s.getSnapshot().hidden.equipment]).toEqual(['ip'])
+    expect([...s.getSnapshot().hidden.equipment]).toEqual([
+      'manufacturer',
+      'ip',
+      'missing',
+    ])
     expect([...s.getSnapshot().hidden.ports]).toEqual(['site', 'node'])
   })
 
@@ -282,6 +286,158 @@ describe('inventorySession', () => {
       s.toggleSelected('a')
       s.setList('ports')
       expect(s.selectedIn([key('a')])).toBe(0)
+    })
+  })
+
+  describe('the new lists (INV-08 to INV-14)', () => {
+    it('keeps a query and a selection per list, the new ones included', () => {
+      const s = createInventorySession()
+      for (const list of ['racks', 'problems', 'work'] as const) {
+        s.setList(list)
+        s.setSearch(list)
+        s.toggleSelected(`${list}-1`)
+      }
+      const snap = s.getSnapshot()
+      expect(snap.lists.racks.search).toBe('racks')
+      expect(snap.lists.problems.search).toBe('problems')
+      expect(snap.lists.work.search).toBe('work')
+      expect([...snap.lists.racks.selected]).toEqual(['racks-1'])
+      expect([...snap.lists.work.selected]).toEqual(['work-1'])
+      expect(snap.lists.problems.sort).toEqual({ key: 'problem', dir: 1 })
+      expect(snap.lists.work.sort).toEqual({ key: 'n', dir: 1 })
+      expect([...snap.hidden.work]).toEqual(['node'])
+      expect([...snap.hidden.racks]).toEqual(['fits'])
+      expect(snap.lists.equipment.search).toBe('')
+    })
+
+    it('does not sort or group by a list-valued field', () => {
+      const s = createInventorySession()
+      s.sortBy('missing')
+      s.setGroup('missing')
+      expect(s.getSnapshot().lists.equipment.sort).toEqual({
+        key: 'name',
+        dir: 1,
+      })
+      expect(s.getSnapshot().lists.equipment.group).toBeUndefined()
+      s.sortBy('used')
+      expect(s.getSnapshot().lists.equipment.sort).toEqual({
+        key: 'used',
+        dir: 1,
+      })
+    })
+  })
+
+  describe('the Work list in Installed', () => {
+    it('falls back to Equipment when the context becomes Installed', () => {
+      const s = createInventorySession()
+      s.setContext('planned')
+      s.setList('work')
+      s.setSearch('EDGE')
+      s.setContext('installed')
+      expect(s.getSnapshot().list).toBe('equipment')
+      s.setContext('planned')
+      expect(s.getSnapshot().list).toBe('equipment')
+      s.setList('work')
+      expect(s.getSnapshot().lists.work.search).toBe('')
+    })
+
+    it('leaves the other lists alone when the context changes', () => {
+      const s = createInventorySession()
+      s.setList('racks')
+      s.setContext('installed')
+      expect(s.getSnapshot().list).toBe('racks')
+    })
+
+    it('does not show the Work list in Installed', () => {
+      const s = createInventorySession()
+      s.setContext('installed')
+      s.setList('work')
+      expect(s.getSnapshot().list).toBe('equipment')
+    })
+  })
+
+  describe('saved views', () => {
+    it('makes a view of the current list, query and hidden columns', () => {
+      const s = createInventorySession()
+      s.setList('ports')
+      s.setSearch('חדר')
+      s.setFilter('state', ['faulty'])
+      s.sortBy('port')
+      s.sortBy('port')
+      s.setGroup('equipment')
+      s.toggleColumn('ports', 'speed')
+      expect(s.viewOf('  Faulty  ')).toEqual({
+        name: 'Faulty',
+        list: 'ports',
+        search: 'חדר',
+        filters: { state: ['faulty'] },
+        sort: { key: 'port', dir: -1 },
+        group: 'equipment',
+        hidden: ['site', 'node', 'speed'],
+      })
+    })
+
+    const view = {
+      name: 'Nets',
+      list: 'ports' as const,
+      search: 'x',
+      filters: { net: ['A'], state: ['faulty'] },
+      sort: { key: 'port', dir: -1 as const },
+      group: 'equipment',
+      hidden: ['cable'],
+    }
+
+    it('opens a view: list, query, hidden columns, and the header network from its Network pill', () => {
+      const s = createInventorySession()
+      s.setSearch('old')
+      expect(s.openView(view)).toEqual({ ok: true })
+      const snap = s.getSnapshot()
+      expect(snap.list).toBe('ports')
+      expect(snap.lists.ports).toMatchObject({
+        search: 'x',
+        filters: { net: ['A'], state: ['faulty'] },
+        sort: { key: 'port', dir: -1 },
+        group: 'equipment',
+        page: 1,
+      })
+      expect(snap.lists.ports.selected.size).toBe(0)
+      expect([...snap.hidden.ports]).toEqual(['cable'])
+      expect(s.networkOfPill()).toBe('A')
+      // The next list shown afresh starts with that network (D37).
+      s.setList('cables')
+      expect(s.getSnapshot().lists.cables.filters).toEqual({ net: ['A'] })
+    })
+
+    it('opens a view with no Network pill with no header network, several as "many"', () => {
+      const s = createInventorySession()
+      s.setHeaderNetwork('B')
+      s.openView({ ...view, filters: {} })
+      expect(s.networkOfPill()).toBeUndefined()
+      s.setList('cables')
+      expect(s.getSnapshot().lists.cables.filters).toEqual({})
+      s.openView({ ...view, filters: { net: ['A', 'B'] } })
+      expect(s.networkOfPill()).toBe('many')
+    })
+
+    it('says to switch to a plan for a view of the Work list in Installed', () => {
+      const s = createInventorySession()
+      s.setContext('installed')
+      const work = {
+        ...view,
+        list: 'work' as const,
+        filters: {},
+        sort: { key: 'n', dir: 1 as const },
+        group: undefined,
+        hidden: [],
+      }
+      expect(s.openView(work)).toEqual({
+        ok: false,
+        reason: 'Switch to a plan to open the Work list',
+      })
+      expect(s.getSnapshot().list).toBe('equipment')
+      s.setContext('planned')
+      expect(s.openView(work)).toEqual({ ok: true })
+      expect(s.getSnapshot().list).toBe('work')
     })
   })
 })

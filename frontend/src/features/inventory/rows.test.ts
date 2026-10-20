@@ -266,3 +266,94 @@ describe('buildRows', () => {
     })
   })
 })
+
+describe('INV-10 free capacity', () => {
+  const s = acceptanceSnapshot()
+  const rows = build(s)
+  const eq = (id: string) => rows.equipment.find((r) => r.key === id)!
+
+  it('counts a switch’s ports with a cable as used', () => {
+    expect(eq('EDGE-17').values).toMatchObject({ used: '3', free: '21' })
+    expect(eq('AGG-03').values).toMatchObject({ used: '1', free: '23' })
+    expect(eq('AGG-15').values).toMatchObject({ used: '0', free: '24' })
+  })
+
+  it('counts a panel or HDF position cabled on either side as used, bridges are not cables', () => {
+    // PANEL-A: positions 1–3 are cabled on both sides, 24 positions in all.
+    expect(eq('PANEL-A').values).toMatchObject({ used: '3', free: '21' })
+    // HDF-01: 3C/5, 1A/2, 2D/4, 3C/2 cabled; 4A/1 and 4A/2 are configured and free.
+    expect(eq('HDF-01').values).toMatchObject({ used: '4', free: '2' })
+    // A position cabled on one side only is still used (A03 is 3C/5's front cable).
+    const t: Snapshot = { ...s, links: s.links.filter((l) => l.id !== 'A03') }
+    expect(
+      build(t).equipment.find((r) => r.key === 'HDF-01')!.values,
+    ).toMatchObject({
+      used: '4',
+      free: '2',
+    })
+  })
+
+  it('marks a port Connected Yes or No by its cable', () => {
+    const port = (id: string) => rows.ports.find((r) => r.key === id)!
+    expect(port('EDGE-17:p1').values.connected).toBe('Yes')
+    expect(port('EDGE-17:p9').values.connected).toBe('No')
+    expect(port('PANEL-A:1:f').values.connected).toBe('Yes')
+    expect(port('PANEL-A:9:r').values.connected).toBe('No')
+  })
+})
+
+describe('INV-12 the Missing field', () => {
+  const s = acceptanceSnapshot()
+  const missing = (
+    patch: Partial<Snapshot['equipment'][number]>,
+    id = 'AGG-03',
+  ) => {
+    const t: Snapshot = {
+      ...s,
+      equipment: s.equipment.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+    }
+    return build(t).equipment.find((r) => r.key === id)!
+  }
+
+  it('lists a switch’s empty manufacturer, model, serial number and IP address', () => {
+    const r = missing({})
+    expect(r.lists?.missing).toEqual([
+      'Manufacturer',
+      'Model',
+      'Serial number',
+      'IP address',
+    ])
+    expect(r.values.missing).toBe(
+      'Manufacturer, Model, Serial number, IP address',
+    )
+  })
+
+  it('does not ask a panel for a serial number or an IP address, an HDF only for no IP', () => {
+    expect(missing({}, 'PANEL-A').lists?.missing).toEqual([
+      'Manufacturer',
+      'Model',
+    ])
+    expect(
+      missing({ manufacturer: 'M', model: 'X' }, 'HDF-01').lists?.missing,
+    ).toEqual(['Serial number'])
+  })
+
+  it('is empty when nothing is missing, and blanks count as missing', () => {
+    const full = missing({
+      manufacturer: 'Cisco',
+      model: 'C9500',
+      serialNumber: 'SN1',
+      ipAddress: '10.0.0.1',
+    })
+    expect(full.lists?.missing).toEqual([])
+    expect(full.values.missing).toBe('')
+    expect(
+      missing({
+        manufacturer: '  ',
+        model: 'X',
+        serialNumber: 'S',
+        ipAddress: '10.0.0.1',
+      }).lists?.missing,
+    ).toEqual(['Manufacturer'])
+  })
+})

@@ -7,6 +7,7 @@ import {
 } from 'react'
 import {
   Crosshair,
+  Cable,
   Info,
   Network,
   Pencil,
@@ -24,6 +25,7 @@ const COMMAND_ICON: Record<RowCommandId, LucideIcon> = {
   phys: Server,
   ports: Network,
   editport: Pencil,
+  connect: Cable,
   delete: Trash2,
   disconnect: Unlink,
 }
@@ -145,7 +147,9 @@ export default function RowMenu({
             role="menuitem"
             tabIndex={-1}
             className={item.danger ? 'danger' : undefined}
-            onClick={() => onPick(item.id)}
+            aria-disabled={item.disabled !== undefined || undefined}
+            title={item.disabled}
+            onClick={() => item.disabled === undefined && onPick(item.id)}
           >
             <CommandIcon id={item.id} />
             <span>{item.label}</span>

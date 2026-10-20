@@ -560,3 +560,263 @@
   border-top: 1px solid var(--rule-soft);
   margin: 4px 0;
 }
+
+/* An item that cannot be picked says why in its title. */
+.inv-menu-pop button[aria-disabled='true'] {
+  color: var(--ink-soft);
+  cursor: default;
+}
+.inv-menu-pop button[aria-disabled='true']:hover {
+  background: none;
+}
+
+/* A group row says what its rows hold: ports used and free, or free units. */
+.inv-group .inv-use {
+  color: var(--ink-soft);
+  font-weight: 400;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+}
+.chip.inv-action {
+  gap: 4px;
+}
+
+/* The side: the lists, and under them the saved views. */
+.inv-side {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.inv-side > .inv-menu {
+  align-self: stretch;
+  min-width: 0;
+}
+.inv-menu .count.warn {
+  color: var(--danger);
+  opacity: 1;
+  font-weight: 600;
+}
+.inv-view-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.inv-menu .inv-view-row > button:first-child {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.inv-view-row > button:first-child > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.inv-menu .inv-view-row > .inv-x {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  justify-content: center;
+  padding: 0;
+}
+.inv-small-note {
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  padding: 2px 8px 4px;
+  margin: 0;
+}
+
+/* Save view…: a popover under the button in the meta line. */
+.inv-pop.right {
+  left: auto;
+  right: 0;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+}
+.inv-save-name {
+  height: 30px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  padding: 0 8px;
+  font-size: var(--t-sm);
+}
+.inv-save-error {
+  color: var(--danger);
+  font-size: var(--t-xs);
+  margin: 0;
+}
+
+/* What opening a view left out, or why it did not open. */
+.inv-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper-sunk);
+  border-radius: var(--r-control);
+  color: var(--ink-soft);
+  font-size: var(--t-sm);
+}
+.inv-note span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .inv-meta {
+    flex-wrap: wrap;
+  }
+  .inv-side {
+    min-width: 0;
+  }
+  .inv-side .inv-menu {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    align-items: center;
+  }
+  .inv-side .inv-menu h3,
+  .inv-side .inv-small-note {
+    display: none;
+  }
+  .inv-side .inv-menu > button,
+  .inv-side .inv-view-row {
+    width: auto;
+    white-space: nowrap;
+    flex: none;
+  }
+  .inv-side .inv-view-row > button:first-child {
+    max-width: 200px;
+  }
+}
+
+/* The panes of the many-row commands. */
+.inv-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.inv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--t-sm);
+}
+.inv-field > label {
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+}
+.inv-field select,
+.inv-field input[type='text'],
+.inv-field input:not([type]) {
+  height: var(--h-input);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  padding: 0 8px;
+  background: var(--paper);
+  min-width: 0;
+}
+.inv-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.inv-field-row input:not([type]) {
+  flex: 1;
+}
+.inv-clear {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+.inv-list-box {
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--r-control);
+  max-height: 220px;
+  overflow: auto;
+}
+.inv-list-box > div {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: var(--t-sm);
+}
+.inv-list-box > div:last-child {
+  border-bottom: 0;
+}
+.inv-pane ul.cut {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--t-sm);
+}
+
+/* Cable labels: the preview, and the A4 sheets drawn offscreen for the PDF. */
+.inv-labels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.inv-label {
+  border: 1px dashed var(--rule);
+  border-radius: var(--r-hw);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--t-xs);
+  min-width: 0;
+}
+.inv-label b {
+  font-family: var(--mono);
+  font-size: var(--t-md);
+}
+.inv-label div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inv-sheets {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  pointer-events: none;
+}
+.inv-sheet {
+  width: 794px;
+  height: 1123px;
+  box-sizing: border-box;
+  padding: 32px;
+  background: var(--paper);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.inv-sheet-h {
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+.inv-sheet-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+.inv-sheet .inv-label {
+  justify-content: center;
+  padding: 10px 14px;
+  font-size: var(--t-sm);
+}
+.inv-sheet .inv-label b {
+  font-size: var(--t-lg);
+}

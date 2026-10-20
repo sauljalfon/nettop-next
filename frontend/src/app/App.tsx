@@ -793,6 +793,14 @@ function Workspace({
     },
     [index, onViewChange],
   )
+  // A rack, node or site in Physical (the Inventory's Racks and added containers).
+  const showPlace = useCallback(
+    (target: { siteId?: string; nodeId?: string; rackId?: string }) => {
+      physicalSession.navigate(openLocation(index, target))
+      onViewChange('physical')
+    },
+    [index, onViewChange],
+  )
   const canEdit =
     !!plan &&
     snapshot.revision === `${plan.baseRevision}/${plan.id}@${plan.revision}` &&
@@ -1060,9 +1068,11 @@ function Workspace({
         <InventoryPage
           snapshot={snapshot}
           index={index}
+          installed={installed}
           installedIDs={installedIDs}
           installedLinkIDs={installedLinkIDs}
           planName={plan?.name}
+          plan={plan}
           canEdit={canEdit}
           networkId={networkId}
           onNetworkChange={onNetworkChange}
@@ -1074,6 +1084,9 @@ function Workspace({
           onAskDelete={askDelete}
           onAskDisconnect={askDisconnect}
           onViewPorts={openInInventory}
+          onShowPlace={showPlace}
+          edit={edit}
+          onFixed={onFixed}
         />
       ) : (
         <PhysicalExplorer

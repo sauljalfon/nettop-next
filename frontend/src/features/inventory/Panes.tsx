@@ -8,20 +8,26 @@ export const LIST_TITLES: Record<InventoryList, string> = {
   equipment: 'Equipment',
   ports: 'Ports and positions',
   cables: 'Cables',
+  racks: 'Racks',
+  problems: 'Problems',
+  work: 'Work list',
 }
 
 /** A side pane over a scrim: Escape closes it and focus returns to its opener. */
-function Pane({
+export function Pane({
   title,
   openerKey,
   onClose,
   footer,
+  mark,
   children,
 }: {
   title: string
   openerKey: string
   onClose: () => void
   footer: React.ReactNode
+  /** The pane's name and counts, as data-inventory-pane[-…] marks the specs read. */
+  mark?: { pane: string } & Record<string, string | number>
   children: React.ReactNode
 }) {
   const dialog = useInlineDialog<HTMLElement>(onClose, openerKey)
@@ -33,6 +39,12 @@ function Pane({
         role="dialog"
         aria-label={title}
         {...dialog}
+        {...Object.fromEntries(
+          Object.entries(mark ?? {}).map(([k, v]) => [
+            `data-inventory-${k === 'pane' ? 'pane' : `pane-${k}`}`,
+            v,
+          ]),
+        )}
       >
         <div className="inv-pane-h">
           <h2>{title}</h2>

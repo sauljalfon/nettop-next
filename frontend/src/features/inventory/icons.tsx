@@ -37,6 +37,24 @@ const ICONS = {
       <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
     </>
   ),
+  rack: (
+    <>
+      <rect x="5" y="3" width="14" height="18" rx="1.5" />
+      <path d="M5 9h14M5 15h14M8.5 6h.01M8.5 12h.01M8.5 18h.01" />
+    </>
+  ),
+  problem: (
+    <>
+      <path d="M12 3.5 22 20H2z" />
+      <path d="M12 10v4.5M12 17.5h.01" />
+    </>
+  ),
+  clipboard: (
+    <>
+      <rect x="5" y="4" width="14" height="17" rx="1.5" />
+      <path d="M9 4V3h6v1M8.5 10h7M8.5 14h7M8.5 18h4" />
+    </>
+  ),
   port: (
     <>
       <rect x="4" y="5" width="16" height="14" rx="1.5" />
@@ -54,7 +72,7 @@ const ICONS = {
 
 export type TypeIconKind = keyof typeof ICONS
 
-/** The type icon of a row or a list: switch, panel, HDF, port or cable. */
+/** The type icon of a row or a list: switch, panel, HDF, port, cable or rack. */
 export const TypeIcon = ({ kind }: { kind: TypeIconKind }) => line(ICONS[kind])
 
 const status = (inner: ReactNode) => (

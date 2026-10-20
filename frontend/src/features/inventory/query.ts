@@ -1,4 +1,10 @@
-import { COLUMNS, columnOf, emptyText, type InventoryList } from './columns'
+import {
+  COLUMNS,
+  columnOf,
+  emptyText,
+  sortable,
+  type InventoryList,
+} from './columns'
 import type { InventoryRow } from './rows'
 
 export const PAGE_SIZE = 50
@@ -47,6 +53,16 @@ const collator = new Intl.Collator(undefined, { numeric: true })
 const rawOf = (row: InventoryRow, key: string) =>
   row.raw[key] ?? row.values[key] ?? ''
 
+/**
+ * What a pill matches, as a list: a list-valued field (Missing, Fits) has its
+ * several values, and an empty list matches the empty value.
+ */
+function matchValues(row: InventoryRow, key: string): readonly string[] {
+  const list = row.lists?.[key]
+  if (!list) return [rawOf(row, key)]
+  return list.length === 0 ? [''] : list
+}
+
 export function applyQuery(
   rows: readonly InventoryRow[],
   list: InventoryList,
@@ -60,7 +76,7 @@ export function applyQuery(
 
   const kept = rows.filter((row) => {
     for (const [key, values] of chosen)
-      if (!values.has(rawOf(row, key))) return false
+      if (!matchValues(row, key).some((v) => values.has(v))) return false
     if (!needle) return true
     return columns.some((c) =>
       (row.values[c.key] ?? '').toLowerCase().includes(needle),
@@ -70,13 +86,18 @@ export function applyQuery(
   const { key, dir } = query.sort
   const numeric = !!columnOf(list, key)?.numeric
   const all = kept.sort((a, b) => {
-    const x = a.values[key] ?? ''
-    const y = b.values[key] ?? ''
+    // A numeric column may keep its number apart from its text (a free block).
+    const x = numeric
+      ? (a.raw[key] ?? a.values[key] ?? '')
+      : (a.values[key] ?? '')
+    const y = numeric
+      ? (b.raw[key] ?? b.values[key] ?? '')
+      : (b.values[key] ?? '')
     const d = numeric ? Number(x) - Number(y) : collator.compare(x, y)
     return d * dir || a.i - b.i
   })
 
-  if (query.group) {
+  if (query.group && sortable(list, query.group)) {
     const by = new Map<string, InventoryRow[]>()
     for (const row of all) {
       const v = rawOf(row, query.group)
@@ -119,14 +140,17 @@ export function valueOptions(
   key: string,
 ): { value: string; text: string }[] {
   const seen = new Map<string, string>()
-  for (const row of rows) {
-    const value = rawOf(row, key)
-    if (!seen.has(value))
-      seen.set(
-        value,
-        value === '' ? emptyText(list, key) : (row.values[key] ?? value),
-      )
-  }
+  for (const row of rows)
+    for (const value of matchValues(row, key))
+      if (!seen.has(value))
+        seen.set(
+          value,
+          value === ''
+            ? emptyText(list, key)
+            : row.lists?.[key]
+              ? value
+              : (row.values[key] ?? value),
+        )
   return [...seen]
     .map(([value, text]) => ({ value, text }))
     .sort(

@@ -345,3 +345,89 @@ describe('valueOptions', () => {
     ])
   })
 })
+
+describe('INV-12 list-valued fields (Missing, Fits)', () => {
+  const listed = (i: number, values: string[]): InventoryRow => ({
+    ...row(i, { name: `E${i}`, missing: values.join(', ') }),
+    lists: { missing: values },
+  })
+  const data = [
+    listed(1, ['Model', 'Serial number']),
+    listed(2, ['Model']),
+    listed(3, []),
+    listed(4, ['IP address']),
+  ]
+  const run = (filters: Record<string, string[]>, search = '') =>
+    keys(applyQuery(data, 'equipment', query({ filters, search })).all)
+
+  it('keeps a row when any of its values is chosen', () => {
+    expect(run({ missing: ['Model'] })).toEqual(['r1', 'r2'])
+    expect(run({ missing: ['Serial number', 'IP address'] })).toEqual([
+      'r1',
+      'r4',
+    ])
+  })
+
+  it('matches an empty list with the empty value (Nothing missing)', () => {
+    expect(run({ missing: [''] })).toEqual(['r3'])
+    expect(run({ missing: ['', 'IP address'] })).toEqual(['r3', 'r4'])
+  })
+
+  it('searches the values joined with ", "', () => {
+    expect(run({}, 'model, serial')).toEqual(['r1'])
+    expect(run({}, 'ip addr')).toEqual(['r4'])
+  })
+
+  it('offers each distinct value once, and Nothing missing for an empty list', () => {
+    expect(valueOptions(data, 'equipment', 'missing')).toEqual([
+      { value: 'IP address', text: 'IP address' },
+      { value: 'Model', text: 'Model' },
+      { value: 'Serial number', text: 'Serial number' },
+      { value: '', text: 'Nothing missing' },
+    ])
+  })
+
+  it('offers Full for a rack that fits nothing', () => {
+    const rack = (i: number, fits: string[]): InventoryRow => ({
+      ...row(i, { rack: `R${i}`, fits: fits.join(', ') }),
+      lists: { fits },
+    })
+    const racks = [rack(1, ['1U', '2U']), rack(2, [])]
+    expect(valueOptions(racks, 'racks', 'fits')).toEqual([
+      { value: '1U', text: '1U' },
+      { value: '2U', text: '2U' },
+      { value: '', text: 'Full' },
+    ])
+    expect(
+      keys(
+        applyQuery(
+          racks,
+          'racks',
+          query({ filters: { fits: [''] }, sort: { key: 'rack', dir: 1 } }),
+        ).all,
+      ),
+    ).toEqual(['r2'])
+  })
+
+  it('does not group by a list-valued field', () => {
+    const r = applyQuery(data, 'equipment', query({ group: 'missing' }))
+    expect(r.groups).toBeUndefined()
+    expect(r.rows).toHaveLength(4)
+  })
+})
+
+describe('numeric sorting from the raw value', () => {
+  it('sorts the largest free block by its size, not its text', () => {
+    const rack = (i: number, gap: string, size: string) => ({
+      ...row(i, { rack: `R${i}`, gap }, { gap: size }),
+    })
+    const data = [
+      rack(1, 'U1–U3 (3U)', '3'),
+      rack(2, 'U20–U40 (21U)', '21'),
+      rack(3, 'Full', '0'),
+      rack(4, 'U9–U10 (2U)', '2'),
+    ]
+    const r = applyQuery(data, 'racks', query({ sort: { key: 'gap', dir: 1 } }))
+    expect(keys(r.all)).toEqual(['r3', 'r4', 'r1', 'r2'])
+  })
+})

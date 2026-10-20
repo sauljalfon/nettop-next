@@ -4,7 +4,13 @@ import {
   GitBranch,
   Plus,
   RefreshCw,
+  Pencil,
   Search,
+  Star,
+  Tag,
+  Trash2,
+  Unlink,
+  type LucideIcon,
 } from 'lucide-react'
 import {
   useCallback,
@@ -14,48 +20,74 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { useDebounced } from '../../shared/lazy'
-import type { Snapshot } from '../../shared/types'
+import type { Plan, Snapshot } from '../../shared/types'
 import Chip from '../../shared/ui/Chip'
 import Name from '../../shared/ui/Name'
 import { networkColors } from '../map/networkColors'
-import type { SnapshotIndex } from '../map/snapshotIndex'
-import { OPENER } from '../planning/useInlineDialog'
+import { indexSnapshot, type SnapshotIndex } from '../map/snapshotIndex'
+import { patchingSession } from '../patching/patchingSession'
+import type { PlanEdit } from '../planning/editing'
+import { OPENER, useInlineDialog } from '../planning/useInlineDialog'
+import BulkEditPane from './BulkEditPane'
 import { GROUPS, PILLS, visibleColumns, type InventoryList } from './columns'
+import LabelsPane from './LabelsPane'
+import { DeletePane, DisconnectPane } from './ManyPanes'
 import { csvFileName, toCsv } from './csv'
 import InventoryTable from './InventoryTable'
 import { TypeIcon } from './icons'
 import { inventorySession } from './inventorySession'
 import {
   barCommands,
+  manyCommands,
   menuCommands,
   metaText,
   networkChange,
   pillText,
+  showsAdd,
   tableItems,
   type CommandContext,
+  type ManyCommandId,
   type RowCommandId,
 } from './model'
 import { ColumnsPane, CsvPane, LIST_TITLES } from './Panes'
 import { applyQuery, valueOptions } from './query'
 import { buildRows, type InventoryRow } from './rows'
+import { resolveView, savedViews, type SavedView } from './savedViews'
+import { buildWorkList } from './workList'
 import { CommandIcon } from './RowMenu'
 import RowMenu from './RowMenu'
 import ValuePicker from './ValuePicker'
 import './inventory.css'
 
+/** The lists of the left menu; the Work list is added first in a plan. */
+const MENU_LISTS = [
+  'equipment',
+  'ports',
+  'cables',
+  'racks',
+  'problems',
+] as const
+
 const LIST_ICON = {
   equipment: 'switch',
   ports: 'port',
   cables: 'cable',
+  racks: 'rack',
+  problems: 'problem',
+  work: 'clipboard',
 } as const
 
 interface Props {
   snapshot: Snapshot
   index: SnapshotIndex
+  /** The installed topology: the Work list reads removals and disconnects from it. */
+  installed: Snapshot
   installedIDs: ReadonlySet<string>
   installedLinkIDs: ReadonlySet<string>
   /** The open plan's name; absent when Installed is shown. */
   planName?: string
+  /** The open plan (the Work list is made from it). */
+  plan?: Plan
   /** A current draft is open: equipment can be added. */
   canEdit: boolean
   /** The header's network (already checked against this snapshot). */
@@ -80,14 +112,37 @@ interface Props {
   ) => void
   /** The Ports list with only this equipment; the header's network is cleared. */
   onViewPorts: (equipmentName: string) => void
+  /** A rack, node or site in Physical. */
+  onShowPlace: (place: {
+    siteId?: string
+    nodeId?: string
+    rackId?: string
+  }) => void
+  /** One command to the open draft; absent unless the draft is current. */
+  edit?: PlanEdit
+  /** After a direct fix: refetch and toast. */
+  onFixed: (message: string) => Promise<void>
 }
+
+const MANY_ICON: Record<ManyCommandId, LucideIcon> = {
+  edit: Pencil,
+  deleteMany: Trash2,
+  disconnectMany: Unlink,
+  labels: Tag,
+}
+
+/** A container (Racks, an added site, node or rack) opens its place. */
+const spotOf = (row: InventoryRow) =>
+  row.place ?? (row.rackId ? { rackId: row.rackId } : undefined)
 
 export default function InventoryPage({
   snapshot,
   index,
+  installed,
   installedIDs,
   installedLinkIDs,
   planName,
+  plan,
   canEdit,
   networkId,
   onNetworkChange,
@@ -99,6 +154,9 @@ export default function InventoryPage({
   onAskDelete,
   onAskDisconnect,
   onViewPorts,
+  onShowPlace,
+  edit,
+  onFixed,
 }: Props) {
   const state = useSyncExternalStore(
     inventorySession.subscribe,
@@ -112,7 +170,26 @@ export default function InventoryPage({
     () => buildRows(snapshot, index, installedIDs, installedLinkIDs),
     [snapshot, index, installedIDs, installedLinkIDs],
   )
-  const rows = allRows[list]
+  // The Work list needs the plan and the installed index; both only when a plan
+  // is open, and the list is built again only when one of them changes.
+  const inPlan = planName !== undefined
+  useEffect(
+    () => inventorySession.setContext(inPlan ? 'planned' : 'installed'),
+    [inPlan],
+  )
+  const installedIndex = useMemo(
+    () => (inPlan ? indexSnapshot(installed) : undefined),
+    [inPlan, installed],
+  )
+  const workRows = useMemo(
+    () =>
+      plan && installedIndex
+        ? buildWorkList(plan, installed, installedIndex, snapshot, index)
+        : [],
+    [plan, installed, installedIndex, snapshot, index],
+  )
+  const rowsOf = (l: InventoryList) => (l === 'work' ? workRows : allRows[l])
+  const rows = rowsOf(list)
   const colors = useMemo(() => networkColors(snapshot.networks), [snapshot])
   const columns = visibleColumns(list, hidden)
   const result = useMemo(
@@ -120,8 +197,8 @@ export default function InventoryPage({
     [rows, list, q.search, q.filters, q.sort, q.group, q.page], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const items = useMemo(
-    () => tableItems(result, q.group, q.collapsed),
-    [result, q.group, q.collapsed],
+    () => tableItems(result, q.group, q.collapsed, list),
+    [result, q.group, q.collapsed, list],
   )
 
   // The header's network and the Network pill are one choice (D37); a list
@@ -137,7 +214,13 @@ export default function InventoryPage({
   }, [settled]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => setText(q.search), [q.search, list])
 
-  const [pane, setPane] = useState<'csv' | 'columns' | null>(null)
+  const [pane, setPane] = useState<'csv' | 'columns' | ManyCommandId | null>(
+    null,
+  )
+  // The saved view in use, and what opening one left out or why it did not open.
+  const [activeView, setActiveView] = useState<string>()
+  const [note, setNote] = useState<string>()
+  const savedList = useSyncExternalStore(savedViews.subscribe, savedViews.list)
   const [pill, setPill] = useState<string | null>(null)
   const [shown, setShown] = useState(0)
   // The list changed: nothing from the other list stays open.
@@ -167,6 +250,12 @@ export default function InventoryPage({
     installed: planName === undefined,
     canEdit,
   }
+  // Delete N… and Disconnect N… are for two or more rows; one keeps its confirm.
+  const many = manyCommands(context, chosen).filter(
+    (c) =>
+      (c.id !== 'deleteMany' && c.id !== 'disconnectMany') ||
+      selectedCount >= 2,
+  )
   const [menu, setMenu] = useState<{ row: InventoryRow; anchor: DOMRect }>()
   const closeMenu = useCallback(() => setMenu(undefined), [])
   // Another list, another result or a new pill: the row may be gone.
@@ -188,16 +277,36 @@ export default function InventoryPage({
     onNetworkChange(undefined)
   }
   const open = useCallback(
-    (row: InventoryRow) => onOpenEquipment(row.equipmentId, row.endpointId),
-    [onOpenEquipment],
+    (row: InventoryRow) => {
+      if (row.gone) return
+      const spot = spotOf(row)
+      if (!row.equipmentId) {
+        if (spot) onShowPlace(spot)
+        return
+      }
+      onOpenEquipment(row.equipmentId, row.endpointId)
+    },
+    [onOpenEquipment, onShowPlace],
   )
   // Every command calls a function App already has. A cable acts on its A end.
   const run = (id: RowCommandId, row: InventoryRow) => {
     setMenu(undefined)
     const owner = row.equipmentId
+    const spot = spotOf(row)
+    if (!owner && spot && (id === 'open' || id === 'phys'))
+      return onShowPlace(spot)
     switch (id) {
       case 'open':
         return onOpenEquipment(owner, row.endpointId)
+      case 'connect':
+        if (row.endpointId)
+          patchingSession.open({
+            nearEndpointId: row.endpointId,
+            mode: 'one',
+            count: 1,
+            returnTo: `[${OPENER}="row-menu:${CSS.escape(row.key)}"]`,
+          })
+        return
       case 'focus':
         return onShowOnMap(owner)
       case 'phys':
@@ -229,6 +338,32 @@ export default function InventoryPage({
     equipment: allRows.equipment.length,
     ports: allRows.ports.length,
     cables: allRows.cables.length,
+    racks: allRows.racks.length,
+    problems: allRows.problems.length,
+    work: workRows.length,
+  }
+  const menuLists: readonly InventoryList[] = inPlan
+    ? ['work', ...MENU_LISTS]
+    : MENU_LISTS
+
+  const openView = (view: SavedView) => {
+    const valuesOf = (key: string) =>
+      valueOptions(rowsOf(view.list), view.list, key).map((o) => o.value)
+    const { view: resolved, dropped } = resolveView(view, valuesOf)
+    const result = inventorySession.openView(resolved)
+    if (!result.ok) {
+      setNote(result.reason)
+      return
+    }
+    setActiveView(view.name)
+    setNote(
+      dropped.length
+        ? `Left out because they no longer exist: ${dropped.join(', ')}.`
+        : undefined,
+    )
+    // The Network pill and the header are one choice (D37).
+    const net = inventorySession.networkOfPill()
+    if (net !== 'many') onNetworkChange(net)
   }
   const sorted = `${q.sort.key}:${q.sort.dir === 1 ? 'asc' : 'desc'}`
 
@@ -263,31 +398,75 @@ export default function InventoryPage({
         </span>
       </div>
       <div className="inv-wrap">
-        <nav className="inv-menu" aria-label="Inventory lists">
-          <h3>Lists</h3>
-          {(Object.keys(LIST_TITLES) as InventoryList[]).map((l) => (
-            <button
-              key={l}
-              aria-current={l === list ? 'page' : undefined}
-              onClick={() => inventorySession.setList(l)}
-            >
-              <TypeIcon kind={LIST_ICON[l]} />
-              <span>{LIST_TITLES[l]}</span>
-              <span className="count">{counts[l].toLocaleString('en')}</span>
-            </button>
-          ))}
-        </nav>
+        <div className="inv-side">
+          <nav className="inv-menu" aria-label="Inventory lists">
+            <h3>Lists</h3>
+            {menuLists.map((l) => (
+              <button
+                key={l}
+                aria-current={l === list && !activeView ? 'page' : undefined}
+                onClick={() => {
+                  setActiveView(undefined)
+                  setNote(undefined)
+                  inventorySession.setList(l)
+                }}
+              >
+                <TypeIcon kind={LIST_ICON[l]} />
+                <span>{LIST_TITLES[l]}</span>
+                <span
+                  className={`count${l === 'problems' && counts.problems > 0 ? ' warn' : ''}`}
+                >
+                  {counts[l].toLocaleString('en')}
+                </span>
+              </button>
+            ))}
+          </nav>
+          <nav className="inv-menu" aria-label="Saved views">
+            <h3>Saved views</h3>
+            {savedList.length === 0 && (
+              <p className="inv-small-note">None yet.</p>
+            )}
+            {savedList.map((v) => (
+              <div className="inv-view-row" key={v.name}>
+                <button
+                  aria-current={activeView === v.name ? 'page' : undefined}
+                  onClick={() => openView(v)}
+                >
+                  <Star size={14} aria-hidden="true" />
+                  <span>
+                    <Name text={v.name} />
+                  </span>
+                </button>
+                <button
+                  className="inv-x"
+                  aria-label={`Delete the view ${v.name}`}
+                  onClick={() => {
+                    savedViews.remove(v.name)
+                    if (activeView === v.name) setActiveView(undefined)
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <p className="inv-small-note">Kept in this browser only.</p>
+          </nav>
+        </div>
         <section className="inv-main" aria-label={LIST_TITLES[list]}>
           <div className="inv-cmdbar" role="toolbar" aria-label="Commands">
-            <button
-              className="btn quiet"
-              disabled={!canEdit}
-              title={canEdit ? undefined : 'Switch to a plan to add equipment'}
-              onClick={onOpenAdd}
-            >
-              <Plus size={16} aria-hidden="true" />
-              Add in a plan
-            </button>
+            {showsAdd(list) && (
+              <button
+                className="btn quiet"
+                disabled={!canEdit}
+                title={
+                  canEdit ? undefined : 'Switch to a plan to add equipment'
+                }
+                onClick={onOpenAdd}
+              >
+                <Plus size={16} aria-hidden="true" />
+                Add in a plan
+              </button>
+            )}
             <button className="btn quiet" onClick={() => void onRefresh()}>
               <RefreshCw size={16} aria-hidden="true" />
               Refresh
@@ -309,18 +488,42 @@ export default function InventoryPage({
               Edit columns
             </button>
             <span className="inv-sep" aria-hidden="true" />
-            {barCommands(context, one).map((c) => (
-              <button
-                key={c.id}
-                className={`btn quiet${c.danger ? ' danger-outline' : ''}`}
-                disabled={c.disabled !== undefined}
-                title={c.disabled}
-                onClick={() => one && run(c.id, one)}
-              >
-                <CommandIcon id={c.id} />
-                {c.label}
-              </button>
-            ))}
+            {barCommands(context, one)
+              // Two or more rows: Delete N… and Disconnect N… take over.
+              .filter(
+                (c) =>
+                  selectedCount < 2 ||
+                  (c.id !== 'delete' && c.id !== 'disconnect'),
+              )
+              .map((c) => (
+                <button
+                  key={c.id}
+                  className={`btn quiet${c.danger ? ' danger-outline' : ''}`}
+                  disabled={c.disabled !== undefined}
+                  title={c.disabled}
+                  onClick={() => one && run(c.id, one)}
+                >
+                  <CommandIcon id={c.id} />
+                  {c.label}
+                </button>
+              ))}
+            {many.length > 0 && <span className="inv-sep" aria-hidden="true" />}
+            {many.map((c) => {
+              const Icon = MANY_ICON[c.id]
+              return (
+                <button
+                  key={c.id}
+                  className={`btn quiet${c.danger ? ' danger-outline' : ''}`}
+                  disabled={c.disabled !== undefined}
+                  title={c.disabled}
+                  {...{ [OPENER]: `many:${c.id}` }}
+                  onClick={() => setPane(c.id)}
+                >
+                  <Icon size={16} aria-hidden="true" />
+                  {c.label}
+                </button>
+              )
+            })}
           </div>
           <div className="inv-filters">
             <label className="inv-search">
@@ -356,12 +559,30 @@ export default function InventoryPage({
               </button>
             )}
           </div>
+          {note && (
+            <p className="inv-note" role="status">
+              <span>{note}</span>
+              <button className="btn quiet" onClick={() => setNote(undefined)}>
+                Dismiss
+              </button>
+            </p>
+          )}
           <div className="inv-meta">
             <span aria-live="polite">
               {metaText(result)}
               {selectedCount > 0 && <b> {selectedCount} selected.</b>}
             </span>
             <span className="inv-grow" />
+            <SaveView
+              onSave={(name) => {
+                const error = savedViews.save(inventorySession.viewOf(name))
+                if (!error) {
+                  setActiveView(name.trim())
+                  setNote(undefined)
+                }
+                return error
+              }}
+            />
             <label htmlFor="inv-group">Group by</label>
             <select
               id="inv-group"
@@ -466,6 +687,62 @@ export default function InventoryPage({
           onClose={() => setPane(null)}
         />
       )}
+      {pane === 'edit' && (list === 'equipment' || list === 'ports') && (
+        <BulkEditPane
+          list={list}
+          rows={chosen}
+          equipment={index.equipment}
+          endpoints={snapshot.endpoints}
+          installed={!inPlan}
+          planName={planName}
+          edit={edit}
+          onFixed={onFixed}
+          onClose={() => setPane(null)}
+        />
+      )}
+      {pane === 'deleteMany' && edit && planName !== undefined && (
+        <DeletePane
+          snapshot={snapshot}
+          index={index}
+          rows={chosen}
+          planName={planName}
+          edit={edit}
+          onDone={() =>
+            inventorySession.setSelected(
+              chosen.map((r) => r.key),
+              false,
+            )
+          }
+          onClose={() => setPane(null)}
+        />
+      )}
+      {pane === 'disconnectMany' && edit && planName !== undefined && (
+        <DisconnectPane
+          snapshot={snapshot}
+          index={index}
+          rows={chosen}
+          planName={planName}
+          edit={edit}
+          onDone={() =>
+            inventorySession.setSelected(
+              chosen.map((r) => r.key),
+              false,
+            )
+          }
+          onClose={() => setPane(null)}
+        />
+      )}
+      {pane === 'labels' && (
+        <LabelsPane
+          list={list}
+          selected={chosen}
+          listed={result.all}
+          plan={plan}
+          index={index}
+          endpoints={snapshot.endpoints}
+          onClose={() => setPane(null)}
+        />
+      )}
       {pane === 'columns' && (
         <ColumnsPane
           list={list}
@@ -533,6 +810,90 @@ function Pill({
           onCancel={onCancel}
         />
       )}
+    </div>
+  )
+}
+
+/** Save view…: a name field in a popover under the button, in the meta line. */
+function SaveView({
+  onSave,
+}: {
+  onSave: (name: string) => string | undefined
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="inv-pill-wrap">
+      <button
+        className="btn quiet"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        {...{ [OPENER]: 'save-view' }}
+        onClick={() => setOpen(!open)}
+      >
+        <Star size={16} aria-hidden="true" />
+        Save view…
+      </button>
+      {open && (
+        <SaveViewForm
+          onSave={(name) => {
+            const error = onSave(name)
+            if (!error) setOpen(false)
+            return error
+          }}
+          onCancel={() => setOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function SaveViewForm({
+  onSave,
+  onCancel,
+}: {
+  onSave: (name: string) => string | undefined
+  onCancel: () => void
+}) {
+  const [name, setName] = useState('')
+  const [error, setError] = useState<string>()
+  const dialog = useInlineDialog<HTMLDivElement>(onCancel, 'save-view')
+  const submit = () => setError(onSave(name))
+  return (
+    <div
+      className="inv-pop right"
+      role="dialog"
+      aria-label="Save view"
+      {...dialog}
+    >
+      <b>Save this view</b>
+      <span className="inv-pop-label">
+        The list, its filters, sort, grouping and columns. Kept in this browser
+        only.
+      </span>
+      <input
+        className="inv-save-name"
+        type="text"
+        aria-label="View name"
+        placeholder="Name, e.g. Free ports on floor 2"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && name.trim()) submit()
+        }}
+      />
+      {error && <p className="inv-save-error">{error}</p>}
+      <div className="inv-pop-actions">
+        <button
+          className="btn primary"
+          disabled={!name.trim()}
+          onClick={submit}
+        >
+          Save
+        </button>
+        <button className="btn" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
     </div>
   )
 }

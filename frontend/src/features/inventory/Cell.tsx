@@ -1,9 +1,29 @@
+import {
+  ArrowRightLeft,
+  Cable,
+  Pencil,
+  Plus,
+  Trash2,
+  Unlink,
+  type LucideIcon,
+} from 'lucide-react'
 import Chip from '../../shared/ui/Chip'
 import Name from '../../shared/ui/Name'
+import Pieces from '../../shared/ui/Pieces'
 import { colorOf } from '../map/networkColors'
 import type { Column } from './columns'
 import { StatusIcon, TypeIcon, type TypeIconKind } from './icons'
 import type { EndpointPieces, InventoryRow } from './rows'
+
+/** The Work list's actions, each with its icon. */
+const ACTION_ICON: Record<string, LucideIcon> = {
+  Add: Plus,
+  Move: ArrowRightLeft,
+  Rename: Pencil,
+  Remove: Trash2,
+  Connect: Cable,
+  Disconnect: Unlink,
+}
 
 const Empty = () => <span className="inv-dim">—</span>
 
@@ -48,6 +68,17 @@ export default function Cell({ row, column, icon, colors, onOpen }: CellProps) {
   }
   if (text === '') return <Empty />
   switch (column.kind) {
+    case 'chip': {
+      const Icon = ACTION_ICON[text]
+      return (
+        <span className="chip inv-action">
+          {Icon && <Icon size={12} aria-hidden="true" />}
+          {text}
+        </span>
+      )
+    }
+    case 'pieces':
+      return <Pieces pieces={row.parts?.[column.key] ?? [{ text }]} />
     case 'network':
       return (
         <span className="inv-net">
@@ -77,7 +108,12 @@ export default function Cell({ row, column, icon, colors, onOpen }: CellProps) {
     case 'name':
       return <Name text={text} />
     case 'mono':
-      return <span className="mono">{text}</span>
+      return (
+        <span className="mono">
+          {text}
+          {column.suffix ?? ''}
+        </span>
+      )
     default:
       return <>{text}</>
   }

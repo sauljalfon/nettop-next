@@ -3,9 +3,11 @@ import {
   DEFAULT_HIDDEN,
   columnOf,
   defaultSort,
+  sortable,
   type InventoryList,
 } from './columns'
 import type { Query } from './query'
+import type { SavedView } from './savedViews'
 
 /** One list's query plus its selected row keys. */
 export interface ListState extends Query {
@@ -53,9 +55,29 @@ export interface InventorySession {
   resetFilters(): void
   /** The first column cannot be hidden. */
   toggleColumn(list: InventoryList, key: string): void
+  /**
+   * Installed or a plan is shown. The Work list is for a plan: when the
+   * context becomes Installed a session on it falls back to Equipment.
+   */
+  setContext(context: 'installed' | 'planned'): void
+  /** The current list's query and the list's hidden columns, as a view to save. */
+  viewOf(name: string): SavedView
+  /**
+   * Shows the view: its list, query and hidden columns, and its Network pill as
+   * the header's network (D37; read it with networkOfPill). A view of the Work
+   * list cannot be opened in Installed.
+   */
+  openView(view: SavedView): { ok: true } | { ok: false; reason: string }
 }
 
 const LISTS = Object.keys(COLUMNS) as InventoryList[]
+
+const perList = <T>(make: (list: InventoryList) => T) =>
+  Object.fromEntries(
+    LISTS.map((list) => [list, make(list)]),
+  ) as unknown as Record<InventoryList, T>
+
+const WORK_NEEDS_PLAN = 'Switch to a plan to open the Work list'
 
 const fresh = (list: InventoryList): ListState => ({
   search: '',
@@ -69,17 +91,12 @@ const fresh = (list: InventoryList): ListState => ({
 export function createInventorySession(): InventorySession {
   let state: InventorySnapshot = {
     list: 'equipment',
-    lists: {
-      equipment: fresh('equipment'),
-      ports: fresh('ports'),
-      cables: fresh('cables'),
-    },
-    hidden: {
-      equipment: new Set(DEFAULT_HIDDEN.equipment),
-      ports: new Set(DEFAULT_HIDDEN.ports),
-      cables: new Set(DEFAULT_HIDDEN.cables),
-    },
+    lists: Object.fromEntries(
+      LISTS.map((list) => [list, fresh(list)]),
+    ) as Record<InventoryList, ListState>,
+    hidden: perList((list) => new Set(DEFAULT_HIDDEN[list])),
   }
+  let installed = false
   /** The header's network: a list shown afresh starts with it (D37). */
   let header: string | undefined
   const listeners = new Set<() => void>()
@@ -115,7 +132,8 @@ export function createInventorySession(): InventorySession {
       listeners.add(listener)
       return () => void listeners.delete(listener)
     },
-    setList: (list) =>
+    setList(list) {
+      if (list === 'work' && installed) return
       set({
         ...state,
         list,
@@ -126,7 +144,8 @@ export function createInventorySession(): InventorySession {
             filters: header === undefined ? {} : { net: [header] },
           },
         },
-      }),
+      })
+    },
     openPorts: (equipmentName) =>
       set({
         ...state,
@@ -146,15 +165,20 @@ export function createInventorySession(): InventorySession {
       const net = state.lists[state.list].filters.net ?? []
       return net.length === 0 ? undefined : net.length === 1 ? net[0] : 'many'
     },
-    sortBy: (key) =>
+    sortBy: (key) => {
+      if (!sortable(state.list, key)) return
       edit((q) => ({
         ...q,
         sort:
           q.sort.key === key
             ? { key, dir: q.sort.dir === 1 ? -1 : 1 }
             : { key, dir: 1 },
-      })),
-    setGroup: (group) => edit((q) => ({ ...q, group, page: 1 })),
+      }))
+    },
+    setGroup(group) {
+      if (group !== undefined && !sortable(state.list, group)) return
+      edit((q) => ({ ...q, group, page: 1 }))
+    },
     toggleCollapsed: (value) =>
       edit((q) => ({ ...q, collapsed: toggled(q.collapsed, value) })),
     setPage: (page) => edit((q) => ({ ...q, page })),
@@ -200,6 +224,49 @@ export function createInventorySession(): InventorySession {
               }
             : state.lists,
       })
+    },
+    setContext(context) {
+      installed = context === 'installed'
+      if (installed && state.list === 'work')
+        set({ ...state, list: 'equipment' })
+    },
+    viewOf(name) {
+      const q = state.lists[state.list]
+      return {
+        name: name.trim(),
+        list: state.list,
+        search: q.search,
+        filters: Object.fromEntries(
+          Object.entries(q.filters).map(([k, v]) => [k, [...v]]),
+        ),
+        sort: { ...q.sort },
+        ...(q.group === undefined ? {} : { group: q.group }),
+        hidden: [...state.hidden[state.list]],
+      }
+    },
+    openView(view) {
+      if (view.list === 'work' && installed)
+        return { ok: false, reason: WORK_NEEDS_PLAN }
+      const net = view.filters.net ?? []
+      header = net.length === 1 ? net[0] : undefined
+      set({
+        ...state,
+        list: view.list,
+        lists: {
+          ...state.lists,
+          [view.list]: {
+            ...fresh(view.list),
+            search: view.search,
+            filters: Object.fromEntries(
+              Object.entries(view.filters).map(([k, v]) => [k, [...v]]),
+            ),
+            sort: { ...view.sort },
+            group: view.group,
+          },
+        },
+        hidden: { ...state.hidden, [view.list]: new Set(view.hidden) },
+      })
+      return { ok: true }
     },
   }
 }

@@ -1,3 +1,5 @@
+import type { EditCommand } from '../planning/editing'
+import { BULK_MAX, BULK_PLAN_REFUSAL } from './bulkEdit'
 import type { InventoryList } from './columns'
 import { PAGE_SIZE, type QueryResult } from './query'
 import type { InventoryRow } from './rows'
@@ -16,16 +18,45 @@ export type TableItem =
       text: string
       count: number
       collapsed: boolean
+      /** "N used · M free" and the like, counted over the group's rows. */
+      summary?: string
     }
 
 /** The key under which a folded group is remembered. */
 export const groupKey = (group: string, value: string) => `${group}:${value}`
 
-/** What the table lists: the page, or every group with its rows unless folded. */
+const count = (n: number) => n.toLocaleString('en')
+const sum = (rows: readonly InventoryRow[], key: string) =>
+  rows.reduce((n, r) => n + (Number(r.values[key]) || 0), 0)
+
+/**
+ * What a group row of Ports, Equipment or Racks says about its rows: how many
+ * ports are used and free, or how many units are free. Counted over the rows
+ * listed, so a filter changes it.
+ */
+export function groupSummary(
+  list: InventoryList,
+  rows: readonly InventoryRow[],
+): string | undefined {
+  if (list === 'ports') {
+    const used = rows.filter((r) => r.cableId).length
+    return `${count(used)} used · ${count(rows.length - used)} free`
+  }
+  if (list === 'equipment')
+    return `${count(sum(rows, 'used'))} ports used · ${count(sum(rows, 'free'))} free`
+  if (list === 'racks') return `${count(sum(rows, 'free'))}U free`
+  return undefined
+}
+
+/**
+ * What the table lists: the page, or every group with its rows unless folded.
+ * With the list given, a group row carries its summary.
+ */
 export function tableItems(
   result: QueryResult,
   group: string | undefined,
   collapsed: ReadonlySet<string>,
+  list?: InventoryList,
 ): TableItem[] {
   if (!result.groups || !group)
     return result.rows.map((row) => ({ kind: 'row', row }))
@@ -33,6 +64,7 @@ export function tableItems(
   for (const g of result.groups) {
     const key = groupKey(group, g.value)
     const folded = collapsed.has(key)
+    const summary = list ? groupSummary(list, g.rows) : undefined
     items.push({
       kind: 'group',
       key,
@@ -40,6 +72,7 @@ export function tableItems(
       text: g.text,
       count: g.count,
       collapsed: folded,
+      ...(summary === undefined ? {} : { summary }),
     })
     if (!folded) for (const row of g.rows) items.push({ kind: 'row', row })
   }
@@ -99,7 +132,14 @@ export function pillText(
 }
 
 export type RowCommandId =
-  'open' | 'focus' | 'phys' | 'ports' | 'editport' | 'delete' | 'disconnect'
+  | 'open'
+  | 'focus'
+  | 'phys'
+  | 'ports'
+  | 'editport'
+  | 'connect'
+  | 'delete'
+  | 'disconnect'
 
 /** Where the page is: the list, Installed or a plan, and whether the plan can be edited. */
 export interface CommandContext {
@@ -108,7 +148,24 @@ export interface CommandContext {
   canEdit: boolean
 }
 
-type CommandRow = Pick<InventoryRow, 'proposed' | 'cableId'>
+type CommandRow = Pick<InventoryRow, 'proposed' | 'cableId'> &
+  Partial<
+    Pick<
+      InventoryRow,
+      'equipmentId' | 'endpointId' | 'rackId' | 'place' | 'gone'
+    >
+  >
+
+/** Why a Problems or Work list row opens nothing; undefined when it does. */
+function nothingToOpen(row: CommandRow): string | undefined {
+  if (row.gone) return 'Removed in this plan: nothing to open'
+  if (!row.equipmentId && !row.place) return 'Nothing to open for this row'
+  return undefined
+}
+
+/** Lists that can add equipment in a plan: not the ones that only report. */
+export const showsAdd = (list: InventoryList) =>
+  list !== 'problems' && list !== 'work'
 
 export interface BarCommand {
   id: RowCommandId
@@ -127,6 +184,16 @@ export function barCommands(
   row: CommandRow | undefined,
 ): BarCommand[] {
   const none = row ? undefined : 'Select one row'
+  if (ctx.list === 'racks')
+    return [{ id: 'phys', label: 'Show in Physical', disabled: none }]
+  if (ctx.list === 'problems' || ctx.list === 'work') {
+    // A container opens its place; a removed object opens nothing.
+    const nothing = none ?? (row ? nothingToOpen(row) : undefined)
+    return [
+      { id: 'open', label: 'Open details', disabled: nothing },
+      { id: 'phys', label: 'Show in Physical', disabled: nothing },
+    ]
+  }
   const commands: BarCommand[] = [
     { id: 'open', label: 'Open details', disabled: none },
     { id: 'focus', label: 'Show on map', disabled: none },
@@ -156,6 +223,8 @@ export interface MenuCommand {
   label: string
   danger?: boolean
   separatorBefore?: boolean
+  /** Why it is off; shown as the item's title. */
+  disabled?: string
 }
 
 /** The ⋯ menu of one row. */
@@ -163,6 +232,18 @@ export function menuCommands(
   ctx: CommandContext,
   row: CommandRow,
 ): MenuCommand[] {
+  if (ctx.list === 'racks') return [{ id: 'phys', label: 'Show in Physical' }]
+  if (ctx.list === 'problems' || ctx.list === 'work') {
+    const disabled = nothingToOpen(row)
+    return [
+      { id: 'open', label: 'Open details', ...(disabled ? { disabled } : {}) },
+      {
+        id: 'phys',
+        label: 'Show in Physical',
+        ...(disabled ? { disabled } : {}),
+      },
+    ]
+  }
   if (ctx.list === 'equipment') {
     const items: MenuCommand[] = [
       { id: 'open', label: 'Open details' },
@@ -190,6 +271,8 @@ export function menuCommands(
   ]
   if (ctx.list === 'ports' && ctx.installed)
     items.push({ id: 'editport', label: 'Edit port details' })
+  if (ctx.list === 'ports' && ctx.canEdit && !row.cableId)
+    items.push({ id: 'connect', label: 'Connect…', separatorBefore: true })
   if (ctx.canEdit && row.cableId)
     items.push({
       id: 'disconnect',
@@ -198,4 +281,108 @@ export function menuCommands(
       separatorBefore: true,
     })
   return items
+}
+
+export type ManyCommandId = 'edit' | 'deleteMany' | 'disconnectMany' | 'labels'
+
+export interface ManyCommand {
+  id: ManyCommandId
+  label: string
+  danger?: boolean
+  /** Why it is off; this is also the button's title. */
+  disabled?: string
+}
+
+const TOO_MANY = `Select at most ${BULK_MAX} rows`
+
+/**
+ * The command bar's commands on the selected rows (all of them, however many).
+ * Each says why it is off. Delete N… and Disconnect N… are for a plan that can
+ * be edited; Edit details… also works on Installed.
+ */
+export function manyCommands(
+  ctx: CommandContext,
+  rows: readonly CommandRow[],
+): ManyCommand[] {
+  const out: ManyCommand[] = []
+  const n = rows.length
+  if (ctx.list === 'equipment' || ctx.list === 'ports') {
+    const disabled =
+      n === 0
+        ? 'Select rows to edit'
+        : n > BULK_MAX
+          ? TOO_MANY
+          : !ctx.installed && (!ctx.canEdit || rows.some((r) => !r.proposed))
+            ? BULK_PLAN_REFUSAL
+            : undefined
+    out.push({
+      id: 'edit',
+      label: 'Edit details…',
+      ...(disabled ? { disabled } : {}),
+    })
+  }
+  if (ctx.canEdit && ctx.list === 'equipment') {
+    const disabled =
+      n === 0
+        ? 'Select rows'
+        : rows.some((r) => r.proposed)
+          ? 'Use Changes to undo a proposed item'
+          : n > BULK_MAX
+            ? TOO_MANY
+            : undefined
+    out.push({
+      id: 'deleteMany',
+      label: n === 0 ? 'Delete…' : `Delete ${n}…`,
+      danger: true,
+      ...(disabled ? { disabled } : {}),
+    })
+  }
+  if (ctx.canEdit && (ctx.list === 'ports' || ctx.list === 'cables')) {
+    const cables = new Set(rows.flatMap((r) => (r.cableId ? [r.cableId] : [])))
+    const disabled =
+      cables.size === 0
+        ? 'Select rows with a cable'
+        : cables.size > BULK_MAX
+          ? TOO_MANY
+          : undefined
+    out.push({
+      id: 'disconnectMany',
+      label: cables.size === 0 ? 'Disconnect…' : `Disconnect ${cables.size}…`,
+      danger: true,
+      ...(disabled ? { disabled } : {}),
+    })
+  }
+  if (ctx.list === 'cables' || ctx.list === 'work')
+    out.push({ id: 'labels', label: 'Print labels…' })
+  return out
+}
+
+/** One batch of delete_equipment, one command per equipment. */
+export function deleteBatch(rows: readonly CommandRow[]): EditCommand {
+  const ids = new Set(
+    rows.flatMap((r) => (r.equipmentId ? [r.equipmentId] : [])),
+  )
+  return {
+    type: 'batch',
+    batch: {
+      commands: [...ids].map((id) => ({
+        type: 'delete_equipment' as const,
+        target: { id },
+      })),
+    },
+  }
+}
+
+/** One batch of disconnect_cable, one command per distinct cable. */
+export function disconnectBatch(rows: readonly CommandRow[]): EditCommand {
+  const ids = new Set(rows.flatMap((r) => (r.cableId ? [r.cableId] : [])))
+  return {
+    type: 'batch',
+    batch: {
+      commands: [...ids].map((id) => ({
+        type: 'disconnect_cable' as const,
+        target: { id },
+      })),
+    },
+  }
 }
