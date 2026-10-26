@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network hierarchy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Hebrew:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Tokens copied from frontend/src/shared/theme.css (D33). */
+:root {
+  --floor: #eef1f3; --paper: #ffffff; --paper-sunk: #f6f8f9; --ink: #1c2b3a; --ink-soft: #56636f;
+  --rule: #d3dae1; --rule-soft: #e6ebef; --rule-strong: #b6c1cc; --ink-hover: #2b3d50;
+  --route: #0f8b7a; --route-soft: #e2f3f0; --amber: #d99a0b; --amber-soft: #fdf3dc; --amber-halo: #f2b134;
+  --danger: #b4361f; --unresolved: #9bacc0;
+  --shadow-drawer: 0 18px 40px -18px #1c2b3a40, 0 2px 6px #1c2b3a12;
+  --sans: 'IBM Plex Sans', 'IBM Plex Sans Hebrew', 'Segoe UI', Arial, sans-serif; --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
+  --t-xs: 12px; --t-sm: 13px; --t-md: 14px; --t-lg: 16px; --t-xl: 20px;
+  --r-drawer: 10px; --r-control: 6px; --h-control: 32px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--floor); color: var(--ink); font-family: var(--sans); font-size: var(--t-md); line-height: 1.45; overflow: hidden; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3, p { margin: 0; }
+bdi { unicode-bidi: isolate; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--h-control); padding: 0 12px; border-radius: var(--r-control); font-size: var(--t-sm); font-weight: 500; border: 1px solid var(--rule); background: var(--paper); white-space: nowrap; }
+.btn:hover { border-color: var(--rule-strong); }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.quiet { border-color: transparent; background: transparent; padding-inline: 8px; }
+.btn.quiet:hover { background: var(--paper-sunk); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper); font-size: var(--t-xs); white-space: nowrap; }
+.chip.role { background: var(--paper-sunk); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; }
+.seg { display: inline-flex; align-items: center; border: 1px solid var(--rule); border-radius: var(--r-control); padding: 2px; background: var(--paper-sunk); }
+.seg button { border: 0; background: transparent; color: var(--ink-soft); padding: 4px 11px; font-size: var(--t-sm); border-radius: 4px; }
+.seg .active { background: var(--paper); color: var(--ink); font-weight: 500; box-shadow: 0 0 0 1px var(--rule); }
+
+.studio-header { height: 52px; background: var(--paper); border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 18px; padding: 0 18px; position: relative; z-index: 60; }
+.brand { font-size: var(--t-lg); font-weight: 600; letter-spacing: -.02em; }
+.env { font-size: var(--t-xs); font-weight: 600; color: #7a5200; border: 1px solid #ecd49a; background: #fdf3dc; padding: 1px 6px; border-radius: 4px; }
+.view-switch { margin-left: auto; }
+.network-select { display: flex; align-items: center; gap: 8px; font-size: var(--t-sm); color: var(--ink-soft); }
+.network-select select { width: 170px; height: 30px; border: 1px solid var(--rule); border-radius: var(--r-control); background: var(--paper); padding: 0 8px; font-size: var(--t-sm); color: var(--ink); }
+
+/* Left column */
+.map-tools { position: absolute; top: 64px; bottom: 12px; left: 16px; width: 280px; overflow: auto; z-index: 40; display: flex; flex-direction: column; gap: 8px; }
+.panel { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); padding: 10px; }
+.panel h2 { font-size: var(--t-md); margin-bottom: 2px; }
+.panel .meta { font-size: var(--t-xs); color: var(--ink-soft); }
+.demo-note { border-style: dashed; font-size: var(--t-sm); color: var(--ink-soft); }
+.demo-note b { color: var(--ink); }
+.find { position: relative; margin-top: 8px; }
+.find input { width: 100%; height: 32px; border: 1px solid var(--rule); border-radius: var(--r-control); padding: 0 10px; font-size: var(--t-sm); }
+.find ul { position: absolute; top: 34px; left: 0; right: 0; margin: 0; padding: 4px; list-style: none; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-control); box-shadow: var(--shadow-drawer); max-height: 280px; overflow: auto; z-index: 5; }
+.find li button { width: 100%; text-align: left; border: 0; background: transparent; padding: 5px 8px; border-radius: 4px; font-size: var(--t-sm); display: flex; gap: 8px; align-items: baseline; }
+.find li button:hover, .find li button.kb { background: var(--paper-sunk); }
+.find li .where { color: var(--ink-soft); font-size: var(--t-xs); margin-left: auto; white-space: nowrap; }
+.legend { font-size: var(--t-xs); color: var(--ink-soft); display: grid; gap: 5px; }
+.legend .row { display: flex; gap: 8px; align-items: center; }
+.legend svg { width: 34px; height: 10px; }
+.zoom { display: flex; gap: 4px; margin-top: 4px; }
+
+/* Network bar: pick one network, add more, or all */
+.net-bar { position: absolute; top: 52px; left: 308px; right: 0; height: 48px; display: flex; align-items: center; gap: 6px; padding: 0 16px; background: var(--floor); border-bottom: 1px solid var(--rule-soft); z-index: 30; overflow-x: auto; }
+.net-bar .lbl { font-size: var(--t-xs); color: var(--ink-soft); margin-right: 4px; white-space: nowrap; }
+.net-chip { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); font-size: var(--t-sm); white-space: nowrap; }
+.net-chip:hover { border-color: var(--rule-strong); }
+.net-chip .n { color: var(--ink-soft); font-size: var(--t-xs); }
+.net-chip.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); font-weight: 500; }
+.net-chip .add { color: var(--ink-soft); font-size: var(--t-xs); border-left: 1px solid var(--rule); padding-left: 7px; margin-left: 2px; }
+.net-chip .rm { color: var(--ink-soft); font-size: var(--t-xs); margin-left: 2px; }
+.net-chip .rm:hover { color: var(--ink); }
+.net-bar .tools { margin-left: auto; display: flex; gap: 4px; }
+.card.node .also { position: absolute; right: 7px; top: 6px; display: flex; gap: 3px; }
+.card.node .also .dot { width: 9px; height: 9px; box-shadow: 0 0 0 1.5px var(--paper); }
+.u.foreign { opacity: .72; }
+.net-tag { flex: none; font-size: 10px; font-weight: 600; color: var(--paper); border-radius: 3px; padding: 0 4px; line-height: 14px; }
+/* Canvas */
+.canvas { position: absolute; top: 100px; left: 308px; right: 0; bottom: 0; overflow: auto; cursor: grab; }
+.canvas.dragging { cursor: grabbing; }
+.world { position: relative; }
+svg.lines { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+svg.lines path { fill: none; stroke: var(--rule-strong); stroke-width: 1.5; }
+svg.lines path.weak { stroke-dasharray: 5 4; }
+svg.lines path.peer { stroke: var(--ink-soft); stroke-width: 3; }
+svg.lines path.stack { stroke: var(--ink-soft); stroke-width: 2; }
+svg.lines path.hot { stroke: var(--amber); stroke-width: 3; }
+
+.net-band { position: absolute; border: 1px solid var(--rule); border-radius: 12px; background: #ffffff66; }
+.net-head { position: absolute; display: flex; align-items: center; gap: 10px; font-size: var(--t-sm); color: var(--ink-soft); }
+.net-head h3 { font-size: var(--t-lg); color: var(--ink); }
+.net-head .fold { height: 26px; }
+.tier { position: absolute; font-size: var(--t-xs); color: var(--ink-soft); font-weight: 500; }
+
+.card { position: absolute; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 7px 10px; text-align: left; }
+button.card:hover { border-color: var(--rule-strong); }
+.card .top { display: flex; align-items: center; gap: 6px; }
+.card .name { font-weight: 600; font-size: var(--t-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .role { margin-left: auto; height: 18px; padding: 0 6px; }
+.card .place { font-size: var(--t-xs); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .warn { font-size: var(--t-xs); color: var(--ink); margin-top: 2px; }
+.card.top-tier { border-color: var(--rule-strong); }
+.card.hot { box-shadow: 0 0 0 2px var(--amber-halo), 0 0 0 6px var(--amber-soft); }
+.card.none { border-style: dashed; background: transparent; }
+
+.node-frame { position: absolute; border: 1px solid var(--rule-soft); background: var(--paper-sunk); border-radius: 10px; }
+.node-frame .head { position: absolute; left: 10px; top: 6px; font-size: var(--t-xs); color: var(--ink-soft); }
+.card.node { padding: 6px 9px; }
+.card.node .site { font-size: var(--t-xs); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card.node .name { font-size: var(--t-sm); }
+.card.node .count { font-size: var(--t-xs); display: flex; gap: 4px; align-items: center; margin-top: 2px; white-space: nowrap; overflow: hidden; }
+.card.node .flag { border: 1px solid var(--rule-strong); border-radius: 999px; padding: 0 5px; }
+/* An open node: its racks, top to bottom */
+.card.node.open { padding: 0; border-color: var(--rule-strong); box-shadow: var(--shadow-drawer); z-index: 2; }
+.card.node.open.hot { box-shadow: 0 0 0 2px var(--amber-halo), var(--shadow-drawer); }
+.open-head { display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 10px; border-bottom: 1px solid var(--rule-soft); }
+.open-head .oh { border: 0; background: transparent; text-align: left; padding: 0; display: flex; gap: 6px; align-items: baseline; min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; }
+.open-head .oh b { font-size: var(--t-md); }
+.open-head .btn { height: 26px; font-size: var(--t-xs); }
+.racks { display: flex; gap: 10px; padding: 10px; align-items: flex-start; }
+.rack { border: 1px solid var(--rule-strong); border-radius: 6px; background: var(--paper-sunk); padding-bottom: 4px; }
+.rack .rh { font-size: var(--t-xs); color: var(--ink-soft); padding: 3px 8px; border-bottom: 1px solid var(--rule); display: flex; gap: 6px; margin-bottom: 4px; }
+.rack .rh b { color: var(--ink); font-weight: 600; }
+.u { display: flex; align-items: center; gap: 6px; width: calc(100% - 8px); margin: 0 4px 4px; padding: 0 6px; border: 1px solid var(--rule); border-radius: 3px; background: var(--paper); font-size: var(--t-xs); text-align: left; white-space: nowrap; overflow: hidden; }
+button.u:hover { border-color: var(--ink-soft); }
+.u .un { color: var(--ink-soft); width: 16px; flex: none; text-align: right; }
+.u .nm { overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.u .mk { margin-left: auto; border: 1px solid var(--rule-strong); border-radius: 999px; padding: 0 5px; line-height: 14px; flex: none; }
+.u.switch { border-left-width: 4px; }
+.u.panel { background: radial-gradient(circle, var(--rule-strong) 1.2px, transparent 1.6px) 30px 50% / 7px 7px repeat-x, var(--paper-sunk); }
+.u.panel .nm { background: var(--paper-sunk); padding-right: 4px; }
+.u.hdf { background: repeating-linear-gradient(45deg, var(--paper-sunk) 0 6px, var(--paper) 6px 12px); }
+.u.hdf .nm { background: var(--paper); padding: 0 4px; }
+.u.other { background: var(--rule-soft); }
+.u.free { border-style: dashed; background: transparent; color: var(--ink-soft); justify-content: center; }
+.u.sel { box-shadow: 0 0 0 2px var(--amber-halo); background-color: var(--amber-soft); }
+.ports { display: grid; gap: 3px; font-size: var(--t-xs); }
+.ports .row { display: grid; grid-template-columns: 26px 1fr 1fr; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--rule-soft); }
+.ports .row.head { color: var(--ink-soft); font-weight: 500; }
+.ports .free { color: var(--unresolved); }
+
+/* Many nodes under one AGG: a row per site, small tiles */
+.site-row { position: absolute; font-size: var(--t-xs); color: var(--ink-soft); padding-top: 4px; border-top: 1px solid var(--rule); }
+.site-row b { display: block; color: var(--ink); font-size: var(--t-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card.tile { padding: 4px 8px; }
+.card.tile .name { font-size: var(--t-sm); }
+.card.tile .count { font-size: var(--t-xs); display: flex; gap: 4px; white-space: nowrap; color: var(--ink-soft); }
+.card.tile .count .bad { color: var(--ink); font-weight: 500; }
+.card.tile .also { position: absolute; right: 6px; top: 6px; display: flex; gap: 3px; }
+.card.tile .also .dot { width: 8px; height: 8px; }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: var(--t-sm); margin-top: 8px; cursor: pointer; }
+/* Drawer */
+.drawer { position: absolute; top: 64px; right: 12px; bottom: 12px; width: 410px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); box-shadow: var(--shadow-drawer); z-index: 70; display: flex; flex-direction: column; }
+.drawer-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--rule-soft); }
+.drawer-head .top { display: flex; align-items: center; gap: 8px; }
+.drawer-head h2 { font-size: var(--t-xl); }
+.drawer-head .close { margin-left: auto; }
+.drawer-head .place { color: var(--ink-soft); font-size: var(--t-sm); margin-top: 2px; }
+.drawer-body { padding: 12px 16px; overflow: auto; flex: 1; display: grid; gap: 14px; align-content: start; }
+.drawer-body h3 { font-size: var(--t-sm); color: var(--ink-soft); font-weight: 500; margin-bottom: 6px; }
+.sw { border-bottom: 1px solid var(--rule-soft); }
+.sw > button { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: transparent; text-align: left; padding: 6px 4px; font-size: var(--t-sm); }
+.sw > button:hover { background: var(--paper-sunk); }
+.sw .nm { font-weight: 600; white-space: nowrap; }
+.sw .to { color: var(--ink-soft); font-size: var(--t-xs); }
+.sw .mark { margin-left: auto; font-size: var(--t-xs); white-space: nowrap; border: 1px solid var(--rule-strong); border-radius: 999px; padding: 0 6px; }
+.sw.chained > button { padding-left: 24px; position: relative; }
+.sw.chained > button::before { content: ''; position: absolute; left: 10px; top: 4px; width: 9px; height: 12px; border-left: 1.5px solid var(--rule-strong); border-bottom: 1.5px solid var(--rule-strong); }
+.sw.sel > button { box-shadow: inset 3px 0 0 var(--amber-halo); background: var(--amber-soft); }
+.sw .detail { padding: 2px 4px 10px 24px; display: grid; gap: 6px; }
+.uplink { border: 1px solid var(--rule); border-radius: 8px; padding: 6px 9px; display: grid; gap: 3px; background: var(--paper); }
+.uplink .ends { display: flex; gap: 6px; align-items: center; font-size: var(--t-sm); flex-wrap: wrap; }
+.uplink .via { font-size: var(--t-xs); color: var(--ink-soft); }
+.uplink .via .mono { color: var(--ink); }
+.links-list { display: grid; gap: 4px; font-size: var(--t-sm); }
+.links-list .row { display: flex; gap: 8px; align-items: center; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--rule-soft); }
+.note { font-size: var(--t-xs); color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<header class="studio-header">
+  <span class="brand">NetTop</span><span class="env">TEST</span>
+  <div class="seg view-switch" role="group" aria-label="View">
+    <button class="active">Conceptual</button><button>Physical</button><button>Inventory</button>
+  </div>
+  <label class="network-select">Network
+    <select id="net">
+      <option value="many" hidden>Several networks</option>
+      <option value="A">Network A</option>
+      <option value="B">Network B</option>
+      <option value="C">Network C</option>
+      <option value="D">Network D</option>
+    </select>
+  </label>
+</header>
+
+<div class="net-bar" id="netBar"></div>
+<div class="canvas" id="canvas"><div class="world" id="world"></div></div>
+
+<div class="map-tools">
+  <div class="panel demo-note"><b>Demo</b> on fictional data shaped like yours. <b>A</b> has two BB. <b>B</b> has no BB: AGG-B0 is the top because AGGs hang under it and no access switch does. <b>C</b> has only two AGGs joined by a peer link. <b>D</b> has small switches in the same rooms as A. <b>Click a node</b> to open it and see its racks and equipment. <b>Approved with two changes</b> (D39): stacks are drawn as peer links until a cable can be marked as a stack, and there is no UPS (equipment is switch, panel or HDF).</div>
+  <div class="panel">
+    <div class="seg" style="margin-bottom:8px"><button class="active">Hierarchy</button><button id="focusTab">Focus</button></div>
+    <h2 id="title">Network A</h2>
+    <div class="meta" id="summary"></div>
+    <div class="find">
+      <input id="find" placeholder="Find a switch or node…" autocomplete="off" aria-label="Find a switch or node">
+      <ul id="hits" hidden></ul>
+    </div>
+    <label class="toggle"><input type="checkbox" id="onlyProblems"> Only nodes with problems</label>
+  </div>
+  <div class="panel legend">
+    <div class="row"><svg><path d="M0 5H34" stroke="#b6c1cc" stroke-width="1.5"/></svg>uplink, from real cables through any panels</div>
+    <div class="row"><svg><path d="M0 5H34" stroke="#b6c1cc" stroke-width="1.5" stroke-dasharray="5 4"/></svg>one uplink where the others have more</div>
+    <div class="row"><svg><path d="M0 5H34" stroke="#56636f" stroke-width="3"/></svg>peer link between two of the same level</div>
+    <div class="row"><svg><path d="M0 3H34M0 7H34" stroke="#56636f" stroke-width="2"/></svg>stack</div>
+    <div class="row"><span class="chip" style="height:18px">1 single</span>switches with a single uplink</div>
+    <div class="row" style="margin-top:4px;font-weight:500;color:var(--ink)">In an open node</div>
+    <div class="row"><span class="u switch" style="width:46px;margin:0;height:16px;border-left-color:#2f6fdb"></span>switch, in its network's colour</div>
+    <div class="row"><span class="u panel" style="width:46px;margin:0;height:16px"></span>patch panel</div>
+    <div class="row"><span class="u hdf" style="width:46px;margin:0;height:16px"></span>HDF</div>
+    <div class="row"><span class="u other" style="width:46px;margin:0;height:16px"></span>other (UPS, server)</div>
+    <div class="zoom"><button class="btn" id="fit">Fit</button><button class="btn" id="zin">+</button><button class="btn" id="zout">−</button></div>
+  </div>
+</div>
+
+<aside class="drawer" id="drawer" hidden></aside>
+
+<script>
+// ---------- Fictional data ----------
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
+const r = rng(11)
+const pick = a => a[Math.floor(r() * a.length)]
+const NETS = { A: { name: 'Network A', color: '#2f6fdb' }, B: { name: 'Network B', color: '#9a4fc7' }, C: { name: 'Network C', color: '#c2542d' }, D: { name: 'Network D', color: '#1f8a5b' } }
+const eq = new Map()   // id -> {id, name, role, net, site, node, rack}
+const up = new Map()   // access id -> [{to, port, toPort, via, other}]
+const links = []       // between AGG/BB: {a, b, kind: 'up' | 'peer' | 'stack', aPort, bPort, via}
+const add = e => { eq.set(e.id, e); if (e.role === 'Access') up.set(e.id, []); return e }
+const via = code => { const s = [`PP-${code}-${1 + Math.floor(r() * 4)} ${1 + Math.floor(r() * 24)}`]; for (let i = 0, n = 1 + Math.floor(r() * 3); i < n; i++) s.push(`HDF-${pick(['DC', code, 'C' + (1 + Math.floor(r() * 3))])} ${1 + Math.floor(r() * 12)}${'ABCD'[Math.floor(r() * 4)]}/${1 + Math.floor(r() * 6)}`); return s }
+const DC = 'מרכז נתונים'
+
+function accessFor(net, site, code, aggs, floors) {
+  for (let f = 0; f < floors; f++) {
+    const count = 3 + Math.floor(r() * 6)
+    let prev = null
+    for (let k = 1; k <= count; k++) {
+      const s = add({ id: `sw-${net}-${code}-${f}-${k}`, name: `SW-${net}${code}-${f}-${String(k).padStart(2, '0')}`, role: 'Access', net, site, node: `קומה ${f}`, rack: `ארון ${1 + Math.floor((k - 1) / 4)}` })
+      const x = r(), ups = up.get(s.id)
+      if (x < 0.05 && prev) ups.push({ to: prev.id, port: 'Gi1/0/48', toPort: 'Gi1/0/47', via: [`PP-${code}-${f} ${k}`] })
+      else if (x < 0.06 && net === 'A') ups.push({ to: 'agg-b1', port: 'Gi1/0/48', toPort: 'Te1/1/9', via: via(code), other: true })
+      else if (x < 0.07) { /* not connected yet */ }
+      else if (x < 0.15 && aggs.length > 1) ups.push({ to: pick(aggs), port: 'Gi1/0/48', toPort: `Te1/1/${1 + Math.floor(r() * 24)}`, via: via(code) })
+      else aggs.forEach((a, i) => ups.push({ to: a, port: `Gi1/0/${48 - i}`, toPort: `Te${i + 1}/1/${1 + Math.floor(r() * 24)}`, via: via(code) }))
+      if (!(x < 0.05 && prev)) prev = s
+    }
+  }
+}
+
+// Network A: two BB, six AGG pairs (peer link in each pair), twelve buildings
+add({ id: 'bb-01', name: 'BB-01', role: 'BB', net: 'A', site: DC, node: 'חדר שרתים 1' })
+add({ id: 'bb-02', name: 'BB-02', role: 'BB', net: 'A', site: DC, node: 'חדר שרתים 2' })
+links.push({ a: 'bb-01', b: 'bb-02', kind: 'peer', aPort: 'Hu1/0/1', bPort: 'Hu1/0/1', via: via('DC') })
+const bA = ['בניין הנהלה', 'בניין 2', 'בניין 3', 'מעבדות', 'ספרייה', 'בניין 6', 'מעונות א', 'מעונות ב', 'אולם ספורט', 'בניין 10', 'בניין 11', 'מרכז מבקרים']
+for (let p = 0; p < 6; p++) {
+  const ids = [0, 1].map(k => { const n = String(p * 2 + k + 1).padStart(2, '0'); return add({ id: 'agg-' + n, name: 'AGG-' + n, role: 'AGG', net: 'A', site: bA[p * 2], node: 'חדר תקשורת ראשי' }).id })
+  links.push({ a: ids[0], b: ids[1], kind: 'peer', aPort: 'Te1/1/47', bPort: 'Te1/1/47', via: [`PP-${p}-X 1`] })
+  for (const id of ids) for (const [i, bb] of ['bb-01', 'bb-02'].entries()) {
+    if (id === 'agg-11' && bb === 'bb-02') continue
+    links.push({ a: bb, b: id, kind: 'up', aPort: `Te1/0/${p * 2 + i + 1}`, bPort: `Te1/1/${i + 1}`, via: via('DC') })
+  }
+  accessFor('A', bA[p * 2], String(p * 2 + 1).padStart(2, '0'), ids, 2 + Math.floor(r() * 2))
+  accessFor('A', bA[p * 2 + 1], String(p * 2 + 2).padStart(2, '0'), ids, 2 + Math.floor(r() * 2))
+}
+// Network B: no BB. AGG-B0 over a stack (B1+B2) and a single AGG-B3. Shares buildings with A.
+add({ id: 'agg-b0', name: 'AGG-B0', role: 'AGG', net: 'B', site: DC, node: 'חדר שרתים 1' })
+add({ id: 'agg-b1', name: 'AGG-B1', role: 'AGG', net: 'B', site: 'מעבדות', node: 'חדר תקשורת ראשי' })
+add({ id: 'agg-b2', name: 'AGG-B2', role: 'AGG', net: 'B', site: 'מעבדות', node: 'חדר תקשורת ראשי' })
+add({ id: 'agg-b3', name: 'AGG-B3', role: 'AGG', net: 'B', site: 'מעונות א', node: 'חדר תקשורת' })
+links.push({ a: 'agg-b1', b: 'agg-b2', kind: 'stack', aPort: 'StackPort1', bPort: 'StackPort2', via: [] })
+for (const b of ['agg-b1', 'agg-b2', 'agg-b3']) links.push({ a: 'agg-b0', b, kind: 'up', aPort: `Te1/0/${b.slice(-1)}`, bPort: 'Te1/1/1', via: via('DC') })
+accessFor('B', 'מעבדות', '04', ['agg-b1', 'agg-b2'], 3)
+accessFor('B', 'בניין 6', '06', ['agg-b1', 'agg-b2'], 2)
+accessFor('B', 'מעונות א', '07', ['agg-b3'], 2)
+// Network C: two AGGs joined by a peer link, nothing above them
+add({ id: 'agg-c1', name: 'AGG-C1', role: 'AGG', net: 'C', site: 'אולם ספורט', node: 'חדר תקשורת' })
+add({ id: 'agg-c2', name: 'AGG-C2', role: 'AGG', net: 'C', site: 'אולם ספורט', node: 'חדר תקשורת' })
+links.push({ a: 'agg-c1', b: 'agg-c2', kind: 'peer', aPort: 'Te1/1/48', bPort: 'Te1/1/48', via: ['PP-09-X 2'] })
+accessFor('C', 'אולם ספורט', '09', ['agg-c1', 'agg-c2'], 2)
+// AGG-11 + AGG-12 also serve eight more buildings: about 50 nodes under one pair
+for (const [i, site] of ['מעונות ג', 'מעונות ד', 'בניין 20', 'בניין 21', 'בניין 22', 'בניין 23', 'חניון', 'מרכז סטודנטים'].entries()) accessFor('A', site, String(13 + i), ['agg-11', 'agg-12'], 4 + Math.floor(r() * 3))
+// Network D: one AGG, small switches in the same rooms as Network A (a shared node)
+add({ id: 'agg-d1', name: 'AGG-D1', role: 'AGG', net: 'D', site: DC, node: 'חדר שרתים 1' })
+for (const [i, site] of bA.slice(0, 5).entries()) accessFor('D', site, String(i + 1).padStart(2, '0'), ['agg-d1'], 1)
+
+// ---------- The hierarchy of one network, from the cables only ----------
+function hierarchyOf(net) {
+  const all = [...eq.values()].filter(e => e.net === net)
+  const access = all.filter(e => e.role === 'Access')
+  const bbs = all.filter(e => e.role === 'BB'), aggs = all.filter(e => e.role === 'AGG')
+  const parents = id => up.get(id).filter(u => !u.other).map(u => u.to)
+  const children = new Map()
+  for (const s of access) for (const p of parents(s.id)) { if (!children.has(p)) children.set(p, []); children.get(p).push(s.id) }
+  const aggsOf = new Map()
+  const reach = (id, seen) => { if (seen.has(id)) return []; seen.add(id); return eq.get(id).role === 'AGG' ? [id] : [...new Set(parents(id).flatMap(p => reach(p, seen)))] }
+  for (const s of access) aggsOf.set(s.id, reach(s.id, new Set()).sort())
+  const netLinks = links.filter(l => eq.get(l.a).net === net)
+  const hasAccess = new Set([...aggsOf.values()].flat())
+  const aggNeighbours = id => netLinks.filter(l => (l.a === id || l.b === id) && [l.a, l.b].every(x => eq.get(x).role === 'AGG')).length
+  // The top: BB; else AGGs that other AGGs hang under and no access switch reaches
+  const tops = bbs.length ? bbs : aggs.filter(a => aggNeighbours(a.id) > 0 && !hasAccess.has(a.id) && netLinks.some(l => (l.a === a.id || l.b === a.id) && l.kind === 'up'))
+  const topIds = new Set(tops.map(t => t.id))
+  const mids = aggs.filter(a => !topIds.has(a.id))
+  // Clusters of AGGs: joined by a peer link or stack, or sharing switches
+  const parent = new Map(mids.map(a => [a.id, a.id]))
+  const root = id => parent.get(id) === id ? id : root(parent.get(id))
+  const join = (x, y) => parent.set(root(y), root(x))
+  for (const l of netLinks) if (parent.has(l.a) && parent.has(l.b)) join(l.a, l.b)
+  for (const set of aggsOf.values()) for (const y of set.slice(1)) if (parent.has(y) && parent.has(set[0])) join(set[0], y)
+  const clusters = new Map()
+  for (const a of mids) { const k = root(a.id); if (!clusters.has(k)) clusters.set(k, { aggs: [], nodes: new Map() }); clusters.get(k).aggs.push(a.id) }
+  const none = { aggs: [], nodes: new Map(), none: true }
+  for (const s of access) {
+    const set = aggsOf.get(s.id)
+    const c = set.length ? clusters.get(root(set[0])) : none
+    const k = s.site + '|' + s.node
+    if (!c.nodes.has(k)) c.nodes.set(k, { key: `${net}|${k}`, net, site: s.site, node: s.node, ids: [] })
+    c.nodes.get(k).ids.push(s.id)
+  }
+  const list = [...clusters.values()].sort((a, b) => a.aggs[0].localeCompare(b.aggs[0]))
+  if (none.nodes.size) list.push(none)
+  list.forEach((c, i) => {
+    c.aggs.sort()
+    c.nodeList = [...c.nodes.values()].sort((a, b) => (a.site + a.node).localeCompare(b.site + b.node, 'he'))
+    for (const n of c.nodeList) {
+      n.key = `${net}|${i}|${n.site}|${n.node}` // a node can sit under two groups of AGGs
+      n.cluster = c
+      n.single = c.aggs.length > 1 ? n.ids.filter(id => aggsOf.get(id).length === 1 && parents(id).length === 1 && eq.get(parents(id)[0]).role === 'AGG').length : 0
+      n.chained = n.ids.filter(id => parents(id).some(p => eq.get(p).role === 'Access')).length
+    }
+  })
+  return { net, access, bbs, aggs, tops, mids, clusters: list, aggsOf, children, parents, netLinks }
+}
+const H = Object.fromEntries(Object.keys(NETS).map(k => [k, hierarchyOf(k)]))
+const nodeIndex = new Map()
+for (const h of Object.values(H)) for (const c of h.clusters) for (const n of c.nodeList) nodeIndex.set(n.key, n)
+
+// ---------- What stands in a node: racks with equipment, top to bottom ----------
+const U1 = 22, U2 = 40, UFREE = 16, RW = 250
+const contents = new Map()
+const placeKey = n => n.site + '|' + n.node
+const switchesAt = new Map()  // site|node -> every access switch there, of any network
+for (const e of eq.values()) if (e.role === 'Access') { const k = e.site + '|' + e.node; if (!switchesAt.has(k)) switchesAt.set(k, []); switchesAt.get(k).push(e.id) }
+const netsAt = k => [...new Set(switchesAt.get(k).map(id => eq.get(id).net))]
+function contentsOf(n) {
+  const pk = placeKey(n)
+  if (contents.has(pk)) return contents.get(pk)
+  let seed = 7; for (const ch of pk) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619)
+  const q = rng(seed)
+  const byRack = new Map()
+  for (const id of switchesAt.get(pk)) { const e = eq.get(id); if (!byRack.has(e.rack)) byRack.set(e.rack, []); byRack.get(e.rack).push(id) }
+  const racks = [...byRack.keys()].sort().map((rack, ri) => {
+    const items = [], code = eq.get(byRack.get(rack)[0]).name.replace(/^SW-[A-Z]|-\d+$/g, '')
+    let u = 42, k = 0
+    const put = (kind, name, size, extra = {}) => { items.push({ id: `${pk}|${rack}|${u}`, kind, name, size, u, rack, ...extra }); u -= size }
+    if (ri === 0) { put('hdf', `HDF-${code}`, 2, { ports: hdfPorts(q, code) }); put('free', '', 1) }
+    for (const id of byRack.get(rack)) {
+      k++
+      put('panel', `PP-${code}-${ri + 1}.${k}`, 1, { ports: panelPorts(q, eq.get(id).name, code, k) })
+      put('switch', eq.get(id).name, 1, { sw: id })
+      if (q() < 0.3) put('free', '', 1 + Math.floor(q() * 3))
+    }
+    if (q() < 0.5) { put('free', '', Math.max(1, u - 3)); put('other', `UPS-${code}-${ri + 1}`, 2) }
+    return { name: rack, items }
+  })
+  contents.set(pk, racks)
+  return racks
+}
+function panelPorts(q, swName, code, k) {
+  const used = 8 + Math.floor(q() * 16)
+  return Array.from({ length: 24 }, (_, i) => i === 23 ? { front: `${swName} Gi1/0/48`, rear: `HDF-${code} ${k}A/1` } : i < used ? { front: `${swName} Gi1/0/${i + 1}`, rear: `outlet ${code}-${k}${String(i + 1).padStart(2, '0')}` } : null)
+}
+function hdfPorts(q, code) {
+  return Array.from({ length: 12 }, (_, i) => q() < 0.7 ? { front: `PP-${code}-1.${1 + (i % 4)} 24`, rear: `HDF-DC ${1 + Math.floor(q() * 12)}${'ABCD'[i % 4]}/${1 + (i % 6)}` } : null)
+}
+const itemH = it => it.kind === 'free' ? UFREE : it.size > 1 ? U2 : U1
+const rackH = rk => 26 + rk.items.reduce((s, it) => s + itemH(it) + 4, 0) + 4
+const nodeBox = n => { const rs = contentsOf(n); return { w: rs.length * (RW + 10) + 10, h: 40 + Math.max(...rs.map(rackH)) + 20 } }
+const findItem = (key, id) => contentsOf(nodeIndex.get(key)).flatMap(r => r.items).find(it => it.id === id)
+
+// ---------- State ----------
+let shown = new Set(['A']), scale = 1, selected = null, drawer = null
+const folded = new Set(), openNodes = new Set()
+const $ = id => document.getElementById(id)
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const bdi = s => `<bdi>${esc(s)}</bdi>`
+const place = e => `${bdi(e.site)} › ${bdi(e.node)}`
+const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`
+const shownNets = () => Object.keys(NETS).filter(k => shown.has(k))
+const summaryOf = h => { const nodes = h.clusters.reduce((n, c) => n + c.nodeList.length, 0); return `${h.bbs.length ? h.bbs.length + ' BB · ' : ''}${h.aggs.length} AGG · ${nodes} nodes · ${h.access.length} switches` }
+
+// ---------- Layout ----------
+const CW = 140, CH = 58, NW = 178, NH = 86, LEFT = 40, BAND_PAD = 24
+const BIG = 12, TW = 160, TH = 50, SL = 130, PER_ROW = 6 // above BIG nodes: a row per site, small tiles
+let onlyProblems = false
+const hasProblem = (c, n) => c.none || n.single > 0 || n.chained > 0
+function render() {
+  const w = $('world'); w.style.zoom = 1
+  const nets = shownNets(), many = nets.length > 1
+  $('title').textContent = nets.map(k => NETS[k].name).join(' + ')
+  $('net').value = shown.size === 1 ? nets[0] : 'many'
+  renderBar()
+  $('summary').innerHTML = nets.map(k => `<div><span class="dot" style="background:${NETS[k].color}"></span> ${esc(NETS[k].name)}: ${summaryOf(H[k])}</div>`).join('')
+  let html = '', svg = '', y = 24, worldW = 900
+  const hot = hotSet()
+  const curve = (x1, y1, x2, y2, cls) => { const m = (y1 + y2) / 2; svg += `<path class="${cls}" d="M${x1} ${y1} C${x1} ${m} ${x2} ${m} ${x2} ${y2}"/>` }
+  for (const k of nets) {
+    const h = H[k], bandTop = y, isFolded = folded.has(k) && many
+    html += `<div class="net-head" style="left:${LEFT + 14}px;top:${y + 10}px"><span class="dot" style="background:${NETS[k].color};width:10px;height:10px"></span><h3>${esc(NETS[k].name)}</h3><span>${summaryOf(h)}</span>${many ? `<button class="btn quiet fold" data-fold="${k}">${isFolded ? 'Open ▾' : 'Fold ▴'}</button>` : ''}</div>`
+    if (isFolded) { const bw = 900; html = `<div class="net-band" style="left:${LEFT}px;top:${bandTop}px;width:${bw}px;height:48px"></div>` + html; y += 48 + 20; continue }
+    const topY = y + 56, aggY = topY + (h.tops.length ? 120 : 0), nodeY = aggY + CH + 46
+    const pos = new Map()
+    // clusters left to right
+    let x = LEFT + BAND_PAD + 90, maxBottom = nodeY
+    for (const c of h.clusters) {
+      const k2 = Math.max(c.aggs.length, 1), m = c.nodeList.length
+      const aggW = k2 * CW + (k2 - 1) * 40
+      c.visible = onlyProblems ? c.nodeList.filter(n => hasProblem(c, n)) : c.nodeList
+      c.big = m > BIG
+      const openWs = c.visible.filter(n => openNodes.has(n.key)).map(n => nodeBox(n).w)
+      let cols, gridW
+      if (c.big) {
+        c.sites = []
+        for (const n of c.visible) { let st = c.sites.find(x => x.site === n.site); if (!st) c.sites.push(st = { site: n.site, nodes: [] }); st.nodes.push(n) }
+        cols = Math.min(PER_ROW, Math.max(1, ...c.sites.map(x => x.nodes.length)))
+        gridW = Math.max(SL + cols * (TW + 8) - 8, 360, ...openWs.map(w => SL + w)) + 20
+      } else {
+        cols = Math.max(1, Math.min(Math.max(k2, 2), c.visible.length))
+        gridW = Math.max(cols * NW + (cols - 1) * 10, ...openWs) + 20
+      }
+      const cw = Math.max(aggW, gridW)
+      const ax = x + (cw - aggW) / 2
+      c.aggs.forEach((id, i) => pos.set(id, { x: ax + i * (CW + 40), y: aggY }))
+      if (c.none) pos.set('none-' + k, { x: ax, y: aggY })
+      const gx = x + (cw - gridW) / 2
+      // closed nodes flow in a grid; an open node takes a row of its own
+      let col = 0, yy = nodeY + 24
+      c.siteRows = []
+      if (c.big) for (const st of c.sites) {
+        c.siteRows.push({ site: st.site, x: gx + 10, y: yy, w: gridW - 20, nodes: c.nodeList.filter(n => n.site === st.site) })
+        yy += 6; col = 0
+        for (const n of st.nodes) {
+          if (openNodes.has(n.key)) {
+            if (col) { yy += TH + 8; col = 0 }
+            const b = nodeBox(n)
+            pos.set(n.key, { x: gx + 10 + SL, y: yy, w: gridW - 20 - SL, h: b.h }); yy += b.h + 8
+          } else {
+            pos.set(n.key, { x: gx + 10 + SL + col * (TW + 8), y: yy, tile: true })
+            if (++col === cols) { col = 0; yy += TH + 8 }
+          }
+        }
+        if (col) yy += TH + 8
+        yy += 4
+      }
+      else for (const n of c.visible) {
+        if (openNodes.has(n.key)) {
+          if (col) { yy += NH + 10; col = 0 }
+          const b = nodeBox(n)
+          pos.set(n.key, { x: gx + 10, y: yy, w: gridW - 20, h: b.h }); yy += b.h + 10
+        } else {
+          pos.set(n.key, { x: gx + 10 + col * (NW + 10), y: yy })
+          if (++col === cols) { col = 0; yy += NH + 10 }
+        }
+      }
+      if (col && !c.big) yy += NH + 10
+      if (!c.visible.length) yy += 24
+      const gh = yy - nodeY + 2
+      c.frame = { x: gx, y: nodeY, w: gridW, h: gh }
+      c.mid = x + cw / 2
+      maxBottom = Math.max(maxBottom, nodeY + gh)
+      x += cw + 48
+    }
+    const rowEnd = x - 48
+    const midAll = (LEFT + BAND_PAD + 90 + rowEnd) / 2
+    h.tops.forEach((t, i) => pos.set(t.id, { x: midAll - (h.tops.length * (CW + 60) - 60) / 2 + i * (CW + 60), y: topY }))
+    const bandW = rowEnd + BAND_PAD - LEFT
+    worldW = Math.max(worldW, rowEnd + BAND_PAD + 40)
+    // band frame and tier labels
+    html = `<div class="net-band" style="left:${LEFT}px;top:${bandTop}px;width:${bandW}px;height:${maxBottom - bandTop + BAND_PAD}px"></div>` + html
+    if (h.tops.length) html += `<div class="tier" style="left:${LEFT + 14}px;top:${topY + 18}px">${h.bbs.length ? 'Backbone' : 'Top AGG'}</div>`
+    html += `<div class="tier" style="left:${LEFT + 14}px;top:${aggY + 18}px">Aggregation</div><div class="tier" style="left:${LEFT + 14}px;top:${nodeY + 30}px">Nodes</div>`
+    // lines: top -> AGG, peer links and stacks, AGG -> node frame
+    for (const l of h.netLinks) {
+      const a = pos.get(l.a), b = pos.get(l.b)
+      if (!a || !b) continue
+      if (l.kind === 'up') {
+        const weak = h.tops.length > 1 && h.netLinks.filter(x => x.kind === 'up' && x.b === l.b).length < h.tops.length
+        curve(a.x + CW / 2, a.y + CH, b.x + CW / 2, b.y, (weak ? 'weak ' : '') + (hot.has(l.b) ? 'hot' : ''))
+      } else {
+        const [p, q] = a.x < b.x ? [a, b] : [b, a], yy = p.y + CH / 2
+        if (l.kind === 'stack') svg += `<path class="stack" d="M${p.x + CW} ${yy - 3}H${q.x}M${p.x + CW} ${yy + 3}H${q.x}"/>`
+        else svg += `<path class="peer" d="M${p.x + CW} ${yy}H${q.x}"/>`
+      }
+    }
+    for (const c of h.clusters) {
+      const f = c.frame
+      html += `<div class="node-frame" style="left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px"><span class="head">${c.none ? 'Reach no AGG · ' : ''}${plural(c.nodeList.length, 'node')} · ${plural(c.nodeList.reduce((s, n) => s + n.ids.length, 0), 'switch', 'switches')} · ${c.nodeList.filter(n => hasProblem(c, n)).length} with problems${onlyProblems ? ' (only these shown)' : ''}</span></div>`
+      for (const sr of c.siteRows) {
+        const sw = sr.nodes.reduce((s, n) => s + n.ids.length, 0)
+        html += `<div class="site-row" style="left:${sr.x}px;top:${sr.y}px;width:${sr.w}px"><b>${bdi(sr.site)}</b>${plural(sr.nodes.length, 'node')} · ${sw} sw</div>`
+      }
+      for (const id of c.aggs) { const p = pos.get(id); curve(p.x + CW / 2, p.y + CH, f.x + f.w / 2, f.y, c.nodeList.some(n => hot.has(n.key)) ? 'hot' : '') }
+      for (const n of c.nodeList) {
+        const p = pos.get(n.key)
+        if (!p) continue // hidden by Only problems
+        if (openNodes.has(n.key)) { html += openNodeHtml(n, p, NETS[k].color, hot); continue }
+        if (p.tile) {
+          const also = netsAt(placeKey(n)).filter(x => x !== k)
+          const bad = [n.single && `${n.single} single`, n.chained && `${n.chained} chained`].filter(Boolean).join(' · ')
+          html += `<button class="card node tile ${hot.has(n.key) ? 'hot' : ''}" data-node="${esc(n.key)}" style="left:${p.x}px;top:${p.y}px;width:${TW}px;height:${TH}px" title="${esc(n.site)} › ${esc(n.node)}">${also.length ? `<span class="also">${also.map(x => `<span class="dot" style="background:${NETS[x].color}"></span>`).join('')}</span>` : ''}<div class="name">${bdi(n.node)}</div><div class="count"><span>${n.ids.length} sw</span>${bad ? `<span class="bad">· ${bad}</span>` : ''}</div></button>`
+          continue
+        }
+        const flags = (n.single ? `<span class="flag">${n.single} single</span>` : '') + (n.chained ? `<span class="flag">${n.chained} chained</span>` : '')
+        const also = netsAt(placeKey(n)).filter(x => x !== k)
+        html += `<button class="card node ${hot.has(n.key) ? 'hot' : ''}" data-node="${esc(n.key)}" style="left:${p.x}px;top:${p.y}px;width:${NW}px;height:${NH}px" title="${also.length ? 'Also holds switches of ' + also.map(x => esc(NETS[x].name)).join(', ') : ''}">${also.length ? `<span class="also">${also.map(x => `<span class="dot" style="background:${NETS[x].color}"></span>`).join('')}</span>` : ''}<div class="site">${bdi(n.site)}</div><div class="name">${bdi(n.node)}</div><div class="count"><b>${n.ids.length}</b> ${n.ids.length === 1 ? 'switch' : 'switches'}</div>${flags ? `<div class="count">${flags}</div>` : ''}</button>`
+      }
+    }
+    for (const t of h.tops) {
+      const p = pos.get(t.id)
+      html += `<button class="card top-tier ${hot.has(t.id) ? 'hot' : ''}" data-eq="${t.id}" style="left:${p.x}px;top:${p.y}px;width:${CW}px;height:${CH}px"><div class="top"><span class="dot" style="background:${NETS[k].color}"></span><span class="name">${bdi(t.name)}</span><span class="chip role">${t.role}</span></div><div class="place">${place(t)}</div></button>`
+    }
+    for (const c of h.clusters) {
+      if (c.none) { const p = pos.get('none-' + k); html += `<div class="card none" style="left:${p.x}px;top:${p.y}px;width:${CW}px;height:${CH}px"><div class="name">No AGG</div><div class="place">no uplink, or only to another network</div></div>`; continue }
+      for (const id of c.aggs) {
+        const a = eq.get(id), p = pos.get(id)
+        const ups = h.netLinks.filter(l => l.kind === 'up' && l.b === id).length
+        html += `<button class="card ${hot.has(id) ? 'hot' : ''}" data-eq="${id}" style="left:${p.x}px;top:${p.y}px;width:${CW}px;min-height:${CH}px"><div class="top"><span class="dot" style="background:${NETS[k].color}"></span><span class="name">${bdi(a.name)}</span><span class="chip role">AGG</span></div><div class="place">${place(a)}</div>${h.tops.length > 1 && ups < h.tops.length ? '<div class="warn">1 uplink to the top</div>' : ''}</button>`
+      }
+    }
+    y = maxBottom + BAND_PAD + 20
+  }
+  w.innerHTML = `<svg class="lines" width="${worldW}" height="${y}">${svg}</svg>` + html
+  w.style.width = worldW + 'px'; w.style.height = y + 40 + 'px'
+  w.style.zoom = scale
+}
+
+function renderBar() {
+  const many = shownNets().length > 1
+  $('netBar').innerHTML = `<span class="lbl">Network</span>` +
+    Object.keys(NETS).map(k => `<button class="net-chip ${shown.has(k) ? 'on' : ''}" data-chip="${k}" title="${shown.has(k) ? (many ? 'Click: only this network. Ctrl/⌘-click: remove it.' : 'Shown') : 'Click: only this network. + add or Ctrl/⌘-click: show it too.'}"><span class="dot" style="background:${NETS[k].color}"></span>${esc(NETS[k].name)}<span class="n">${H[k].access.length}</span>${!shown.has(k) ? '<span class="add" data-add="' + k + '">+ add</span>' : many ? '<span class="rm" data-add="' + k + '" title="Remove">✕</span>' : ''}</button>`).join('') +
+    (many ? `<span class="tools"><button class="btn quiet" data-foldall="1">Fold all</button><button class="btn quiet" data-foldall="0">Open all</button></span>` : '')
+}
+$('netBar').addEventListener('click', ev => {
+  const fa = ev.target.closest('[data-foldall]')
+  if (fa) { fa.dataset.foldall === '1' ? shownNets().forEach(k => folded.add(k)) : folded.clear(); render(); return }
+  const c = ev.target.closest('[data-chip]'); if (!c) return
+  const k = c.dataset.chip, adding = ev.target.closest('[data-add]') || ev.metaKey || ev.ctrlKey
+  if (adding) { if (!shown.has(k)) shown.add(k); else if (shown.size > 1) shown.delete(k) }
+  else shown = new Set([k])
+  selected = null; drawer = null; showDrawer(); render(); fit()
+})
+
+function netOfSwitchMark(id) {
+  const e = eq.get(id), h = H[e.net], ps = h.parents(id)
+  if (!ps.length) return up.get(id).some(u => u.other) ? 'other network' : 'no uplink'
+  if (ps.some(p => eq.get(p).role === 'Access')) return 'chained'
+  const c = h.clusters.find(c => c.aggs.includes(ps[0]))
+  if (c && c.aggs.length > 1 && ps.length === 1) return 'single'
+  return ''
+}
+function switchMark(n, id) {
+  const h = H[n.net], ps = h.parents(id)
+  if (!ps.length) return up.get(id).some(u => u.other) ? 'other network' : 'no uplink'
+  if (ps.some(p => eq.get(p).role === 'Access')) return 'chained'
+  if (n.cluster.aggs.length > 1 && ps.length === 1) return 'single'
+  return ''
+}
+function openNodeHtml(n, p, color, hot) {
+  const racks = contentsOf(n)
+  const selId = drawer?.kind === 'item' ? drawer.id : null, selSw = drawer?.kind === 'node' && drawer.key === n.key ? drawer.sw : null
+  const item = it => {
+    if (it.kind === 'free') return `<div class="u free" style="height:${UFREE}px">${it.size}U free</div>`
+    const sw = it.sw && eq.get(it.sw), foreign = sw && sw.net !== n.net
+    const mk = sw ? netOfSwitchMark(it.sw) : ''
+    const sel = it.id === selId || (it.sw && it.sw === selSw)
+    const tag = foreign ? `<span class="net-tag" style="background:${NETS[sw.net].color}">${sw.net}</span>` : ''
+    return `<button class="u ${it.kind} ${foreign ? 'foreign' : ''} ${sel ? 'sel' : ''}" data-item="${esc(it.id)}" data-key="${esc(n.key)}" style="height:${itemH(it)}px;${sw ? `border-left-color:${NETS[sw.net].color}` : ''}" title="${esc(it.name)}${foreign ? ' · ' + esc(NETS[sw.net].name) : ''}"><span class="un mono">${it.u}</span>${tag}<span class="nm">${bdi(it.name)}</span>${mk ? `<span class="mk">${mk}</span>` : ''}</button>`
+  }
+  return `<div class="card node open ${hot.has(n.key) ? 'hot' : ''}" style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px">
+    <div class="open-head"><button class="oh" data-node="${esc(n.key)}" title="Close"><span class="dot" style="background:${color}"></span><span class="note">${bdi(n.site)} ›</span><b>${bdi(n.node)}</b><span class="note">${plural(n.ids.length, 'switch', 'switches')} · ${plural(racks.length, 'rack')}${netsAt(placeKey(n)).length > 1 ? ' · also ' + netsAt(placeKey(n)).filter(x => x !== n.net).map(x => `<span class="net-tag" style="background:${NETS[x].color}">${x}</span>`).join(' ') : ''}</span></button>
+    <button class="btn quiet" data-uplinks="${esc(n.key)}">Uplinks ›</button><button class="btn quiet" data-node="${esc(n.key)}">Close ▴</button></div>
+    <div class="racks">${racks.map(rk => `<div class="rack" style="width:${RW}px"><div class="rh"><b>${bdi(rk.name)}</b><span>42U</span></div>${rk.items.map(item).join('')}</div>`).join('')}</div></div>`
+}
+
+function hotSet() {
+  const s = new Set()
+  if (!selected) return s
+  if (selected.kind === 'node') {
+    const n = nodeIndex.get(selected.key); s.add(n.key)
+    const h = H[n.net]
+    for (const id of n.ids) for (const a of h.aggsOf.get(id)) s.add(a)
+  } else s.add(selected.id)
+  return s
+}
+
+// ---------- Drawer ----------
+function showDrawer() {
+  const d = $('drawer')
+  if (!drawer) { d.hidden = true; return }
+  d.hidden = false
+  if (drawer.kind === 'item') {
+    const n = nodeIndex.get(drawer.key), it = findItem(drawer.key, drawer.id)
+    const kindName = { panel: 'Patch panel', hdf: 'HDF', other: 'Other' }[it.kind]
+    const ports = it.ports || []
+    d.innerHTML = `<div class="drawer-head"><div class="top"><h2>${bdi(it.name)}</h2><span class="chip role">${kindName}</span><button class="btn quiet close" data-close>✕</button></div>
+      <div class="place">${bdi(n.site)} › ${bdi(n.node)} › ${bdi(it.rack)} · U${it.u}${it.size > 1 ? '–' + (it.u - it.size + 1) : ''}</div></div>
+      <div class="drawer-body">${ports.length ? `<section><h3>${ports.filter(Boolean).length} of ${ports.length} ports in use</h3><div class="ports"><div class="row head"><span>#</span><span>Front</span><span>Rear</span></div>${ports.map((pt, i) => `<div class="row"><span class="mono">${i + 1}</span>${pt ? `<span class="mono">${esc(pt.front)}</span><span class="mono">${esc(pt.rear)}</span>` : '<span class="free">free</span><span></span>'}</div>`).join('')}</div></section>` : '<p class="note">No ports to patch.</p>'}</div>
+      <div class="actions"><button class="btn primary">Show in Physical</button><button class="btn">Inspector</button></div>`
+    return
+  }
+  if (drawer.kind === 'node') {
+    const n = nodeIndex.get(drawer.key), h = H[n.net], ids = new Set(n.ids)
+    const tops = n.ids.filter(id => !h.parents(id).some(p => ids.has(p)))
+    const row = (id, depth) => {
+      const e = eq.get(id), ps = h.parents(id), other = up.get(id).find(u => u.other)
+      const to = ps.length ? ps.map(p => bdi(eq.get(p).name)).join(' + ') : other ? `${bdi(eq.get(other.to).name)} (${esc(NETS[eq.get(other.to).net].name)})` : 'no uplink'
+      let mark = ''
+      if (!ps.length) mark = other ? '<span class="mark">other network</span>' : '<span class="mark">no uplink</span>'
+      else if (depth === 0 && n.cluster.aggs.length > 1 && ps.length === 1) mark = '<span class="mark">one uplink</span>'
+      const open = drawer.sw === id
+      let out = `<div class="sw ${depth ? 'chained' : ''} ${open ? 'sel' : ''}"><button data-sw="${id}" style="${depth > 1 ? `padding-left:${12 + depth * 12}px` : ''}"><span class="nm">${bdi(e.name)}</span><span class="to">→ ${to}</span>${mark}</button>`
+      if (open) out += `<div class="detail">${up.get(id).map(u => `<div class="uplink"><div class="ends"><span class="mono">${esc(u.port)}</span> → ${bdi(eq.get(u.to).name)} <span class="mono">${esc(u.toPort)}</span></div><div class="via">${u.via.length ? 'via ' + u.via.map(v => `<span class="mono">${esc(v)}</span>`).join(' › ') : 'direct'}</div></div>`).join('') || '<p class="note">No cable from this switch reaches another active device.</p>'}<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn">Focus</button><button class="btn">Inspector</button><button class="btn">Find AGG / BB</button></div></div>`
+      out += '</div>'
+      for (const c of (h.children.get(id) || [])) if (ids.has(c)) out += row(c, depth + 1)
+      return out
+    }
+    d.innerHTML = `<div class="drawer-head"><div class="top"><span class="dot" style="background:${NETS[n.net].color}"></span><h2>${bdi(n.node)}</h2><span class="chip role">Node</span><button class="btn quiet close" data-close>✕</button></div>
+      <div class="place">${bdi(n.site)} · ${esc(NETS[n.net].name)} · ${n.ids.length} switches</div></div>
+      <div class="drawer-body"><section><h3>Switches and their uplinks</h3>${tops.map(id => row(id, 0)).join('')}</section>
+      <p class="note">Uplinks are the first active device each switch reaches over real cables, through any panels and HDFs. Click a switch for its ports and the way.</p></div>
+      <div class="actions"><button class="btn primary">Show in Physical</button><button class="btn">Open in Inventory</button></div>`
+  } else {
+    const e = eq.get(drawer.id), h = H[e.net]
+    const ls = h.netLinks.filter(l => l.a === e.id || l.b === e.id)
+    const other = l => eq.get(l.a === e.id ? l.b : l.a)
+    const kindText = l => l.kind === 'stack' ? 'stack' : l.kind === 'peer' ? 'peer link' : (l.a === e.id ? 'down' : 'up')
+    const c = h.clusters.find(c => c.aggs.includes(e.id))
+    d.innerHTML = `<div class="drawer-head"><div class="top"><span class="dot" style="background:${NETS[e.net].color}"></span><h2>${bdi(e.name)}</h2><span class="chip role">${e.role}</span><button class="btn quiet close" data-close>✕</button></div><div class="place">${place(e)}</div></div>
+      <div class="drawer-body"><section><h3>Links to ${h.bbs.length ? 'BB and AGG' : 'other AGGs'}</h3><div class="links-list">${ls.map(l => `<div class="row"><span class="chip">${kindText(l)}</span>${bdi(other(l).name)} <span class="mono note">${esc(l.a === e.id ? l.aPort : l.bPort)} → ${esc(l.a === e.id ? l.bPort : l.aPort)}</span></div>`).join('')}</div></section>
+      ${c ? `<section><h3>Under it</h3><p>${c.nodeList.length} nodes, ${c.nodeList.reduce((s, n) => s + n.ids.length, 0)} switches${c.aggs.length > 1 ? `, shared with ${c.aggs.filter(x => x !== e.id).map(x => bdi(eq.get(x).name)).join(', ')}` : ''}</p></section>` : ''}
+      </div><div class="actions"><button class="btn primary">Focus</button><button class="btn">Inspector</button><button class="btn">Show in Physical</button></div>`
+  }
+}
+
+// ---------- Interaction ----------
+function selectNode(key, sw) { openNodes.add(key); selected = { kind: 'node', key }; drawer = { kind: 'node', key, sw: sw || null }; render(); showDrawer(); scrollToSel() }
+function scrollToSel() { const el = document.querySelector('.u.sel, .card.hot[data-node], .card.node.open.hot, .card.hot[data-eq]'); el?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' }) }
+$('world').addEventListener('click', ev => {
+  const f = ev.target.closest('[data-fold]'); if (f) { folded.has(f.dataset.fold) ? folded.delete(f.dataset.fold) : folded.add(f.dataset.fold); render(); return }
+  const it = ev.target.closest('[data-item]')
+  if (it) {
+    const key = it.dataset.key, x = findItem(key, it.dataset.item)
+    selected = { kind: 'node', key }
+    if (x.kind === 'switch') { const own = [...nodeIndex.values()].find(m => m.ids.includes(x.sw)); selected = { kind: 'node', key: own.key }; drawer = { kind: 'node', key: own.key, sw: x.sw } }
+    else drawer = { kind: 'item', key, id: x.id }
+    render(); showDrawer(); return
+  }
+  const u = ev.target.closest('[data-uplinks]'); if (u) { selected = { kind: 'node', key: u.dataset.uplinks }; drawer = { kind: 'node', key: u.dataset.uplinks, sw: null }; render(); showDrawer(); return }
+  const n = ev.target.closest('[data-node]')
+  if (n) {
+    const key = n.dataset.node
+    if (openNodes.has(key)) { openNodes.delete(key); if (selected?.key === key) selected = null; if (drawer?.key === key) drawer = null }
+    else { openNodes.add(key); selected = { kind: 'node', key } }
+    render(); showDrawer(); return
+  }
+  const e = ev.target.closest('[data-eq]'); if (e) { const off = selected?.id === e.dataset.eq; selected = off ? null : { kind: 'eq', id: e.dataset.eq }; drawer = off ? null : { kind: 'eq', id: e.dataset.eq }; render(); showDrawer() }
+})
+$('drawer').addEventListener('click', ev => {
+  if (ev.target.closest('[data-close]')) { selected = null; drawer = null; render(); showDrawer(); return }
+  const s = ev.target.closest('[data-sw]'); if (s) { drawer.sw = drawer.sw === s.dataset.sw ? null : s.dataset.sw; render(); showDrawer() }
+})
+$('net').onchange = e => { if (e.target.value === 'many') return; shown = new Set([e.target.value]); selected = null; drawer = null; showDrawer(); render(); fit() }
+$('onlyProblems').onchange = e => { onlyProblems = e.target.checked; render() }
+$('focusTab').onclick = () => alert('Focus stays as it is today; Focus on a switch or AGG opens it.')
+
+let hitIdx = 0
+$('find').addEventListener('input', () => {
+  const q = $('find').value.trim().toLowerCase(), ul = $('hits')
+  if (!q) { ul.hidden = true; return }
+  const nets = Object.keys(NETS) // find looks in every network; a hit in a hidden one adds it
+  const sws = [...eq.values()].filter(e => nets.includes(e.net) && e.name.toLowerCase().includes(q)).slice(0, 10).map(e => ({ t: 'eq', id: e.id, label: e.name, where: `${place(e)} · ${esc(NETS[e.net].name)}` }))
+  const nodes = [...nodeIndex.values()].filter(n => nets.includes(n.net) && (n.site + ' ' + n.node).toLowerCase().includes(q)).slice(0, 6).map(n => ({ t: 'node', id: n.key, label: n.node, where: `${bdi(n.site)} · ${esc(NETS[n.net].name)}` }))
+  const hits = [...nodes, ...sws]
+  hitIdx = 0
+  ul.innerHTML = hits.map((h, i) => `<li><button data-t="${h.t}" data-id="${esc(h.id)}" class="${i === 0 ? 'kb' : ''}">${bdi(h.label)}<span class="where">${h.where}</span></button></li>`).join('') || '<li class="note" style="padding:6px">Nothing found</li>'
+  ul.hidden = false
+})
+$('find').addEventListener('keydown', ev => {
+  const btns = [...$('hits').querySelectorAll('button')]
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); hitIdx = (hitIdx + (ev.key === 'ArrowDown' ? 1 : -1) + btns.length) % btns.length; btns.forEach((b, i) => b.classList.toggle('kb', i === hitIdx)) }
+  if (ev.key === 'Enter' && btns[hitIdx]) btns[hitIdx].click()
+  if (ev.key === 'Escape') $('hits').hidden = true
+})
+$('hits').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-id]'); if (!b) return
+  $('hits').hidden = true; $('find').value = ''
+  if (b.dataset.t === 'node') { folded.delete(nodeIndex.get(b.dataset.id).net); shown.add(nodeIndex.get(b.dataset.id).net); selectNode(b.dataset.id); return }
+  const e = eq.get(b.dataset.id); folded.delete(e.net); shown.add(e.net)
+  if (e.role === 'Access') { const n = [...nodeIndex.values()].find(n => n.ids.includes(e.id)); selectNode(n.key, e.id) }
+  else { selected = { kind: 'eq', id: e.id }; drawer = { kind: 'eq', id: e.id }; render(); showDrawer(); scrollToSel() }
+})
+
+function fit() { const c = $('canvas'); const w = parseFloat($('world').style.width); scale = Math.max(0.85, Math.min(1, (c.clientWidth - 20) / w)); render(); c.scrollLeft = 0; c.scrollTop = 0 }
+$('fit').onclick = fit
+$('zin').onclick = () => { scale = Math.min(1.6, scale + 0.1); render() }
+$('zout').onclick = () => { scale = Math.max(0.4, scale - 0.1); render() }
+let drag = null
+$('canvas').addEventListener('pointerdown', ev => { if (ev.target.closest('button')) return; drag = { x: ev.clientX, y: ev.clientY, l: $('canvas').scrollLeft, t: $('canvas').scrollTop }; $('canvas').classList.add('dragging') })
+window.addEventListener('pointermove', ev => { if (!drag) return; $('canvas').scrollLeft = drag.l - (ev.clientX - drag.x); $('canvas').scrollTop = drag.t - (ev.clientY - drag.y) })
+window.addEventListener('pointerup', () => { drag = null; $('canvas').classList.remove('dragging') })
+
+render(); fit()
+</script>
+</body>
+</html>

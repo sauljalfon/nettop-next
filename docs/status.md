@@ -2,10 +2,10 @@
 
 **This is the only document that says where the project is.** Everything else links here.
 
-> **Now / Next** (updated 2026-10-20)
-> - **Done:** M1–M4.2, M5a, M5c, M5b steps 11–13, P1, P2 (the data-entry fixes), Explanatory paths (2026-10-14), the visual pass (2026-10-15) and the conceptual map for real data (2026-10-19, D35, D36, migration 009), all deployed. The test server runs `main` with real data entered by hand. **The inventory view** (M5b step 14, D37) and **a more useful inventory** (2026-10-20, D38) are finished on the branch `inventory`, not merged or deployed yet.
-> - **Now:** merge and deploy the branch `inventory` when the owner says so (no migration).
-> - **Then:** [M6](roadmap.md#1-m6--layout-undo-and-measured-scale), M7 and the production servers. See [roadmap.md](roadmap.md).
+> **Now / Next** (updated 2026-10-25)
+> - **Done:** M1–M4.2, M5a, M5c, M5b steps 11–13, P1, P2 (the data-entry fixes), Explanatory paths (2026-10-14), the visual pass (2026-10-15) and the conceptual map for real data (2026-10-19, D35, D36, migration 009), the inventory view (M5b step 14, D37) and a more useful inventory (2026-10-20, D38), all deployed. The test server runs `main` with real data entered by hand.
+> - **Now:** [the network hierarchy](roadmap.md#1-the-network-hierarchy-the-conceptual-views-new-purpose) (D39): design approved 2026-10-25, the plan is next.
+> - **Then:** [more equipment](roadmap.md#2-more-equipment) after the hierarchy's phase 1, [M6](roadmap.md#3-m6--layout-undo-and-measured-scale), M7 and the production servers. See [roadmap.md](roadmap.md).
 
 Below is what the code runs today, by area. The headings name the milestone that built each part (the milestones themselves are in [history/implementation-plan-m1-to-p2.md](history/implementation-plan-m1-to-p2.md)). The rules behind it are [architecture.md](architecture.md), [ui-spec.md](ui-spec.md) and [decisions.md](decisions.md).
 
