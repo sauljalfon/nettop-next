@@ -1,39 +1,71 @@
 import { expect, type Page } from '@playwright/test'
 
+/** Building A's node card under AGG-03 + AGG-08 in the acceptance fixture's Network A. */
+export const BUILDING_A = 'agg-03+agg-08|node-building-a'
+
+/**
+ * Selects EDGE-17 from the hierarchy: Building A's drawer, the switch, Inspector.
+ * This only selects (the inspector opens); it does not open Focus.
+ */
+export async function selectEdge17(page: Page) {
+  await page.locator(`[data-card-key="${BUILDING_A}"]`).click()
+  const drawer = page.getByTestId('hierarchy-drawer')
+  await drawer.locator('[data-switch-id="edge-17"]').click()
+  await drawer.getByRole('button', { name: 'Inspector' }).click()
+  await expect(page.locator('.inspector-header h2')).toHaveText('EDGE-17')
+}
+
 export const viewport = (page: Page) =>
   page.locator('.react-flow__viewport').getAttribute('style')
 
 /**
- * Waits for the map view that is showing to be ready: the overview fitted, or
+ * Waits for the map view that is showing to be ready: the hierarchy fitted, or
  * Focus drawn with a settled viewport.
  */
 export async function fitted(page: Page) {
-  const overview = page.locator('[data-view="overview"]')
+  const hierarchy = page.locator('[data-view="hierarchy"]')
   const focus = page.locator('[data-view="focus"]')
-  await expect(overview.or(focus)).toBeVisible()
-  if (await overview.count()) {
-    await expect(overview).toHaveAttribute('data-fitted', 'true')
+  await expect(hierarchy.or(focus)).toBeVisible()
+  if (await hierarchy.count()) {
+    await expect(hierarchy).toHaveAttribute('data-fitted', 'true')
   } else {
     await expect(focus.locator('[data-equipment-id]').first()).toBeVisible()
     await settledViewport(page)
   }
 }
 
-/** The overview as the user sees it: node positions and what the selected route lights. */
-export const overviewState = (page: Page) =>
-  page.locator('[data-view="overview"]').evaluate((el) => ({
-    positions: el.getAttribute('data-node-positions'),
-    nodes: [...el.querySelectorAll('[data-node-id][data-on-route="true"]')]
-      .map((n) => n.getAttribute('data-node-id'))
+/** The hierarchy as the user sees it: where the cards are, and what the selected route lights. */
+export const hierarchyState = (page: Page) =>
+  page.locator('[data-view="hierarchy"]').evaluate((el) => ({
+    positions: el.getAttribute('data-card-positions'),
+    cards: [...el.querySelectorAll('[data-card-key][data-on-route="true"]')]
+      .map((n) => n.getAttribute('data-card-key'))
       .sort(),
-    pairs: [...document.querySelectorAll('[data-pair][data-on-route="true"]')]
-      .map((n) => n.getAttribute('data-pair'))
+    lines: [...el.querySelectorAll('[data-line][data-on-route="true"]')]
+      .map((n) => n.getAttribute('data-line'))
       .sort(),
   }))
 
+/** Where each card is, by its key, from the hierarchy's `data-card-positions`. */
+export async function cardPositions(page: Page) {
+  const text =
+    (await page
+      .locator('[data-view="hierarchy"]')
+      .getAttribute('data-card-positions')) ?? ''
+  return Object.fromEntries(
+    text
+      .split(' ')
+      .filter(Boolean)
+      .map((p) => {
+        const at = p.lastIndexOf(':')
+        return [p.slice(0, at), p.slice(at + 1)]
+      }),
+  )
+}
+
 /**
  * Chooses equipment by its exact name through Explore: search, Enter. On the
- * overview (or in Focus) this opens Focus on it and the inspector.
+ * hierarchy (or in Focus) this opens Focus on it and the inspector.
  */
 export async function selectEquipment(page: Page, name: string) {
   await openExplore(page)

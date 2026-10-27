@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test'
 import {
   fitted,
   openRackInPhysical,
-  overviewState,
+  viewport,
+  hierarchyState,
   pick,
   expandResults,
 } from './helpers'
@@ -20,15 +21,13 @@ test('trace physical continuity on the map and in rack elevations', async ({
     .click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
-  // The selected route lights its node cards and lines, and its walk sheet names the exact positions.
+  // The selected route lights its cards and lines, and its walk sheet names the exact positions.
   await expect
-    .poll(async () => (await overviewState(page)).nodes)
-    .toEqual([
-      'node-building-a',
-      'node-main-distribution',
-      'node-north-sub-main',
-    ])
-  expect((await overviewState(page)).pairs.length).toBeGreaterThan(0)
+    .poll(async () => (await hierarchyState(page)).cards)
+    .toEqual(['agg-03', 'agg-03+agg-08|node-building-a'])
+  expect((await hierarchyState(page)).lines).toEqual([
+    'group:agg-03+agg-08:agg-03',
+  ])
   const sheet = page.getByTestId('walk-sheet')
   await expect(sheet).toContainText('3C/5')
   await expect(sheet).toContainText('2B/3')
@@ -98,12 +97,7 @@ test('trace physical continuity on the map and in rack elevations', async ({
   expect(errors).toEqual([])
 })
 
-// Dragging a node card saves the shared arrangement on the server: clear it after the test.
-test.afterEach(async ({ request }) => {
-  await request.delete('/api/map-layout')
-})
-
-test('panels overlay the full-page map and dragging does not render the shell', async ({
+test('panels overlay the full-page map and panning does not render the shell', async ({
   page,
 }) => {
   await page.goto('/')
@@ -120,10 +114,9 @@ test('panels overlay the full-page map and dragging does not render the shell', 
   )
   expect(await page.locator('.flow-surface').boundingBox()).toEqual(bounds)
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  // Back on the overview, DR Distribution holds AGG-12: that is the card to drag.
-  await page.getByRole('button', { name: '‹ Overview' }).click()
+  // Back on the hierarchy: panning it must not touch the shell.
+  await page.getByRole('button', { name: '‹ Hierarchy' }).click()
   await fitted(page)
-  const item = page.locator('[data-node-id="node-dr-distribution"]')
   await page.evaluate(() => {
     ;(window as unknown as { shellMutations: number }).shellMutations = 0
     new MutationObserver(() => {
@@ -134,14 +127,14 @@ test('panels overlay the full-page map and dragging does not render the shell', 
       attributes: true,
     })
   })
-  const before = await item.boundingBox()
-  if (!before) throw new Error('Node not visible')
-  await page.mouse.move(before.x + 30, before.y + 14)
+  const view = await viewport(page)
+  const box = (await page.locator('[data-view="hierarchy"]').boundingBox())!
+  const from = { x: box.x + box.width - 90, y: box.y + box.height - 160 }
+  await page.mouse.move(from.x, from.y)
   await page.mouse.down()
-  await page.mouse.move(before.x + 45, before.y + 44, { steps: 12 })
+  await page.mouse.move(from.x - 60, from.y - 30, { steps: 12 })
   await page.mouse.up()
-  const after = await item.boundingBox()
-  expect(after?.y).toBeGreaterThan(before.y + 8)
+  await expect.poll(() => viewport(page)).not.toBe(view)
   expect(
     await page.evaluate(
       () => (window as unknown as { shellMutations: number }).shellMutations,

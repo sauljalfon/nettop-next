@@ -83,3 +83,27 @@ func TestPR04HealthReportsTheEnvironment(t *testing.T) {
 		}
 	}
 }
+
+// HI-11: the overview's saved layout is gone; its paths answer what any unknown /api path answers.
+func TestHI11MapLayoutPathsAreUnknown(t *testing.T) {
+	h := New(fixture{}, "dev")
+	answer := func(method, path, body string) (int, string) {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(method, path, strings.NewReader(body)))
+		return w.Code, w.Body.String()
+	}
+	wantCode, wantBody := answer("GET", "/api/no-such-path", "")
+	if wantCode != 404 {
+		t.Fatalf("an unknown /api path answers 404, got %d", wantCode)
+	}
+	for _, c := range [][3]string{
+		{"GET", "/api/map-layout", ""},
+		{"PUT", "/api/map-layout/nodes/x", `{"x":1,"y":2}`},
+		{"DELETE", "/api/map-layout", ""},
+	} {
+		code, body := answer(c[0], c[1], c[2])
+		if code != wantCode || body != wantBody {
+			t.Errorf("%s %s: %d %q, want %d %q", c[0], c[1], code, body, wantCode, wantBody)
+		}
+	}
+}

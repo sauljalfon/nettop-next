@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createMapSession, type MapMode } from './mapSession'
+import { createMapSession, shownNetworks, type MapMode } from './mapSession'
 
 describe('POL-14 the location highlight lives in the session', () => {
   const building = { kind: 'node', id: 'node-a' } as const
@@ -31,15 +31,15 @@ describe('POL-14 the location highlight lives in the session', () => {
     expect(session.highlight()).toEqual(building)
   })
 
-  it('notifies subscribers, and leaves the overview viewport alone', () => {
+  it('notifies subscribers, and leaves the hierarchy viewport alone', () => {
     const session = createMapSession()
-    session.setOverviewViewport({ x: 1, y: 2, zoom: 0.5 })
+    session.setHierarchyViewport({ x: 1, y: 2, zoom: 0.5 })
     let calls = 0
     session.subscribe(() => calls++)
     session.setHighlight(building)
     session.setHighlight(undefined)
     expect(calls).toBe(2)
-    expect(session.overviewViewport()).toEqual({ x: 1, y: 2, zoom: 0.5 })
+    expect(session.hierarchyViewport()).toEqual({ x: 1, y: 2, zoom: 0.5 })
   })
 })
 
@@ -66,11 +66,11 @@ describe('POL-14 a fit request is handled once', () => {
     expect(session.fitHandled()).toBe(2)
   })
 
-  it('does not change the overview viewport by itself', () => {
+  it('does not change the hierarchy viewport by itself', () => {
     const session = createMapSession()
-    session.setOverviewViewport({ x: 3, y: 4, zoom: 0.5 })
+    session.setHierarchyViewport({ x: 3, y: 4, zoom: 0.5 })
     session.requestFit(['EDGE-17'])
-    expect(session.overviewViewport()).toEqual({ x: 3, y: 4, zoom: 0.5 })
+    expect(session.hierarchyViewport()).toEqual({ x: 3, y: 4, zoom: 0.5 })
   })
 
   it('does not alias the list it was given', () => {
@@ -94,17 +94,17 @@ describe('POL-22 route view state', () => {
 
   it('leaves the map exactly as it was: viewport, open cards and highlight', () => {
     const session = createMapSession()
-    session.setOverviewViewport({ x: 10, y: 20, zoom: 0.7 })
+    session.setHierarchyViewport({ x: 10, y: 20, zoom: 0.7 })
     session.toggleNode('n1')
     session.setHighlight({ kind: 'node', id: 'node-a' })
     const before = {
-      viewport: session.overviewViewport(),
+      viewport: session.hierarchyViewport(),
       open: session.openNodes(),
       highlight: session.highlight(),
     }
     session.setRouteView(true)
     session.setRouteView(false)
-    expect(session.overviewViewport()).toEqual(before.viewport)
+    expect(session.hierarchyViewport()).toEqual(before.viewport)
     expect(session.openNodes()).toBe(before.open)
     expect(session.highlight()).toEqual(before.highlight)
   })
@@ -118,19 +118,17 @@ describe('POL-22 route view state', () => {
   })
 })
 
-describe('CM-09 overview session state', () => {
-  it('defaults: the overview is the default view, nothing open, nothing proposed', () => {
+describe('HI-07 hierarchy session state', () => {
+  it('defaults: the hierarchy is the default view, nothing open', () => {
     const session = createMapSession()
-    expect(session.view()).toBe('overview')
-    expect(session.overviewViewport()).toBeUndefined()
-    expect(session.overviewNeedsFit()).toBe(true)
+    expect(session.view()).toBe('hierarchy')
+    expect(session.hierarchyViewport()).toBeUndefined()
+    expect(session.hierarchyNeedsFit()).toBe(true)
     expect(session.openNodes().size).toBe(0)
-    expect(session.proposedPosition('n1')).toBeUndefined()
-    expect(session.proposedPositions().size).toBe(0)
   })
 
-  it('has only the overview and Focus', () => {
-    const views: MapMode[] = ['overview', 'focus']
+  it('has only the hierarchy and Focus', () => {
+    const views: MapMode[] = ['hierarchy', 'focus']
     // @ts-expect-error the device map is gone
     const gone: MapMode = 'devices'
     expect(views).not.toContain(gone)
@@ -145,16 +143,16 @@ describe('CM-09 overview session state', () => {
     expect(calls).toBe(1)
     session.setView('focus')
     expect(calls).toBe(1)
-    session.setView('overview')
-    expect(session.view()).toBe('overview')
+    session.setView('hierarchy')
+    expect(session.view()).toBe('hierarchy')
   })
 
   it('records its viewport and fits once until it has one', () => {
     const session = createMapSession()
-    expect(session.overviewNeedsFit()).toBe(true)
-    session.setOverviewViewport({ x: 5, y: 6, zoom: 0.5 })
-    expect(session.overviewNeedsFit()).toBe(false)
-    expect(session.overviewViewport()).toEqual({ x: 5, y: 6, zoom: 0.5 })
+    expect(session.hierarchyNeedsFit()).toBe(true)
+    session.setHierarchyViewport({ x: 5, y: 6, zoom: 0.5 })
+    expect(session.hierarchyNeedsFit()).toBe(false)
+    expect(session.hierarchyViewport()).toEqual({ x: 5, y: 6, zoom: 0.5 })
   })
 
   it('toggles open nodes by replacing the set', () => {
@@ -173,32 +171,19 @@ describe('CM-09 overview session state', () => {
     expect(calls).toBe(3)
   })
 
-  it('records proposed positions by node ID without sharing the caller object', () => {
-    const session = createMapSession()
-    const p = { x: 3, y: 4 }
-    const before = session.proposedPositions()
-    session.setProposedPosition('n9', p)
-    p.x = 99
-    expect(session.proposedPosition('n9')).toEqual({ x: 3, y: 4 })
-    expect(session.proposedPositions()).not.toBe(before)
-    expect(session.proposedPositions().get('n9')).toEqual({ x: 3, y: 4 })
-  })
-
-  it('resetOverview clears proposed positions and the viewport and bumps the version', () => {
-    const session = createMapSession()
-    session.setOverviewViewport({ x: 1, y: 1, zoom: 1 })
-    session.setProposedPosition('n9', { x: 1, y: 1 })
-    session.toggleNode('a')
-    const version = session.overviewVersion()
-    let calls = 0
-    session.subscribe(() => calls++)
-    session.resetOverview()
-    expect(session.proposedPositions().size).toBe(0)
-    expect(session.overviewNeedsFit()).toBe(true)
-    expect(session.overviewVersion()).toBe(version + 1)
-    expect(calls).toBe(1)
-    // What is not the arrangement stays: open cards.
-    expect([...session.openNodes()]).toEqual(['a'])
+  it('has no dragged-position state any more', () => {
+    const session = createMapSession() as unknown as Record<string, unknown>
+    for (const gone of [
+      'proposedPositions',
+      'proposedPosition',
+      'setProposedPosition',
+      'resetOverview',
+      'overviewVersion',
+      'overviewViewport',
+      'setOverviewViewport',
+      'overviewNeedsFit',
+    ])
+      expect(session[gone]).toBeUndefined()
   })
 })
 
@@ -210,18 +195,18 @@ describe('CM-10 focus session state', () => {
     expect(session.openGroups().size).toBe(0)
   })
 
-  it('back from Focus returns to the overview, its viewport untouched', () => {
+  it('back from Focus returns to the hierarchy, its viewport untouched', () => {
     const session = createMapSession()
-    session.setView('overview')
-    session.setOverviewViewport({ x: 1, y: 2, zoom: 0.7 })
+    session.setView('hierarchy')
+    session.setHierarchyViewport({ x: 1, y: 2, zoom: 0.7 })
     session.focusOn('a')
     expect(session.view()).toBe('focus')
     expect(session.focusId()).toBe('a')
     session.focusOn('b')
     expect(session.focusId()).toBe('b')
     session.back()
-    expect(session.view()).toBe('overview')
-    expect(session.overviewViewport()).toEqual({ x: 1, y: 2, zoom: 0.7 })
+    expect(session.view()).toBe('hierarchy')
+    expect(session.hierarchyViewport()).toEqual({ x: 1, y: 2, zoom: 0.7 })
   })
 
   it('keeps the hops, clamped to 1–3', () => {
@@ -251,5 +236,55 @@ describe('CM-10 focus session state', () => {
     session.focusOn('x')
     expect(session.openGroups().size).toBe(0)
     expect(calls).toBeGreaterThanOrEqual(4)
+  })
+})
+
+describe('HI-07 the hierarchy in the session', () => {
+  const nets = (...ids: string[]) =>
+    ids.map((id) => ({ id, name: `Network ${id}` }))
+
+  it('shows the first chosen network that exists, else the snapshot’s first, else none', () => {
+    expect(shownNetworks(['B'], nets('A', 'B'))).toEqual(['B'])
+    expect(shownNetworks(['X', 'B'], nets('A', 'B'))).toEqual(['B'])
+    expect(shownNetworks(['X'], nets('A', 'B'))).toEqual(['A'])
+    expect(shownNetworks([], nets('A', 'B'))).toEqual(['A'])
+    expect(shownNetworks(['A'], [])).toEqual([])
+    expect(shownNetworks([], [])).toEqual([])
+  })
+
+  it('keeps the map’s own choice of network, replaced by showNetwork, and notifies', () => {
+    const session = createMapSession()
+    expect(session.networks()).toEqual([])
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.showNetwork('B')
+    expect(session.networks()).toEqual(['B'])
+    session.showNetwork('B')
+    session.showNetwork('A')
+    expect(session.networks()).toEqual(['A'])
+    expect(calls).toBe(2)
+  })
+
+  it('remembers Only problems, off at first, and notifies on a change only', () => {
+    const session = createMapSession()
+    expect(session.onlyProblems()).toBe(false)
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.setOnlyProblems(true)
+    session.setOnlyProblems(true)
+    expect(session.onlyProblems()).toBe(true)
+    session.setOnlyProblems(false)
+    expect(calls).toBe(2)
+  })
+
+  it('records the hierarchy’s viewport, which needs a fit until one is recorded', () => {
+    const session = createMapSession()
+    expect(session.hierarchyViewport()).toBeUndefined()
+    expect(session.hierarchyNeedsFit()).toBe(true)
+    const v = { x: 1, y: 2, zoom: 0.5 }
+    session.setHierarchyViewport(v)
+    v.x = 99
+    expect(session.hierarchyViewport()).toEqual({ x: 1, y: 2, zoom: 0.5 })
+    expect(session.hierarchyNeedsFit()).toBe(false)
   })
 })

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { piecesText } from '../../shared/textPieces'
 import type { Snapshot } from '../../shared/types'
 import { acceptanceSnapshot } from '../map/acceptanceFixture'
+import { buildHierarchies } from '../map/hierarchy'
+import { hierarchyFixture } from '../map/hierarchyFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import { buildProblems } from './problems'
 
@@ -219,5 +221,148 @@ describe('INV-09 problems', () => {
       e.id === 'AGG-15' ? { ...e, serialNumber: '' } : e,
     )
     expect(problemsOf(s).map((r) => r.icon)).toEqual(['switch'])
+  })
+})
+
+/** HI-08. One `uplink:` row per access switch with a mark, from the hierarchy. */
+describe('HI-08 uplink problems', () => {
+  const hier = () =>
+    hierarchyFixture()
+      .site('s1', 'Main')
+      .node('n1', 's1', 'Hall 1')
+      .sw('BB1', 'backbone', 'A')
+      .sw('AGG1', 'aggregation', 'A', undefined, 'Agg One')
+      .sw('AGG2', 'aggregation', 'A')
+  const uplinkRows = (s: Snapshot) =>
+    problemsOf(s).filter((p) => p.key.startsWith('uplink:'))
+
+  it('gives a single uplink its row, with the port, the AGG and the group size', () => {
+    const f = hier()
+      .sw('ONE', 'access', 'A', 'n1')
+      .sw('TWO', 'access', 'A', 'n1')
+    f.run('ONE', 'AGG1')
+    f.run('TWO', 'AGG1')
+    f.run('TWO', 'AGG2')
+    const rows = uplinkRows(f.snapshot())
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      key: 'uplink:ONE',
+      equipmentId: 'ONE',
+      proposed: false,
+      values: {
+        what: 'ONE',
+        problem: 'A switch has one uplink',
+        detail: 'Port 1 → Agg One; its group has 2 AGGs',
+        site: 'Main',
+        node: 'Hall 1',
+      },
+    })
+    expect(rows[0].parts?.detail).toEqual([
+      { name: 'Port 1' },
+      { text: ' → ' },
+      { name: 'Agg One' },
+      { text: '; its group has 2 AGGs' },
+    ])
+  })
+
+  it('gives a chained switch its row, naming its parents', () => {
+    const f = hier()
+      .sw('P1', 'access', 'A', 'n1', 'Parent One')
+      .sw('P2', 'access', 'A', 'n1', 'Parent Two')
+      .sw('KID', 'access', 'A', 'n1')
+    f.run('P1', 'AGG1')
+    f.run('P1', 'AGG2')
+    f.run('P2', 'AGG1')
+    f.run('P2', 'AGG2')
+    f.run('KID', 'P1')
+    f.run('KID', 'P2')
+    const [row] = uplinkRows(f.snapshot())
+    expect(row.key).toBe('uplink:KID')
+    expect(row.values.problem).toBe('A switch is chained behind another')
+    expect(row.parts?.detail).toEqual([
+      { text: 'Behind ' },
+      { name: 'Parent One' },
+      { text: ', ' },
+      { name: 'Parent Two' },
+    ])
+    expect(row.values.detail).toBe('Behind Parent One, Parent Two')
+  })
+
+  it('gives a switch with no uplink its row', () => {
+    const f = hier().sw('LOST', 'access', 'A', 'n1')
+    const [row] = uplinkRows(f.snapshot())
+    expect(row.key).toBe('uplink:LOST')
+    expect(row.values.problem).toBe('A switch has no uplink')
+    expect(row.parts?.detail).toEqual([
+      { text: 'No cable reaches an AGG or BB' },
+    ])
+  })
+
+  it('gives a switch that reaches only another network its row, and keeps the cable row', () => {
+    const f = hier()
+      .sw('ACC', 'access', 'A', 'n1')
+      .sw('FAR', 'access', 'B', 'n1', 'Far switch')
+      .sw('FAR2', 'access', 'B', 'n1', 'Far two')
+    f.run('ACC', 'FAR')
+    f.run('ACC', 'FAR2')
+    const s = f.snapshot()
+    const row = uplinkRows(s).find((r) => r.key === 'uplink:ACC')!
+    expect(row.values.problem).toBe('A switch reaches only another network')
+    expect(row.parts?.detail).toEqual([
+      { name: 'Far switch' },
+      { text: ' on ' },
+      { name: 'Network B' },
+      { text: ', ' },
+      { name: 'Far two' },
+      { text: ' on ' },
+      { name: 'Network B' },
+    ])
+    expect(keysOf(s).filter((k) => k.startsWith('networks:'))).toHaveLength(2)
+  })
+
+  it('gives a switch with an other-network cable and an uplink no uplink row, but keeps the cable row', () => {
+    const f = hier()
+      .sw('ACC', 'access', 'A', 'n1')
+      .sw('FAR', 'access', 'B', 'n1')
+    f.run('ACC', 'AGG1')
+    f.run('ACC', 'FAR')
+    const s = f.snapshot()
+    expect(uplinkRows(s).map((r) => r.key)).not.toContain('uplink:ACC')
+    expect(keysOf(s).filter((k) => k.startsWith('networks:'))).toHaveLength(1)
+  })
+
+  it('has as many rows as the hierarchies mark, over every network, after the other rules', () => {
+    const f = hier()
+      .sw('LOST', 'access', 'A', 'n1')
+      .sw('ONE', 'access', 'A', 'n1')
+      .sw('BOTH', 'access', 'A', 'n1')
+      .sw('LOST2', 'access', 'B', 'n1')
+    f.run('ONE', 'AGG1')
+    f.run('BOTH', 'AGG1')
+    f.run('BOTH', 'AGG2')
+    const s = f.snapshot()
+    const marked = [...buildHierarchies(indexSnapshot(s)).values()].reduce(
+      (n, h) => n + h.counts.marked,
+      0,
+    )
+    expect(marked).toBe(3)
+    expect(uplinkRows(s)).toHaveLength(marked)
+    const keys = keysOf(s)
+    const first = keys.findIndex((k) => k.startsWith('uplink:'))
+    expect(keys.slice(first).every((k) => k.startsWith('uplink:'))).toBe(true)
+  })
+
+  it('marks the row proposed when the switch is not installed', () => {
+    const f = hier().sw('LOST', 'access', 'A', 'n1')
+    const s = { ...f.snapshot(), context: 'planned' as const }
+    const rows = problemsOf(s, { ...s, equipment: [] })
+    expect(rows.find((r) => r.key === 'uplink:LOST')).toMatchObject({
+      proposed: true,
+    })
+  })
+
+  it('has no uplink row on the clean acceptance fixture', () => {
+    expect(keysOf(clean()).filter((k) => k.startsWith('uplink:'))).toEqual([])
+    expect(keysOf(base).filter((k) => k.startsWith('uplink:'))).toEqual([])
   })
 })

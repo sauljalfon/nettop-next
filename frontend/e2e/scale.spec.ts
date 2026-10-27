@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { settledViewport } from './helpers'
 
-// SC-02 / CM-12, opt-in: `SCALE=1 npx playwright test -c playwright.scale.config.ts`.
+// SC-02 / HI-12, opt-in: `SCALE=1 npx playwright test -c playwright.scale.config.ts`.
 // Runs against the generated campus (backend/internal/scalefixture) and records
 // how long each step takes. Timings are measurements, not assertions; only
 // "the page froze" (a step that never settles) fails.
@@ -29,10 +29,10 @@ test.afterAll(async () => {
   await mkdir(out, { recursive: true })
   const lines = timings.map(([n, ms]) => `${String(ms).padStart(7)} ms  ${n}`)
   await writeFile(`${out}timings.txt`, lines.join('\n') + '\n')
-  console.log('\nSC-02 / CM-12 timings\n' + lines.join('\n'))
+  console.log('\nSC-02 / HI-12 timings\n' + lines.join('\n'))
 })
 
-test('SC-02 / CM-12 the campus at realistic size', async ({ page }) => {
+test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
   await mkdir(out, { recursive: true })
 
   const snapshot = await timed(
@@ -45,7 +45,7 @@ test('SC-02 / CM-12 the campus at realistic size', async ({ page }) => {
   )
   expect(snapshot.racks.length).toBeGreaterThan(280)
 
-  const overview = page.locator('[data-view="overview"]')
+  const hierarchy = page.locator('[data-view="hierarchy"]')
   const focus = page.locator('[data-view="focus"]')
   const scale = (page: Page) =>
     page
@@ -53,43 +53,108 @@ test('SC-02 / CM-12 the campus at realistic size', async ({ page }) => {
       .getAttribute('style')
       .then((v) => Number(/scale\(([\d.]+)\)/.exec(v ?? '')?.[1]))
 
-  await timed('first map render (overview fitted)', async () => {
+  // The network with the most switches (HI-12): the map opens on the first network,
+  // so when that is not it, the header switches to it and that draw is timed too.
+  const switchesOf = new Map<string, number>()
+  for (const e of snapshot.equipment as {
+    kind: string
+    networkId?: string
+  }[])
+    if (e.kind === 'switch' && e.networkId)
+      switchesOf.set(e.networkId, (switchesOf.get(e.networkId) ?? 0) + 1)
+  const [biggest, biggestSwitches] = [...switchesOf].sort(
+    (x, y) => y[1] - x[1],
+  )[0]
+  const biggestName = (
+    snapshot.networks as { id: string; name: string }[]
+  ).find((n) => n.id === biggest)!.name
+
+  await timed('first hierarchy draw (fitted)', async () => {
     await page.goto('/')
-    await expect(overview).toHaveAttribute('data-fitted', 'true', {
+    await expect(hierarchy).toHaveAttribute('data-fitted', 'true', {
       timeout: 60_000,
     })
   })
-  timings.push([`  (overview fit zoom: ${(await scale(page)).toFixed(2)})`, 0])
-  await page.waitForTimeout(1500)
-  await shot(page, '0-campus-overview')
-
-  // The busiest node: the one with the most equipment.
-  const nodeOfRack = new Map<string, string>(
-    snapshot.racks.map((r: { id: string; nodeId: string }) => [r.id, r.nodeId]),
-  )
-  const perNode = new Map<string, number>()
-  for (const e of snapshot.equipment as { rackId?: string }[]) {
-    const node = e.rackId && nodeOfRack.get(e.rackId)
-    if (node) perNode.set(node, (perNode.get(node) ?? 0) + 1)
+  if ((await hierarchy.getAttribute('data-network')) !== biggest) {
+    timings.push([
+      `  (the first draw was ${await hierarchy.getAttribute('data-network')}, not the biggest network)`,
+      0,
+    ])
+    await timed(
+      `hierarchy of ${biggestName}, chosen in the header (fitted)`,
+      async () => {
+        await page
+          .getByRole('combobox', { name: 'Show network' })
+          .selectOption(biggest)
+        await expect(hierarchy).toHaveAttribute('data-network', biggest)
+        await expect(hierarchy).toHaveAttribute('data-fitted', 'true', {
+          timeout: 60_000,
+        })
+      },
+    )
   }
-  const [busiest, busiestCount] = [...perNode].sort((a, b) => b[1] - a[1])[0]
-  await timed('open a node card (~40 racks)', async () => {
-    const card = page.locator(`[data-node-id="${busiest}"]`)
-    await card.locator('.overview-card-head').click()
-    await expect(card.locator('.overview-row').first()).toBeVisible({
-      timeout: 30_000,
-    })
-  })
+  const frames = await page.locator('[data-testid^="rf__node-frame:"]').count()
+  const cardCount = await page.locator('[data-card-key*="|"]').count()
+  const tierCount = await page
+    .locator('[data-card-key]:not([data-card-key*="|"])')
+    .count()
   timings.push([
-    `  (node ${busiest}: ${busiestCount} equipment, ${await page
-      .locator(`[data-node-id="${busiest}"] .overview-rack`)
-      .count()} racks, ${await page
-      .locator(`[data-node-id="${busiest}"] .overview-row`)
-      .count()} rows)`,
+    `  (${biggestName}: ${biggestSwitches} switches; panel "${(await page.locator('.hierarchy-meta').innerText()).trim()}"; ${frames} groups, ${cardCount} node cards, ${tierCount} tier cards; fit zoom ${(await scale(page)).toFixed(2)})`,
+    0,
+  ])
+  await page.waitForTimeout(1500)
+  await shot(page, '0-campus-hierarchy')
+
+  // The busiest node: the node card with the most switches.
+  const busiestKey = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('[data-card-key*="|"]')]
+    // The count has its own span: the card's whole text would run the name into it.
+    const count = (c: Element) =>
+      Number(
+        /\d+/.exec(c.querySelector('.hcard-count')?.textContent ?? '')?.[0] ??
+          0,
+      )
+    return cards
+      .sort((x, y) => count(y) - count(x))[0]
+      .getAttribute('data-card-key')!
+  })
+  const busiest = page.locator(`[data-card-key="${busiestKey}"]`)
+  const busiestText = (await busiest.innerText()).replace(/\s+/g, ' ')
+  const drawer = page.getByTestId('hierarchy-drawer')
+  await timed(
+    'open the drawer of the busiest node (switch list shown)',
+    async () => {
+      // At the fit zoom of 0.60 most of the 445 cards lie outside the window, where a real
+      // click cannot reach them (Playwright waits for it): the click event is sent to the
+      // card, so this times the app, not the pan a user would make.
+      await busiest.dispatchEvent('click')
+      await expect(drawer.locator('[data-switch-id]').first()).toBeVisible({
+        timeout: 30_000,
+      })
+    },
+  )
+  timings.push([
+    `  (card ${busiestKey}: "${busiestText}"; ${await drawer.locator('[data-switch-id]').count()} switch rows in the drawer)`,
     0,
   ])
   await page.waitForTimeout(1000)
-  await shot(page, '0-campus-overview-open-card')
+  await shot(page, '0-campus-hierarchy-drawer')
+
+  // Focus on one of its switches from the drawer, and back.
+  await drawer.locator('[data-switch-id]').first().click()
+  await timed('Focus on a switch from the drawer', async () => {
+    await drawer.getByRole('button', { name: 'Focus', exact: true }).click()
+    await expect(focus.locator('[data-equipment-id]').first()).toBeVisible({
+      timeout: 60_000,
+    })
+    await settledViewport(page)
+  })
+  await timed('‹ Hierarchy back (from the drawer’s Focus)', async () => {
+    await page.getByRole('button', { name: '‹ Hierarchy' }).click()
+    await expect(hierarchy).toHaveAttribute('data-fitted', 'true', {
+      timeout: 60_000,
+    })
+  })
 
   await timed('Focus opens on an access switch', async () => {
     await page
@@ -123,14 +188,8 @@ test('SC-02 / CM-12 the campus at realistic size', async ({ page }) => {
   await timed('+1 hop', async () => {
     await page.getByRole('button', { name: '+1 hop' }).click()
     await expect(focus).toHaveAttribute('data-hops', '2')
-    await expect
-      .poll(
-        async () =>
-          (await focusCards()) > neighbours ||
-          (await page.locator('.focus-nothing').count()) > 0,
-        { timeout: 60_000 },
-      )
-      .toBe(true)
+    // A dual-homed switch's second hop can add nothing (its AGGs end the walk),
+    // so the count is logged below, not asserted.
     await settledViewport(page)
   })
   timings.push([
@@ -160,9 +219,9 @@ test('SC-02 / CM-12 the campus at realistic size', async ({ page }) => {
     0,
   ])
 
-  await timed('‹ Overview back', async () => {
-    await page.getByRole('button', { name: '‹ Overview' }).click()
-    await expect(overview).toHaveAttribute('data-fitted', 'true', {
+  await timed('‹ Hierarchy back', async () => {
+    await page.getByRole('button', { name: '‹ Hierarchy' }).click()
+    await expect(hierarchy).toHaveAttribute('data-fitted', 'true', {
       timeout: 60_000,
     })
   })
@@ -324,12 +383,12 @@ test('SC-02 / CM-12 the campus at realistic size', async ({ page }) => {
     timeout: 30_000,
   })
   await expect(
-    page.locator('[data-view="overview"] [data-on-route="true"]').first(),
+    page.locator('[data-view="hierarchy"] [data-on-route="true"]').first(),
   ).toBeVisible({ timeout: 30_000 })
   timings.push(['Find AGG / BB, click to route drawn', Date.now() - clicked])
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await page.waitForTimeout(1000)
-  await shot(page, '6-trace-on-campus-overview')
+  await shot(page, '6-trace-on-campus-hierarchy')
 
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
   await timed('trail step (chip opens its endpoint)', async () => {
@@ -409,7 +468,7 @@ test('INV-07 the inventory at campus size', async ({ page }) => {
   }
 
   await page.goto('/')
-  await expect(page.locator('[data-view="overview"]')).toHaveAttribute(
+  await expect(page.locator('[data-view="hierarchy"]')).toHaveAttribute(
     'data-fitted',
     'true',
     { timeout: 60_000 },
@@ -579,7 +638,8 @@ test('INV-07 the inventory at campus size', async ({ page }) => {
 // (or the pane) show the result, no fixed sleeps, measurements and not budgets.
 // Nothing is saved: the 500 direct fixes are measured in Go.
 test('INV-16 the new lists and commands at campus size', async ({ page }) => {
-  test.setTimeout(900_000)
+  // The labels PDF of every cable is the long part (about 11,000 cables).
+  test.setTimeout(2_700_000)
   await mkdir(out, { recursive: true })
   const topology = await (
     await page.request.get('/api/topology?context=installed')
@@ -637,7 +697,7 @@ test('INV-16 the new lists and commands at campus size', async ({ page }) => {
   }
 
   await page.goto('/')
-  await expect(page.locator('[data-view="overview"]')).toHaveAttribute(
+  await expect(page.locator('[data-view="hierarchy"]')).toHaveAttribute(
     'data-fitted',
     'true',
     { timeout: 60_000 },
@@ -657,11 +717,16 @@ test('INV-16 the new lists and commands at campus size', async ({ page }) => {
   // the page calls, on the same snapshot, in the page's own JavaScript.
   const build = await page.evaluate(async () => {
     const load = (path: string) => import(/* @vite-ignore */ path)
-    const [index, racks, problems] = await Promise.all([
-      load('/src/features/map/snapshotIndex.ts'),
-      load('/src/features/inventory/racks.ts'),
-      load('/src/features/inventory/problems.ts'),
-    ])
+    const [index, racks, problems, hierarchy, layout, flow] = await Promise.all(
+      [
+        load('/src/features/map/snapshotIndex.ts'),
+        load('/src/features/inventory/racks.ts'),
+        load('/src/features/inventory/problems.ts'),
+        load('/src/features/map/hierarchy.ts'),
+        load('/src/features/map/hierarchyLayout.ts'),
+        load('/src/features/map/hierarchyFlow.ts'),
+      ],
+    )
     const snapshot = await (
       await fetch('/api/topology?context=installed')
     ).json()
@@ -678,12 +743,47 @@ test('INV-16 the new lists and commands at campus size', async ({ page }) => {
     const [problemsMs, problemRows] = time(() =>
       problems.buildProblems(snapshot, built, ids),
     )
+    const [hierarchyMs, hierarchies] = time(() =>
+      hierarchy.buildHierarchies(built),
+    )
+    const biggest = [...hierarchies.values()].sort(
+      (
+        x: { counts: { switches: number } },
+        y: { counts: { switches: number } },
+      ) => y.counts.switches - x.counts.switches,
+    )[0]
+    const [layoutMs, laid] = time(() =>
+      layout.hierarchyLayout(biggest, { onlyProblems: false }),
+    )
+    const [projectMs] = time(() =>
+      flow.projectHierarchy({
+        h: biggest,
+        layout: laid,
+        index: built,
+        colors: new Map(),
+        marks: {
+          sites: new Set(),
+          nodes: new Set(),
+          racks: new Set(),
+          equipment: new Set(),
+          links: new Set(),
+        },
+        highlighted: new Set(),
+        hot: new Set(),
+      }),
+    )
     const [racksWarm] = time(() => racks.buildRackRows(snapshot, built))
     const [problemsWarm] = time(() =>
       problems.buildProblems(snapshot, built, ids),
     )
     return {
       indexMs,
+      hierarchyMs,
+      layoutMs,
+      projectMs,
+      uplinkRows: problemRows.filter((r: { key: string }) =>
+        r.key.startsWith('uplink:'),
+      ).length as number,
       racksMs,
       problemsMs,
       racksWarm,
@@ -692,6 +792,19 @@ test('INV-16 the new lists and commands at campus size', async ({ page }) => {
       problems: problemRows.length as number,
     }
   })
+  timings.push([
+    'HI-12 buildHierarchies, every network (ms)',
+    build.hierarchyMs,
+  ])
+  timings.push(['HI-12 hierarchyLayout, biggest network (ms)', build.layoutMs])
+  timings.push([
+    'HI-12 projectHierarchy, biggest network (ms)',
+    build.projectMs,
+  ])
+  timings.push([
+    `  (HI-12: ${build.uplinkRows} uplink: rows of ${build.problems} problems)`,
+    0,
+  ])
   timings.push([
     'INV-16 build Racks (buildRackRows), first call',
     build.racksMs,
@@ -740,6 +853,10 @@ test('INV-16 the new lists and commands at campus size', async ({ page }) => {
         .waitFor()
   })
   await recordDrawn(`Problems list: ${problemCount} rows in the list`)
+  timings.push([
+    `  (the list holds ${build.uplinkRows} uplink: rows; first row: "${(await page.locator('.inv-scroll tbody tr:not(.inv-spacer)').first().innerText()).replace(/\s+/g, ' ')}")`,
+    0,
+  ])
   await shot(page, 'inv16-2-problems')
 
   await chooseList(/^Ports and positions/)
@@ -850,7 +967,7 @@ test('INV-16 the new lists and commands at campus size', async ({ page }) => {
   ).replace(/\s+/g, ' ')
   timings.push([`  (${pagesText}; ${cableCount} cables listed)`, 0])
   await shot(page, 'inv16-5-labels')
-  const download = page.waitForEvent('download', { timeout: 840_000 })
+  const download = page.waitForEvent('download', { timeout: 2_400_000 })
   await timed('INV-16 labels: Download PDF to the download event', async () => {
     await labels.getByRole('button', { name: 'Download PDF' }).click()
     await download

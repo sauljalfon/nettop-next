@@ -54,12 +54,8 @@ test('VP-01 Hebrew names sit in their own bdi, and a location reads site › nod
   await page.goto('/')
   await fitted(page)
 
-  // Overview node cards: the node's name sits in its own bdi.
-  await expect(
-    page
-      .locator(`[data-node-id="${HEBREW.nodes.id}"]`)
-      .locator('bdi', { hasText: HEBREW.nodes.now }),
-  ).toBeVisible()
+  // The hierarchy draws only nodes that hold switches (North Sub-main holds none): its
+  // Hebrew node names are checked in hierarchy.recording.spec.ts (HI-13).
 
   // Focus card: the equipment's name and its place, each name in its own bdi.
   await selectEquipment(page, HEBREW.equipment.now)

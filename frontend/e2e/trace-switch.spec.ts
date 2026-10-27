@@ -8,7 +8,7 @@ import {
   expandResults,
   fitted,
   openRackInPhysical,
-  overviewState,
+  hierarchyState,
   pick,
   viewport,
 } from './helpers'
@@ -55,19 +55,20 @@ test('TR-05 the same Find AGG / BB is rerun in the plan with AGG-08 still select
   await fitted(page)
   await findFromEdge17(page)
   await rows(page).nth(1).click() // AGG-08
-  const lit = await overviewState(page)
-  expect(lit.nodes).toEqual([
-    'node-building-a',
-    'node-main-distribution',
-    'node-north-sub-main',
-  ])
-  expect(lit.pairs.length).toBeGreaterThan(0)
-  const before = { viewport: await viewport(page), state: lit }
+  // What the route lights; the plan adds a card of its own, so positions are not compared.
+  const lit = async () => {
+    const { cards, lines } = await hierarchyState(page)
+    return { cards, lines }
+  }
+  const state = await lit()
+  expect(state.cards).toEqual(['agg-03+agg-08|node-building-a', 'agg-08'])
+  expect(state.lines).toEqual(['group:agg-03+agg-08:agg-08'])
+  const before = { viewport: await viewport(page), state }
 
   await toPlan(page)
   await expect(rows(page)).toHaveCount(3)
   await expect(rows(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
-  await expect.poll(() => overviewState(page)).toEqual(before.state)
+  await expect.poll(lit).toEqual(before.state)
   await expect(note(page)).toHaveCount(0)
   expect(await viewport(page)).toBe(before.viewport)
 
@@ -75,7 +76,7 @@ test('TR-05 the same Find AGG / BB is rerun in the plan with AGG-08 still select
   await toInstalled(page)
   await expect(rows(page)).toHaveCount(3)
   await expect(rows(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
-  expect(await overviewState(page)).toEqual(before.state)
+  expect(await lit()).toEqual(before.state)
   expect(await viewport(page)).toBe(before.viewport)
 })
 

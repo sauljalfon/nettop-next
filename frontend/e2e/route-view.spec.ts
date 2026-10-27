@@ -34,15 +34,15 @@ const stepNames = (page: Page) =>
     els.map((el) => el.querySelector('.rd-name')!.textContent),
   )
 
-// POL-22 (kept, rewritten for the overview): the map under the picture is not touched while the
+// POL-22 (kept, rewritten for the hierarchy): the map under the picture is not touched while the
 // picture is on. Everything about restoring the map is kept as it was.
 test('POL-22 the toggle covers the map with the route, and turning it off leaves the same map', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
-  const overview = page.locator('[data-view="overview"]')
-  // State on the overview: a highlight and a network filter, then a trace from the tools.
+  const hierarchy = page.locator('[data-view="hierarchy"]')
+  // State on the hierarchy: a highlight and a network filter, then a trace from the tools.
   await highlightLocation(page, 'Building A')
   await page.getByRole('button', { name: 'Open explorer', exact: true }).click() // close Explore
   await page
@@ -56,17 +56,17 @@ test('POL-22 the toggle covers the map with the route, and turning it off leaves
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await expect(rows(page)).toHaveCount(3)
   const mapState = () =>
-    overview.evaluate((el) => ({
-      positions: el.getAttribute('data-node-positions'),
+    hierarchy.evaluate((el) => ({
+      positions: el.getAttribute('data-card-positions'),
       highlighted: [...el.querySelectorAll('[data-highlighted="true"]')].map(
-        (n) => n.getAttribute('data-node-id'),
+        (n) => n.getAttribute('data-card-key'),
       ),
-      onRoute: [...el.querySelectorAll('[data-on-route="true"]')].map((n) =>
-        n.getAttribute('data-node-id'),
+      onRoute: [...el.querySelectorAll('[data-on-route="true"]')].map(
+        (n) => n.getAttribute('data-card-key') ?? n.getAttribute('data-line'),
       ),
     }))
   const before = await mapState()
-  expect(before.highlighted).toEqual(['node-building-a'])
+  expect(before.highlighted).toEqual(['agg-03+agg-08|node-building-a'])
   expect(before.onRoute.length).toBeGreaterThan(0)
   const port = await settledViewport(page)
 
@@ -81,9 +81,7 @@ test('POL-22 the toggle covers the map with the route, and turning it off leaves
   expect(await settledViewport(page)).toBe(port)
   // The map's own controls are not offered over the picture.
   await expect(page.locator('.react-flow__controls')).toHaveCount(0)
-  await expect(
-    page.getByRole('button', { name: 'Reset arrangement' }),
-  ).toHaveCount(0)
+  await expect(page.locator('.hierarchy-panel')).toHaveCount(0)
 
   await toggle(page).click()
   await expectMarks(page, { routeView: false })

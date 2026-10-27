@@ -1,6 +1,7 @@
 import { piecesText, type TextPiece } from '../../shared/textPieces'
 import type { Snapshot } from '../../shared/types'
 import { endpointNetwork } from '../map/circuitNetwork'
+import { buildHierarchies } from '../map/hierarchy'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import type { InventoryRow } from './rows'
 
@@ -117,6 +118,51 @@ export function buildProblems(
       add(`serial:${e.id}`, e.id, 'A switch has no serial number', [
         { text: 'Fill it in with Edit details' },
       ])
+
+  // An access switch the hierarchy marks: one row each, over every network.
+  const names = (ids: string[]): TextPiece[] =>
+    ids.flatMap((id, n) => [
+      ...(n > 0 ? [{ text: ', ' }] : []),
+      { name: index.equipment.get(id)?.name ?? '' },
+    ])
+  for (const h of buildHierarchies(index).values())
+    for (const [id, s] of h.switches) {
+      if (!s.mark) continue
+      let problem: string
+      let detail: TextPiece[]
+      if (s.mark === 'single') {
+        const group = h.groups.find((g) =>
+          g.nodes.some((c) => c.switchIds.includes(id)),
+        )
+        const c = s.uplinks[0]
+        problem = 'A switch has one uplink'
+        detail = [
+          { name: endpoints.get(c.start)?.label ?? '' },
+          { text: ' → ' },
+          { name: index.equipment.get(c.farId)?.name ?? '' },
+          { text: `; its group has ${group?.aggIds.length ?? 0} AGGs` },
+        ]
+      } else if (s.mark === 'chained') {
+        problem = 'A switch is chained behind another'
+        detail = [{ text: 'Behind ' }, ...names(s.parents)]
+      } else if (s.mark === 'no-uplink') {
+        problem = 'A switch has no uplink'
+        detail = [{ text: 'No cable reaches an AGG or BB' }]
+      } else {
+        problem = 'A switch reaches only another network'
+        detail = s.otherNetwork.flatMap((c, n) => {
+          const far = index.equipment.get(c.farId)
+          const network = far?.networkId ?? ''
+          return [
+            ...(n > 0 ? [{ text: ', ' }] : []),
+            { name: far?.name ?? '' },
+            { text: ' on ' },
+            { name: networkName.get(network) ?? network },
+          ]
+        })
+      }
+      add(`uplink:${id}`, id, problem, detail)
+    }
 
   return rows
 }

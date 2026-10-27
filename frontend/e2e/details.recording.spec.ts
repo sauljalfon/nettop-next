@@ -18,7 +18,7 @@ const form = (page: Page) => page.getByTestId('details-form')
 async function inspect(page: Page, id: string, name = id.toUpperCase()) {
   await selectEquipment(page, name)
 }
-test('FD-04 a direct fix on Installed: Edit details saves, the Overview shows it at once, and History lists it with its note', async ({
+test('FD-04 a direct fix on Installed: Edit details saves, the inspector shows it at once, and History lists it with its note', async ({
   page,
   request,
 }) => {

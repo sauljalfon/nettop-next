@@ -27,12 +27,6 @@ type SiteLayout struct {
 	Positions []NodePosition `json:"positions"`
 }
 
-// MapLayout lists only the nodes with a saved position on the conceptual
-// overview, one coordinate space for the whole network.
-type MapLayout struct {
-	Positions []NodePosition `json:"positions"`
-}
-
 // MaxLayoutCoordinate bounds saved positions in both axes.
 const MaxLayoutCoordinate = 1_000_000
 

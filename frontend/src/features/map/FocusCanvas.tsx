@@ -83,14 +83,14 @@ const Handles = () => (
     <Handle
       type="target"
       position={Position.Top}
-      className="overview-handle"
+      className="map-handle"
       style={POINT}
       isConnectable={false}
     />
     <Handle
       type="source"
       position={Position.Top}
-      className="overview-handle"
+      className="map-handle"
       style={POINT}
       isConnectable={false}
     />
@@ -189,7 +189,7 @@ const GroupView = memo(function GroupView({ data }: NodeProps<FocusGroupNode>) {
             <li key={m.id}>
               <button
                 type="button"
-                className="overview-row"
+                className="map-row"
                 onClick={() => {
                   onFocus(m.id)
                   onSelect(m.id)
@@ -468,7 +468,7 @@ function Canvas({
   const names = useMemo(() => ({ colors, networkName }), [colors, networkName])
 
   // A location highlight changes nothing here; its fit request is not left for
-  // the overview to replay later.
+  // the hierarchy to replay later.
   const fitRequest = useSyncExternalStore(session.subscribe, session.fitRequest)
   useEffect(() => {
     if (fitRequest && fitRequest.serial > session.fitHandled())
@@ -623,7 +623,7 @@ function Canvas({
               elevateNodesOnSelect={false}
               minZoom={0.2}
               maxZoom={1.6}
-              className={fitted ? undefined : 'overview-hidden'}
+              className={fitted ? undefined : 'map-hidden'}
             >
               <Background
                 variant={BackgroundVariant.Dots}
@@ -640,7 +640,7 @@ function Canvas({
         <>
           <div className="focus-toolbar">
             <button type="button" className="btn" onClick={session.back}>
-              ‹ Overview
+              ‹ Hierarchy
             </button>
             {known && (
               <>
@@ -670,7 +670,7 @@ function Canvas({
         </>
       )}
       {!known && (
-        <p className="overview-empty">{focusId} is not in this topology.</p>
+        <p className="map-empty">{focusId} is not in this topology.</p>
       )}
       {empty && (
         <p className="focus-empty">

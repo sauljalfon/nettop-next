@@ -4,7 +4,7 @@ import { fitted, pick, selectEquipment } from './helpers'
 const rows = (page: Page) =>
   page.getByLabel('Map trace results').getByTestId('route-row')
 
-// The trace from the Trace tools, so the overview stays the view and its own buttons are on screen.
+// The trace from the Trace tools, so the hierarchy stays the view and its own buttons are on screen.
 async function traceFromTools(page: Page) {
   await page
     .getByRole('button', { name: 'Open trace tools', exact: true })
@@ -30,7 +30,7 @@ test('POL-02 every overlay button stays clickable with each drawer open', async 
     page.getByRole('button', { name: 'Zoom In' }),
     page.getByRole('button', { name: 'Zoom Out' }),
     page.getByRole('button', { name: 'Fit View' }),
-    page.getByRole('button', { name: 'Reset arrangement' }),
+    page.getByLabel('Only nodes with problems'),
   ]
   const check = async () => {
     // A trial click runs every actionability check, including that nothing covers the button.

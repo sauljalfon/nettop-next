@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Hebrew:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Tokens copied from frontend/src/shared/theme.css (D33). */
+:root {
+  --floor: #eef1f3; --paper: #ffffff; --paper-sunk: #f6f8f9; --ink: #1c2b3a; --ink-soft: #56636f;
+  --rule: #d3dae1; --rule-soft: #e6ebef; --rule-strong: #b6c1cc;
+  --route: #0f8b7a; --route-soft: #e2f3f0; --amber: #d99a0b; --amber-soft: #fdf3dc;
+  --shadow-drawer: 0 18px 40px -18px #1c2b3a40, 0 2px 6px #1c2b3a12;
+  --sans: 'IBM Plex Sans', 'IBM Plex Sans Hebrew', 'Segoe UI', Arial, sans-serif; --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
+  --t-xs: 12px; --t-sm: 13px; --t-md: 14px; --t-lg: 16px; --t-xl: 20px;
+  --r-drawer: 10px; --r-control: 6px; --h-control: 32px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--floor); color: var(--ink); font-family: var(--sans); font-size: var(--t-md); line-height: 1.45; overflow: hidden; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3, p { margin: 0; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--h-control); padding: 0 12px; border-radius: var(--r-control); font-size: var(--t-sm); font-weight: 500; border: 1px solid var(--rule); background: var(--paper); white-space: nowrap; }
+.btn:hover { border-color: var(--rule-strong); }
+.btn.quiet { border-color: transparent; background: transparent; padding-inline: 8px; }
+.btn.on { background: var(--amber-soft); border-color: var(--amber); }
+.chip { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper-sunk); font-size: var(--t-xs); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--r-control); padding: 2px; background: var(--paper-sunk); }
+.seg button { border: 0; background: transparent; color: var(--ink-soft); padding: 4px 11px; font-size: var(--t-sm); border-radius: 4px; }
+.seg .active { background: var(--paper); color: var(--ink); font-weight: 500; box-shadow: 0 0 0 1px var(--rule); }
+.studio-header { height: 52px; background: var(--paper); border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 18px; padding: 0 18px; position: relative; z-index: 60; }
+.brand { font-size: var(--t-lg); font-weight: 600; letter-spacing: -.02em; }
+.env { margin-left: auto; font-size: var(--t-xs); font-weight: 600; color: #7a5200; border: 1px solid #ecd49a; background: #fdf3dc; padding: 1px 6px; border-radius: 4px; }
+.network-select { display: flex; align-items: center; gap: 8px; font-size: var(--t-sm); color: var(--ink-soft); }
+.network-select select { width: 160px; height: 30px; border: 1px solid var(--rule); border-radius: var(--r-control); background: var(--paper); padding: 0 8px; font-size: var(--t-sm); color: var(--ink); }
+
+/* Left: one small panel; the demo's list below it. */
+.side { position: absolute; top: 64px; left: 16px; width: 220px; z-index: 40; display: flex; flex-direction: column; gap: 8px; max-height: calc(100% - 76px); overflow: auto; }
+.panel { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); padding: 10px 12px; }
+.panel h2 { font-size: var(--t-md); }
+.panel .meta { font-size: var(--t-xs); color: var(--ink-soft); }
+.panel .row { display: flex; gap: 6px; margin-top: 8px; }
+.find { margin-top: 8px; width: 100%; height: 30px; border: 1px solid var(--rule); border-radius: var(--r-control); padding: 0 9px; font-size: var(--t-sm); }
+.demo-note { border-style: dashed; font-size: var(--t-xs); color: var(--ink-soft); }
+.demo-note b { color: var(--ink); }
+.demo-note .try { display: grid; gap: 3px; margin-top: 6px; }
+.demo-note .try button { text-align: left; border: 1px solid var(--rule); background: var(--paper); border-radius: var(--r-control); padding: 3px 8px; font-size: var(--t-xs); }
+
+/* The tree, left to right: BB › AGG pairs › nodes, with real lines. */
+.canvas { position: absolute; top: 52px; left: 0; right: 0; bottom: 0; overflow: auto; }
+.world { position: relative; margin-left: 270px; }
+svg.lines { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+svg.lines path { fill: none; stroke: var(--rule-strong); stroke-width: 1.5; transition: opacity .15s; }
+svg.lines path.lit { stroke: var(--route); stroke-width: 2.5; }
+svg.lines path.weak { stroke: var(--amber); stroke-dasharray: 5 4; }
+svg.lines path.dim { opacity: .25; }
+.box { position: absolute; display: flex; align-items: center; gap: 6px; border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 0 9px; font-size: var(--t-sm); white-space: nowrap; transition: opacity .15s; text-align: left; }
+.box:hover { border-color: var(--ink-soft); }
+.box.tier { font-weight: 600; border-color: var(--rule-strong); }
+.box.tier .eq { color: var(--ink-soft); font-weight: 400; }
+.box.pair { padding: 0; overflow: hidden; }
+.box.pair button { border: 0; background: none; height: 100%; padding: 0 9px; font-weight: 600; font-size: var(--t-sm); }
+.box.pair button:hover { background: var(--paper-sunk); }
+.box.pair .peer { width: 12px; border-top: 3px solid var(--ink-soft); }
+.box.pair.none { border-style: dashed; color: var(--ink-soft); padding: 0 9px; font-weight: 400; }
+.box .half { display: inline-flex; align-items: center; gap: 5px; }
+.warn { color: #8a5a00; font-weight: 600; font-size: var(--t-xs); }
+.warn::before { content: '⚠ '; }
+.box.node { justify-content: space-between; }
+.box.node .n { color: var(--ink-soft); font-size: var(--t-xs); font-variant-numeric: tabular-nums; }
+.box.node .end { display: flex; gap: 8px; align-items: center; }
+.box.lit, .box.pair button.lit { border-color: var(--route); box-shadow: inset 0 0 0 1px var(--route); }
+.box.pair button.lit { color: var(--route); box-shadow: none; }
+.box.sel { box-shadow: 0 0 0 2px var(--ink); }
+.box.dim { opacity: .3; }
+.box.open { align-items: flex-start; flex-direction: column; padding: 5px 9px; justify-content: flex-start; }
+.box.open .top { display: flex; width: 100%; justify-content: space-between; }
+.racks { display: grid; gap: 1px; margin-top: 4px; }
+.rk { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--ink-soft); }
+.rk .rl { width: 22px; font-family: var(--mono); }
+.swr { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 19px; border: 0; border-radius: 4px; background: none; padding: 0 6px; font-size: var(--t-xs); font-family: var(--mono); text-align: left; }
+.swr:hover { background: var(--paper-sunk); }
+.swr.lit { color: var(--route); font-weight: 500; }
+.swr.sel { background: var(--ink); color: var(--paper); }
+.swr.sel .warn { color: var(--amber-soft); }
+.racks { width: 100%; }
+.sq { width: 13px; height: 13px; border-radius: 3px; border: 1px solid var(--rule-strong); background: var(--paper-sunk); padding: 0; }
+.sq:hover { border-color: var(--ink); }
+.sq.bad { background: var(--amber); border-color: var(--amber); }
+.sq.lit { border-color: var(--route); background: var(--route-soft); }
+.sq.sel { background: var(--ink); border-color: var(--ink); }
+.rk .other { font-style: italic; }
+.colhead { position: absolute; top: 14px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+
+/* The drawer: short. */
+.drawer { position: absolute; top: 64px; right: 12px; width: 360px; max-height: calc(100% - 76px); background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); box-shadow: var(--shadow-drawer); z-index: 70; display: flex; flex-direction: column; }
+.drawer-head { padding: 12px 14px 8px; display: flex; align-items: center; gap: 8px; }
+.drawer-head h2 { font-size: var(--t-lg); }
+.drawer-head .x { margin-left: auto; }
+.drawer-body { padding: 0 14px 10px; overflow: auto; font-size: var(--t-sm); }
+.drawer-body .meta { color: var(--ink-soft); font-size: var(--t-xs); margin-bottom: 8px; }
+.say { padding: 7px 10px; border-radius: 6px; background: var(--paper-sunk); border-left: 3px solid var(--route); }
+.say.bad { border-left-color: var(--amber); }
+.hop { font-size: var(--t-xs); margin-top: 6px; color: var(--ink-soft); }
+.hop b { color: var(--ink); }
+.exc { display: grid; gap: 3px; margin-top: 8px; }
+.exc button { text-align: left; border: 1px solid var(--rule-soft); background: var(--paper); border-radius: 6px; padding: 4px 8px; font-size: var(--t-xs); }
+.drawer-foot { padding: 8px 14px 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.drawer-foot .btn { height: 28px; font-size: var(--t-xs); }
+</style>
+</head>
+<body>
+<header class="studio-header">
+  <span class="brand">nettop</span>
+  <div class="seg" role="group" aria-label="View"><button class="active">Conceptual</button><button>Physical</button><button>Inventory</button></div>
+  <label class="network-select">Network <select id="net"></select></label>
+  <span class="env">DEMO</span>
+</header>
+<div class="side">
+  <section class="panel">
+    <h2 id="pTitle"></h2>
+    <p class="meta" id="pMeta"></p>
+    <div class="row"><button class="btn" id="probBtn"></button></div>
+    <input class="find" id="find" list="findList" placeholder="Find…" aria-label="Find">
+    <datalist id="findList"></datalist>
+  </section>
+  <section class="panel demo-note"><b>Demo · one map.</b> Show on map from anywhere lands here. Try:<div class="try" id="try"></div></section>
+</div>
+<div class="canvas" id="canvas"><div class="world" id="world"></div></div>
+<aside class="drawer" id="drawer" hidden></aside>
+<script>
+// ---- The realistic campus (the same wiring as backend/internal/scalefixture). ----
+const NETS = ['A', 'B', 'C']
+const pad = (n) => String(n).padStart(2, '0')
+const aggName = (x, p, u) => `AGG-${pad(20 * x + 2 * p + u + 1)}`
+const bbsOf = (x) => [`BB-${pad(2 * x + 1)}`, `BB-${pad(2 * x + 2)}`]
+const aggBBs = (a) => {
+  const d = Number(a.slice(4)) - 1, x = Math.floor(d / 20)
+  return a === 'AGG-60' ? [bbsOf(x)[0]] : bbsOf(x)
+}
+const netOfAgg = (a) => Math.floor((Number(a.slice(4)) - 1) / 20)
+const single = new Set(['ACC-B04-S1', 'ACC-B04-S2', 'ACC-B05-S4', 'ACC-B06-S6'])
+const chained = { 'ACC-B07-S6': 'ACC-B07-S5', 'ACC-B08-S3': 'ACC-B08-S2', 'ACC-B09-S5': 'ACC-B09-S4', 'ACC-B09-S6': 'ACC-B09-S5' }
+const noUplink = new Set(['ACC-B10-S6', 'ACC-B11-S1'])
+const otherNet = 'ACC-B13-S2'
+const hdfPos = (m) => `${Math.floor(m / 24) + 1}${'ABCD'[Math.floor((m % 24) / 6)]}/${(m % 6) + 1}`
+
+const nodes = {} // id → {id, name, site, racks: [{name, net, switches: [ids]}], panels}
+const SW = {} // id → switch
+const BUILDINGS = 90
+for (let n = 1; n <= BUILDINGS; n++) {
+  const id = `B${pad(n)}`
+  nodes[id] = { id, name: `Building ${pad(n)}`, site: 'Campus', racks: [], panels: [`PANEL-B${pad(n)}`] }
+  const count = 6 + ((n * 5) % 7), main = (n - 1) % 3
+  for (let r = 1; r <= Math.ceil(count / 6); r++) {
+    const rack = { name: `B${pad(n)}-R${r}`, switches: [] }
+    for (let s = 6 * (r - 1) + 1; s <= Math.min(count, 6 * r); s++) {
+      const sid = `ACC-B${pad(n)}-S${s}`
+      const second = n % 4 === 0 && s > count - 2
+      const net = second ? (main + 1) % 3 : main
+      let pair = second ? (Math.floor((n - 1) / 3) + 5) % 10 : Math.floor((n - 1) / 3) % 10
+      if (n === 16 && r === 2) pair = (pair + 1) % 10
+      const sw = { id: sid, node: id, rack: rack.name, unit: 2 * (s - 6 * (r - 1)), net, pair, ups: [], circuits: [] }
+      if (noUplink.has(sid) || chained[sid]) sw.ups = []
+      else if (sid === otherNet) sw.ups = [aggName((net + 1) % 3, pair, 0)]
+      else if (single.has(sid)) sw.ups = [aggName(net, pair, 0)]
+      else sw.ups = [aggName(net, pair, 0), aggName(net, pair, 1)]
+      sw.ups.forEach((agg, u) => {
+        const c = 2 * (s - 1) + u, k = (n - 1) * 24 + c
+        sw.circuits.push({ port: u + 1, agg, via: [[`PANEL-B${pad(n)}`, String(c + 1)], [`SM${((n - 1) % 6) + 1}-HDF`, ''], [`MD-HDF-${Math.floor(k / 768) + 1}`, '']] })
+      })
+      SW[sid] = sw
+      rack.switches.push(sid)
+    }
+    nodes[id].racks.push(rack)
+  }
+}
+for (const [tag, name] of [['E', 'East'], ['W', 'West']]) for (let n = 1; n <= 2; n++) {
+  const id = `${tag}${n}`
+  nodes[id] = { id, name: `${name} Annex ${n}`, site: `${name} Annex`, racks: [], panels: [] }
+  for (let r = 1; r <= 2; r++) {
+    const rack = { name: `${tag}${n}-R${r}`, net: -1, switches: [] }
+    for (let s = 1; s <= 6; s++) {
+      const sid = `ACC-${name.toUpperCase()}${n}-R${r}-S${s}`, net = (n + r + s) % 3
+      SW[sid] = { id: sid, node: id, rack: rack.name, unit: 2 * s, net, pair: 9, ups: [aggName(net, 9, 0), aggName(net, 9, 1)],
+        circuits: [0, 1].map((u) => ({ port: u + 1, agg: aggName(net, 9, u), via: [] })) }
+      rack.switches.push(sid)
+    }
+    nodes[id].racks.push(rack)
+  }
+}
+// The switch whose uplinks a chained switch uses, and the group (pair, or none).
+const root = (id) => { let s = SW[id]; while (chained[s.id]) s = SW[chained[s.id]]; return s }
+const markOf = (id) => noUplink.has(id) ? 'no uplink' : id === otherNet ? 'only into Network B' : chained[id] ? 'chained' : single.has(id) ? 'single' : ''
+const groupOf = (id) => {
+  const s = SW[id], r = root(id)
+  if (noUplink.has(id) || id === otherNet) return 'none'
+  return r.ups.length ? `p${r.pair}` : 'none'
+}
+
+// ---- Per network: groups of nodes under each AGG pair. ----
+function hierarchyOf(x) {
+  const groups = []
+  for (let p = 0; p < 10; p++) groups.push({ key: `p${p}`, aggs: [aggName(x, p, 0), aggName(x, p, 1)], cards: new Map() })
+  groups.push({ key: 'none', aggs: [], cards: new Map() })
+  const byKey = Object.fromEntries(groups.map((g) => [g.key, g]))
+  for (const s of Object.values(SW)) {
+    if (s.net !== x) continue
+    const g = byKey[groupOf(s.id)]
+    let card = g.cards.get(s.node)
+    if (!card) g.cards.set(s.node, (card = { key: `${g.key}|${s.node}`, group: g.key, node: s.node, switches: [], marks: {} }))
+    card.switches.push(s.id)
+    const m = markOf(s.id)
+    if (m) card.marks[m] = (card.marks[m] || 0) + 1
+  }
+  for (const g of groups) g.cards = [...g.cards.values()].sort((a, b) => nodes[a.node].name.localeCompare(nodes[b.node].name))
+  return groups.filter((g) => g.cards.length || g.key !== 'none')
+}
+const H = NETS.map((_, x) => hierarchyOf(x))
+const cardsOfNode = (x, node) => H[x].flatMap((g) => g.cards).filter((c) => c.node === node)
+
+// ---- Session state. ----
+let net = 0, onlyProblems = false
+let sel = null // {kind: 'switch'|'node'|'agg'|'bb'|'hdf', id, card?}
+const open = new Set()
+function select(s) {
+  sel = s
+  if (s?.kind === 'switch') { net = SW[s.id].net; open.add(`${groupOf(s.id)}|${SW[s.id].node}`) }
+  if (s?.kind === 'node') open.add(s.card)
+  if (s?.kind === 'agg') net = netOfAgg(s.id)
+  if (s?.kind === 'bb') net = Math.floor((Number(s.id.slice(3)) - 1) / 2)
+  if (s?.kind === 'hdf') {
+    const per = [0, 1, 2].map((x) => Object.values(SW).filter((w) => w.net === x && w.circuits.some((c) => c.via.some((v) => v[0] === s.id))).length)
+    net = per.indexOf(Math.max(...per))
+  }
+  render()
+  requestAnimationFrame(() => {
+    const el = document.querySelector('.sq.sel, .box.sel, .box.pair button.sel') || document.querySelector('.box.lit')
+    if (!el) return
+    const c = $('canvas'), r = el.getBoundingClientRect(), box = c.getBoundingClientRect()
+    c.scrollBy({ top: r.top + r.height / 2 - (box.top + box.height / 2), behavior: 'smooth' })
+  })
+}
+function litSet() {
+  const L = { cards: new Set(), groups: new Set(), tops: new Set(), aggs: new Set(), chips: new Set(), any: !!sel }
+  if (!sel) return L
+  const addSwitch = (id) => {
+    const s = SW[id], g = groupOf(id)
+    if (s.net !== net) return
+    L.cards.add(`${g}|${s.node}`); L.chips.add(id); L.groups.add(g)
+    root(id).ups.forEach((a) => { if (g !== 'none') { L.aggs.add(a); aggBBs(a).forEach((b) => L.tops.add(b)) } })
+  }
+  if (sel.kind === 'switch') { addSwitch(sel.id); let s = sel.id; while (chained[s]) { s = chained[s]; L.chips.add(s) } }
+  if (sel.kind === 'node') { const c = H[net].flatMap((g) => g.cards).find((c) => c.key === sel.card); cardsOfNode(net, c.node).forEach((o) => o.switches.forEach(addSwitch)) }
+  if (sel.kind === 'agg') { const g = H[net].find((g) => g.aggs.includes(sel.id)); L.groups.add(g.key); L.aggs.add(sel.id); g.cards.forEach((c) => L.cards.add(c.key)); aggBBs(sel.id).forEach((b) => L.tops.add(b)) }
+  if (sel.kind === 'bb') { L.tops.add(sel.id); for (const g of H[net]) if (g.aggs.some((a) => aggBBs(a).includes(sel.id))) { L.groups.add(g.key); g.aggs.forEach((a) => aggBBs(a).includes(sel.id) && L.aggs.add(a)) } }
+  if (sel.kind === 'hdf') for (const s of Object.values(SW)) if (s.circuits.some((c) => c.via.some((v) => v[0] === sel.id))) addSwitch(s.id)
+  return L
+}
+
+// ---- Layout: columns BB | AGG pairs | nodes; a row per node, an open node grows. ----
+const X = { bb: 20, pair: 200, node: 430 }, W = { bb: 120, pair: 190, node: 280 }, ROW = 26, GAP = 14
+const $ = (id) => document.getElementById(id)
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+const bad = (c) => Object.values(c.marks).reduce((a, b) => a + b, 0)
+function render() {
+  const L = litSet(), dim = (lit) => (L.any && !lit ? ' dim' : '')
+  const groups = H[net].map((g) => ({ ...g, shown: onlyProblems ? g.cards.filter((c) => bad(c)) : g.cards }))
+    .filter((g) => !onlyProblems || g.shown.length || g.aggs.some((a) => aggBBs(a).length < 2))
+  const problems = H[net].flatMap((g) => g.cards).filter(bad).length + (net === 2 ? 1 : 0)
+  $('net').value = net
+  $('pTitle').textContent = `Network ${NETS[net]}`
+  $('pMeta').textContent = `2 BB · 20 AGG · ${new Set(H[net].flatMap((g) => g.cards.map((c) => c.node))).size} nodes · ${Object.values(SW).filter((s) => s.net === net).length} switches`
+  $('probBtn').textContent = onlyProblems ? `⚠ ${problems} problems · show all` : `⚠ ${problems} problems`
+  $('probBtn').classList.toggle('on', onlyProblems)
+
+  let y = 44, h = '', paths = ''
+  const pairs = []
+  for (const g of groups) {
+    const rows = g.shown.map((c) => {
+      const hgt = open.has(c.key) ? openHeight(c) : ROW - 4
+      const r = { c, y, h: hgt }; y += hgt + 4; return r
+    })
+    if (!rows.length) { rows.push(null); y += ROW }
+    const top = rows[0] ? rows[0].y : y - ROW, bottom = y - 4
+    const py = (top + bottom) / 2 - 15
+    pairs.push({ g, py })
+    const gLit = L.groups.has(g.key)
+    // the pair box
+    if (g.key === 'none') h += `<div class="box pair none${dim(gLit)}" style="left:${X.pair}px;top:${py}px;width:${W.pair}px;height:30px">No AGG</div>`
+    else h += `<div class="box pair${dim(gLit || g.aggs.some((a) => L.aggs.has(a)))}" style="left:${X.pair}px;top:${py}px;width:${W.pair}px;height:30px">${g.aggs.map((a, i) => `${i ? '<span class="peer"></span>' : ''}<button class="${L.aggs.has(a) ? 'lit' : ''}${sel?.id === a ? ' sel' : ''}" data-agg="${a}">${a}${aggBBs(a).length < 2 ? ' <span class="warn">1↑</span>' : ''}</button>`).join('')}</div>`
+    // the nodes and their lines
+    for (const r of rows) {
+      if (!r) continue
+      const lit = L.cards.has(r.c.key)
+      paths += `<path class="${lit && L.any ? 'lit' : ''}${dim(lit)}" d="M${X.pair + W.pair} ${py + 15} H${X.node - 20} V${r.y + 13} H${X.node}"/>`
+      h += nodeHtml(r, L, lit)
+    }
+    y += GAP
+  }
+  // the top: BB pair, centred on the AGG column, with a line to each pair
+  const midY = (pairs[0].py + pairs.filter((p) => p.g.key !== 'none').slice(-1)[0].py) / 2
+  const bbs = bbsOf(net)
+  bbs.forEach((b, i) => {
+    const by = midY - 20 + i * 40
+    h += `<button class="box tier${L.tops.has(b) ? ' lit' : ''}${sel?.id === b ? ' sel' : ''}${dim(L.tops.has(b))}" data-bb="${b}" style="left:${X.bb}px;top:${by}px;width:${W.bb}px;height:30px">${b} <span class="eq">BB</span></button>`
+  })
+  paths += `<path class="${dim(L.tops.size)}" d="M${X.bb + 30} ${midY + 10} V${midY + 20}" style="stroke:var(--ink-soft);stroke-width:3"/>`
+  for (const p of pairs) {
+    if (p.g.key === 'none') continue
+    const weak = p.g.aggs.some((a) => aggBBs(a).length < 2)
+    const lit = p.g.aggs.some((a) => L.aggs.has(a)) && L.tops.size
+    paths += `<path class="${lit ? 'lit' : ''}${weak ? ' weak' : ''}${dim(lit)}" d="M${X.bb + W.bb} ${midY + 15} H${X.pair - 30} V${p.py + 15} H${X.pair}"/>`
+  }
+  h += `<span class="colhead" style="left:${X.bb}px;top:14px">Top</span><span class="colhead" style="left:${X.pair}px">Aggregation</span><span class="colhead" style="left:${X.node}px">Nodes</span>`
+  $('world').style.height = `${y + 60}px`
+  $('world').style.width = `${X.node + W.node + 400}px`
+  $('world').innerHTML = `<svg class="lines" width="100%" height="100%">${paths}</svg>${h}`
+  drawer()
+}
+// An open node lists its switches by name (a node holds at most about 12), and one quiet line for the rest.
+function restOf(c) {
+  const mine = new Set(c.switches)
+  const others = nodes[c.node].racks.flatMap((rk) => rk.switches).filter((s) => !mine.has(s))
+  if (!others.length) return ''
+  const by = {}
+  for (const id of others) {
+    const s = SW[id], what = s.net !== net ? `Network ${NETS[s.net]}` : root(id).ups.join(' + ') || 'no AGG'
+    by[what] = (by[what] || 0) + 1
+  }
+  return '+ ' + Object.entries(by).map(([w, k]) => `${k} on ${w}`).join(' · ')
+}
+const openHeight = (c) => 40 + (c.switches.length + (restOf(c) ? 1 : 0)) * 20
+function nodeHtml(r, L, lit) {
+  const c = r.c, n = nodes[c.node], k = bad(c)
+  const cls = `box node${lit && L.any ? ' lit' : ''}${sel?.kind === 'node' && sel.card === c.key ? ' sel' : ''}${L.any && !lit ? ' dim' : ''}`
+  const end = `<span class="end">${k ? `<span class="warn">${k}</span>` : ''}<span class="n">${c.switches.length}</span></span>`
+  const style = `left:${X.node}px;top:${r.y}px;width:${W.node}px;height:${r.h}px`
+  if (!open.has(c.key)) return `<button class="${cls}" data-card="${c.key}" style="${style}" title="${esc(n.site)}"><span>${esc(n.name)}</span>${end}</button>`
+  const rows = c.switches.map((id) => {
+    const m = markOf(id)
+    return `<button class="swr${L.chips.has(id) ? ' lit' : ''}${sel?.id === id ? ' sel' : ''}" data-sw="${id}"><span>${id}</span>${m ? `<span class="warn">${m}</span>` : ''}</button>`
+  }).join('')
+  const rest = restOf(c)
+  const racksHtml = rows + (rest ? `<div class="rk"><span class="other">${rest}</span></div>` : '')
+  return `<div class="${cls} open" style="${style}"><div class="top"><button class="btn quiet" style="height:20px;padding:0;font-weight:600" data-close="${c.key}">${esc(n.name)} ▴</button>${end}</div><div class="racks">${racksHtml}</div></div>`
+}
+
+// ---- The drawer: one sentence, then what to act on. ----
+function drawer() {
+  const d = $('drawer')
+  if (!sel) { d.hidden = true; return }
+  d.hidden = false
+  let title = '', kind = '', body = '', foot = '<button class="btn">Show in Physical</button>'
+  if (sel.kind === 'switch') {
+    const s = SW[sel.id], m = markOf(s.id), r = root(s.id)
+    title = s.id; kind = 'Access'
+    const say = !m ? `<div class="say">Two uplinks: <b>${s.ups.join(' + ')}</b></div>`
+      : m === 'single' ? `<div class="say bad"><b>One uplink</b> (${s.ups[0]}); its neighbours have two.</div>`
+      : m === 'chained' ? `<div class="say bad"><b>Chained</b> under ${chained[s.id]}; reaches ${r.ups.join(' + ')} through it.</div>`
+      : m === 'no uplink' ? `<div class="say bad"><b>No uplink</b>: no port cabled.</div>`
+      : `<div class="say bad"><b>Wrong network</b>: Port 1 reaches ${s.ups[0]} (Network B).</div>`
+    body = `<p class="meta">${nodes[s.node].name} · ${s.rack} · U${s.unit} · Network ${NETS[s.net]}</p>${say}${s.circuits.map((c) => `<p class="hop">Port ${c.port} › ${c.via.map((v) => v[0]).join(' › ') || 'fiber'} › <b>${c.agg}</b></p>`).join('')}`
+    foot = `<button class="btn">Inspector</button><button class="btn">Find AGG / BB</button>${foot}`
+  } else if (sel.kind === 'node') {
+    const c = H[net].flatMap((g) => g.cards).find((c) => c.key === sel.card), n = nodes[c.node], g = H[net].find((g) => g.key === c.group)
+    const exc = c.switches.filter((s) => markOf(s)), others = cardsOfNode(net, c.node).filter((o) => o.key !== c.key)
+    title = n.name; kind = 'Node'
+    body = `<p class="meta">${n.site} · Network ${NETS[net]}</p>`
+    body += g.aggs.length ? `<div class="say${exc.length ? ' bad' : ''}">${c.switches.length} switches → <b>${g.aggs.join(' + ')}</b>${exc.length ? `, ${exc.length} with a problem` : ''}</div>` : `<div class="say bad">${c.switches.length} without an uplink here</div>`
+    if (others.length) body += `<div class="say bad" style="margin-top:6px"><b>Split:</b> ${others.map((o) => `${o.switches.length} go to ${H[net].find((x) => x.key === o.group).aggs.join(' + ') || 'no AGG'}`).join('; ')}</div>`
+    if (exc.length) body += `<div class="exc">${exc.map((s) => `<button data-sw="${s}">${s} · ${markOf(s)}</button>`).join('')}</div>`
+  } else if (sel.kind === 'agg') {
+    const g = H[net].find((g) => g.aggs.includes(sel.id)), ups = aggBBs(sel.id)
+    title = sel.id; kind = 'AGG'
+    body = `<p class="meta">Main Distribution · pair with ${g.aggs.find((a) => a !== sel.id)}</p>`
+    body += ups.length < 2 ? `<div class="say bad"><b>One uplink to the top</b> (${ups[0]}); ${bbsOf(net)[1]} is missing.</div>` : `<div class="say">Up to <b>${ups.join(' + ')}</b> · ${g.cards.length} nodes below</div>`
+    foot = `<button class="btn">Inspector</button>${foot}`
+  } else if (sel.kind === 'bb') {
+    const missing = H[net].flatMap((g) => g.aggs).filter((a) => !aggBBs(a).includes(sel.id))
+    title = sel.id; kind = 'BB'
+    body = `<p class="meta">Main Distribution</p><div class="say${missing.length ? ' bad' : ''}">${20 - missing.length} of 20 AGGs reach it${missing.length ? `; missing: <b>${missing.join(', ')}</b>` : ''}</div>`
+  } else if (sel.kind === 'hdf') {
+    const through = Object.values(SW).filter((s) => s.circuits.some((c) => c.via.some((v) => v[0] === sel.id)))
+    const per = [0, 1, 2].map((x) => through.filter((s) => s.net === x).length)
+    title = sel.id; kind = 'HDF'
+    body = `<p class="meta">Sub-main ${sel.id[2]} · passive</p><div class="say">Carries the uplinks of <b>${through.length} switches</b> in ${new Set(through.map((s) => s.node)).size} buildings</div><div class="exc">${per.map((k, x) => k ? `<button data-net="${x}">Network ${NETS[x]} · ${k}${x === net ? ' (shown)' : ''}</button>` : '').join('')}</div>`
+  }
+  d.innerHTML = `<div class="drawer-head"><h2>${title}</h2><span class="chip">${kind}</span><button class="btn quiet x" data-x aria-label="Clear the selection">✕</button></div><div class="drawer-body">${body}</div><div class="drawer-foot">${foot}</div>`
+}
+
+// ---- Events. ----
+$('net').innerHTML = NETS.map((n, i) => `<option value="${i}">Network ${n}</option>`).join('')
+$('net').onchange = (e) => { net = Number(e.target.value); sel = null; render() }
+$('probBtn').onclick = () => { onlyProblems = !onlyProblems; render() }
+document.body.addEventListener('click', (e) => {
+  const t = e.target.closest('button'); if (!t) return
+  if (t.dataset.x !== undefined) { sel = null; render() }
+  else if (t.dataset.close) { open.delete(t.dataset.close); if (sel?.card === t.dataset.close) sel = null; render() }
+  else if (t.dataset.sw) select({ kind: 'switch', id: t.dataset.sw })
+  else if (t.dataset.card) select({ kind: 'node', card: t.dataset.card, id: t.dataset.card })
+  else if (t.dataset.agg) select({ kind: 'agg', id: t.dataset.agg })
+  else if (t.dataset.bb) select({ kind: 'bb', id: t.dataset.bb })
+  else if (t.dataset.net) { net = Number(t.dataset.net); render() }
+  else if (t.dataset.try) runTry(t.dataset.try)
+})
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sel) { sel = null; render() } })
+const TRY = [
+  ['sw:ACC-B01-S3', 'A switch'], ['sw:ACC-B04-S1', 'One uplink'], ['sw:ACC-B09-S6', 'Chained twice'],
+  ['node:B16', 'Building 16 (split)'], ['agg:AGG-60', 'AGG-60 (missing BB)'], ['hdf:SM1-HDF', 'An HDF'], ['sw:ACC-B13-S2', 'Wrong network'],
+]
+$('try').innerHTML = TRY.map(([k, label]) => `<button data-try="${k}">${label}</button>`).join('')
+function runTry(k) {
+  const [kind, id] = k.split(':')
+  if (kind === 'node') { net = 0; const cs = cardsOfNode(0, id); cs.forEach((x) => open.add(x.key)); select({ kind: 'node', card: cs[0].key, id: cs[0].key }) }
+  else select({ kind: kind === 'sw' ? 'switch' : kind, id })
+}
+const findItems = [...Object.keys(SW), ...Object.values(nodes).map((n) => n.name), ...NETS.flatMap((_, x) => [...bbsOf(x), ...Array.from({ length: 20 }, (_, i) => aggName(x, Math.floor(i / 2), i % 2))]), ...[1, 2, 3, 4, 5, 6].map((m) => `SM${m}-HDF`)]
+$('findList').innerHTML = findItems.map((v) => `<option value="${v}">`).join('')
+$('find').onchange = (e) => {
+  const v = e.target.value.trim(); e.target.value = ''
+  if (SW[v]) select({ kind: 'switch', id: v })
+  else if (/^AGG-/.test(v)) select({ kind: 'agg', id: v })
+  else if (/^BB-/.test(v)) select({ kind: 'bb', id: v })
+  else if (/HDF$/.test(v)) select({ kind: 'hdf', id: v })
+  else { const n = Object.values(nodes).find((n) => n.name === v); if (n) { const x = [0, 1, 2].find((x) => cardsOfNode(x, n.id).length); net = x; const c = cardsOfNode(x, n.id)[0]; select({ kind: 'node', card: c.key, id: c.key }) } }
+}
+render()
+</script>
+</body>
+</html>

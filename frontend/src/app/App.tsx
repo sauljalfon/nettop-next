@@ -58,7 +58,7 @@ import {
   traceSession,
   type RouteRef,
 } from '../features/pathfinding/traceSession'
-import { mapSession } from '../features/map/mapSession'
+import { mapSession, shownNetworks } from '../features/map/mapSession'
 import { highlightFor, type LocationRef } from '../features/map/highlight'
 import {
   NetworkSelect,
@@ -303,6 +303,12 @@ export default function App() {
     view === 'inventory'
       ? (inventory.lists[inventory.list].filters.net?.length ?? 0)
       : 0
+  // On Conceptual the header shows the network the map shows (D39).
+  const mapNetworks = useSyncExternalStore(
+    mapSession.subscribe,
+    mapSession.networks,
+  )
+  const mapNetworkId = shownNetworks(mapNetworks, networks)[0]
   return (
     <div
       className={`studio ${drawerSides(drawer).left ? 'drawer-left' : ''} ${drawerSides(drawer).right ? 'drawer-right' : ''}`}
@@ -317,9 +323,11 @@ export default function App() {
         <ViewSwitch view={view} onChange={setView} />
         <NetworkSelect
           networks={networks}
-          value={networkId}
+          value={view === 'conceptual' ? mapNetworkId : networkId}
           many={pillNetworks > 1 ? pillNetworks : undefined}
           onChange={(id) => {
+            // A network chosen on Conceptual is also the map's; All networks only changes the choice.
+            if (view === 'conceptual' && id) mapSession.showNetwork(id)
             setNetworkChoice(id)
             // Choosing the network already chosen must still replace "N networks".
             if (view === 'inventory') inventorySession.setHeaderNetwork(id)
@@ -649,6 +657,12 @@ function Workspace({
   })
   const equipment =
     snapshot.equipment.find((e) => e.id === selected) ?? snapshot.equipment[0]
+  const mapNetworks = useSyncExternalStore(
+    mapSession.subscribe,
+    mapSession.networks,
+  )
+  // The map's own network (D39); the header's choice only marks it on Physical.
+  const mapNetworkId = shownNetworks(mapNetworks, snapshot.networks)[0]
   // Snapshot-only work, shared by the map and the inspector.
   const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
   const tree = useMemo(() => locationTree(snapshot), [snapshot])
@@ -906,6 +920,16 @@ function Workspace({
       startTrace({ mode: 'distribution', device: equipment.id })
     }
   }
+  // The hierarchy drawer's Find AGG / BB: the same trace, from this switch.
+  const findFromDevice = useCallback(
+    (id: string) => {
+      setSelected(id)
+      setMode('distribution')
+      setStart(`device:${id}`)
+      startTrace({ mode: 'distribution', device: id })
+    },
+    [startTrace],
+  )
   // Select the equipment and open Focus on it. No highlight.
   const focusOnMap = useCallback(
     (id: string) => {
@@ -1055,13 +1079,18 @@ function Workspace({
           snapshot={snapshot}
           index={index}
           installedIDs={installedIDs}
+          installedLinkIDs={installedLinkIDs}
           selected={selected}
           route={route}
           routeSheet={routeSheet}
           onRouteStep={showStepInPhysical}
-          networkId={networkId}
+          networkId={mapNetworkId}
           onSelect={select}
           onPort={traceFromPort}
+          onFindDevice={findFromDevice}
+          onShowInPhysical={showInPhysical}
+          onShowPlace={showPlace}
+          onFocus={focusOnMap}
           installedContainerIds={installedContainerIds}
         />
       ) : view === 'inventory' ? (

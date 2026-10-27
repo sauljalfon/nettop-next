@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import {
   fitted,
   openRackInPhysical,
-  overviewState,
+  hierarchyState,
   pick,
   selectEquipment,
   settledViewport,
@@ -24,11 +24,6 @@ const side = (page: Page) => page.getByRole('group', { name: 'Side' })
 const select = (page: Page) =>
   page.getByRole('combobox', { name: 'Show network' })
 
-// Dragging a node card saves the shared arrangement on the server: clear it after each test.
-test.afterEach(async ({ request }) => {
-  await request.delete('/api/map-layout')
-})
-
 async function findFromEdge17(page: Page, route: number) {
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
@@ -37,31 +32,28 @@ async function findFromEdge17(page: Page, route: number) {
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 
-/** Drag a node card so the saved arrangement is not just the first layout. */
-async function rearrange(page: Page, id = 'node-building-a') {
-  const card = page.locator(`[data-node-id="${id}"]`)
-  const start = (await overviewState(page)).positions
-  const box = (await card.boundingBox())!
-  await page.mouse.move(box.x + 30, box.y + 14)
+/** Pan the hierarchy by dragging empty canvas, so the viewport is not just the first fit. */
+async function pan(page: Page) {
+  const start = await viewport(page)
+  const box = (await page.locator('[data-view="hierarchy"]').boundingBox())!
+  const from = { x: box.x + box.width - 120, y: box.y + 100 }
+  await page.mouse.move(from.x, from.y)
   await page.mouse.down()
-  await page.mouse.move(box.x + 30 + 120, box.y + 14 + 90, { steps: 10 })
+  await page.mouse.move(from.x - 120, from.y - 40, { steps: 10 })
   await page.mouse.up()
-  await page.getByRole('button', { name: 'Zoom Out' }).click()
-  await expect
-    .poll(async () => (await overviewState(page)).positions)
-    .not.toBe(start)
+  await expect.poll(() => viewport(page)).not.toBe(start)
 }
 
 async function expectMapUnchanged(
   page: Page,
   before: {
     viewport: string | null
-    state: Awaited<ReturnType<typeof overviewState>>
+    state: Awaited<ReturnType<typeof hierarchyState>>
   },
 ) {
-  await expect(page.locator('[data-view="overview"]')).toBeVisible()
+  await expect(page.locator('[data-view="hierarchy"]')).toBeVisible()
   await expect.poll(() => viewport(page)).toBe(before.viewport)
-  expect(await overviewState(page)).toEqual(before.state)
+  expect(await hierarchyState(page)).toEqual(before.state)
   // No automatic fit or centering follows: still the same a moment later.
   await page.waitForTimeout(600)
   expect(await viewport(page)).toBe(before.viewport)
@@ -71,6 +63,8 @@ const WALKS = [
   {
     name: 'AGG-03',
     route: 0,
+    lit: ['agg-03', 'agg-03+agg-08|node-building-a'],
+    litLines: ['group:agg-03+agg-08:agg-03'],
     position: '3C/5',
     block: '3C',
     rear: 'hdf-01:sp-3C:5:r',
@@ -87,6 +81,8 @@ const WALKS = [
   {
     name: 'BB-01',
     route: 2,
+    lit: ['agg-03+agg-08|node-building-a', 'bb-01'],
+    litLines: [],
     position: '2D/4',
     block: '2D',
     rear: 'hdf-01:sp-2D:4:r',
@@ -109,18 +105,14 @@ for (const w of WALKS)
     await page.goto('/')
     await fitted(page)
     await findFromEdge17(page, w.route)
-    await rearrange(page)
+    await pan(page)
     const before = {
       viewport: await settledViewport(page),
-      state: await overviewState(page),
+      state: await hierarchyState(page),
     }
-    // The route lights its node cards and the lines between them.
-    expect(before.state.nodes).toEqual([
-      'node-building-a',
-      'node-main-distribution',
-      'node-north-sub-main',
-    ])
-    expect(before.state.pairs.length).toBeGreaterThan(0)
+    // The route lights the cards it touches and their lines.
+    expect(before.state.cards).toEqual(w.lit)
+    expect(before.state.lines).toEqual(w.litLines)
 
     // a. Physical → Main Campus → North Sub-main → SM01 → HDF-01.
     await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
@@ -189,14 +181,14 @@ test('PHY-11 the same walkthrough with Network B and AGG-12: 3C/2 is selected, a
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(1)
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
-  await rearrange(page, 'node-dr-access')
+  await pan(page)
   const before = {
     viewport: await settledViewport(page),
-    state: await overviewState(page),
+    state: await hierarchyState(page),
   }
-  // The Network B route lights the DR nodes and the Main Campus nodes it crosses.
-  expect(before.state.nodes).toContain('node-dr-access')
-  expect(before.state.pairs.length).toBeGreaterThan(0)
+  // The Network B route lights AGG-12, DR Access and the line between them.
+  expect(before.state.cards).toEqual(['agg-12', 'agg-12|node-dr-access'])
+  expect(before.state.lines).toEqual(['group:agg-12:agg-12'])
 
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()

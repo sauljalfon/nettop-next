@@ -61,10 +61,12 @@ The conceptual map's overview was "only a worse version than Physical"; the owne
 
 ### Phases, each deployed and checked on real data before the next
 
-1. **The hierarchy replaces the overview:**
+1. **The hierarchy replaces the overview:** done 2026-10-27 ([plan](history/plans/2026-10-26-network-hierarchy-phase-1.md); what runs is in [status.md](status.md)).
    - levels, groups, node cards, the drawer and Only problems;
    - the shared problem rules and the Inventory rows;
    - the layout API removed.
+
+   On the rewired campus the owner asked for **one map** next (Focus inside the hierarchy, a left-to-right tree, a node opened as a list of its switches); its demo, [history/demos/one-map-demo.html](history/demos/one-map-demo.html), awaits approval and, once approved, replaces phases 2 and 3 below.
 2. **Opening a node:** racks and equipment in place, through `rackElevation`.
 3. **Networks and size:** the chips with + add and ✕, stacked bands with Fold, other-network dots, and a row per site above 12 nodes.
 

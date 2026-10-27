@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { fitted, viewport } from './helpers'
+import { cardPositions, fitted, viewport } from './helpers'
 import { chooseRack } from './patching-helpers'
 
 test('C10 opening and closing tools keeps the full-page canvas and viewport', async ({
@@ -28,17 +28,14 @@ test('C12 saving and refetching reconcile by ID without remounting or resetting'
 }) => {
   await page.goto('/?plan=expansion')
   await fitted(page) // read the viewport only after the one-time fit has settled
-  const building = page.locator('[data-node-id="node-building-a"]')
-  const count = async () =>
-    Number(/(\d+) equipment/.exec((await building.textContent()) ?? '')![1])
-  const equipment = await count()
+  // A switch with no cable goes under No AGG: that card is not there yet.
+  const added = page.locator('[data-card-key="none|node-building-a"]')
+  await expect(added).toHaveCount(0)
   await page.evaluate(() => {
     document.querySelector('.flow-surface')!.setAttribute('data-mounted', 'yes')
   })
   const port = await viewport(page)
-  const positions = await page
-    .locator('[data-view="overview"]')
-    .getAttribute('data-node-positions')
+  const before = await cardPositions(page)
 
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   await page.getByRole('button', { name: 'Add Access switch…' }).click()
@@ -54,15 +51,15 @@ test('C12 saving and refetching reconcile by ID without remounting or resetting'
   await form.getByRole('button', { name: 'Add to plan' }).click()
   await expect(page.getByRole('status')).toContainText('revision 2')
 
-  // The refetched plan shows the new equipment in its node, in the same mounted canvas.
-  await expect.poll(count).toBe(equipment + 1)
+  // The refetched plan shows the new switch under No AGG, in the same mounted canvas.
+  await expect(added).toContainText('1 switch')
   await expect(page.locator('.flow-surface')).toHaveAttribute(
     'data-mounted',
     'yes',
   )
   expect(await viewport(page)).toBe(port)
-  await expect(page.locator('[data-view="overview"]')).toHaveAttribute(
-    'data-node-positions',
-    positions!,
-  )
+  // Cards that were there stay where they were; only the top row recentres over the new group.
+  const after = await cardPositions(page)
+  for (const [key, at] of Object.entries(before))
+    if (key !== 'bb-01') expect(after[key]).toBe(at)
 })

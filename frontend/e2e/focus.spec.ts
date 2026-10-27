@@ -1,15 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, settledViewport } from './helpers'
+import { fitted, selectEdge17, settledViewport } from './helpers'
 
 // CM-10. Ids are the test server's (the acceptance example): equipment ids are
-// the lower-case names. The overview arrangement is shared server state.
+// the lower-case names.
 test.describe.configure({ mode: 'serial' })
-test.afterEach(async ({ request }) => {
-  await request.delete('/api/map-layout')
-})
 
 const focusRoot = (page: Page) => page.locator('[data-view="focus"]')
-const overviewRoot = (page: Page) => page.locator('[data-view="overview"]')
+const hierarchyRoot = (page: Page) => page.locator('[data-view="hierarchy"]')
 const equipmentCard = (page: Page, id: string) =>
   page.locator(`[data-equipment-id="${id}"]`)
 // A line carries no text: its via row is inside the card the line leads to.
@@ -18,22 +15,14 @@ const line = (page: Page, from: string, to: string) =>
 const viewport = (page: Page) =>
   page.locator('.react-flow__viewport').getAttribute('style')
 
-async function toOverview(page: Page) {
+async function toHierarchy(page: Page) {
   await page.goto('/')
   await fitted(page)
-  await expect(overviewRoot(page)).toHaveAttribute('data-fitted', 'true')
-}
-
-/** Selects EDGE-17 from its overview card (this only selects: it does not focus). */
-async function selectEdge17(page: Page) {
-  const building = page.locator('[data-node-id="node-building-a"]')
-  await building.locator('.overview-card-head').click()
-  await building.getByRole('button', { name: /EDGE-17/ }).click()
-  await expect(page.locator('.inspector-header h2')).toHaveText('EDGE-17')
+  await expect(hierarchyRoot(page)).toHaveAttribute('data-fitted', 'true')
 }
 
 async function focusEdge17(page: Page) {
-  await toOverview(page)
+  await toHierarchy(page)
   await selectEdge17(page)
   await page.getByRole('button', { name: 'Focus on EDGE-17' }).click()
   await expect(focusRoot(page)).toHaveAttribute('data-focus-id', 'edge-17')
@@ -149,37 +138,37 @@ test('CM-10 a line opens its circuits; Find AGG / BB from the port runs the trac
   await expect(pill).toBeFocused()
 })
 
-test('CM-10 ‹ Overview returns to the overview with the same arrangement and viewport', async ({
+test('CM-10 ‹ Hierarchy returns to the hierarchy with the same cards and viewport', async ({
   page,
 }) => {
-  await toOverview(page)
-  const marks = await overviewRoot(page).getAttribute('data-node-positions')
+  await toHierarchy(page)
+  const marks = await hierarchyRoot(page).getAttribute('data-card-positions')
   const view = await viewport(page)
   await selectEdge17(page)
   await page.getByRole('button', { name: 'Focus on EDGE-17' }).click()
   await expect(focusRoot(page)).toBeVisible()
-  await page.getByRole('button', { name: '‹ Overview' }).click()
-  await expect(overviewRoot(page)).toHaveAttribute('data-fitted', 'true')
-  expect(await overviewRoot(page).getAttribute('data-node-positions')).toBe(
+  await page.getByRole('button', { name: '‹ Hierarchy' }).click()
+  await expect(hierarchyRoot(page)).toHaveAttribute('data-fitted', 'true')
+  expect(await hierarchyRoot(page).getAttribute('data-card-positions')).toBe(
     marks,
   )
   await expect.poll(() => viewport(page)).toBe(view)
 })
 
-test('CM-10 from the overview, Explore → EDGE-17 opens Focus, and ‹ Overview returns to the overview', async ({
+test('CM-10 from the hierarchy, Explore → EDGE-17 opens Focus, and ‹ Hierarchy returns to the hierarchy', async ({
   page,
 }) => {
-  await toOverview(page)
+  await toHierarchy(page)
   await exploreChoose(page, 'EDGE-17')
   await expect(focusRoot(page)).toHaveAttribute('data-focus-id', 'edge-17')
-  await page.getByRole('button', { name: '‹ Overview' }).click()
-  await expect(overviewRoot(page)).toBeVisible()
+  await page.getByRole('button', { name: '‹ Hierarchy' }).click()
+  await expect(hierarchyRoot(page)).toBeVisible()
 })
 
 test('CM-10 a card the plan adds is Proposed; in Installed the same focus says it is not in this topology', async ({
   page,
 }) => {
-  await toOverview(page)
+  await toHierarchy(page)
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await exploreChoose(page, 'EDGE-18')
   await expect(focusRoot(page)).toHaveAttribute('data-focus-id', 'edge-18')
@@ -191,7 +180,7 @@ test('CM-10 a card the plan adds is Proposed; in Installed the same focus says i
   await expect(line(page, 'edge-18', 'agg-15')).toContainText('direct')
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await expect(page.getByText('edge-18 is not in this topology.')).toBeVisible()
-  await expect(page.getByRole('button', { name: '‹ Overview' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '‹ Hierarchy' })).toBeVisible()
 })
 
 test('CM-10 readability: with the inspector open on Focus on PANEL-A, no text in the canvas renders below 11px', async ({

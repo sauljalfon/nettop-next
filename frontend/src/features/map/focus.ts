@@ -65,6 +65,54 @@ export function endpointPlace(index: SnapshotIndex, p: Endpoint): string {
   return sub ? `${sub.row}${sub.column}/${p.position}` : `${p.position}`
 }
 
+/** One walk from an equipment's endpoint: where it ends, the passives it passes, every link. */
+export interface EquipmentWalk {
+  start: string
+  end: WalkEnd
+  via: FocusStep[]
+  linkIds: string[]
+  /** The switch the walk reaches (a switch or destination end), else undefined. */
+  farId?: string
+}
+
+/**
+ * Every walk from the equipment's endpoints over stored cables and bridges, with
+ * the passives passed on the way. Focus and the hierarchy both read this.
+ */
+export function equipmentWalks(
+  index: SnapshotIndex,
+  equipmentId: string,
+): EquipmentWalk[] {
+  const result: EquipmentWalk[] = []
+  for (const p of index.lookup.byEquipment.get(equipmentId) ?? []) {
+    const walk = followPort(index, p.id)
+    const via: FocusStep[] = []
+    for (const hop of walk.hops) {
+      if (hop.kind !== 'cable') continue
+      const entered = index.lookup.endpoints.get(hop.to)
+      if (!entered || entered.equipmentId === equipmentId) continue
+      if (index.equipment.get(entered.equipmentId)?.kind === 'switch') continue
+      via.push({
+        equipmentId: entered.equipmentId,
+        place: endpointPlace(index, entered),
+      })
+    }
+    const endOwner = index.owner.get(walk.end.endpointId)
+    const isSwitchEnd =
+      walk.end.kind === 'switch' || walk.end.kind === 'destination'
+    // The equipment holding a dead end is named by the end itself.
+    if (!isSwitchEnd && via.at(-1)?.equipmentId === endOwner) via.pop()
+    result.push({
+      start: p.id,
+      end: walk.end,
+      via,
+      linkIds: walk.hops.map((h) => h.linkId),
+      farId: isSwitchEnd ? endOwner : undefined,
+    })
+  }
+  return result
+}
+
 export const DEFAULT_CAP = 24
 const MAX_HOPS = 3
 
@@ -93,8 +141,6 @@ export function buildFocus(
     nameOf(a).localeCompare(nameOf(b)) || a.localeCompare(b)
   const endpoint = (id: string) => index.lookup.endpoints.get(id)
 
-  const place = (p: Endpoint) => endpointPlace(index, p)
-
   const compareEndpoints = (aId: string, bId: string) => {
     const a = endpoint(aId)
     const b = endpoint(bId)
@@ -119,42 +165,6 @@ export function buildFocus(
     return oa === ob ? compareEndpoints(a, b) : byName(oa, ob)
   }
 
-  /** Every walk from the equipment's endpoints, with the passives passed on the way. */
-  const walks = (equipmentId: string) => {
-    const result: {
-      start: string
-      end: WalkEnd
-      via: FocusStep[]
-      linkIds: string[]
-      farId?: string
-    }[] = []
-    for (const p of index.lookup.byEquipment.get(equipmentId) ?? []) {
-      const walk = followPort(index, p.id)
-      const via: FocusStep[] = []
-      for (const hop of walk.hops) {
-        if (hop.kind !== 'cable') continue
-        const entered = endpoint(hop.to)
-        if (!entered || entered.equipmentId === equipmentId) continue
-        if (index.equipment.get(entered.equipmentId)?.kind === 'switch')
-          continue
-        via.push({ equipmentId: entered.equipmentId, place: place(entered) })
-      }
-      const endOwner = index.owner.get(walk.end.endpointId)
-      const isSwitchEnd =
-        walk.end.kind === 'switch' || walk.end.kind === 'destination'
-      // The equipment holding a dead end is named by the end itself.
-      if (!isSwitchEnd && via.at(-1)?.equipmentId === endOwner) via.pop()
-      result.push({
-        start: p.id,
-        end: walk.end,
-        via,
-        linkIds: walk.hops.map((h) => h.linkId),
-        farId: isSwitchEnd ? endOwner : undefined,
-      })
-    }
-    return result
-  }
-
   const sideOf = (equipmentId: string, first: FocusCircuit): FocusSide => {
     const role = index.equipment.get(equipmentId)?.role
     if (role === 'aggregation' || role === 'backbone') return 'right'
@@ -169,7 +179,7 @@ export function buildFocus(
   for (let ring = 1; ring <= hops && frontier.length > 0; ring++) {
     const found = new Map<string, FocusCircuit[]>()
     for (const from of frontier)
-      for (const w of walks(from)) {
+      for (const w of equipmentWalks(index, from)) {
         if (w.farId === undefined) {
           // An uncabled endpoint is not a circuit, so it is not an end.
           if (ring === 1 && w.end.kind !== 'none')

@@ -45,7 +45,7 @@ npm run dev                          # http://127.0.0.1:5174, proxies /api to :8
 - `.env` is read by the Go commands, the Go database tests and Playwright; a variable already set in the environment wins. Document new settings in `.env.example`.
 - Startup never migrates or seeds. If port 8080 is taken, change `HTTP_ADDR` and `API_PROXY_TARGET` together.
 - **A database seeded before M1** is refused by migrations 003/004 (switch network membership and HDF subpanels are unknown). Only for a development database you do not need: `docker compose down -v` (this **deletes all its data**), then `up`, `migrate`, `seed`.
-- **The campus fixture** (development only, about 1,500 switches and 5,500 cables): `go run ./cmd/db seed -fixture campus` on an empty database, or `go run ./cmd/testserver -fixture campus`; `SCALE=1 npx playwright test -c playwright.scale.config.ts` from `frontend/` records timings.
+- **The campus fixture** (development only, about 1,580 switches and 11,300 cables, wired in AGG pairs with a few deliberate faults): `go run ./cmd/db seed -fixture campus` on an empty database, or `go run ./cmd/testserver -fixture campus`; `SCALE=1 npx playwright test -c playwright.scale.config.ts` from `frontend/` records timings.
 
 Tests, the smoke flow and the browser test setup are in [docs/testing.md](docs/testing.md).
 

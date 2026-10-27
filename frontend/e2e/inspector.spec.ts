@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectInsideVisibleArea, fitted, selectEquipment } from './helpers'
+import {
+  BUILDING_A,
+  expectInsideVisibleArea,
+  fitted,
+  selectEquipment,
+} from './helpers'
 
 const units = (page: Page) => page.getByTestId('inspector-unit')
 const filter = (page: Page, name: 'Cabled' | 'Free' | 'All') =>
@@ -16,11 +21,12 @@ async function inspect(page: Page, card: string) {
   await selectEquipment(page, card.toUpperCase())
 }
 
-/** Select an equipment from its overview node card, which opens the inspector and leaves the overview. */
-async function inspectOnOverview(page: Page, nodeId: string, name: string) {
-  const node = page.locator(`[data-node-id="${nodeId}"]`)
-  await node.locator('.overview-card-head').click()
-  await node.getByRole('button', { name: new RegExp(name) }).click()
+/** Select an equipment from the hierarchy's drawer: it opens the inspector and stays on the hierarchy. */
+async function inspectOnHierarchy(page: Page, switchId: string, name: string) {
+  await page.locator(`[data-card-key="${BUILDING_A}"]`).click()
+  const drawer = page.getByTestId('hierarchy-drawer')
+  await drawer.locator(`[data-switch-id="${switchId}"]`).click()
+  await drawer.getByRole('button', { name: 'Inspector' }).click()
   await expect(page.locator('.inspector-header h2')).toHaveText(name)
 }
 
@@ -156,18 +162,18 @@ test('POL-11 the location links highlight the site or node on the map, and the r
 }) => {
   await page.goto('/')
   await fitted(page)
-  await inspectOnOverview(page, 'node-building-a', 'EDGE-17')
+  await inspectOnHierarchy(page, 'edge-17', 'EDGE-17')
   const highlighted = () =>
     page
-      .locator('[data-node-id][data-highlighted="true"]')
-      .evaluateAll((els) => els.map((e) => e.getAttribute('data-node-id')))
+      .locator('[data-card-key][data-highlighted="true"]')
+      .evaluateAll((els) => els.map((e) => e.getAttribute('data-card-key')))
 
-  // Node and site highlight their node cards, and fit the view to them.
+  // A node highlights its node cards; a site also its tier cards. Both fit the view to them.
   await page
     .getByRole('button', { name: 'Highlight node Building A on the map' })
     .click()
-  await expect.poll(highlighted).toEqual(['node-building-a'])
-  await expectInsideVisibleArea(page, ['node-building-a'])
+  await expect.poll(highlighted).toEqual([BUILDING_A])
+  await expectInsideVisibleArea(page, [BUILDING_A])
   await expect(
     page.getByRole('button', { name: 'Clear highlight' }),
   ).toBeVisible()
@@ -176,11 +182,7 @@ test('POL-11 the location links highlight the site or node on the map, and the r
     .click()
   await expect
     .poll(async () => (await highlighted()).sort())
-    .toEqual([
-      'node-building-a',
-      'node-main-distribution',
-      'node-north-sub-main',
-    ])
+    .toEqual(['agg-03', BUILDING_A, 'agg-08', 'agg-15', 'bb-01'])
 
   // The rack opens in Physical.
   await page.getByRole('button', { name: 'Open Rack A03 in Physical' }).click()
@@ -199,7 +201,7 @@ test('POL-11 the location links highlight the site or node on the map, and the r
     .getByRole('button', { name: 'Highlight node Building A on the map' })
     .click()
   await expect(page.locator('.flow-surface')).toBeVisible()
-  await expect.poll(highlighted).toEqual(['node-building-a'])
+  await expect.poll(highlighted).toEqual([BUILDING_A])
 })
 
 test('whole-device Find AGG / BB is offered for switches only', async ({
@@ -374,28 +376,33 @@ test('POL-20 the tabs follow the WAI-ARIA pattern: roving tabindex and arrow key
   await expect(ports).toHaveAttribute('aria-selected', 'true')
 })
 
-test('POL-35 Enter or Space on a focused node card opens it, and on a focused row selects it and opens the inspector, like a click', async ({
+test('POL-35 Enter or Space on a focused card opens its drawer, Enter on a switch and on Inspector works like a click, and Escape closes the drawer and returns focus', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await expect(page.locator('.studio-drawer')).toHaveCount(0)
-  const building = page.locator('[data-node-id="node-building-a"]')
-  const head = building.locator('.overview-card-head')
-  await head.focus()
+  const drawer = page.getByTestId('hierarchy-drawer')
+  const building = page.locator(`[data-card-key="${BUILDING_A}"]`)
+  await building.focus()
   await page.keyboard.press('Enter')
-  await expect(head).toHaveAttribute('aria-expanded', 'true')
-  const edge = building.getByRole('button', { name: /EDGE-17/ })
-  await edge.focus()
+  await expect(drawer.getByRole('heading', { level: 2 })).toHaveText(
+    'Building A',
+  )
+  const row = drawer.locator('[data-switch-id="edge-17"]')
+  await row.focus()
+  await page.keyboard.press('Enter')
+  await expect(row).toHaveAttribute('aria-expanded', 'true')
+  await drawer.getByRole('button', { name: 'Inspector' }).focus()
   await page.keyboard.press('Enter')
   await expect(page.locator('.inspector-header h2')).toHaveText('EDGE-17')
-  // Space on another row replaces it, and does not scroll the page.
-  const panel = building.getByRole('button', { name: /PANEL-A/ })
-  await panel.focus()
+  // Space on another card replaces the drawer, and does not scroll the page.
+  const agg = page.locator('[data-card-key="agg-03"]')
+  await agg.focus()
   await page.keyboard.press('Space')
-  await expect(page.locator('.inspector-header h2')).toHaveText('PANEL-A')
-  // Space closes the card the same way it opened it.
-  await head.focus()
-  await page.keyboard.press('Space')
-  await expect(head).toHaveAttribute('aria-expanded', 'false')
+  await expect(drawer.getByRole('heading', { level: 2 })).toHaveText('AGG-03')
+  // Escape closes it, and focus returns to the card that opened it.
+  await page.keyboard.press('Escape')
+  await expect(drawer).toHaveCount(0)
+  await expect(agg).toBeFocused()
 })

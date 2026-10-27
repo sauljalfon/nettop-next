@@ -1,8 +1,8 @@
 import type { LocationRef } from './highlight'
-import type { Position } from '../physical/layout'
+import type { Network } from '../../shared/types'
 
 /** Which conceptual map is drawn. */
-export type MapMode = 'overview' | 'focus'
+export type MapMode = 'hierarchy' | 'focus'
 
 export interface Viewport {
   x: number
@@ -11,9 +11,9 @@ export interface Viewport {
 }
 
 /**
- * Session-only state of the conceptual map: the view, the overview's viewport,
- * open cards, proposed node positions, the focus, the highlight and the route
- * view. Nothing here is persisted to the server or fed to traversal.
+ * Session-only state of the conceptual map: the view, the hierarchy's viewport,
+ * the shown network, Only problems, open nodes, the focus, the highlight and
+ * the route view. Nothing here is persisted to the server or fed to traversal.
  */
 export interface MapSession {
   /**
@@ -39,28 +39,24 @@ export interface MapSession {
   /** The map drawn under the Conceptual header; session-only. */
   view(): MapMode
   setView(view: MapMode): void
-  /** The overview's viewport; Focus has none of its own. */
-  overviewViewport(): Viewport | undefined
-  setOverviewViewport(viewport: Viewport): void
-  /** True until an overview viewport has been recorded: it fits once per session. */
-  overviewNeedsFit(): boolean
+  /** The hierarchy's viewport; it fits once per session, and Focus has none of its own. */
+  hierarchyViewport(): Viewport | undefined
+  setHierarchyViewport(viewport: Viewport): void
+  /** True until a hierarchy viewport has been recorded. */
+  hierarchyNeedsFit(): boolean
+  /**
+   * The network IDs the map was told to show, first choice first; empty until
+   * one is chosen. Read through `shownNetworks`, which falls back.
+   */
+  networks(): readonly string[]
+  /** Phase 1 shows one network: the list becomes `[id]`. */
+  showNetwork(id: string): void
+  /** Only nodes with problems are drawn. */
+  onlyProblems(): boolean
+  setOnlyProblems(on: boolean): void
   /** Node cards that are open (listing their equipment). Replaced on every change. */
   openNodes(): ReadonlySet<string>
   toggleNode(id: string): void
-  /**
-   * Positions of nodes that exist only in the plan (the server does not know
-   * them). Replaced on every change; never sent to the server.
-   */
-  proposedPositions(): ReadonlyMap<string, Position>
-  proposedPosition(id: string): Position | undefined
-  setProposedPosition(id: string, position: Position): void
-  /**
-   * Forgets the proposed positions and the overview viewport, so the next
-   * render fits once. Open cards are kept.
-   */
-  resetOverview(): void
-  /** Incremented by every resetOverview; lets the overview tell a reset from a drag. */
-  overviewVersion(): number
   /** The equipment Focus is on; undefined until the first focusOn. */
   focusId(): string | undefined
   /** Rings shown around the focus, 1–3. Kept across focus changes. */
@@ -71,7 +67,7 @@ export interface MapSession {
    * cards are closed.
    */
   focusOn(id: string): void
-  /** Leaves Focus for the overview; its viewport is untouched. */
+  /** Leaves Focus for the hierarchy; its viewport is untouched. */
   back(): void
   /** Group cards that are open (by their key). Replaced on every change. */
   openGroups(): ReadonlySet<string>
@@ -80,16 +76,30 @@ export interface MapSession {
   subscribe(listener: () => void): () => void
 }
 
+/**
+ * The network the map shows: the first chosen one that exists in the snapshot,
+ * else the snapshot's first, else none (a plan or another context may not have
+ * the chosen one).
+ */
+export function shownNetworks(
+  chosen: readonly string[],
+  networks: readonly Network[],
+): string[] {
+  const first = chosen.find((id) => networks.some((n) => n.id === id))
+  const id = first ?? networks[0]?.id
+  return id === undefined ? [] : [id]
+}
+
 export function createMapSession(): MapSession {
   let highlight: LocationRef | undefined
   let routeView = false
   let fit: { ids: string[]; serial: number } | undefined
   let fitHandled = 0
-  let view: MapMode = 'overview'
-  let overviewViewport: Viewport | undefined
+  let view: MapMode = 'hierarchy'
+  let hierarchyViewport: Viewport | undefined
+  let networks: readonly string[] = []
+  let onlyProblems = false
   let openNodes: ReadonlySet<string> = new Set()
-  let proposed: ReadonlyMap<string, Position> = new Map()
-  let overviewVersion = 0
   let focusId: string | undefined
   let hops = 1
   let openGroups: ReadonlySet<string> = new Set()
@@ -124,10 +134,22 @@ export function createMapSession(): MapSession {
       view = next
       notify()
     },
-    overviewViewport: () => overviewViewport,
-    setOverviewViewport: (v) =>
-      void (overviewViewport = { x: v.x, y: v.y, zoom: v.zoom }),
-    overviewNeedsFit: () => overviewViewport === undefined,
+    hierarchyViewport: () => hierarchyViewport,
+    setHierarchyViewport: (v) =>
+      void (hierarchyViewport = { x: v.x, y: v.y, zoom: v.zoom }),
+    hierarchyNeedsFit: () => hierarchyViewport === undefined,
+    networks: () => networks,
+    showNetwork(id) {
+      if (networks.length === 1 && networks[0] === id) return
+      networks = [id]
+      notify()
+    },
+    onlyProblems: () => onlyProblems,
+    setOnlyProblems(on) {
+      if (on === onlyProblems) return
+      onlyProblems = on
+      notify()
+    },
     openNodes: () => openNodes,
     toggleNode(id) {
       const next = new Set(openNodes)
@@ -135,19 +157,6 @@ export function createMapSession(): MapSession {
       openNodes = next
       notify()
     },
-    proposedPositions: () => proposed,
-    proposedPosition: (id) => proposed.get(id),
-    setProposedPosition(id, p) {
-      proposed = new Map(proposed).set(id, { x: p.x, y: p.y })
-      notify()
-    },
-    resetOverview() {
-      proposed = new Map()
-      overviewViewport = undefined
-      overviewVersion++
-      notify()
-    },
-    overviewVersion: () => overviewVersion,
     focusId: () => focusId,
     hops: () => hops,
     setHops(n) {
@@ -164,7 +173,7 @@ export function createMapSession(): MapSession {
     },
     back() {
       if (view !== 'focus') return
-      view = 'overview'
+      view = 'hierarchy'
       notify()
     },
     openGroups: () => openGroups,

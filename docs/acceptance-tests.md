@@ -120,9 +120,9 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | SR-01, SR-02 | Explore finds a cable by ID and a port by label, in Physical and in Conceptual | `search-sheets`, `portSearch.test.ts` |
 | PR-01, PR-02 | The rack and equipment sheets download as one-page PDFs with the header, table and text layer | `search-sheets`, `sheets.test.ts` |
 | SC-01 | The campus fixture validates, is deterministic, has the realistic shape, and every sampled access switch reaches one distribution device on its network | `internal/scalefixture` (Go) |
-| SC-02 | The opt-in campus run records the timings and screenshots (CM-12: topology load; first overview render fitted; open the busiest node card; Focus on an access switch; +1 hop; ‹ Overview back; then the site screen, node drag and save, 40-rack node, rack search, 42U rack, 32-row HDF, Trace drawer, picker search, trace on the overview, trail step, Explore, Explore cable search) | `scale` (`SCALE=1`, skipped otherwise) |
+| SC-02 | The opt-in campus run records the timings and screenshots (HI-12: topology load; first hierarchy draw fitted; the busiest node's drawer; Focus from it and back; Focus on an access switch; +1 hop; ‹ Hierarchy back; then the site screen, node drag and save, 40-rack node, rack search, 42U rack, 32-row HDF, Trace drawer, picker search, trace on the hierarchy, trail step, Explore, Explore cable search) | `scale` (`SCALE=1`, skipped otherwise) |
 | SC-03 | Picker and Explore lists are built once per snapshot when idle; an empty picker query is cheap | `lazy.test.ts`, `picker.test.ts` |
-| SC-04 | Retired with the device map in step 7 (D35): `reuse.test.ts` (a route change keeps untouched cards and lines as the same objects) was deleted with it. The overview and Focus project from scratch per snapshot; the CM-12 timings (SC-02) are the check now | `scale` (`SCALE=1`) |
+| SC-04 | Retired with the device map in step 7 (D35): `reuse.test.ts` (a route change keeps untouched cards and lines as the same objects) was deleted with it. The hierarchy and Focus project from scratch per snapshot; the HI-12 timings (SC-02) are the check now | `scale` (`SCALE=1`) |
 | PHY-13 | Above 12 unsaved nodes the layout is layered by cable distance; far fewer lines cross a third card than in the grid | `connections.test.ts`, `center.test.ts` |
 | — | The zoom controls are a compact box (under 60 px wide) in the map and on a site screen | `physical` |
 
@@ -154,20 +154,38 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 
 | ID | Scenario | Where it runs |
 | --- | --- | --- |
-| CM-01 | `GET`/`PUT`/`DELETE /api/map-layout`: round trip, last write wins, reset, a deleted node's position goes (cascade), 404 unknown node, 422 out of range or missing, 400 unknown field; no write changes the topology revision | `persistence/map_layout_test.go`, `httpapi/map_layout_api_test.go`, `src/shared/api.test.ts` |
-| CM-02 | Overview cards: one per node, equipment count, tags from explicit roles, proposed dashed | `overview.test.ts` |
-| CM-03 | Pair counts equal the real cables, within and between sites; a cable inside one node is not a line | `overview.test.ts` |
-| CM-04 | The network selector dims nodes without that network and never hides shared passive equipment | `overview.test.ts` |
-| CM-05 | Default arrangement is deterministic, cards never overlap, saved positions win; above 12 nodes the automatic fit keeps zoom 0.6 from the top (`overviewFit.test.ts`) | `overviewLayout.test.ts` |
+| CM-01 | `GET`/`PUT`/`DELETE /api/map-layout`: round trip, last write wins, reset, a deleted node's position goes (cascade), 404 unknown node, 422 out of range or missing, 400 unknown field; no write changes the topology revision | — Retired with the overview (D39, 2026-10-27); successor HI-11 (the endpoints answer 404) |
+| CM-02 | Overview cards: one per node, equipment count, tags from explicit roles, proposed dashed | — Retired with the overview (D39, 2026-10-27); successor HI-01 to HI-03, HI-09 |
+| CM-03 | Pair counts equal the real cables, within and between sites; a cable inside one node is not a line | — Retired with the overview (D39, 2026-10-27); successor HI-02 (lines from real cables) |
+| CM-04 | The network selector dims nodes without that network and never hides shared passive equipment | — Retired with the overview (D39, 2026-10-27); successor HI-09 (the header chooses the network) |
+| CM-05 | Default arrangement is deterministic, cards never overlap, saved positions win; above 12 nodes the automatic fit keeps zoom 0.6 from the top (`overviewFit.test.ts`) | — Retired with the overview (D39, 2026-10-27); successor HI-06 (layout, fit) |
 | CM-06 | Focus on EDGE-17 (the acceptance fixture) shows AGG-03, AGG-08 and BB-01 on the right, AGG-03's card "via PANEL-A 1, HDF-01 3C/5, HDF-02 2B/3" (D36: the via rows are in the card a line leads to; a card reached by several lines has one row per line); AGG-15 (unconnected) is absent; several circuits to one neighbour merge with their count; a dead end is listed; a loop terminates | `focus.test.ts` |
 | CM-07 | Focus on a panel and on an HDF walks both sides; a reserved/faulty port changes nothing (locked 6) | `focus.test.ts` |
 | CM-08 | More than 24 neighbours group per node; +1 hop adds the next ring, never repeats, stops at 3 | `focus.test.ts` (campus-shaped fixture) |
-| CM-09 | The map opens on node cards inside site frames, with the cable counts; a node opens its equipment; a drag is sent once at the drop and survives a reload; Reset arrangement; the network selector dims and never hides; a count pill is never under a card | `overview` |
-| CM-10 | Focus from the inspector, from Explore and from Show on map; a neighbour moves the focus; a via row opens its line's circuits; +1 hop; ‹ Overview restores the overview; a proposed card; no text under 11 px; a via row never covers another card | `focus` |
-| CM-11 | A trace lights the route's node cards and lines (overview) and cards and lines (Focus) in place; with Network B the route stays undimmed; the Route view covers and restores; Explore's highlight marks and fits once and can be cleared | `overview-trace` |
-| CM-12 | Campus: overview render and Focus open timings recorded (measurements, not budgets) | `scale` (`SCALE=1`; with SC-02) |
+| CM-09 | The map opens on node cards inside site frames, with the cable counts; a node opens its equipment; a drag is sent once at the drop and survives a reload; Reset arrangement; the network selector dims and never hides; a count pill is never under a card | — Retired with the overview (D39, 2026-10-27); successor HI-09 |
+| CM-10 | Focus from the inspector, from Explore and from Show on map; a neighbour moves the focus; a via row opens its line's circuits; +1 hop; ‹ Hierarchy restores the hierarchy; a proposed card; no text under 11 px; a via row never covers another card | `focus` |
+| CM-11 | A trace lights the route's node cards and lines (overview) and cards and lines (Focus) in place; with Network B the route stays undimmed; the Route view covers and restores; Explore's highlight marks and fits once and can be cleared | — Retired with the overview (D39, 2026-10-27); successor HI-10 (`hierarchy-trace`) |
+| CM-12 | Campus: overview render and Focus open timings recorded (measurements, not budgets) | — Retired with the overview (D39, 2026-10-27); successor HI-12 |
 
-Since step 6 the overview is the default view and every spec reaches equipment through Explore (`selectEquipment`), an overview card or Focus. The specs of the retired device map were deleted with it in step 7 (D35); the map has only the overview and Focus.
+Since step 6 the overview is the default view and every spec reaches equipment through Explore (`selectEquipment`), an overview card or Focus. The specs of the retired device map were deleted with it in step 7 (D35); the map has only the overview and Focus. The overview itself was retired on 2026-10-27 (D39); its rows name their successors below.
+
+## The network hierarchy, phase 1 (2026-10-27)
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| HI-01 | Levels: BB as the top; with no BB the Top AGG rule (joined to another AGG, no access uplink); with neither no top row; roles only (a switch named "BB-x" with role `aggregation` is an AGG) | `hierarchy.test.ts` |
+| HI-02 | Lines: uplink top↔mid, peer link top↔top and mid↔mid, one per pair with each circuit's links; through passive chains; "N uplink to the top" and `weak` with two tops and one reached | `hierarchy.test.ts` |
+| HI-03 | Groups: joined by a peer link or by a shared switch; an AGG with no switch is its own group; Under the top; No AGG; a node under two groups (the Expansion draft); order | `hierarchy.test.ts` |
+| HI-04 | Marks: single, chained (depth and parents, a chain of three, a loop of access switches terminates), no uplink, other network; one mark per switch in the stated order; a reserved or faulty port changes nothing (locked 6) | `hierarchy.test.ts` |
+| HI-05 | In a plan: proposed equipment card, node card and line; installed ones not proposed | `hierarchy.test.ts` |
+| HI-06 | Layout: deterministic, no overlap (also a 50-node group), frames hold their cards, the top row centred; projection classes (`weak`, `peer`, `proposed`, `on-route`, `highlighted`, `hot`); a route lights what it touches and nothing moves; an empty network | `hierarchyLayout.test.ts`, `hierarchyFlow.test.ts`, `hierarchyFit.test.ts` |
+| HI-07 | Session: the shown network (fallback to the first existing), Only problems, the viewport, `back()` to the hierarchy | `mapSession.test.ts` |
+| HI-08 | Problems: one `uplink:` row per marked switch with its text and detail; the count equals the hierarchy's marked switches over every network; none on the clean acceptance fixture | `problems.test.ts` |
+| HI-09 | In the browser: Network A (BB-01; AGG-03 + AGG-08 over Building A; AGG-15 with 0 nodes) and Network B (no top row); the header choosing B redraws and fits once, All networks keeps B; Building A's drawer lists EDGE-17's uplinks with the via path; Focus, Inspector and Find AGG / BB from it; Only problems; the Expansion plan's dashed card and line; Hebrew names isolated | `hierarchy` |
+| HI-10 | Trace and highlight on the hierarchy: the route lights its cards and lines, another route moves nothing, with Network B the route is undimmed, the Route view covers and restores, Explore's highlight marks and fits once, Clear highlight and Esc | `hierarchy-trace` |
+| HI-11 | `/api/map-layout` answers 404 like an unknown path; the client has no map-layout calls | `httpapi/server_test.go`, `src/shared/api.test.ts` |
+| HI-12 | Campus: the first hierarchy draw (fitted), the busiest node's drawer, Focus from it and ‹ Hierarchy back, the Problems list with its uplink rows; timings in [status.md](status.md) (measurements, not budgets) | `scale` (`SCALE=1`; with SC-02) |
+| HI-13 | A direct fix renames Building A to a long Hebrew name while its drawer is open: card, frame and drawer show it isolated and cut, the drawer stays on the same card, nothing moves; the name is restored after | `hierarchy.recording` |
 
 ## The inventory view (2026-10-19)
 

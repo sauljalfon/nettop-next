@@ -261,13 +261,13 @@ test('PHY-04 Explore navigates Physical, and keeps its behavior in Conceptual', 
   // The inspector is not opened by navigating in Physical.
   await expect(page.getByLabel('Equipment inspector')).toHaveCount(0)
 
-  // In Conceptual the same drawer highlights on the overview, as before.
+  // In Conceptual the same drawer highlights on the hierarchy, as before.
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await page
     .getByRole('button', { name: 'Highlight Building A on the map' })
     .click()
   await expect(
-    page.locator('[data-node-id="node-building-a"]'),
+    page.locator('[data-card-key="agg-03+agg-08|node-building-a"]'),
   ).toHaveAttribute('data-highlighted', 'true')
   await physical(page).click()
   await expect(root(page)).toHaveAttribute('data-location', /rack:rack-core-01/)

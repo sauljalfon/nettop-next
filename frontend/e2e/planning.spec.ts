@@ -106,13 +106,17 @@ test('save a plan, add equipment through the library form, reload, and reject st
   expect(
     current.equipment.some((e: { name: string }) => e.name === 'STALE-EDIT'),
   ).toBe(false)
-  // The plan's switch is in Building A's node card; Installed does not have it.
-  const building = page.locator('[data-node-id="node-building-a"]')
-  await building.locator('.overview-card-head').focus()
-  await page.keyboard.press('Enter')
-  const added = building.getByRole('button', { name: /EDGE-BROWSER/ })
+  // The plan's switch is cabled to AGG-15, so Building A has a card under AGG-15; Installed does not have it.
+  const building = page.locator('[data-card-key="agg-15|node-building-a"]')
+  await expect(building).toContainText('Building A')
+  await building.click()
+  const added = page
+    .getByTestId('hierarchy-drawer')
+    .getByRole('button', { name: /EDGE-BROWSER/ })
   await expect(added).toHaveCount(1)
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
-  await expect(added).toHaveCount(0)
-  await expect(building.getByRole('button', { name: /EDGE-17/ })).toHaveCount(1)
+  await expect(building).toHaveCount(0)
+  await expect(
+    page.locator('[data-card-key="agg-03+agg-08|node-building-a"]'),
+  ).toBeVisible()
 })

@@ -338,17 +338,25 @@ test('INV-06 the header network and the Network pill follow each other', async (
   await headerNetwork(page).selectOption({ label: 'Network A' })
   await expect(pill('Network == Network A')).toBeVisible()
 
-  // Conceptual keeps its usual network behaviour.
+  // Conceptual shows the map's own network in the header (D39), whatever the Inventory chose;
+  // choosing there changes the map, and the Inventory follows the header's choice.
   await headerNetwork(page).selectOption({ label: 'Network B' })
   await page
     .getByRole('group', { name: 'View' })
     .getByRole('button', { name: 'Conceptual', exact: true })
     .click()
   await fitted(page)
-  await expect(headerNetwork(page)).toHaveValue('net-b')
-  await expect(page.locator('[data-node-id="node-building-a"]')).toHaveClass(
-    /dimmed/,
+  await expect(headerNetwork(page)).toHaveValue('net-a')
+  await expect(page.locator('[data-view="hierarchy"]')).toHaveAttribute(
+    'data-network',
+    'net-a',
   )
+  await headerNetwork(page).selectOption({ label: 'Network B' })
+  await expect(page.locator('[data-view="hierarchy"]')).toHaveAttribute(
+    'data-network',
+    'net-b',
+  )
+  await expect(headerNetwork(page)).toHaveValue('net-b')
   await expect(
     headerNetwork(page).locator('option', { hasText: /^\d+ networks$/ }),
   ).toHaveCount(0)
