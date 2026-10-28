@@ -40,7 +40,8 @@ test('HI-09 Network A: the Backbone over three AGGs, Building A under AGG-03 + A
   await expect(card(page, BUILDING_A)).toContainText('Building A')
   await expect(card(page, BUILDING_A)).toContainText('Main Campus')
   await expect(card(page, BUILDING_A)).toContainText('1 switch')
-  // Nothing is marked: the clean fixture has no single or chained switch.
+  // EDGE-17 has three uplinks (AGG-03, AGG-08, BB-01): the neutral "2↑ 1" badge, and no fault.
+  await expect(card(page, BUILDING_A)).toContainText('2↑ 1')
   await expect(card(page, BUILDING_A)).not.toContainText('single')
   await expect(card(page, BUILDING_A)).not.toContainText('chained')
   await expect(page.locator('[data-card-key]')).toHaveCount(5)
@@ -70,7 +71,11 @@ test('HI-09 Network A: the Backbone over three AGGs, Building A under AGG-03 + A
   await expect(line(page, 'group:agg-03+agg-08:agg-08')).toHaveCount(1)
   await expect(line(page, 'group:agg-15:agg-15')).toHaveCount(1)
   await expect(page.locator('[data-line^="uplink:"]')).toHaveCount(0)
-  await expect(page.locator('[data-weak="true"]')).toHaveCount(0)
+  await expect(page.locator('[data-weak]')).toHaveCount(0)
+  // No cable joins an AGG to BB-01, so each of the three says so; the BB does not.
+  for (const id of ['agg-03', 'agg-08', 'agg-15'])
+    await expect(card(page, id)).toContainText('No BB uplink')
+  await expect(card(page, 'bb-01')).not.toContainText('No BB uplink')
   // Nothing on it can be dragged, and the legend says what the lines are.
   await expect(panel(page)).toContainText('peer link')
   await expect(panel(page)).toContainText('proposed')

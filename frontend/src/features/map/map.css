@@ -753,6 +753,12 @@ button.focus-via:focus-visible {
   border: 1px solid var(--rule-strong);
   border-radius: 999px;
 }
+.hcard-badge {
+  padding: 0 5px;
+  color: var(--ink-soft);
+  border: 1px solid var(--rule-soft);
+  border-radius: 999px;
+}
 
 /* The drawer over the canvas (D34): the shared .drawer, on the right; right of an open inspector it moves left. */
 .hierarchy-drawer {

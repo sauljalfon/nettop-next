@@ -11,7 +11,7 @@ import {
 import { hierarchyFixture } from './hierarchyFixture'
 import { indexSnapshot } from './snapshotIndex'
 
-/** BB over AGG1 and AGG2 (peered), Hall 1 with a chain A1 <- A2 <- A3 and a single-uplink S. */
+/** BB over AGG1 and AGG2 (peered), Hall 1 with a chain A1 <- A2 <- A3 and S with one uplink. */
 function fixture() {
   const f = hierarchyFixture()
     .site('s1', 'Main')
@@ -63,7 +63,7 @@ describe('HI-09 the drawer’s model', () => {
     expect(by.S.toIds).toEqual(['AGG1'])
     expect(by.A1.mark).toBeUndefined()
     expect(by.A2.mark).toBe('chained')
-    expect(by.S.mark).toBe('single')
+    expect(by.S.mark).toBeUndefined()
   })
 
   it('says a switch with no uplink has none, and one that reaches another network names it', () => {
@@ -84,7 +84,6 @@ describe('HI-09 the drawer’s model', () => {
     expect(by.WRONG).toMatchObject({ toIds: [], mark: 'other-network' })
     expect(by.WRONG.other).toEqual([{ farId: 'B-AGG', networkId: 'B' }])
     expect(Object.values(MARK_TEXT)).toEqual([
-      'one uplink',
       'chained',
       'no uplink',
       'other network',

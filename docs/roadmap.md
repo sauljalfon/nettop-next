@@ -6,76 +6,79 @@ Finished milestones (M1–M5c, M5b steps 11–13, P1, P2) and their designs, rec
 
 ## 1. The network hierarchy (the conceptual view's new purpose)
 
-The conceptual map's overview was "only a worse version than Physical"; the owner chose to give the view a purpose instead of removing it: **the network hierarchy**, top to bottom, from the cables. Approved 2026-10-25 from [the demo](history/demos/hierarchy-demo.html) and the owner's answers; the lasting rules are D39 in [decisions.md](decisions.md).
+The conceptual map's overview was "only a worse version than Physical"; the owner gave the view a purpose instead: **the network hierarchy**, from the cables. Phase 1 (top to bottom, with Focus beside it) was approved on 2026-10-25 (D39) and is merged. On the realistic campus the owner then chose **one conceptual view**: a left-to-right tree where Show on map lands, with no separate Focus view. Approved 2026-10-28 from [the demo](history/demos/conceptual-demo.html); the lasting rules are D39 and D40 in [decisions.md](decisions.md).
 
-**Owner's answers (2026-10-25).** Purpose: the network hierarchy. Size: some BB, 10–20 AGG and a few hundred access switches per network, up to about 50 nodes under one AGG. Wiring: mostly direct, a minority chained, many uplinks through long passive chains (front › rear › … › AGG). The node overview is replaced; **Focus stays as it is**. With no BB, the top is found **from the cables**. Choose networks with chips; **no "All networks" chip**. A node opens in place and shows its racks and equipment. Accepted all seven of Opus's proposals (below: peer links only, three phases, one rack drawing, one problem definition, plans, remove the overview's layout API, session memory and measuring).
+**Owner's answers.**
+- **2026-10-25:** some BB, 10–20 AGG and a few hundred access switches per network, up to about 50 nodes under one AGG. Wiring is mostly direct, a minority chained, many uplinks through long passive chains. With no BB, the top is found from the cables. Networks are chosen with chips, with no "All networks" chip.
+- **2026-10-28:**
+  - **Node size:** a node holds at most 12 switches, except Main Distribution, which holds the AGGs and BBs and a few access switches.
+  - **AGGs:** some nodes hang under one AGG, others under a pair.
+  - **Uplinks:** an access switch normally has **one** uplink. A few have a second one, to the other AGG of the pair, to a BB or to another switch.
+  - **AGG to BB:** varies; one BB or both.
+  - **Faults:** the marks are no uplink, chained only, another network, an AGG with no BB, and a split node.
+  - **What the view answers,** in order: where a device sits, then what depends on it, then what is around it, then one port.
+  - **Focus:** the separate view adds nothing the tree and its drawer cannot show, so it goes.
 
 ### What the user sees
 
-- **Levels, per network:** the top row, then Aggregation, then Nodes.
-  - The top is the network's **BB** (role `backbone`).
-  - With no BB, the top is every AGG that is joined to another AGG and that no access switch reaches ("Top AGG").
-  - With neither, there is no top row.
-- **Lines:**
-  - an uplink from a top to an AGG, dashed when that AGG has fewer uplinks to the top than there are tops ("1 uplink to the top");
-  - a **peer link** bar between two AGGs (or two tops) of the same level;
-  - one line from each AGG to its group of nodes.
+- **One tree per network, left to right:**
+  - **Top:** the network's **BBs**. With no BB, the Top AGG rule of phase 1 applies.
+  - **Aggregation:** frames of AGGs, all from the cables:
+    - a **pair**: two AGGs joined by a peer link, drawn as one frame "AGG-01 — AGG-02";
+    - a **single AGG**, marked "no BB" when it has no BB uplink;
+    - **Direct to BB**: access switches whose only way up is a BB;
+    - **No AGG**: no uplink, or uplinks only into another network.
+  - **Nodes:** a card per node under its frame, with the number of switches, a fault count and a neutral "2↑ N" for switches with two uplinks. A node whose switches go to two frames appears under each (a **split**).
+- **Lines:** a line from each BB to every frame whose AGGs it is cabled to, and one line from a frame to each of its node cards. Lines are drawing aids and never feed traversal.
+- **A node opens in place** to a list of its switch names. Each switch shows its fault or its "2 uplinks" badge, and one quiet line counts the node's switches on another frame or network. Several nodes can be open; "▴" folds one.
+- **Selecting** a switch, node, AGG, BB, panel or HDF, by a click on the tree, Find in the panel, or **Show on map** from the Inspector, Inventory, Physical or Explore:
+  - **The right network:** the tree switches to the device's network, or for a panel to the network most of its circuits are on.
+  - **The open node:** the device's node opens and the device is marked. For a panel or HDF, the nodes it serves open when there are at most 3.
+  - **The way up:** the path to the AGGs and BBs is lit, through the parent for a chained switch.
+  - **What depends on it:** that is lit as well:
+    - an AGG lights its nodes;
+    - a panel or HDF lights every switch whose uplink runs through it;
+    - a switch lights the switches chained under it.
 
-  No stack is drawn: the data does not say which cable is a stack, and nothing is guessed. A "stack" mark set by the user is in the backlog.
-- **Groups of AGGs:** AGGs joined by a peer link, or sharing access switches, sit side by side over one frame of nodes. A node can appear under two groups, or in two networks.
-- **Nodes:** a card per node (site › node, the number of switches, and marks only when something is wrong: "N single", "N chained").
-  - Above 12 nodes under one group, the nodes are a **row per site** with small tiles (up to 6 per row).
-  - Switches with no uplink, or with uplinks only into another network, go in a **No AGG** group.
-- **The uplink of an access switch:** the first active equipment its ports reach over real cables through any passive chain (the walk of `followPort`). A switch reaching another access switch is **chained** and hangs under that switch. A switch with one uplink where its group has more is **single**.
-- **Opening a node:** a click opens the node in place as a larger square.
-  - It shows each rack of the node top to bottom, with the same rows as Physical's rack: switch, panel and HDF, U numbers and free runs folded.
-  - Every network's equipment in the room is shown; another network's switches are quieter with their network's tag.
-  - Clicking a switch opens the drawer with its uplinks (ports and the via path, Focus, Inspector, Find AGG / BB). A panel or HDF opens its positions, front and rear.
-  - "Uplinks ›" lists every switch of the node; "Close ▴" folds it. Several nodes can be open.
-- **Choosing networks:** a row of chips above the map, one per network, with its colour and switch count.
-  - A click shows that network only; **+ add** (or Ctrl/⌘-click) shows it too; **✕** removes it (never the last one).
-  - Several networks are stacked bands, each with Fold, plus Fold all / Open all.
-  - A closed node card shows dots for the other networks in the same room.
-  - Find searches every network; a hit in a hidden network adds it.
-  - The header's network follows the chips: one network, or "Several networks". The header's "All networks" (Inventory's choice) leaves the map's choice as it was.
-- **Only nodes with problems:** a switch in the left panel that hides every node with no mark. A frame says "N nodes · M switches · K with problems".
-- **In a plan,** the hierarchy is drawn from the proposed snapshot; equipment and cables the plan adds are dashed (D33). A stale draft is never drawn (as today).
-- **Focus** is unchanged, and its Hierarchy / Focus switch replaces Overview / Focus.
+    In the open nodes, a switch with no other way to a BB is marked **cut off**.
+  - **The rest dims.** The view scrolls to the selection and never refits the whole tree. Esc or ✕ clears.
+- **The drawer** opens on the selection:
+  - **Node:** a summary ("9 switches → AGG-23 + AGG-24"), the split, the faults and the two-uplink switches.
+  - **Equipment:** one sentence (for example "One uplink: AGG-21", "Chained only: …", "No BB uplink"), then:
+    - **Way up:** one row per uplink: Port → each panel and HDF with its position → AGG → BBs, faults in red. A panel's chip traces that jack (the route view); a device selects it.
+    - **Depends on it:** how many would be cut off and how many have another way up, with a list that selects.
+    - **Cables (N):** each port and its far end.
+  - **Actions:** Inspector, Find AGG / BB, Show in Physical.
+- **Only problems** in the panel hides every node with no fault.
+- **Kept as they are:** the header's network, Find AGG / BB with the route drawn over the tree, the route view and its export, and plans: the tree is drawn from the proposed snapshot with additions dashed, and a stale draft is never drawn.
+- **Gone:** the Focus view, its button in the Inspector, the hops, the Hierarchy / Focus switch, and the "single uplink" mark.
 
 ### How it is built
 
-- **Frontend only. No new API and no migration.**
-  - A pure module, `features/map/hierarchy`, works out the levels, groups, nodes, uplinks and marks once per snapshot.
-  - Thin components draw it. Positions are computed and never saved.
-- **One rack drawing.** The open node uses `physical/elevation` (`rackElevation`, its free, proposed and muted rows) and Physical's row look, not a second drawing.
-- **One problem definition.**
-  - The uplink marks (single, chained, no uplink, only into another network) come from the hierarchy module.
-  - Inventory's **Problems** list gains these rules from the same module, so "K with problems" on the map and the Problems rows agree. This amends D38's "the uplink check of every access switch is not part of it".
-- **The overview goes:**
-  - its modules and components;
-  - its saved node positions: the `/api/map-layout` endpoints and the frontend calls, removed from `api/openapi.yaml`.
-  
-  The table stays (no migration) until a later cleanup, so nothing is lost.
-- **Session memory** (`mapSession`): the chosen networks, the open nodes, folded bands and Only problems, for the session only, like Focus today.
-- **Measure** on the campus fixture before merging: the first draw is no slower than the overview's (about 2 s, see status.md).
+- **Frontend only. No new API and no migration.** Everything comes from the loaded snapshot, as in phase 1.
+- **`features/map/hierarchy`** keeps the levels, frames, cards and marks, built once per snapshot. Its marks change: "single" goes, a two-uplink count is added, and the "weak" line (fewer BBs than there are) becomes "no BB" (none at all).
+- **A new pure module, `hierarchySelection`**, maps a selected ID to what is lit: cards, frames, AGGs, BBs, switches, cut-off switches and the network. It is unit-tested and computed per selection.
+- **A new pure module for the drawer** (in `hierarchyDetails`): the way up as rows of steps, what depends on it with **cut off** (no other way to a BB without that device or passive), and the cables.
+- **The walks come from `followPort` and `equipmentWalks`.** These move from `focus.ts` into `walks.ts`, and the rest of `focus.ts`, `focusLayout`, `focusFlow` and `FocusCanvas` are deleted.
+- **`mapSession`:**
+  - the selection replaces the view, the focus, the hops and the open groups;
+  - `focusOn` becomes `select`;
+  - App's `focusOnMap` becomes "show on map" and is still the one entry point.
+- **One problem definition:** Inventory's Problems reads the same marks, so "N problems" on the map equals the Problems rows.
+- **Measure on the campus fixture:** the first draw, a selection to lit, and opening the busiest node.
 
 ### Phases, each deployed and checked on real data before the next
 
-1. **The hierarchy replaces the overview:** done 2026-10-27 ([plan](history/plans/2026-10-26-network-hierarchy-phase-1.md); what runs is in [status.md](status.md)).
-   - levels, groups, node cards, the drawer and Only problems;
-   - the shared problem rules and the Inventory rows;
-   - the layout API removed.
-
-   On the rewired campus the owner asked for **one map** next (Focus inside the hierarchy, a left-to-right tree, a node opened as a list of its switches); its demo, [history/demos/one-map-demo.html](history/demos/one-map-demo.html), awaits approval and, once approved, replaces phases 2 and 3 below.
-2. **Opening a node:** racks and equipment in place, through `rackElevation`.
-3. **Networks and size:** the chips with + add and ✕, stacked bands with Fold, other-network dots, and a row per site above 12 nodes.
+1. **The hierarchy replaces the overview:** done 2026-10-27 ([plan](history/plans/2026-10-26-network-hierarchy-phase-1.md); what runs is in [status.md](status.md)). It is deployed together with phase 2.
+2. **One conceptual view:** the left-to-right tree, selection and the drawer, Focus retired ([plan](plans/2026-10-28-one-conceptual-view.md)).
+3. **Networks and size:** the network chips with + add and ✕, several networks as stacked bands with Fold, and other-network dots on closed cards.
 
 **Acceptance:**
-- Every line and mark maps to real cables. Nothing is guessed from names (roles only, D04).
+- Every line, mark and "cut off" maps to real cables. Nothing is guessed from names (roles only, D04).
 - The counts on the map equal the Problems rows.
-- A node opens to the same racks as Physical.
+- Show on map from every screen lands on the tree with the device selected.
 - In a plan, added items are dashed.
-- On the campus fixture, the first draw is at most the overview's measured time.
+- On the campus fixture, the first draw is at most phase 1's measured time.
 
 ## 2. More equipment
 

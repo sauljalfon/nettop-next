@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"nettop.local/backend/internal/planning"
 	"nettop.local/backend/internal/topology"
@@ -205,45 +206,49 @@ func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plans ...plann
 	if _, err = tx.Exec(ctx, `INSERT INTO installed_topology(singleton,revision,site,room) VALUES (true,$1,$2,$3)`, base.Revision, base.Site, base.Room); err != nil {
 		return fmt.Errorf("seed refused (database may already be initialized): %w", err)
 	}
+	b := &seedBatch{tx: tx}
 	for _, n := range base.Networks {
-		if _, err = tx.Exec(ctx, `INSERT INTO networks(id,name) VALUES($1,$2)`, n.ID, n.Name); err != nil {
+		if _, err = b.Exec(ctx, `INSERT INTO networks(id,name) VALUES($1,$2)`, n.ID, n.Name); err != nil {
 			return err
 		}
 	}
 	for _, site := range base.Sites {
-		if err = insertSite(ctx, tx, site); err != nil {
+		if err = insertSite(ctx, b, site); err != nil {
 			return err
 		}
 	}
 	for _, node := range base.Nodes {
-		if err = insertNode(ctx, tx, node); err != nil {
+		if err = insertNode(ctx, b, node); err != nil {
 			return err
 		}
 	}
 	for _, r := range base.Racks {
-		if err = insertRack(ctx, tx, r); err != nil {
+		if err = insertRack(ctx, b, r); err != nil {
 			return err
 		}
 	}
 	for _, e := range base.Equipment {
-		if err = insertEquipment(ctx, tx, e); err != nil {
+		if err = insertEquipment(ctx, b, e); err != nil {
 			return err
 		}
 	}
 	for _, sp := range base.Subpanels {
-		if err = insertSubpanel(ctx, tx, sp); err != nil {
+		if err = insertSubpanel(ctx, b, sp); err != nil {
 			return err
 		}
 	}
 	for _, p := range base.Endpoints {
-		if err = insertEndpoint(ctx, tx, p); err != nil {
+		if err = insertEndpoint(ctx, b, p); err != nil {
 			return err
 		}
 	}
 	for _, l := range base.Links {
-		if err = insertLink(ctx, tx, l); err != nil {
+		if err = insertLink(ctx, b, l); err != nil {
 			return err
 		}
+	}
+	if err = b.flush(ctx); err != nil {
+		return err
 	}
 	for _, plan := range plans {
 		if plan.Name == "" {
@@ -254,6 +259,38 @@ func (s *Store) Seed(ctx context.Context, base topology.Snapshot, plans ...plann
 		}
 	}
 	return tx.Commit(ctx)
+}
+
+// execer is what the insert helpers need: a transaction, or the batch that
+// Seed sends in chunks so a campus-sized seed is not one round trip per row.
+type execer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
+const seedBatchSize = 5000
+
+// seedBatch queues statements and sends them every seedBatchSize. A queued
+// statement's error is returned by the Exec or flush that sends it.
+type seedBatch struct {
+	tx    pgx.Tx
+	batch pgx.Batch
+}
+
+func (b *seedBatch) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	b.batch.Queue(sql, args...)
+	if b.batch.Len() < seedBatchSize {
+		return pgconn.CommandTag{}, nil
+	}
+	return pgconn.CommandTag{}, b.flush(ctx)
+}
+
+func (b *seedBatch) flush(ctx context.Context) error {
+	if b.batch.Len() == 0 {
+		return nil
+	}
+	err := b.tx.SendBatch(ctx, &b.batch).Close()
+	b.batch = pgx.Batch{}
+	return err
 }
 
 func insertPlan(ctx context.Context, tx pgx.Tx, p planning.Plan) error {
@@ -355,39 +392,39 @@ func (s *Store) Snapshot(ctx context.Context, planID string) (topology.Snapshot,
 
 // The insert helpers are shared by Seed and Record, so both write installed
 // rows the same way.
-func insertSite(ctx context.Context, tx pgx.Tx, site topology.Site) error {
+func insertSite(ctx context.Context, tx execer, site topology.Site) error {
 	_, err := tx.Exec(ctx, `INSERT INTO sites(id,name,location,description) VALUES($1,$2,NULLIF($3,''),NULLIF($4,''))`, site.ID, site.Name, site.Location, site.Description)
 	return err
 }
-func insertNode(ctx context.Context, tx pgx.Tx, node topology.LocationNode) error {
+func insertNode(ctx context.Context, tx execer, node topology.LocationNode) error {
 	_, err := tx.Exec(ctx, `INSERT INTO location_nodes(id,name,site_id,location,description) VALUES($1,$2,$3,NULLIF($4,''),NULLIF($5,''))`, node.ID, node.Name, node.SiteID, node.Location, node.Description)
 	return err
 }
-func insertRack(ctx context.Context, tx pgx.Tx, r topology.Rack) error {
+func insertRack(ctx context.Context, tx execer, r topology.Rack) error {
 	_, err := tx.Exec(ctx, `INSERT INTO racks(id,name,units,node_id,location,rack_type,description) VALUES ($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),NULLIF($7,''))`, r.ID, r.Name, r.Units, r.NodeID, r.Location, r.RackType, r.Description)
 	return err
 }
 
 // insertEquipment writes the equipment row and its rack occupancy.
-func insertEquipment(ctx context.Context, tx pgx.Tx, e topology.Equipment) error {
+func insertEquipment(ctx context.Context, tx execer, e topology.Equipment) error {
 	if _, err := tx.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,rack_id,unit,height,network_id,manufacturer,model,serial_number,ip_address,status,description) VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,''),NULLIF($12,''),NULLIF($13,''),NULLIF($14,''))`, e.ID, e.Name, e.Kind, e.Role, e.RackID, e.Unit, e.Height, e.NetworkID, e.Manufacturer, e.Model, e.SerialNumber, e.IPAddress, e.Status, e.Description); err != nil {
 		return err
 	}
 	return insertOccupancy(ctx, tx, e)
 }
-func insertOccupancy(ctx context.Context, tx pgx.Tx, e topology.Equipment) error {
+func insertOccupancy(ctx context.Context, tx execer, e topology.Equipment) error {
 	_, err := tx.Exec(ctx, `INSERT INTO rack_occupancy SELECT $1,$2,generate_series($3::integer,$4::integer)`, e.ID, e.RackID, e.Unit, e.Unit+e.Height-1)
 	return err
 }
-func insertSubpanel(ctx context.Context, tx pgx.Tx, sp topology.Subpanel) error {
+func insertSubpanel(ctx context.Context, tx execer, sp topology.Subpanel) error {
 	_, err := tx.Exec(ctx, `INSERT INTO subpanels(id,equipment_id,row_number,column_letter) VALUES($1,$2,$3,$4)`, sp.ID, sp.EquipmentID, sp.Row, sp.Column)
 	return err
 }
-func insertEndpoint(ctx context.Context, tx pgx.Tx, p topology.Endpoint) error {
+func insertEndpoint(ctx context.Context, tx execer, p topology.Endpoint) error {
 	_, err := tx.Exec(ctx, `INSERT INTO endpoints(id,equipment_id,equipment_kind,label,position,side,subpanel_id,port_group,port_type,connector,speed,state,description) SELECT $1,$2,kind,$3,$4,$5,NULLIF($6,''),$7,NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,''),NULLIF($12,'') FROM equipment WHERE id=$2`, p.ID, p.EquipmentID, p.Label, p.Position, p.Side, p.SubpanelID, p.PortGroup, p.PortType, p.Connector, p.Speed, p.State, p.Description)
 	return err
 }
-func insertLink(ctx context.Context, tx pgx.Tx, l topology.Link) error {
+func insertLink(ctx context.Context, tx execer, l topology.Link) error {
 	if _, err := tx.Exec(ctx, `INSERT INTO links(id,kind,label,status,notes) VALUES ($1,$2,NULLIF($3,''),NULLIF($4,''),NULLIF($5,''))`, l.ID, l.Kind, l.Label, l.Status, l.Notes); err != nil {
 		return err
 	}

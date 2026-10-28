@@ -116,7 +116,7 @@ describe('HI-06 the hierarchy projection', () => {
       name: 'Building A',
       siteName: 'Main Campus',
       switches: 1,
-      single: 0,
+      twoUplinks: 1,
       chained: 0,
       problem: false,
     })
@@ -135,12 +135,21 @@ describe('HI-06 the hierarchy projection', () => {
     })
   })
 
-  it('says "N uplink to the top" on an AGG that reaches fewer tops than there are, and draws its line weak', () => {
+  it('says "N uplink to the top" on an AGG that reaches fewer tops than there are, and draws no line weak', () => {
     const { nodes, edges } = project(twoTops())
     expect(node(nodes, 'AGG2').data.uplinkText).toBe('1 uplink to the top')
     expect(node(nodes, 'AGG1').data.uplinkText).toBeUndefined()
-    const weak = edges.filter((e) => classes(e).includes('weak'))
-    expect(weak.map((e) => e.id)).toEqual(['line:uplink:BB1|AGG2'])
+    expect(edges.filter((e) => classes(e).includes('weak'))).toEqual([])
+    expect(edges.every((e) => !('weak' in (e.data ?? {})))).toBe(true)
+  })
+
+  it('carries an AGG’s noTop: true for an AGG with no cable to a BB, false for the rest', () => {
+    const { nodes } = project(acceptanceSnapshot())
+    expect(node(nodes, 'AGG-03').data.noTop).toBe(true)
+    expect(node(nodes, 'BB-01').data.noTop).toBe(false)
+    const reached = project(twoTops()).nodes
+    expect(node(reached, 'AGG1').data.noTop).toBe(false)
+    expect(node(reached, 'BB1').data.noTop).toBe(false)
   })
 
   it('draws one line per tier line: an uplink from the top’s bottom to the AGG’s top, with its links', () => {
@@ -158,7 +167,6 @@ describe('HI-06 the hierarchy projection', () => {
     })
     expect(e.data).toMatchObject({
       kind: 'uplink',
-      weak: false,
       proposed: false,
       onRoute: false,
       hot: false,

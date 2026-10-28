@@ -32,8 +32,8 @@ export default defineConfig({
       },
       gracefulShutdown: { signal: 'SIGTERM', timeout: 15000 },
       reuseExistingServer: false,
-      // Seeding the campus row by row takes 2–5 minutes on a busy machine.
-      timeout: 600_000,
+      // Seeding the campus takes about 20 s; a busy machine gets room.
+      timeout: 180_000,
     },
     {
       command: 'npm run dev -- --port 5176',

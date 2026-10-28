@@ -69,6 +69,7 @@ export default memo(function TierCard({ data }: NodeProps<HierarchyTierNode>) {
             <PlacePath parts={[data.siteName, data.nodeName]} />
           </span>
         )}
+        {data.noTop && <span className="hcard-warn">No BB uplink</span>}
         {data.uplinkText && (
           <span className="hcard-warn">{data.uplinkText}</span>
         )}

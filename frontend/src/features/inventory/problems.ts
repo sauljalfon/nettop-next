@@ -119,30 +119,18 @@ export function buildProblems(
         { text: 'Fill it in with Edit details' },
       ])
 
-  // An access switch the hierarchy marks: one row each, over every network.
+  // An access switch the hierarchy marks, and an AGG with no BB: one row each, over every network.
   const names = (ids: string[]): TextPiece[] =>
     ids.flatMap((id, n) => [
       ...(n > 0 ? [{ text: ', ' }] : []),
       { name: index.equipment.get(id)?.name ?? '' },
     ])
-  for (const h of buildHierarchies(index).values())
+  for (const h of buildHierarchies(index).values()) {
     for (const [id, s] of h.switches) {
       if (!s.mark) continue
       let problem: string
       let detail: TextPiece[]
-      if (s.mark === 'single') {
-        const group = h.groups.find((g) =>
-          g.nodes.some((c) => c.switchIds.includes(id)),
-        )
-        const c = s.uplinks[0]
-        problem = 'A switch has one uplink'
-        detail = [
-          { name: endpoints.get(c.start)?.label ?? '' },
-          { text: ' → ' },
-          { name: index.equipment.get(c.farId)?.name ?? '' },
-          { text: `; its group has ${group?.aggIds.length ?? 0} AGGs` },
-        ]
-      } else if (s.mark === 'chained') {
+      if (s.mark === 'chained') {
         problem = 'A switch is chained behind another'
         detail = [{ text: 'Behind ' }, ...names(s.parents)]
       } else if (s.mark === 'no-uplink') {
@@ -163,6 +151,12 @@ export function buildProblems(
       }
       add(`uplink:${id}`, id, problem, detail)
     }
+    for (const id of h.noTop)
+      add(`uplink:${id}`, id, 'An AGG has no BB uplink', [
+        { text: 'No cable reaches a BB of ' },
+        { name: networkName.get(h.networkId) ?? h.networkId },
+      ])
+  }
 
   return rows
 }

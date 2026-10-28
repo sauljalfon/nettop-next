@@ -76,10 +76,6 @@ export default function HierarchyPanel({
           uplink, from real cables through any panels
         </div>
         <div className="hierarchy-legend-row">
-          <Swatch className="legend-uplink" dash="5 4" />
-          one uplink where the others have more
-        </div>
-        <div className="hierarchy-legend-row">
           <Swatch className="legend-peer" width={3} />
           peer link between two of the same level
         </div>
@@ -88,8 +84,8 @@ export default function HierarchyPanel({
           proposed in this plan
         </div>
         <div className="hierarchy-legend-row">
-          <span className="hcard-flag">1 single</span>
-          switches with a single uplink
+          <span className="hcard-badge">2↑ 1</span>
+          switches with two uplinks
         </div>
       </div>
     </Panel>

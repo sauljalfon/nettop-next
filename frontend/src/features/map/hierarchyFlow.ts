@@ -18,6 +18,8 @@ export interface HierarchyTierData extends Record<string, unknown> {
   color: string
   /** "N uplink to the top": the AGG reaches fewer of the tops than there are. */
   uplinkText?: string
+  /** An AGG with no cable to any top, in a network that has one. */
+  noTop: boolean
   proposed: boolean
   onRoute: boolean
   highlighted: boolean
@@ -32,7 +34,7 @@ export interface HierarchyNodeData extends Record<string, unknown> {
   siteName: string
   noNode: boolean
   switches: number
-  single: number
+  twoUplinks: number
   chained: number
   problem: boolean
   color: string
@@ -73,7 +75,6 @@ export interface HierarchyLineData extends Record<string, unknown> {
   kind: 'uplink' | 'peer' | 'group'
   linkIds: string[]
   count: number
-  weak: boolean
   proposed: boolean
   onRoute: boolean
   hot: boolean
@@ -211,6 +212,7 @@ export function projectHierarchy(args: {
           kind === 'agg' && reached > 0 && reached < h.topIds.length
             ? `${reached} uplink${reached === 1 ? '' : 's'} to the top`
             : undefined,
+        noTop: kind === 'agg' && h.noTop.has(id),
         proposed: h.proposed.has(id),
         onRoute: kind !== 'none' && lit(id),
         highlighted: highlighted.has(id),
@@ -244,7 +246,7 @@ export function projectHierarchy(args: {
           siteName: index.sites.get(c.siteId ?? '')?.name ?? '',
           noNode: c.nodeId === undefined,
           switches: c.switchIds.length,
-          single: c.single,
+          twoUplinks: c.twoUplinks,
           chained: c.chained,
           problem: c.problem,
           color,
@@ -265,7 +267,6 @@ export function projectHierarchy(args: {
     data: HierarchyLineData,
   ) => {
     const classes = [
-      data.weak && 'weak',
       data.kind === 'peer' && 'peer',
       data.proposed && 'proposed',
       data.onRoute && 'on-route',
@@ -300,7 +301,6 @@ export function projectHierarchy(args: {
       kind: l.kind,
       linkIds,
       count: l.circuits.length,
-      weak: l.weak,
       proposed: l.proposed,
       onRoute: linkIds.some((id) => marks.links.has(id)),
       hot: l.kind === 'uplink' ? hot.has(l.b) : hot.has(l.a) && hot.has(l.b),
@@ -325,7 +325,6 @@ export function projectHierarchy(args: {
         kind: 'group',
         linkIds: [],
         count: 0,
-        weak: false,
         proposed: g.proposedFrom.includes(id),
         onRoute: lit(id) && cardsLit,
         hot: hot.has(id) && cardsHot,

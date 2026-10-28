@@ -195,10 +195,10 @@ describe('HI-06 the hierarchy layout', () => {
       .node('n3', 's1', 'Hall 3')
       .sw('AGG1', 'aggregation', 'A')
       .sw('AGG2', 'aggregation', 'A')
-      .sw('ONE', 'access', 'A', 'n1')
+      .sw('ONE', 'access', 'A', 'n1') // chained behind BOTH: the one problem
       .sw('BOTH', 'access', 'A', 'n2')
       .sw('FINE', 'access', 'A', 'n3')
-    f.run('ONE', 'AGG1')
+    f.run('ONE', 'BOTH')
     f.run('BOTH', 'AGG1')
     f.run('BOTH', 'AGG2')
     f.run('FINE', 'AGG1')
@@ -237,6 +237,8 @@ describe('HI-06 the hierarchy layout', () => {
       topIds: [],
       aggIds: [],
       topsReached: new Map(),
+      noTop: new Set(),
+      ups: new Map(),
       lines: [],
       groups: [],
       switches: new Map(),

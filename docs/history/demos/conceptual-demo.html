@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conceptual view</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Tokens copied from frontend/src/shared/theme.css (D33). */
+:root {
+  --floor: #eef1f3; --paper: #ffffff; --paper-sunk: #f6f8f9; --ink: #1c2b3a; --ink-soft: #56636f;
+  --rule: #d3dae1; --rule-soft: #e6ebef; --rule-strong: #b6c1cc;
+  --route: #0f8b7a; --route-soft: #e2f3f0; --amber: #d99a0b; --amber-soft: #fdf3dc;
+  --fault: #c2412d; --fault-soft: #fbeae6;
+  --shadow-drawer: 0 18px 40px -18px #1c2b3a40, 0 2px 6px #1c2b3a12;
+  --sans: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif; --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
+  --t-xs: 12px; --t-sm: 13px; --t-md: 14px; --t-lg: 16px;
+  --r-drawer: 10px; --r-control: 6px; --h-control: 32px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--floor); color: var(--ink); font-family: var(--sans); font-size: var(--t-md); line-height: 1.45; overflow: hidden; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3, p { margin: 0; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--h-control); padding: 0 12px; border-radius: var(--r-control); font-size: var(--t-sm); font-weight: 500; border: 1px solid var(--rule); background: var(--paper); white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--rule-strong); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.quiet { border-color: transparent; background: transparent; padding-inline: 8px; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.on { background: var(--amber-soft); border-color: var(--amber); }
+.chip { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper-sunk); font-size: var(--t-xs); white-space: nowrap; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--r-control); padding: 2px; background: var(--paper-sunk); }
+.seg button { border: 0; background: transparent; color: var(--ink-soft); padding: 4px 11px; font-size: var(--t-sm); border-radius: 4px; }
+.seg .active { background: var(--paper); color: var(--ink); font-weight: 500; box-shadow: 0 0 0 1px var(--rule); }
+.studio-header { height: 52px; background: var(--paper); border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 18px; padding: 0 18px; position: relative; z-index: 60; }
+.brand { font-size: var(--t-lg); font-weight: 600; letter-spacing: -.02em; }
+.env { margin-left: auto; font-size: var(--t-xs); font-weight: 600; color: #7a5200; border: 1px solid #ecd49a; background: #fdf3dc; padding: 1px 6px; border-radius: 4px; }
+.network-select { display: flex; align-items: center; gap: 8px; font-size: var(--t-sm); color: var(--ink-soft); }
+.network-select select { width: 160px; height: 30px; border: 1px solid var(--rule); border-radius: var(--r-control); background: var(--paper); padding: 0 8px; font-size: var(--t-sm); color: var(--ink); }
+.warn { color: #8a5a00; font-weight: 600; font-size: var(--t-xs); white-space: nowrap; }
+.warn::before { content: '⚠ '; }
+.badge { font-size: 11px; color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 999px; padding: 0 6px; white-space: nowrap; }
+
+/* Left: one small panel and the demo's list. */
+.side { position: absolute; top: 64px; left: 16px; width: 230px; z-index: 40; display: flex; flex-direction: column; gap: 8px; max-height: calc(100% - 76px); overflow: auto; }
+.panel { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); padding: 10px 12px; }
+.panel h2 { font-size: var(--t-md); }
+.panel .meta { font-size: var(--t-xs); color: var(--ink-soft); }
+.panel .row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.find { margin-top: 8px; width: 100%; height: 30px; border: 1px solid var(--rule); border-radius: var(--r-control); padding: 0 9px; font-size: var(--t-sm); }
+.demo-note { border-style: dashed; font-size: var(--t-xs); color: var(--ink-soft); }
+.demo-note b { color: var(--ink); }
+.demo-note .try { display: grid; gap: 3px; margin-top: 6px; }
+.demo-note .try button { text-align: left; border: 1px solid var(--rule); background: var(--paper); border-radius: var(--r-control); padding: 3px 8px; font-size: var(--t-xs); }
+.demo-note .try .h { margin-top: 6px; font-weight: 600; color: var(--ink); }
+
+/* The canvas: the tree or the lane. */
+.canvas { position: absolute; top: 52px; left: 0; right: 0; bottom: 0; overflow: auto; }
+.world { position: relative; }
+svg.lines { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+svg.lines path { fill: none; stroke: var(--rule-strong); stroke-width: 1.5; transition: opacity .15s; }
+svg.lines path.lit { stroke: var(--route); stroke-width: 2.5; }
+svg.lines path.bad { stroke: var(--fault); stroke-dasharray: 5 4; stroke-width: 2; }
+svg.lines path.dim { opacity: .22; }
+svg.lines text { font: 11px var(--sans); fill: var(--ink-soft); }
+svg.lines text.bad { fill: var(--fault); font-weight: 600; }
+.box { position: absolute; display: flex; align-items: center; gap: 6px; border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 0 9px; font-size: var(--t-sm); white-space: nowrap; transition: opacity .15s; text-align: left; }
+button.box:hover { border-color: var(--ink-soft); }
+.box.dim { opacity: .28; }
+.box.lit { border-color: var(--route); box-shadow: inset 0 0 0 1px var(--route); }
+.box.sel { box-shadow: 0 0 0 2px var(--ink); }
+.colhead { position: absolute; top: 14px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+
+/* Tree: BB › AGG frames › nodes. */
+.box.tier { font-weight: 600; border-color: var(--rule-strong); }
+.box.tier .eq { color: var(--ink-soft); font-weight: 400; }
+.box.frame { padding: 0; overflow: hidden; }
+.box.frame button { border: 0; background: none; height: 100%; padding: 0 9px; font-weight: 600; font-size: var(--t-sm); display: inline-flex; gap: 5px; align-items: center; }
+.box.frame button:hover { background: var(--paper-sunk); }
+.box.frame button.lit { color: var(--route); }
+.box.frame button.sel { background: var(--ink); color: var(--paper); }
+.box.frame .peer { width: 12px; border-top: 3px solid var(--ink-soft); }
+.box.frame.plain { border-style: dashed; color: var(--ink-soft); padding: 0 9px; font-weight: 400; }
+.box.node { justify-content: space-between; }
+.box.node .n { color: var(--ink-soft); font-size: var(--t-xs); font-variant-numeric: tabular-nums; }
+.box.node .end { display: flex; gap: 6px; align-items: center; }
+.box.open { align-items: flex-start; flex-direction: column; padding: 5px 9px; justify-content: flex-start; }
+.box.open .top { display: flex; width: 100%; justify-content: space-between; align-items: center; }
+.swlist { display: grid; gap: 1px; margin-top: 4px; width: 100%; }
+.swr { display: flex; justify-content: space-between; align-items: center; gap: 6px; width: 100%; height: 19px; border: 0; border-radius: 4px; background: none; padding: 0 6px; font-size: var(--t-xs); font-family: var(--mono); text-align: left; }
+.swr:hover { background: var(--paper-sunk); }
+.swr.lit { color: var(--route); font-weight: 500; }
+.swr.sel { background: var(--ink); color: var(--paper); }
+.swr.sel .warn, .swr.sel .badge { color: var(--amber-soft); border-color: transparent; }
+.rest { font-size: 11px; color: var(--ink-soft); font-style: italic; padding: 0 6px; line-height: 1.25; }
+
+/* The lane: core on the left, the device in the middle, what depends on it on the right. */
+/* The drawer. */
+.drawer { position: absolute; top: 64px; right: 12px; width: 360px; max-height: calc(100% - 76px); background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-drawer); box-shadow: var(--shadow-drawer); z-index: 70; display: flex; flex-direction: column; }
+.drawer-head { padding: 12px 14px 8px; display: flex; align-items: center; gap: 8px; }
+.drawer-head h2 { font-size: var(--t-lg); }
+.drawer-head .x { margin-left: auto; }
+.drawer-body { padding: 0 14px 10px; overflow: auto; font-size: var(--t-sm); }
+.drawer-body .meta { color: var(--ink-soft); font-size: var(--t-xs); margin-bottom: 8px; }
+.drawer-body h3 { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin: 12px 0 4px; }
+.say { padding: 7px 10px; border-radius: 6px; background: var(--paper-sunk); border-left: 3px solid var(--route); }
+.say.bad { border-left-color: var(--fault); }
+.say + .say { margin-top: 6px; }
+.hop { font-size: var(--t-xs); margin-top: 6px; color: var(--ink-soft); }
+.hop b { color: var(--ink); }
+.list { display: grid; gap: 2px; }
+.list button, .list div { text-align: left; border: 1px solid var(--rule-soft); background: var(--paper); border-radius: 6px; padding: 3px 8px; font-size: var(--t-xs); display: flex; justify-content: space-between; gap: 8px; }
+.list .cut { color: var(--fault); font-weight: 600; }
+.drawer-foot { padding: 8px 14px 12px; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--rule-soft); }
+.drawer-foot .btn { height: 28px; font-size: var(--t-xs); }
+.way { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; font-size: var(--t-xs); padding: 5px 8px; border: 1px solid var(--rule-soft); border-radius: 6px; margin-top: 4px; }
+.way .pp, .way .eqb { border: 0; background: none; padding: 1px 3px; border-radius: 4px; font-size: var(--t-xs); }
+.way .pp { background: var(--paper-sunk); border: 1px dashed var(--rule-strong); }
+.way .eqb { font-weight: 600; }
+.way .eqb.bad { color: var(--fault); }
+.way .pp:hover, .way .eqb:hover { box-shadow: 0 0 0 1px var(--ink-soft); }
+.way .sepr { color: var(--ink-soft); padding: 0 3px; }
+.gapt { color: var(--fault); font-weight: 600; font-size: 11px; }
+.swr .cut { color: var(--fault); font-size: 11px; font-weight: 600; }
+.toast { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 8px; font-size: var(--t-sm); z-index: 90; }
+</style>
+</head>
+<body>
+<header class="studio-header">
+  <span class="brand">nettop</span>
+  <div class="seg" role="group" aria-label="View"><button class="active">Conceptual</button><button>Physical</button><button>Inventory</button></div>
+  <label class="network-select">Network <select id="net"></select></label>
+  <span class="env">DEMO</span>
+</header>
+<div class="side">
+  <section class="panel">
+    <h2 id="pTitle"></h2>
+    <p class="meta" id="pMeta"></p>
+    <div class="row"><button class="btn" id="probBtn"></button></div>
+    <input class="find" id="find" list="findList" placeholder="Find…" aria-label="Find">
+    <datalist id="findList"></datalist>
+  </section>
+  <section class="panel demo-note"><b>Demo · one conceptual view.</b> Show on map from anywhere lands here: the device is selected, its path lit, the rest dimmed; the drawer says the rest. Esc clears. <div class="try" id="try"></div></section>
+</div>
+<div class="canvas" id="canvas"><div class="world" id="world"></div></div>
+<aside class="drawer" id="drawer" hidden></aside>
+<div class="toast" id="toast" hidden></div>
+<script>
+// ---- The campus: the same wiring as backend/internal/scalefixture (2026-10-28). ----
+const NETS = ['A', 'B', 'C']
+const pad = (n) => String(n).padStart(2, '0')
+const PAIRS = 6, GROUPS = 14, PER = 20
+const agg = (d) => `AGG-${pad(d + 1)}`
+const bb = (x, k) => `BB-${pad(2 * x + k + 1)}`
+const groupAgg = (x, g, k) => g < PAIRS ? agg(x * PER + 2 * g + ((k - 1) % 2)) : agg(x * PER + PAIRS + g)
+const hdfPos = (m) => `${Math.floor(m / 24) + 1}${'ABCD'[Math.floor((m % 24) / 6)]}/${(m % 6) + 1}`
+
+// EQ: id → {id, kind: access|agg|bb|panel|hdf, net, node, rack, unit, ups: [{to, port, toPort, via: [{eq, pos}]}], fault}
+const EQ = {}, NODES = {}, taken = {}
+const take = (id) => (taken[id] = (taken[id] || 0) + 1)
+const add = (e) => (EQ[e.id] = { ups: [], ...e })
+const GROUP_OF = {} // AGG → its frame key
+for (let x = 0; x < 3; x++) {
+  for (let g = 0; g < GROUPS; g++) {
+    const aggs = g < PAIRS ? [agg(x * PER + 2 * g), agg(x * PER + 2 * g + 1)] : [agg(x * PER + PAIRS + g)]
+    aggs.forEach((a) => (GROUP_OF[a] = `${x}:g${g}`))
+    for (const a of aggs) {
+      add({ id: a, kind: 'agg', net: x, node: 'MD', rack: 'MD-R' + pad(3 + Math.floor((Number(a.slice(4)) - 1) / 2)), pair: aggs.length === 2 ? aggs.find((o) => o !== a) : null })
+    }
+  }
+  for (let k = 0; k < 2; k++) add({ id: bb(x, k), kind: 'bb', net: x, node: 'MD', rack: 'MD-R' + pad(33 + x) })
+}
+for (let x = 0; x < 3; x++) {
+  for (let g = 0; g < GROUPS; g++) {
+    if (g < PAIRS) for (const u of [0, 1]) { const a = agg(x * PER + 2 * g + u); EQ[a].ups = [0, 1].map((k) => ({ to: bb(x, k), port: 95 + k, toPort: take(bb(x, k)), via: [] })) }
+    else { const a = agg(x * PER + PAIRS + g); if (a !== 'AGG-60') EQ[a].ups = [{ to: bb(x, g % 2), port: 95, toPort: take(bb(x, g % 2)), via: [] }] }
+  }
+}
+NODES.MD = { id: 'MD', name: 'Main Distribution', site: 'Campus', switches: [] }
+for (let x = 0; x < 3; x++) for (let k = 0; k < 3; k++) {
+  const id = `ACC-MD-S${3 * x + k + 1}`, to = k === 0 ? agg(x * PER) : bb(x, k - 1)
+  add({ id, kind: 'access', net: x, node: 'MD', rack: `MD-R${37 + x}`, unit: 2 * k + 2, ups: [{ to, port: 1, toPort: take(to), via: [] }] })
+  NODES.MD.switches.push(id)
+}
+const chainedUnder = { 'ACC-B07-S6': 'ACC-B07-S5', 'ACC-B08-S3': 'ACC-B08-S2', 'ACC-B09-S5': 'ACC-B09-S4', 'ACC-B09-S6': 'ACC-B09-S5' }
+const noUplink = new Set(['ACC-B10-S6', 'ACC-B11-S1'])
+const otherNetwork = 'ACC-B13-S2'
+const list = []
+for (let n = 1; n <= 33; n++) list.push({ id: `B${pad(n)}`, name: `Building ${pad(n)}`, site: 'Campus', sm: `SM${((n - 1) % 6) + 1}-HDF` })
+for (const [t, s] of [['E', 'East'], ['W', 'West']]) for (let n = 1; n <= 50; n++) list.push({ id: `${t}${pad(n)}`, name: `${s} Annex ${n}`, site: `${s} Annex`, sm: '' })
+let md = 0
+const smPos = {}
+list.forEach((node, i) => {
+  NODES[node.id] = { ...node, switches: [] }
+  const count = 6 + ((i * 5) % 7), panel = `PANEL-${node.id}`
+  add({ id: panel, kind: 'panel', node: node.id, rack: `${node.id}-R1`, unit: 40 })
+  let circuit = 0
+  for (let k = 1; k <= count; k++) {
+    const id = `ACC-${node.id}-S${k}`, rack = Math.floor((k - 1) / 6) + 1
+    let x = i % 3, g = Math.floor(i / 3) % GROUPS
+    if (i % 4 === 3 && k > count - 2) { x = (i + 1) % 3; g = (Math.floor(i / 3) + 7) % GROUPS }
+    if (node.id === 'B16' && rack === 2) g = (g + 1) % GROUPS
+    const s = add({ id, kind: 'access', net: x, node: node.id, rack: `${node.id}-R${rack}`, unit: 2 * (((k - 1) % 6) + 1) })
+    NODES[node.id].switches.push(id)
+    if (chainedUnder[id]) { const p = chainedUnder[chainedUnder[id]] ? 23 : 24; s.ups = [{ to: chainedUnder[id], port: p, toPort: p, via: [], chain: true }]; s.fault = 'chained'; continue }
+    if (noUplink.has(id)) { s.fault = 'no uplink'; continue }
+    let dests = [groupAgg(x, g, k)]
+    if (id === otherNetwork) { dests = [groupAgg((x + 1) % 3, g, k)]; s.fault = 'other network' }
+    else if (k === 1 && g < PAIRS) dests.push(groupAgg(x, g, k + 1))
+    else if (k === 1 && Math.floor(i / 3) % 4 === 0) dests.push(bb(x, 0))
+    dests.forEach((to, u) => {
+      const via = [{ eq: panel, pos: String(circuit + 1) }]
+      if (node.sm) { smPos[node.sm] = (smPos[node.sm] || 0) + 1; via.push({ eq: node.sm, pos: hdfPos(smPos[node.sm] - 1) }) }
+      via.push({ eq: `MD-HDF-${Math.floor(md / 768) + 1}`, pos: hdfPos(md % 768) }); md++
+      s.ups.push({ to, port: u + 1, toPort: take(to), via })
+      circuit++
+    })
+    if (k === count && g >= PAIRS && Math.floor(i / 3) % 5 === 1) s.ups.push({ to: `ACC-${node.id}-S${k - 1}`, port: 22, toPort: 22, via: [], second: true })
+  }
+})
+for (const e of Object.values(EQ)) for (const u of e.ups) for (const v of u.via) if (!EQ[v.eq]) add({ id: v.eq, kind: 'hdf', node: v.eq.startsWith('MD') ? 'MD' : 'SM' + v.eq[2] })
+const DOWNS = {} // id → [{from, up}]
+for (const e of Object.values(EQ)) for (const u of e.ups) (DOWNS[u.to] ||= []).push({ from: e.id, up: u })
+const THROUGH = {} // passive → [{from, up, at}]
+for (const e of Object.values(EQ)) for (const u of e.ups) u.via.forEach((v, at) => (THROUGH[v.eq] ||= []).push({ from: e.id, up: u, at }))
+const isActive = (id) => ['access', 'agg', 'bb'].includes(EQ[id]?.kind)
+const nameOfKind = { access: 'Access', agg: 'AGG', bb: 'BB', panel: 'Panel', hdf: 'HDF' }
+
+// Where a switch hangs on the tree: the AGGs (or BBs) its own uplinks, or its parent's, reach.
+function topsOf(id, seen = new Set()) {
+  if (seen.has(id)) return []
+  seen.add(id)
+  const e = EQ[id], out = []
+  for (const u of e.ups) {
+    const t = EQ[u.to]
+    if (t.kind === 'agg' || t.kind === 'bb') out.push(u.to)
+    else if (t.kind === 'access' && (u.chain || !e.ups.some((o) => EQ[o.to].kind !== 'access'))) out.push(...topsOf(u.to, seen))
+  }
+  return out
+}
+function frameOf(id) {
+  const e = EQ[id]
+  if (e.fault === 'no uplink' || e.fault === 'other network') return `${e.net}:none`
+  const tops = topsOf(id), a = tops.find((t) => EQ[t].kind === 'agg')
+  if (a) return GROUP_OF[a]
+  return tops.length ? `${e.net}:direct` : `${e.net}:none`
+}
+const badgeOf = (id) => (!EQ[id].fault && EQ[id].ups.length === 2 ? '2 uplinks' : '')
+
+// ---- The tree of one network. ----
+function treeOf(x) {
+  const frames = []
+  for (let g = 0; g < GROUPS; g++) frames.push({ key: `${x}:g${g}`, aggs: g < PAIRS ? [agg(x * PER + 2 * g), agg(x * PER + 2 * g + 1)] : [agg(x * PER + PAIRS + g)], cards: new Map() })
+  frames.push({ key: `${x}:direct`, aggs: [], label: 'Direct to BB', cards: new Map() })
+  frames.push({ key: `${x}:none`, aggs: [], label: 'No AGG', cards: new Map() })
+  const byKey = Object.fromEntries(frames.map((f) => [f.key, f]))
+  for (const e of Object.values(EQ)) {
+    if (e.kind !== 'access' || e.net !== x) continue
+    const f = byKey[frameOf(e.id)]
+    let c = f.cards.get(e.node)
+    if (!c) f.cards.set(e.node, (c = { key: `${f.key}|${e.node}`, frame: f.key, node: e.node, switches: [] }))
+    c.switches.push(e.id)
+  }
+  for (const f of frames) f.cards = [...f.cards.values()].sort((a, b) => NODES[a.node].name.localeCompare(NODES[b.node].name, undefined, { numeric: true }))
+  return frames.filter((f) => f.cards.length || f.aggs.length)
+}
+const T = [0, 1, 2].map(treeOf)
+const faults = (c) => c.switches.filter((s) => EQ[s].fault).length
+const twos = (c) => c.switches.filter((s) => badgeOf(s)).length
+const bbsOfFrame = (f) => f.key.endsWith(':direct')
+  ? [...new Set(f.cards.flatMap((c) => c.switches.flatMap((s) => topsOf(s))))]
+  : [...new Set(f.aggs.flatMap((a) => EQ[a].ups.map((u) => u.to)))]
+
+// ---- Session. ----
+let net = 0, onlyProblems = false
+let sel = null // {kind: switch|card|agg|bb|passive, id}
+const open = new Set()
+const $ = (id) => document.getElementById(id)
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (el.hidden = true), 2600) }
+
+function select(s) {
+  sel = s
+  if (s && s.kind !== 'card') {
+    const e = EQ[s.id]
+    if (e.net !== undefined) net = e.net
+    if (e.kind === 'access') open.add(`${frameOf(e.id)}|${e.node}`)
+    if (!isActive(s.id)) {
+      const th = THROUGH[s.id] || [], per = [0, 1, 2].map((x) => th.filter((t) => EQ[t.from].net === x).length)
+      net = per.indexOf(Math.max(...per))
+      // A panel serves one node or a few: open them.
+      const cards = new Set(th.filter((t) => EQ[t.from].net === net).map((t) => `${frameOf(t.from)}|${EQ[t.from].node}`))
+      if (cards.size <= 3) cards.forEach((k) => open.add(k))
+    }
+  }
+  if (s?.kind === 'card') open.add(s.id)
+  render()
+  requestAnimationFrame(() => {
+    const el = document.querySelector('.swr.sel, .box.sel, .box.frame button.sel') || document.querySelector('.box.lit')
+    if (!el) return
+    const c = $('canvas'), r = el.getBoundingClientRect(), box = c.getBoundingClientRect()
+    c.scrollBy({ top: r.top + r.height / 2 - (box.top + box.height / 2), behavior: 'smooth' })
+  })
+}
+
+// What a selection lights on the tree.
+function litSet() {
+  const L = { cards: new Set(), frames: new Set(), aggs: new Set(), bbs: new Set(), sws: new Set(), cut: new Set(), any: !!sel }
+  if (!sel) return L
+  // What would be cut off if the selection fails: marked in open nodes.
+  if (sel.kind !== 'card') for (const x of dependents(sel.id)) if (x.cut) L.cut.add(x.id)
+  const addSwitch = (id) => {
+    const e = EQ[id]
+    if (e.net !== net) return
+    const f = frameOf(id)
+    L.cards.add(`${f}|${e.node}`); L.sws.add(id); L.frames.add(f)
+    for (const t of topsOf(id)) {
+      if (EQ[t].kind === 'bb') L.bbs.add(t)
+      else if (EQ[t].net === net) { L.aggs.add(t); EQ[t].ups.forEach((u) => L.bbs.add(u.to)) }
+    }
+    let p = id
+    while (EQ[p].ups.length === 1 && EQ[p].ups[0].chain) { p = EQ[p].ups[0].to; L.sws.add(p) }
+  }
+  const frames = T[net]
+  if (sel.kind === 'switch') { addSwitch(sel.id); dependents(sel.id).forEach((x) => EQ[x.id].kind === 'access' && addSwitch(x.id)) }
+  if (sel.kind === 'card') { const c = frames.flatMap((f) => f.cards).find((c) => c.key === sel.id); c?.switches.forEach(addSwitch) }
+  if (sel.kind === 'agg') { const f = frames.find((f) => f.aggs.includes(sel.id)); L.frames.add(f.key); L.aggs.add(sel.id); f.cards.forEach((c) => c.switches.forEach((s) => topsOf(s).includes(sel.id) && addSwitch(s))); EQ[sel.id].ups.forEach((u) => L.bbs.add(u.to)) }
+  if (sel.kind === 'bb') { L.bbs.add(sel.id); for (const f of frames) if (bbsOfFrame(f).includes(sel.id)) { L.frames.add(f.key); f.aggs.forEach((a) => EQ[a].ups.some((u) => u.to === sel.id) && L.aggs.add(a)) } }
+  if (sel.kind === 'passive') for (const t of THROUGH[sel.id] || []) addSwitch(t.from)
+  return L
+}
+
+// ---- The tree: BB | AGG frames | nodes. ----
+const X = { bb: 270, frame: 430, node: 700 }, W = { bb: 120, frame: 220, node: 270 }, ROW = 26, GAP = 12
+function renderTree() {
+  const L = litSet(), dim = (lit) => (L.any && !lit ? ' dim' : '')
+  const frames = T[net].map((f) => ({ ...f, shown: onlyProblems ? f.cards.filter(faults) : f.cards }))
+    .filter((f) => !onlyProblems || f.shown.length || (f.aggs.length && !bbsOfFrame(f).length))
+  let y = 44, h = '', paths = ''
+  const placed = []
+  for (const f of frames) {
+    const rows = f.shown.map((c) => { const hgt = open.has(c.key) ? 42 + c.switches.length * 20 + (restOf(c) ? 30 : 0) : ROW - 4; const r = { c, y, h: hgt }; y += hgt + 4; return r })
+    if (!rows.length) y += ROW
+    const top = rows.length ? rows[0].y : y - ROW, bottom = y - 4, fy = (top + bottom) / 2 - 15
+    placed.push({ f, fy })
+    const fLit = L.frames.has(f.key)
+    if (!f.aggs.length) h += `<div class="box frame plain${dim(fLit)}" style="left:${X.frame}px;top:${fy}px;width:${W.frame}px;height:30px">${f.label}</div>`
+    else {
+      const noBB = f.aggs.length === 1 && !EQ[f.aggs[0]].ups.length
+      h += `<div class="box frame${dim(fLit || f.aggs.some((a) => L.aggs.has(a)))}" style="left:${X.frame}px;top:${fy}px;width:${W.frame}px;height:30px">${f.aggs.map((a, i) => `${i ? '<span class="peer" title="pair"></span>' : ''}<button class="${L.aggs.has(a) ? 'lit' : ''}${sel?.id === a ? ' sel' : ''}" data-agg="${a}">${a}${noBB ? ' <span class="warn">no BB</span>' : ''}</button>`).join('')}</div>`
+    }
+    for (const r of rows) {
+      const lit = L.cards.has(r.c.key)
+      paths += `<path class="${lit && L.any ? 'lit' : ''}${dim(lit)}" d="M${X.frame + W.frame} ${fy + 15} H${X.node - 16} V${r.y + 11} H${X.node}"/>`
+      h += cardHtml(r, L, lit)
+    }
+    y += GAP
+  }
+  // The two BBs, centred on the frames, with a line to each frame they are cabled to.
+  const ys = placed.map((p) => p.fy), mid = (Math.min(...ys) + Math.max(...ys)) / 2
+  ;[0, 1].forEach((k) => {
+    const id = bb(net, k), by = Math.min(mid, 140) - 26 + k * 52, lit = L.bbs.has(id)
+    h += `<button class="box tier${lit ? ' lit' : ''}${sel?.id === id ? ' sel' : ''}${dim(lit)}" data-bb="${id}" style="left:${X.bb}px;top:${by}px;width:${W.bb}px;height:30px">${id} <span class="eq">BB</span></button>`
+    for (const p of placed) {
+      if (!bbsOfFrame(p.f).includes(id)) continue
+      const on = lit && (L.frames.has(p.f.key) || p.f.aggs.some((a) => L.aggs.has(a)))
+      paths += `<path class="${on ? 'lit' : ''}${dim(on)}" d="M${X.bb + W.bb} ${by + 15} H${X.frame - 24 + k * 8} V${p.fy + 15} H${X.frame}"/>`
+    }
+  })
+  h += `<span class="colhead" style="left:${X.bb}px">Top</span><span class="colhead" style="left:${X.frame}px">Aggregation</span><span class="colhead" style="left:${X.node}px">Nodes</span>`
+  $('world').style.height = `${y + 60}px`
+  $('world').style.width = `${X.node + W.node + 420}px`
+  $('world').innerHTML = `<svg class="lines" width="100%" height="100%">${paths}</svg>${h}`
+}
+function restOf(c) {
+  const mine = new Set(c.switches), others = NODES[c.node].switches.filter((s) => !mine.has(s))
+  if (!others.length) return ''
+  const by = {}
+  for (const id of others) { const e = EQ[id], w = e.net !== net ? `Network ${NETS[e.net]}` : 'another AGG'; by[w] = (by[w] || 0) + 1 }
+  return '+ ' + Object.entries(by).map(([w, k]) => `${k} on ${w}`).join(' · ')
+}
+function cardHtml(r, L, lit) {
+  const c = r.c, n = NODES[c.node], k = faults(c), t = twos(c)
+  const cls = `box node${lit && L.any ? ' lit' : ''}${sel?.kind === 'card' && sel.id === c.key ? ' sel' : ''}${L.any && !lit ? ' dim' : ''}`
+  const end = `<span class="end">${k ? `<span class="warn">${k}</span>` : ''}${t ? `<span class="badge" title="switches with 2 uplinks">2↑ ${t}</span>` : ''}<span class="n">${c.switches.length}</span></span>`
+  const style = `left:${X.node}px;top:${r.y}px;width:${W.node}px;height:${r.h}px`
+  if (!open.has(c.key)) return `<button class="${cls}" data-card="${c.key}" style="${style}" title="${esc(n.site)}"><span>${esc(n.name)}</span>${end}</button>`
+  const rows = c.switches.map((id) => {
+    const e = EQ[id], b = badgeOf(id)
+    return `<button class="swr${L.sws.has(id) ? ' lit' : ''}${sel?.id === id ? ' sel' : ''}" data-sw="${id}"><span>${id}</span>${L.cut.has(id) ? '<span class="cut">cut off</span>' : e.fault ? `<span class="warn">${e.fault}</span>` : b ? `<span class="badge">${b}</span>` : ''}</button>`
+  }).join('')
+  const rest = restOf(c)
+  return `<div class="${cls} open" style="${style}"><div class="top"><button class="btn quiet" style="height:20px;padding:0;font-weight:600" data-close="${c.key}">${esc(n.name)} ▴</button>${end}</div><div class="swlist">${rows}${rest ? `<div class="rest">${rest}</div>` : ''}</div></div>`
+}
+
+// ---- What depends on what. ----
+// Can it still reach a BB without `banned`?
+function reachesTop(id, banned, seen = new Set()) {
+  if (id === banned || seen.has(id)) return false
+  if (EQ[id].kind === 'bb') return true
+  seen.add(id)
+  return EQ[id].ups.some((u) => !u.via.some((v) => v.eq === banned) && reachesTop(u.to, banned, seen))
+}
+// ---- The drawer. ----
+function dependents(id) {
+  const kids = isActive(id) ? (DOWNS[id] || []).map((d) => d.from) : (THROUGH[id] || []).map((t) => t.from)
+  const all = new Set(), stack = [...kids]
+  while (stack.length) { const s = stack.pop(); if (all.has(s)) continue; all.add(s); (DOWNS[s] || []).forEach((d) => stack.push(d.from)) }
+  const sws = [...all].filter((s) => EQ[s].kind === 'access' || EQ[s].kind === 'agg')
+  return sws.map((s) => ({ id: s, cut: !reachesTop(s, id) })).sort((a, b) => b.cut - a.cut || a.id.localeCompare(b.id, undefined, { numeric: true }))
+}
+function cablesOf(id) {
+  const e = EQ[id], out = []
+  if (isActive(id)) {
+    for (const u of e.ups) out.push([`Port ${u.port}`, u.via[0] ? `${u.via[0].eq} ${u.via[0].pos}` : `${u.to} · Port ${u.toPort}`])
+    for (const d of DOWNS[id] || []) { const v = d.up.via; out.push([`Port ${d.up.toPort}`, v.length ? `${v[v.length - 1].eq} ${v[v.length - 1].pos} (${d.from})` : `${d.from} · Port ${d.up.port}`]) }
+  } else for (const t of THROUGH[id] || []) out.push([t.up.via[t.at].pos, `${t.from} › ${t.up.to}`])
+  return out
+}
+// The ways up, as rows of steps from the device to the core: a chained switch
+// continues through its parent's way up.
+function waysUp(id, seen = new Set()) {
+  const e = EQ[id]
+  if (seen.has(id)) return []
+  seen.add(id)
+  if (!e.ups.length) return e.kind === 'bb' ? [] : [[{ gap: e.kind === 'agg' ? 'No BB uplink' : 'No uplink · no port cabled' }]]
+  const rows = []
+  for (const u of e.ups) {
+    const head = [{ port: u.port }, ...u.via.map((v) => ({ jack: v })), { eq: u.to, bad: u.chain ? 'chained only' : EQ[u.to].net !== e.net && e.net !== undefined && EQ[u.to].net !== undefined ? `into Network ${NETS[EQ[u.to].net]}` : '', second: u.second }]
+    const t = EQ[u.to]
+    if (t.kind === 'bb') rows.push(head)
+    else if (t.kind === 'agg') rows.push([...head, t.ups.length ? { bbs: t.ups.map((x) => x.to) } : { gap: `${u.to} has no BB uplink` }])
+    else for (const r of waysUp(u.to, seen)) rows.push([...head, ...r.filter((x) => !x.port)])
+  }
+  return rows
+}
+const stepHtml = (x) => x.port ? `<span class="mono">Port ${x.port}</span>`
+  : x.jack ? `<button class="pp" data-jack="${esc(x.jack.eq)} ${esc(x.jack.pos)}" title="Trace this jack end to end">${esc(x.jack.eq)} <span class="mono">${esc(x.jack.pos)}</span></button>`
+  : x.bbs ? `<button class="eqb" data-go="${x.bbs[0]}">${x.bbs.join(' + ')}</button>`
+  : x.gap ? `<span class="gapt">${esc(x.gap)}</span>`
+  : `<button class="eqb${x.bad ? ' bad' : ''}" data-go="${x.eq}">${x.eq}</button>${x.bad ? ` <span class="gapt">${x.bad}</span>` : x.second ? ' <span class="badge">2nd uplink</span>' : ''}`
+function drawer() {
+  const d = $('drawer')
+  if (!sel) { d.hidden = true; return }
+  d.hidden = false
+  let title, kind, body = '', foot = ''
+  if (sel.kind === 'card') {
+    const c = T[net].flatMap((f) => f.cards).find((c) => c.key === sel.id), n = NODES[c.node], f = T[net].find((f) => f.key === c.frame)
+    const exc = c.switches.filter((s) => EQ[s].fault), two = c.switches.filter(badgeOf), others = T[net].flatMap((x) => x.cards).filter((o) => o.node === c.node && o.key !== c.key)
+    title = n.name; kind = 'Node'
+    body = `<p class="meta">${n.site} · Network ${NETS[net]}</p>`
+    body += `<div class="say${exc.length ? ' bad' : ''}">${c.switches.length} switches → <b>${f.aggs.join(' + ') || f.label}</b>${exc.length ? `; ${exc.length} with a fault` : ''}</div>`
+    if (others.length) body += `<div class="say bad"><b>Split:</b> ${others.map((o) => `${o.switches.length} go to ${T[net].find((x) => x.key === o.frame).aggs.join(' + ') || 'no AGG'}`).join('; ')}</div>`
+    if (exc.length) body += `<h3>Faults</h3><div class="list">${exc.map((s) => `<button data-go="${s}"><span>${s}</span><span class="warn">${EQ[s].fault}</span></button>`).join('')}</div>`
+    if (two.length) body += `<h3>Two uplinks</h3><div class="list">${two.map((s) => `<button data-go="${s}"><span>${s}</span><span>${EQ[s].ups.map((u) => u.to).join(' + ')}</span></button>`).join('')}</div>`
+    foot = `<button class="btn">Show in Physical</button>`
+  } else {
+    const e = EQ[sel.id], deps = dependents(sel.id), cut = deps.filter((x) => x.cut)
+    title = sel.id; kind = nameOfKind[e.kind]
+    if (e.kind === 'access') {
+      body = `<p class="meta">${NODES[e.node].name} · ${e.rack} · U${e.unit} · Network ${NETS[e.net]}</p>`
+      body += e.fault === 'no uplink' ? `<div class="say bad"><b>No uplink</b>: no port cabled.</div>`
+        : e.fault === 'chained' ? `<div class="say bad"><b>Chained only</b>: its one way up is through ${e.ups[0].to}.</div>`
+        : e.fault === 'other network' ? `<div class="say bad"><b>Wrong network</b>: Port 1 reaches ${e.ups[0].to} (Network ${NETS[EQ[e.ups[0].to].net]}).</div>`
+        : `<div class="say">${e.ups.length === 2 ? 'Two uplinks' : 'One uplink'}: <b>${e.ups.map((u) => u.to).join(' + ')}</b></div>`
+    } else if (e.kind === 'agg') {
+      body = `<p class="meta">Main Distribution · ${e.rack}${e.pair ? ` · pair with ${e.pair}` : ' · single'}</p>`
+      body += e.ups.length ? `<div class="say">Up to <b>${e.ups.map((u) => u.to).join(' + ')}</b></div>` : `<div class="say bad"><b>No BB uplink</b>: nothing below it reaches the core.</div>`
+    } else if (e.kind === 'bb') body = `<p class="meta">Main Distribution · top of Network ${NETS[e.net]}</p>`
+    else { const th = THROUGH[sel.id] || []; body = `<p class="meta">Passive · ${th.length} circuits through it</p><div class="say">Carries the uplinks of <b>${new Set(th.map((t) => t.from)).size} switches</b> in ${new Set(th.map((t) => EQ[t.from].node)).size} nodes</div>` }
+    if (isActive(sel.id) && e.kind !== 'bb') body += `<h3>Way up</h3>${waysUp(sel.id).map((r) => `<div class="way">${r.map(stepHtml).join('<span class="sepr">›</span>')}</div>`).join('')}`
+    body += `<h3>Depends on it · ${deps.length}</h3>`
+    body += deps.length ? `<div class="say${cut.length ? ' bad' : ''}">${cut.length ? `<b>${cut.length} would be cut off</b> if it fails` : 'None would be cut off'}${deps.length > cut.length ? `; ${deps.length - cut.length} have another way up` : ''}</div><div class="list" style="margin-top:6px">${deps.slice(0, 40).map((x) => `<button data-go="${x.id}"><span>${x.id}</span>${x.cut ? '<span class="cut">cut off</span>' : '<span>another way up</span>'}</button>`).join('')}${deps.length > 40 ? `<div>+${deps.length - 40} more</div>` : ''}</div>` : '<p class="meta">Nothing.</p>'
+    const cb = cablesOf(sel.id)
+    body += `<h3>Cables · ${cb.length}</h3><div class="list">${cb.slice(0, 30).map(([a, b]) => `<div><span class="mono">${esc(a)}</span><span>${esc(b)}</span></div>`).join('')}${cb.length > 30 ? `<div>+${cb.length - 30} more</div>` : ''}</div>`
+    foot = `${isActive(sel.id) ? '<button class="btn">Inspector</button>' : ''}${e.kind === 'access' ? '<button class="btn">Find AGG / BB</button>' : ''}<button class="btn">Show in Physical</button>`
+  }
+  d.innerHTML = `<div class="drawer-head"><h2>${title}</h2><span class="chip">${kind}</span><button class="btn quiet x" data-x aria-label="Clear the selection">✕</button></div><div class="drawer-body">${body}</div><div class="drawer-foot">${foot}</div>`
+}
+
+function render() {
+  const switches = Object.values(EQ).filter((e) => e.kind === 'access' && e.net === net)
+  const problems = switches.filter((e) => e.fault).length + T[net].filter((f) => f.aggs.length === 1 && !EQ[f.aggs[0]].ups.length).length
+  $('net').value = net
+  $('pTitle').textContent = `Network ${NETS[net]}`
+  $('pMeta').textContent = `2 BB · 20 AGG · ${new Set(switches.map((s) => s.node)).size} nodes · ${switches.length} switches`
+  $('probBtn').textContent = onlyProblems ? `⚠ ${problems} problems · show all` : `⚠ ${problems} problems`
+  $('probBtn').classList.toggle('on', onlyProblems)
+  renderTree()
+  drawer()
+}
+
+// ---- Events. ----
+$('net').innerHTML = NETS.map((n, i) => `<option value="${i}">Network ${n}</option>`).join('')
+$('net').onchange = (e) => { net = Number(e.target.value); sel = null; render() }
+$('probBtn').onclick = () => { onlyProblems = !onlyProblems; render() }
+const kindOf = (id) => ({ access: 'switch', agg: 'agg', bb: 'bb' })[EQ[id].kind] || 'passive'
+document.body.addEventListener('click', (e) => {
+  const t = e.target.closest('button'); if (!t) return
+  if (t.dataset.x !== undefined) { sel = null; render() }
+  else if (t.dataset.close) { open.delete(t.dataset.close); if (sel?.id === t.dataset.close) sel = null; render() }
+  else if (t.dataset.go) select({ kind: kindOf(t.dataset.go), id: t.dataset.go })
+  else if (t.dataset.jack) toast(`Trace ${t.dataset.jack} end to end: opens the route view (as today).`)
+  else if (t.dataset.try) runTry(t.dataset.try)
+  else if (t.dataset.sw) select({ kind: 'switch', id: t.dataset.sw })
+  else if (t.dataset.card) select({ kind: 'card', id: t.dataset.card })
+  else if (t.dataset.agg) select({ kind: 'agg', id: t.dataset.agg })
+  else if (t.dataset.bb) select({ kind: 'bb', id: t.dataset.bb })
+})
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sel) { sel = null; render() } })
+const TRY = [
+  ['h', 'Show on map'],
+  ['sw:ACC-B02-S3', 'A switch, one uplink'], ['sw:ACC-B01-S1', 'Two uplinks (pair)'], ['sw:ACC-B25-S1', 'AGG + BB'],
+  ['sw:ACC-B19-S12', 'Second uplink via a neighbour'], ['sw:ACC-MD-S2', 'Direct to BB'],
+  ['h', 'Faults'],
+  ['sw:ACC-B09-S6', 'Chained twice'], ['sw:ACC-B10-S6', 'No uplink'], ['sw:ACC-B13-S2', 'Wrong network'], ['card:B16', 'Building 16 (split)'], ['agg:AGG-60', 'AGG-60 (no BB)'],
+  ['h', 'What depends on it'],
+  ['sw:ACC-B09-S4', 'A switch with two chained below'], ['agg:AGG-23', 'An AGG'], ['passive:PANEL-B05', 'A panel'], ['passive:SM1-HDF', 'An HDF'], ['bb:BB-03', 'A BB'],
+]
+$('try').innerHTML = TRY.map(([k, label]) => k === 'h' ? `<span class="h">${label}</span>` : `<button data-try="${k}">${label}</button>`).join('')
+function runTry(k) {
+  const [kind, id] = k.split(':')
+  if (kind === 'card') { const x = [0, 1, 2].find((x) => T[x].some((f) => f.cards.some((c) => c.node === id))); net = x; const cs = T[x].flatMap((f) => f.cards).filter((c) => c.node === id); cs.forEach((c) => open.add(c.key)); return select({ kind: 'card', id: cs[0].key }) }
+  select({ kind: kind === 'sw' ? 'switch' : kind, id })
+}
+const findItems = Object.keys(EQ).concat(Object.values(NODES).map((n) => n.name))
+$('findList').innerHTML = findItems.map((v) => `<option value="${v}">`).join('')
+$('find').onchange = (e) => {
+  const v = e.target.value.trim(); e.target.value = ''
+  if (EQ[v]) return select({ kind: kindOf(v), id: v })
+  const n = Object.values(NODES).find((n) => n.name === v)
+  if (n) { const x = [0, 1, 2].find((x) => T[x].some((f) => f.cards.some((c) => c.node === n.id))); net = x; const c = T[x].flatMap((f) => f.cards).find((c) => c.node === n.id); select({ kind: 'card', id: c.key }) }
+}
+render()
+</script>
+</body>
+</html>

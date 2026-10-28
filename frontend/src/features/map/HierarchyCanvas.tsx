@@ -113,11 +113,7 @@ function HierarchyLine(props: EdgeProps) {
           : 'var(--rule-strong)'
   const lit = data.onRoute || data.hot
   return (
-    <g
-      data-line={props.id.replace(/^line:/, '')}
-      data-on-route={data.onRoute}
-      data-weak={data.weak}
-    >
+    <g data-line={props.id.replace(/^line:/, '')} data-on-route={data.onRoute}>
       <BaseEdge
         id={props.id}
         path={path}
@@ -126,11 +122,7 @@ function HierarchyLine(props: EdgeProps) {
           stroke,
           strokeWidth: data.kind === 'peer' ? 3 : lit ? 3 : 1.5,
           strokeLinecap: 'round',
-          strokeDasharray: data.proposed
-            ? '6 4'
-            : data.weak
-              ? '5 4'
-              : undefined,
+          strokeDasharray: data.proposed ? '6 4' : undefined,
         }}
       />
     </g>

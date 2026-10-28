@@ -7,8 +7,34 @@ import { hierarchyFixture } from '../map/hierarchyFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import { buildProblems } from './problems'
 
-/** INV-09. The acceptance fixture has switches without serial numbers and nothing else wrong. */
-const base = acceptanceSnapshot()
+const AGGS = ['AGG-03', 'AGG-08', 'AGG-15']
+
+/** The acceptance fixture as it is: its AGGs have no cable to BB-01, so each has an `uplink:` row. */
+const raw = acceptanceSnapshot()
+
+/** The fixture with a cable from BB-01 to each AGG, so only the INV-09 rules below are in play. */
+const withBB = (s: Snapshot): Snapshot => ({
+  ...s,
+  endpoints: [
+    ...s.endpoints,
+    ...AGGS.flatMap((id) => [
+      { id: `${id}:to-bb`, equipmentId: id, label: 'To BB' },
+      { id: `BB-01:to-${id}`, equipmentId: 'BB-01', label: `To ${id}` },
+    ]),
+  ],
+  links: [
+    ...s.links,
+    ...AGGS.map((id) => ({
+      id: `bb-cable-${id}`,
+      kind: 'cable' as const,
+      a: `BB-01:to-${id}`,
+      b: `${id}:to-bb`,
+    })),
+  ],
+})
+
+/** INV-09. With the AGGs cabled to the BB, the acceptance fixture has switches without serial numbers and nothing else wrong. */
+const base = withBB(raw)
 const SWITCHES = base.equipment.filter((e) => e.kind === 'switch')
 
 /** The fixture with every switch given a serial number: a clean snapshot. */
@@ -224,44 +250,55 @@ describe('INV-09 problems', () => {
   })
 })
 
-/** HI-08. One `uplink:` row per access switch with a mark, from the hierarchy. */
-describe('HI-08 uplink problems', () => {
-  const hier = () =>
-    hierarchyFixture()
+/** OV-11 (was HI-08). One `uplink:` row per marked switch and per AGG with no BB, from the hierarchy. */
+describe('OV-11 uplink problems', () => {
+  /** Both AGGs are cabled to the BB, so no AGG is without one. */
+  const hier = () => {
+    const f = hierarchyFixture()
       .site('s1', 'Main')
       .node('n1', 's1', 'Hall 1')
       .sw('BB1', 'backbone', 'A')
       .sw('AGG1', 'aggregation', 'A', undefined, 'Agg One')
       .sw('AGG2', 'aggregation', 'A')
+    f.run('BB1', 'AGG1')
+    f.run('BB1', 'AGG2')
+    return f
+  }
   const uplinkRows = (s: Snapshot) =>
     problemsOf(s).filter((p) => p.key.startsWith('uplink:'))
 
-  it('gives a single uplink its row, with the port, the AGG and the group size', () => {
+  it('gives a switch with one uplink no row, and one with two uplinks none either', () => {
     const f = hier()
       .sw('ONE', 'access', 'A', 'n1')
       .sw('TWO', 'access', 'A', 'n1')
     f.run('ONE', 'AGG1')
     f.run('TWO', 'AGG1')
     f.run('TWO', 'AGG2')
+    expect(uplinkRows(f.snapshot())).toEqual([])
+  })
+
+  it('gives an AGG with no cable to a BB its row, naming the network', () => {
+    const f = hierarchyFixture()
+      .site('s1', 'Main')
+      .sw('BB1', 'backbone', 'A')
+      .sw('AGG1', 'aggregation', 'A', undefined, 'Agg One')
+      .sw('AGG2', 'aggregation', 'A')
+    f.run('BB1', 'AGG2')
     const rows = uplinkRows(f.snapshot())
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
-      key: 'uplink:ONE',
-      equipmentId: 'ONE',
+      key: 'uplink:AGG1',
+      equipmentId: 'AGG1',
       proposed: false,
       values: {
-        what: 'ONE',
-        problem: 'A switch has one uplink',
-        detail: 'Port 1 → Agg One; its group has 2 AGGs',
-        site: 'Main',
-        node: 'Hall 1',
+        what: 'Agg One',
+        problem: 'An AGG has no BB uplink',
+        detail: 'No cable reaches a BB of Network A',
       },
     })
     expect(rows[0].parts?.detail).toEqual([
-      { name: 'Port 1' },
-      { text: ' → ' },
-      { name: 'Agg One' },
-      { text: '; its group has 2 AGGs' },
+      { text: 'No cable reaches a BB of ' },
+      { name: 'Network A' },
     ])
   })
 
@@ -337,6 +374,7 @@ describe('HI-08 uplink problems', () => {
       .sw('ONE', 'access', 'A', 'n1')
       .sw('BOTH', 'access', 'A', 'n1')
       .sw('LOST2', 'access', 'B', 'n1')
+      .sw('AGG3', 'aggregation', 'A') // no BB cable
     f.run('ONE', 'AGG1')
     f.run('BOTH', 'AGG1')
     f.run('BOTH', 'AGG2')
@@ -345,6 +383,7 @@ describe('HI-08 uplink problems', () => {
       (n, h) => n + h.counts.marked,
       0,
     )
+    // LOST, LOST2 and the AGG without a BB.
     expect(marked).toBe(3)
     expect(uplinkRows(s)).toHaveLength(marked)
     const keys = keysOf(s)
@@ -361,8 +400,10 @@ describe('HI-08 uplink problems', () => {
     })
   })
 
-  it('has no uplink row on the clean acceptance fixture', () => {
-    expect(keysOf(clean()).filter((k) => k.startsWith('uplink:'))).toEqual([])
+  it('gives the acceptance fixture as it is one row for each of its three AGGs, since no cable joins them to BB-01', () => {
+    expect(keysOf(raw).filter((k) => k.startsWith('uplink:'))).toEqual(
+      AGGS.map((id) => `uplink:${id}`),
+    )
     expect(keysOf(base).filter((k) => k.startsWith('uplink:'))).toEqual([])
   })
 })

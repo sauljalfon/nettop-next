@@ -198,14 +198,16 @@ test('INV-09 Problems shows its count and its rows, and a row opens its object',
   page,
 }) => {
   const t = await topology(page)
-  // The acceptance fixture gives no serial number to any switch; it has no
-  // joined networks, faulty ports or shared addresses (those rules are in the
-  // unit tests).
+  // The acceptance fixture gives no serial number to any switch, and no cable
+  // joins its three Network A AGGs to BB-01 (the OV-11 rule); it has no joined
+  // networks, faulty ports or shared addresses (those rules are in the unit
+  // tests).
   const switches = 7
+  const noBB = 3
   expect(t.equipment.length).toBeGreaterThan(switches)
   await openInventory(page)
   const entry = lists(page).getByRole('button', { name: /^Problems/ })
-  await expect(entry.locator('.count')).toHaveText(String(switches))
+  await expect(entry.locator('.count')).toHaveText(String(switches + noBB))
   await expect(entry.locator('.count')).toHaveClass(/warn/)
   await expect(
     lists(page)
@@ -216,14 +218,21 @@ test('INV-09 Problems shows its count and its rows, and a row opens its object',
   await expect(root(page)).toHaveAttribute('data-inventory-list', 'problems')
   await expect(root(page)).toHaveAttribute(
     'data-inventory-total',
-    String(switches),
+    String(switches + noBB),
   )
   const rows = await rowTexts(page)
-  expect(rows.map((r) => r[1])).toEqual(
-    Array(switches).fill('A switch has no serial number'),
-  )
+  expect(rows.map((r) => r[1])).toEqual([
+    ...Array(switches).fill('A switch has no serial number'),
+    ...Array(noBB).fill('An AGG has no BB uplink'),
+  ])
   expect(rows[0][2]).toBe('Fill it in with Edit details')
-  expect(rows.map((r) => r[0]).sort()).toEqual(
+  expect(rows[switches][2]).toBe('No cable reaches a BB of Network A')
+  expect(
+    rows
+      .slice(0, switches)
+      .map((r) => r[0])
+      .sort(),
+  ).toEqual(
     [
       'AGG-03',
       'AGG-08',
@@ -241,7 +250,7 @@ test('INV-09 Problems shows its count and its rows, and a row opens its object',
   ).toHaveCount(0)
 
   // Open details and Show in Physical open the row's equipment.
-  await table(page).getByLabel('Select AGG-03').check()
+  await table(page).getByLabel('Select AGG-03').first().check()
   await expect(
     bar(page).getByRole('button', { name: 'Show on map' }),
   ).toHaveCount(0)

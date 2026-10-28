@@ -8,7 +8,6 @@ import type { SnapshotIndex } from './snapshotIndex'
 
 /** How the drawer words a switch's mark. */
 export const MARK_TEXT: Record<UplinkMark, string> = {
-  single: 'one uplink',
   chained: 'chained',
   'no-uplink': 'no uplink',
   'other-network': 'other network',

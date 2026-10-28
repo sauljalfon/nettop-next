@@ -2,7 +2,7 @@ import { equipmentWalks, type FocusStep } from './focus'
 import type { SnapshotIndex } from './snapshotIndex'
 
 /** Why an access switch is marked; one mark per switch, the first that holds. */
-export type UplinkMark = 'single' | 'chained' | 'no-uplink' | 'other-network'
+export type UplinkMark = 'chained' | 'no-uplink' | 'other-network'
 
 /** One walk between two switches, over stored cables and bridges only. */
 export interface Circuit {
@@ -25,6 +25,13 @@ export interface SwitchUplinks {
   otherNetwork: Circuit[]
   /** Chained: the switches it hangs under. */
   parents: string[]
+  /**
+   * The access switches of its network it is cabled to while both have an own
+   * way up (neither is chained), by name.
+   */
+  peers: string[]
+  /** Two or more ways up: its uplinks plus its peers (two cables to one AGG count twice). */
+  twoUplinks: boolean
   /** Mid AGGs reached, directly or through its parents. */
   aggIds: string[]
   mark?: UplinkMark
@@ -37,7 +44,8 @@ export interface HierarchyNodeCard {
   nodeId?: string
   siteId?: string
   switchIds: string[]
-  single: number
+  /** Its switches with two or more ways up. */
+  twoUplinks: number
   chained: number
   /** Any of its switches has a mark. */
   problem: boolean
@@ -69,8 +77,6 @@ export interface TierLine {
   a: string
   b: string
   circuits: Circuit[]
-  /** Drawn dashed: the AGG reaches fewer of the tops than there are. */
-  weak: boolean
   proposed: boolean
 }
 
@@ -82,6 +88,14 @@ export interface NetworkHierarchy {
   aggIds: string[]
   /** Mid AGG -> how many distinct tops it reaches. */
   topsReached: ReadonlyMap<string, number>
+  /** The mid AGGs that reach no top while the network has one. */
+  noTop: ReadonlySet<string>
+  /**
+   * Every active device's circuits toward the top: an access switch with an own
+   * way up its uplinks and its peers, a chained one its parents, a mid AGG its
+   * tops. A top has none. Built once per snapshot.
+   */
+  ups: ReadonlyMap<string, Circuit[]>
   lines: TierLine[]
   groups: HierarchyGroup[]
   switches: ReadonlyMap<string, SwitchUplinks>
@@ -171,6 +185,10 @@ function buildNetwork(
   const chain = new Map<string, Set<string>>(
     access.map((id) => [id, new Set()]),
   )
+  // The walks to other access switches, kept for the peers and the parents.
+  const chainCircuits = new Map<string, Map<string, Circuit[]>>(
+    access.map((id) => [id, new Map()]),
+  )
   const reachedByAccess = new Set<string>()
   for (const id of access) {
     const uplinks: Circuit[] = []
@@ -187,6 +205,10 @@ function buildNetwork(
       else if (far.role === 'access' && own(far.id)) {
         chain.get(id)!.add(far.id)
         chain.get(far.id)?.add(id)
+        const toFar = chainCircuits.get(id)!
+        const list = toFar.get(far.id)
+        if (list) list.push(circuitOf(w))
+        else toFar.set(far.id, [circuitOf(w)])
       }
     }
     info.set(id, {
@@ -194,6 +216,8 @@ function buildNetwork(
       uplinks,
       otherNetwork,
       parents: [],
+      peers: [],
+      twoUplinks: false,
       aggIds: [],
     })
   }
@@ -258,13 +282,19 @@ function buildNetwork(
         for (const t of topsOf.get(p) ?? []) topSet.add(t)
       }
     }
+    if (d === 0) {
+      s.peers = [...chain.get(id)!]
+        .filter((n) => depth.get(n) === 0)
+        .sort(byName)
+      s.twoUplinks = s.uplinks.length + s.peers.length >= 2
+    }
     s.aggIds = [...aggSet].sort(byName)
     topsOf.set(id, topSet)
     if (d === 0)
       for (const u of s.uplinks) if (tops.has(u.farId)) topSet.add(u.farId)
   }
 
-  // Marks, in order: no uplink, other network, chained, single.
+  // Marks, in order: no uplink, other network, chained.
   const joined = groupsOf(midIds, tierWalks, info, depth, tops, byName)
   for (const id of access) {
     const s = info.get(id)!
@@ -273,11 +303,6 @@ function buildNetwork(
     if (d === undefined)
       mark = s.otherNetwork.length > 0 ? 'other-network' : 'no-uplink'
     else if (d >= 1) mark = 'chained'
-    else if (
-      s.uplinks.length === 1 &&
-      (joined.placed.get(id)?.aggIds.length ?? 0) >= 2
-    )
-      mark = 'single'
     if (mark) s.mark = mark
   }
 
@@ -306,7 +331,6 @@ function buildNetwork(
             a,
             b,
             circuits: [],
-            weak: false,
             proposed: false,
           }),
         )
@@ -325,26 +349,50 @@ function buildNetwork(
     if (l.kind === 'uplink')
       topsReached.set(l.b, (topsReached.get(l.b) ?? 0) + 1)
   for (const l of lines.values()) {
-    if (l.kind === 'uplink')
-      l.weak =
-        tops.size > 1 &&
-        (topsReached.get(l.b) ?? 0) > 0 &&
-        (topsReached.get(l.b) ?? 0) < tops.size
     if (installed)
       l.proposed = l.circuits.every((c) =>
         c.linkIds.some((link) => !installed.links.has(link)),
       )
   }
 
+  const noTop = new Set(
+    topKind === 'none' ? [] : midIds.filter((id) => !topsReached.get(id)),
+  )
+
+  // The way up of every active device, from the walks already made.
+  const ups = new Map<string, Circuit[]>()
+  for (const id of access) {
+    const s = info.get(id)!
+    const toFar = chainCircuits.get(id)!
+    const via = (ids: string[]) => ids.flatMap((far) => toFar.get(far) ?? [])
+    const d = depth.get(id)
+    ups.set(
+      id,
+      d === undefined
+        ? []
+        : d === 0
+          ? [...s.uplinks, ...via(s.peers)]
+          : via(s.parents),
+    )
+  }
+  for (const id of midIds)
+    ups.set(
+      id,
+      tierWalks.get(id)!.filter((c) => tops.has(c.farId)),
+    )
+  for (const id of topIds) ups.set(id, [])
+
   const groups = buildGroups(index, tops, joined, info, byName, installed)
   const cards = groups.flatMap((g) => g.nodes)
-  const marked = access.filter((id) => info.get(id)!.mark).length
+  const marked = access.filter((id) => info.get(id)!.mark).length + noTop.size
   return {
     networkId,
     topKind,
     topIds,
     aggIds: midIds,
     topsReached,
+    noTop,
+    ups,
     lines: [...lines.values()].sort(byKey),
     groups,
     switches: info,
@@ -484,7 +532,7 @@ function buildGroups(
         ...(nodeId ? { nodeId } : {}),
         ...(siteId ? { siteId } : {}),
         switchIds,
-        single: marks.filter((m) => m === 'single').length,
+        twoUplinks: switchIds.filter((s) => info.get(s)!.twoUplinks).length,
         chained: marks.filter((m) => m === 'chained').length,
         problem: marks.some((m) => m !== undefined),
         proposed:

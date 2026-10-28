@@ -7,7 +7,7 @@ import type { HierarchyNodeNode } from './hierarchyFlow'
 
 /**
  * A node under a group of AGGs: its site, its name, how many switches it holds
- * and only what is wrong ("1 single", "2 chained"). Lines end on the frame, so
+ * the "2↑ N" badge for switches with two uplinks, and only what is wrong ("2 chained"). Lines end on the frame, so
  * the card has no handles. The whole card is one button that opens the drawer.
  */
 export default memo(function HierarchyNodeCard({
@@ -36,8 +36,13 @@ export default memo(function HierarchyNodeCard({
         <span>
           {data.switches} {data.switches === 1 ? 'switch' : 'switches'}
         </span>
-        {data.single > 0 && (
-          <span className="hcard-flag">{data.single} single</span>
+        {data.twoUplinks > 0 && (
+          <span
+            className="hcard-badge"
+            title={`${data.twoUplinks} ${data.twoUplinks === 1 ? 'switch' : 'switches'} with 2 uplinks`}
+          >
+            2↑ {data.twoUplinks}
+          </span>
         )}
         {data.chained > 0 && (
           <span className="hcard-flag">{data.chained} chained</span>

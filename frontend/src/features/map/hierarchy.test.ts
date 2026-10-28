@@ -84,6 +84,8 @@ describe('HI-01 levels', () => {
 
   it('counts the BBs, the AGGs, the node cards, the switches and the marked ones', () => {
     const f = base().sw('ACC', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1')
+    f.run('BB1', 'AGG2')
     f.run('ACC', 'AGG1')
     expect(of(f.snapshot()).counts).toEqual({
       bb: 1,
@@ -117,9 +119,9 @@ describe('HI-02 lines', () => {
       kind: 'uplink',
       a: 'BB1',
       b: 'AGG1',
-      weak: false,
       proposed: false,
     })
+    expect(h.lines[0]).not.toHaveProperty('weak')
     expect(h.lines[0].circuits).toHaveLength(1)
     expect(h.lines[0].circuits[0].linkIds).toEqual([cable])
   })
@@ -164,30 +166,15 @@ describe('HI-02 lines', () => {
     ).toEqual(['AGG1', 'BB1'])
   })
 
-  it('makes an uplink "weak" when there are two tops and the AGG reaches fewer of them', () => {
+  it('counts the tops each mid AGG reaches', () => {
     const f = base().sw('BB2', 'backbone', 'A').sw('AGG3', 'aggregation', 'A')
-    f.run('BB1', 'AGG1') // one top
+    f.run('BB1', 'AGG1')
     f.run('BB1', 'AGG2')
-    f.run('BB2', 'AGG2') // both tops
-    // AGG3 reaches no top: no line, and no mark.
+    f.run('BB2', 'AGG2')
     const h = of(f.snapshot())
-    const line = (b: string, a = 'BB1') =>
-      h.lines.find((l) => l.a === a && l.b === b)!
-    expect(line('AGG1').weak).toBe(true)
-    expect(line('AGG2').weak).toBe(false)
-    expect(line('AGG2', 'BB2').weak).toBe(false)
-    expect(h.lines.filter((l) => l.b === 'AGG3')).toEqual([])
     expect(h.topsReached.get('AGG1')).toBe(1)
     expect(h.topsReached.get('AGG2')).toBe(2)
     expect(h.topsReached.get('AGG3')).toBe(0)
-  })
-
-  it('keeps every uplink solid when there is only one top', () => {
-    const f = base()
-    f.run('BB1', 'AGG1')
-    const h = of(f.snapshot())
-    expect(h.lines.map((l) => l.weak)).toEqual([false])
-    expect(h.topsReached.get('AGG1')).toBe(1)
   })
 })
 
@@ -339,19 +326,21 @@ describe('HI-03 groups', () => {
         nodeId: 'node-a',
         siteId: 'site-main',
         switchIds: ['EDGE-17'],
-        single: 0,
+        twoUplinks: 1,
         chained: 0,
         problem: false,
         proposed: false,
       }),
     ])
     expect(h.groups[1].nodes).toEqual([])
+    // No cable reaches the BB from any AGG: all three are in noTop.
+    expect([...h.noTop].sort()).toEqual(['AGG-03', 'AGG-08', 'AGG-15'])
     expect(h.counts).toEqual({
       bb: 1,
       agg: 3,
       nodes: 1,
       switches: 1,
-      marked: 0,
+      marked: 3,
     })
     // EDGE-17 reaches AGG-03, AGG-08 and BB-01: three uplinks, no mark.
     const edge = h.switches.get('EDGE-17')!
@@ -431,7 +420,7 @@ describe('HI-03 groups', () => {
       ['AGG-15|node-a', true],
     ])
     expect(h.groups[1].switches).toBe(1)
-    expect(h.counts).toMatchObject({ nodes: 2, switches: 2, marked: 0 })
+    expect(h.counts).toMatchObject({ nodes: 2, switches: 2, marked: 3 })
     // Both AGGs are installed, so no tier card is proposed.
     expect([...h.proposed]).toEqual([])
     // The line from AGG-15 to its frame stands only for the plan's cable.
@@ -444,28 +433,137 @@ describe('HI-03 groups', () => {
 })
 
 describe('HI-04 marks', () => {
-  it('marks a switch with one uplink "single" when its group has two or more AGGs', () => {
+  it('gives a switch with one uplink no mark and no two-uplinks flag, even when its group has two AGGs', () => {
+    const f = base()
+      .sw('ONE', 'access', 'A', 'n1')
+      .sw('TWO', 'access', 'A', 'n2')
+    f.run('BB1', 'AGG1')
+    f.run('BB1', 'AGG2')
+    f.run('ONE', 'AGG1')
+    f.run('TWO', 'AGG2')
+    const h = of(f.snapshot())
+    for (const id of ['ONE', 'TWO']) {
+      expect(h.switches.get(id)!.mark).toBeUndefined()
+      expect(h.switches.get(id)!.twoUplinks).toBe(false)
+    }
+    for (const card of h.groups.flatMap((g) => g.nodes))
+      expect(card).toMatchObject({ twoUplinks: 0, problem: false })
+    expect(h.counts.marked).toBe(0)
+  })
+
+  it('flags a switch cabled to both AGGs of a pair as having two uplinks, with no mark', () => {
     const f = base()
       .sw('ONE', 'access', 'A', 'n1')
       .sw('BOTH', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1')
+    f.run('BB1', 'AGG2')
     f.run('ONE', 'AGG1')
     f.run('BOTH', 'AGG1')
     f.run('BOTH', 'AGG2')
     const h = of(f.snapshot())
-    expect(h.switches.get('ONE')!.mark).toBe('single')
+    expect(h.switches.get('ONE')!.twoUplinks).toBe(false)
+    expect(h.switches.get('BOTH')!.twoUplinks).toBe(true)
     expect(h.switches.get('BOTH')!.mark).toBeUndefined()
-    const card = h.groups[0].nodes[0]
-    expect(card).toMatchObject({ single: 1, chained: 0, problem: true })
-    expect(h.groups[0].problemNodes).toBe(1)
+    expect(h.groups[0].nodes[0]).toMatchObject({
+      twoUplinks: 1,
+      chained: 0,
+      problem: false,
+    })
+    expect(h.groups[0].problemNodes).toBe(0)
+    expect(h.counts.marked).toBe(0)
+  })
+
+  it('flags a switch with an AGG and a BB uplink, and places it under the AGG’s group', () => {
+    const f = base().sw('ACC', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1')
+    f.run('BB1', 'AGG2')
+    f.run('ACC', 'AGG1')
+    f.run('ACC', 'BB1')
+    const h = of(f.snapshot())
+    expect(h.switches.get('ACC')!.twoUplinks).toBe(true)
+    expect(h.groups.find((g) => g.key === 'AGG1')!.switches).toBe(1)
+    expect(h.groups.some((g) => g.kind === 'top')).toBe(false)
+  })
+
+  it('counts two cables from one switch to the same AGG as two uplinks', () => {
+    const f = base().sw('ACC', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1')
+    f.run('ACC', 'AGG1')
+    f.run('ACC', 'AGG1')
+    const s = of(f.snapshot()).switches.get('ACC')!
+    expect(s.uplinks).toHaveLength(2)
+    expect(s.twoUplinks).toBe(true)
+  })
+
+  it('treats a cable between two switches that both have an own uplink as a peer for both: two uplinks, neither chained', () => {
+    const f = base().sw('P1', 'access', 'A', 'n1').sw('P2', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1')
+    f.run('P1', 'AGG1')
+    f.run('P2', 'AGG1')
+    f.run('P1', 'P2')
+    const h = of(f.snapshot())
+    expect(h.switches.get('P1')).toMatchObject({
+      peers: ['P2'],
+      twoUplinks: true,
+      parents: [],
+    })
+    expect(h.switches.get('P2')).toMatchObject({
+      peers: ['P1'],
+      twoUplinks: true,
+      parents: [],
+    })
+    expect(h.switches.get('P1')!.mark).toBeUndefined()
+    expect(h.switches.get('P2')!.mark).toBeUndefined()
+    expect(h.groups[0].nodes[0]).toMatchObject({ twoUplinks: 2, chained: 0 })
+  })
+
+  it('sorts a switch’s peers by name', () => {
+    const f = base()
+      .sw('P', 'access', 'A', 'n1')
+      .sw('q1', 'access', 'A', 'n1', 'Zed')
+      .sw('q2', 'access', 'A', 'n1', 'Ann')
+    f.run('BB1', 'AGG1')
+    for (const id of ['P', 'q1', 'q2']) f.run(id, 'AGG1')
+    f.run('P', 'q1')
+    f.run('P', 'q2')
+    expect(of(f.snapshot()).switches.get('P')!.peers).toEqual(['q2', 'q1'])
+  })
+
+  it('marks a switch with no own uplink, cabled to one with an uplink, "chained" with its parent', () => {
+    const f = base().sw('UP', 'access', 'A', 'n1').sw('CH', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1')
+    f.run('UP', 'AGG1')
+    f.run('CH', 'UP')
+    const h = of(f.snapshot())
+    expect(h.switches.get('CH')).toMatchObject({
+      mark: 'chained',
+      parents: ['UP'],
+      peers: [],
+      twoUplinks: false,
+    })
+    expect(h.switches.get('UP')).toMatchObject({ peers: [], twoUplinks: false })
+    expect(h.switches.get('UP')!.mark).toBeUndefined()
+  })
+
+  it('puts a mid AGG with no cable to a BB in noTop and counts it as marked', () => {
+    const f = base().sw('ACC', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1') // AGG2 has none
+    f.run('ACC', 'AGG1')
+    const h = of(f.snapshot())
+    expect([...h.noTop]).toEqual(['AGG2'])
     expect(h.counts.marked).toBe(1)
   })
 
-  it('does not mark a single uplink when its group has one AGG', () => {
-    const f = base().sw('ONE', 'access', 'A', 'n1')
-    f.run('ONE', 'AGG1')
+  it('has an empty noTop in a network with no top', () => {
+    const f = hierarchyFixture()
+      .node('n1', 's1')
+      .sw('X', 'aggregation', 'A')
+      .sw('ACC', 'access', 'A', 'n1')
+    f.run('ACC', 'X')
     const h = of(f.snapshot())
-    expect(h.switches.get('ONE')!.mark).toBeUndefined()
-    expect(h.groups[0].nodes[0].problem).toBe(false)
+    expect(h.topKind).toBe('none')
+    expect([...h.noTop]).toEqual([])
+    expect(h.counts.marked).toBe(0)
   })
 
   it('marks a chained switch, with its parents and the AGGs of its parents', () => {
@@ -473,6 +571,8 @@ describe('HI-04 marks', () => {
       .sw('TOPSW', 'access', 'A', 'n1')
       .sw('MID', 'access', 'A', 'n1')
       .sw('LEAF', 'access', 'A', 'n2')
+    f.run('BB1', 'AGG1')
+    f.run('BB1', 'AGG2')
     f.run('TOPSW', 'AGG1')
     f.run('TOPSW', 'AGG2')
     f.run('MID', 'TOPSW')
@@ -566,7 +666,7 @@ describe('HI-04 marks', () => {
     expect(h.switches.get('DEAD')!.mark).toBe('no-uplink')
     expect(h.groups.find((g) => g.kind === 'none')!.nodes[0]).toMatchObject({
       problem: true,
-      single: 0,
+      twoUplinks: 0,
       chained: 0,
     })
   })
@@ -707,5 +807,66 @@ describe('HI-05 in a plan', () => {
       ['AGG1', false],
       ['AGG2', true],
     ])
+  })
+})
+
+describe('OV-01 ups', () => {
+  it('holds an access switch’s uplink circuits and its circuits to its peers', () => {
+    const f = base()
+      .panel('P1', 'n1')
+      .sw('A1', 'access', 'A', 'n1')
+      .sw('A2', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1')
+    const [up] = f.run('A1', 'AGG1', ['P1'])
+    f.run('A2', 'AGG1')
+    const peerLinks = f.run('A1', 'A2')
+    const h = of(f.snapshot())
+    const ups = h.ups.get('A1')!
+    expect(ups.map((c) => c.farId).sort()).toEqual(['A2', 'AGG1'])
+    const toAgg = ups.find((c) => c.farId === 'AGG1')!
+    expect(toAgg.linkIds).toContain(up)
+    expect(toAgg.via.map((v) => v.equipmentId)).toEqual(['P1'])
+    expect(toAgg.start).toBe('A1:p1')
+    const toPeer = ups.find((c) => c.farId === 'A2')!
+    expect(toPeer.linkIds).toEqual(peerLinks)
+    expect(
+      h.ups
+        .get('A2')!
+        .map((c) => c.farId)
+        .sort(),
+    ).toEqual(['A1', 'AGG1'])
+  })
+
+  it('holds a chained switch’s circuit to its parent, with its via and links', () => {
+    const f = base().panel('P1', 'n1')
+    f.sw('UP', 'access', 'A', 'n1').sw('CH', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1')
+    f.run('UP', 'AGG1')
+    const links = f.run('CH', 'UP', ['P1'])
+    const h = of(f.snapshot())
+    const ups = h.ups.get('CH')!
+    expect(ups).toHaveLength(1)
+    expect(ups[0]).toMatchObject({ farId: 'UP', start: 'CH:p1' })
+    expect(ups[0].linkIds).toEqual(expect.arrayContaining(links))
+    expect(ups[0].via.map((v) => v.equipmentId)).toEqual(['P1'])
+    // The parent's own entry is its uplink only.
+    expect(h.ups.get('UP')!.map((c) => c.farId)).toEqual(['AGG1'])
+  })
+
+  it('holds a mid AGG’s circuits to the BBs, and nothing for a BB', () => {
+    const f = base().sw('BB2', 'backbone', 'A')
+    f.run('BB1', 'AGG1')
+    f.run('BB2', 'AGG1')
+    f.run('AGG1', 'AGG2') // a peer: not a way to a top
+    const h = of(f.snapshot())
+    expect(
+      h.ups
+        .get('AGG1')!
+        .map((c) => c.farId)
+        .sort(),
+    ).toEqual(['BB1', 'BB2'])
+    expect(h.ups.get('AGG2') ?? []).toEqual([])
+    expect(h.ups.get('BB1') ?? []).toEqual([])
+    expect(h.ups.get('BB2') ?? []).toEqual([])
   })
 })

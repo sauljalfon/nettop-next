@@ -20,9 +20,11 @@ func TestFixOnCampusIsMeasured(t *testing.T) {
 	s, _ := testStore(t)
 	ctx := context.Background()
 	campus := scalefixture.Campus()
+	seedStart := time.Now()
 	if err := s.Seed(ctx, campus); err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("seeding the campus: %v", time.Since(seedStart))
 	id := campus.Equipment[0].ID
 	start := time.Now()
 	if _, err := s.Fix(ctx, fixes.Fix{Kind: fixes.Equipment, ID: id, Details: topology.Details{Description: ptr("timed")}}); err != nil {

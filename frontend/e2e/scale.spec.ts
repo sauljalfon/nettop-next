@@ -367,8 +367,13 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
     ).toBeVisible({
       timeout: 30_000,
     })
-    await start.press('Escape')
   })
+  // Trace from that match: Building 17 is on the network the map shows.
+  await page
+    .getByRole('listbox', { name: 'Start matches' })
+    .getByRole('option')
+    .first()
+    .click()
   await page.getByRole('combobox', { name: 'Start' }).blur()
   const find = page.getByRole('button', { name: 'Find AGG / BB', exact: true })
   const clicked = Date.now()
@@ -406,7 +411,7 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
     await expect(page.getByLabel('Find equipment')).toBeVisible()
   })
   await timed('Explore search for a cable ID', async () => {
-    await page.getByLabel('Find equipment').fill('cable-04321')
+    await page.getByLabel('Find equipment').fill('cable-04000')
     await expect(page.getByTestId('search-cable').first()).toBeVisible({
       timeout: 30_000,
     })
