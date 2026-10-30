@@ -52,7 +52,8 @@ test('C12 saving and refetching reconcile by ID without remounting or resetting'
   await expect(page.getByRole('status')).toContainText('revision 2')
 
   // The refetched plan shows the new switch under No AGG, in the same mounted canvas.
-  await expect(added).toContainText('1 switch')
+  await expect(added).toContainText('1')
+  await expect(added).toContainText('Building A')
   await expect(page.locator('.flow-surface')).toHaveAttribute(
     'data-mounted',
     'yes',

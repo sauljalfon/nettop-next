@@ -427,7 +427,6 @@ test('INV-01 a port row opens the inspector on its port', async ({ page }) => {
 
 // ---------------------------------------------------------------- Step 3: actions
 
-const focusRoot = (page: Page) => page.locator('[data-view="focus"]')
 const physicalRoot = (page: Page) => page.locator('[data-physical-level]')
 const inspectorHeading = (page: Page) => page.locator('.inspector-header h2')
 const plansNow = async (page: Page) =>
@@ -509,11 +508,16 @@ test('INV-03 two selected rows turn the one-row commands off', async ({
   await expect(open).toHaveAttribute('title', 'Select one row')
 })
 
-test('INV-03 Show on map opens Focus on the equipment', async ({ page }) => {
+test('INV-03 Show on map selects the equipment on the tree', async ({
+  page,
+}) => {
   await openInventory(page)
   await table(page).getByLabel('Select AGG-03').check()
   await bar(page).getByRole('button', { name: 'Show on map' }).click()
-  await expect(focusRoot(page)).toHaveAttribute('data-focus-id', 'agg-03')
+  await expect(page.locator('[data-card-key="agg-03"]')).toHaveAttribute(
+    'data-selected',
+    'true',
+  )
 })
 
 test('INV-03 Show in Physical opens the equipment page at the port', async ({
@@ -827,7 +831,6 @@ test('Explore while the Inventory is shown: equipment and port hits open the ins
   await search.press('Enter')
   await expect(inspectorHeading(page)).toHaveText('AGG-03')
   await expect(root(page)).toBeVisible()
-  await expect(focusRoot(page)).toHaveCount(0)
 
   await openExplore(page)
   await search.fill(`agg-03 ${endpoint.label}`)
@@ -838,7 +841,6 @@ test('Explore while the Inventory is shown: equipment and port hits open the ins
     'true',
   )
   await expect(root(page)).toBeVisible()
-  await expect(focusRoot(page)).toHaveCount(0)
 })
 
 test('Explore while the Inventory is shown: a site highlights it on the map, as today', async ({

@@ -4,8 +4,7 @@ import {
   BackgroundVariant,
   BaseEdge,
   Controls,
-  getBezierPath,
-  getStraightPath,
+  getSmoothStepPath,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -29,7 +28,7 @@ import RouteDiagram from '../paths/RouteDiagram'
 import type { Sheet } from '../paths/sheet'
 import { positionMarks } from '../physical/explorerModel'
 import { routeMarks } from '../physical/inventory'
-import { FIT, fitViewport } from './center'
+import { FIT, fitViewport, panToShowFirstFit } from './center'
 import { HierarchyActions } from './hierarchyActions'
 import {
   buildHierarchies,
@@ -37,18 +36,20 @@ import {
   type NetworkHierarchy,
 } from './hierarchy'
 import { cardByKey } from './hierarchyDetails'
+import { litBy, type Selection } from './hierarchySelection'
 import HierarchyDrawer from './HierarchyDrawer'
 import { hierarchyFit } from './hierarchyFit'
 import {
+  emphasisMarks,
   highlightedCards,
   hotCards,
   projectHierarchy,
   type HierarchyFlowNode,
-  type HierarchyFrameNode,
   type HierarchyLabelNode,
   type HierarchyLineData,
 } from './hierarchyFlow'
-import { hierarchyLayout } from './hierarchyLayout'
+import { hierarchyLayout, selectionBoxes } from './hierarchyLayout'
+import FrameCard from './FrameCard'
 import HierarchyNodeCard from './HierarchyNodeCard'
 import HierarchyPanel from './HierarchyPanel'
 import { shouldClearOnEscape } from './keys'
@@ -56,36 +57,9 @@ import { ClearHighlight } from './MapControls'
 import { mapSession, type MapSession } from './mapSession'
 import { colorOf, networkColors } from './networkColors'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
-import TierCard, { HierarchyHandles } from './TierCard'
+import TierCard from './TierCard'
 import { visibleArea } from './viewArea'
 import './map.css'
-
-const plural = (n: number, one: string, many = `${one}s`) =>
-  `${n} ${n === 1 ? one : many}`
-
-/** A group's frame: its head says how many nodes and switches, and how many have problems. */
-const FrameView = memo(function FrameView({
-  data,
-}: NodeProps<HierarchyFrameNode>) {
-  const prefix =
-    data.kind === 'top'
-      ? 'Under the top · '
-      : data.kind === 'none'
-        ? 'Reach no AGG · '
-        : ''
-  const head = `${prefix}${plural(data.nodes, 'node')} · ${plural(data.switches, 'switch', 'switches')}${data.withProblems > 0 ? ` · ${data.withProblems} with problems` : ''}${data.onlyProblems ? ' (only these shown)' : ''}`
-  return (
-    <div className="hierarchy-frame">
-      <HierarchyHandles only="top" />
-      <span className="hierarchy-frame-head" title={head}>
-        {head}
-      </span>
-      {data.empty && (
-        <span className="hierarchy-frame-empty">No problems here</span>
-      )}
-    </div>
-  )
-})
 
 const LabelView = memo(function LabelView({
   data,
@@ -94,33 +68,41 @@ const LabelView = memo(function LabelView({
 })
 
 /**
- * One line: an uplink or a line to a frame runs from the bottom of a card to the
- * top of the next; a peer link runs straight between two cards' sides. A drawing
- * aid; it never feeds a trace, and a click on it does nothing.
+ * One line, orthogonal like the demo's: out of a card's right edge, down or up
+ * at `bendX`, into the next one's left edge. A drawing aid; it never feeds a
+ * trace, and a click on it does nothing.
  */
 function HierarchyLine(props: EdgeProps) {
   const data = props.data as HierarchyLineData
-  const [path] =
-    data.kind === 'peer' ? getStraightPath(props) : getBezierPath(props)
-  const stroke = data.onRoute
-    ? 'var(--route)'
-    : data.hot
-      ? 'var(--amber)'
-      : data.proposed
-        ? 'var(--proposed)'
-        : data.kind === 'peer'
-          ? 'var(--ink-soft)'
+  const [path] = getSmoothStepPath({
+    ...props,
+    borderRadius: 0,
+    centerX: data.bendX,
+  })
+  const stroke =
+    data.onRoute || data.emphasis === 'lit'
+      ? 'var(--route)'
+      : data.hot
+        ? 'var(--amber)'
+        : data.proposed
+          ? 'var(--proposed)'
           : 'var(--rule-strong)'
   const lit = data.onRoute || data.hot
+  const chosen = data.emphasis === 'lit'
   return (
-    <g data-line={props.id.replace(/^line:/, '')} data-on-route={data.onRoute}>
+    <g
+      data-line={props.id.replace(/^line:/, '')}
+      data-on-route={data.onRoute}
+      {...emphasisMarks(data.emphasis)}
+    >
       <BaseEdge
         id={props.id}
         path={path}
         interactionWidth={0}
         style={{
           stroke,
-          strokeWidth: data.kind === 'peer' ? 3 : lit ? 3 : 1.5,
+          strokeWidth: lit || chosen ? 3 : 1.5,
+          opacity: data.emphasis === 'dim' ? 0.25 : undefined,
           strokeLinecap: 'round',
           strokeDasharray: data.proposed ? '6 4' : undefined,
         }}
@@ -132,13 +114,27 @@ function HierarchyLine(props: EdgeProps) {
 const nodeTypes = {
   hierarchyTier: TierCard,
   hierarchyNode: HierarchyNodeCard,
-  hierarchyFrame: FrameView,
+  hierarchyFrame: FrameCard,
   hierarchyLabel: LabelView,
 }
 const edgeTypes = { hierarchyLine: HierarchyLine }
 
+/** Resolves when the running animations (a drawer sliding in or out) end, or after half a second. */
+function settled(): Promise<void> {
+  const running = document.getAnimations().map((a) => a.finished.catch(() => 0))
+  return Promise.race([
+    Promise.all(running),
+    new Promise((resolve) => setTimeout(resolve, 500)),
+  ]).then(
+    () =>
+      new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+  )
+}
+
 /** The network each session last fitted: coming back to the same one restores the view. */
 const fittedFor = new WeakMap<MapSession, string>()
+/** The selection each session last panned to: a remount does not pan to it again. */
+const pannedFor = new WeakMap<MapSession, Selection>()
 
 export interface HierarchyProps {
   snapshot: Snapshot
@@ -153,7 +149,8 @@ export interface HierarchyProps {
   onSelect: (equipmentId: string) => void
   /** The inspector's Find AGG / BB for this equipment. */
   onFindDevice: (equipmentId: string) => void
-  onFocus: (equipmentId: string) => void
+  /** A passive chip in the drawer: the route view on that jack. */
+  onTraceJack?: (endpointId: string) => void
   onShowInPhysical: (equipmentId: string) => void
   onShowPlace: (target: { nodeId?: string }) => void
   /** The selected route: its cards and lines are lit, nothing moves. */
@@ -201,7 +198,7 @@ function Canvas({
   networkId,
   onSelect,
   onFindDevice,
-  onFocus,
+  onTraceJack,
   onShowInPhysical,
   onShowPlace,
   route,
@@ -255,23 +252,39 @@ function Canvas({
     (id: string) => snapshot.networks.find((n) => n.id === id)?.name ?? id,
     [snapshot.networks],
   )
-  const color = colorOf(colors, networkId ?? '')
 
+  const open = useSyncExternalStore(session.subscribe, session.openNodes)
   const layout = useMemo(
-    () => (h ? hierarchyLayout(h, { onlyProblems }) : undefined),
-    [h, onlyProblems],
+    () => (h ? hierarchyLayout(h, { onlyProblems, open }) : undefined),
+    [h, onlyProblems, open],
   )
 
-  // The drawer: the selected card's key. A refetch re-reads the card by key; the
-  // drawer closes only when the key is gone.
-  const [selectedKey, setSelectedKey] = useState<string>()
-  const card = h ? cardByKey(h, selectedKey) : undefined
+  // The selection: a node card or a device, from a click or Show on map. What it
+  // lights is computed once per selection (and per snapshot), never per render.
+  const selection = useSyncExternalStore(session.subscribe, session.selection)
+  const lit = useMemo(
+    () => (selection ? litBy(hierarchies, index, selection) : undefined),
+    [hierarchies, index, selection],
+  )
+  // A selection whose thing a refetch removed is cleared; the viewport and the open cards stay.
+  const gone =
+    selection !== undefined &&
+    (selection.kind === 'equipment'
+      ? !index.equipment.has(selection.id)
+      : !hierarchies.has(selection.networkId) ||
+        !cardByKey(hierarchies.get(selection.networkId)!, selection.key))
   useEffect(() => {
-    if (selectedKey !== undefined && !card) setSelectedKey(undefined)
-  }, [selectedKey, card])
+    if (gone) session.clear()
+  }, [gone, session])
+  const hotKey =
+    selection?.kind === 'card'
+      ? selection.networkId === h?.networkId
+        ? selection.key
+        : undefined
+      : selection?.id
   const hot = useMemo(
-    () => (h ? hotCards(h, selectedKey) : new Set<string>()),
-    [h, selectedKey],
+    () => (h ? hotCards(h, hotKey) : new Set<string>()),
+    [h, hotKey],
   )
 
   const marks = useMemo(() => routeMarks(index, route), [index, route])
@@ -294,6 +307,34 @@ function Canvas({
     return () => window.removeEventListener('keydown', onKey)
   }, [highlight, session])
 
+  // Esc clears the selection (and its drawer), unless the user is typing, a
+  // dialog is open or the route view is on. The viewport and the open cards stay.
+  useEffect(() => {
+    if (!selection) return
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (
+        event.key === 'Escape' &&
+        !event.defaultPrevented &&
+        !routeViewOn &&
+        shouldClearOnEscape(target) &&
+        !target?.closest?.('[role="dialog"], [aria-modal="true"]')
+      )
+        session.clear()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selection, routeViewOn, session])
+
+  // A new selection: show its network, open its cards (never close one).
+  useEffect(() => {
+    if (!lit || lit.networkId === undefined) return
+    if (lit.networkId !== networkId) session.showNetwork(lit.networkId)
+    else
+      for (const key of lit.openCards)
+        if (!session.openNodes().has(key)) session.toggleNode(key)
+  }, [selection]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const projected = useMemo(
     () =>
       h && layout
@@ -303,11 +344,14 @@ function Canvas({
             index,
             colors,
             marks,
+            open,
             highlighted,
             hot,
+            lit,
+            selection,
           })
         : undefined,
-    [h, layout, index, colors, marks, highlighted, hot],
+    [h, layout, index, colors, marks, open, highlighted, hot, lit, selection],
   )
 
   // Local node state carries React Flow's measurements; positions are the projection's.
@@ -333,8 +377,6 @@ function Canvas({
 
   const surface = useRef<HTMLDivElement>(null)
   const [fitted, setFitted] = useState(false)
-  const cardCount = useRef(0)
-  cardCount.current = h?.counts.nodes ?? 0
   const frame = useRef(0)
   // Fits everything into the part of the canvas the panel, the drawers and the
   // overlays leave free, once the cards have been measured.
@@ -363,12 +405,7 @@ function Canvas({
         }
         void flow
           .setViewport(
-            fitViewport(
-              bounds,
-              where.box,
-              where.covers,
-              hierarchyFit(cardCount.current),
-            ),
+            fitViewport(bounds, where.box, where.covers, hierarchyFit()),
           )
           .then(() => {
             session.setHierarchyViewport(flow.getViewport())
@@ -435,17 +472,81 @@ function Canvas({
     }
   }, [fitRequest, nodes, highlighted, flow, session])
 
-  const actions = useMemo(() => ({ onCard: setSelectedKey }), [])
+  // After the first fit, a selection pans (never zooms or refits) to show its
+  // card with its frame, or the card alone when both do not fit, when that is not
+  // in view: once per selection, after its cards are open and the drawers that
+  // stay open have settled (what covers the canvas is read then, not before).
+  useEffect(() => {
+    if (!selection || !lit || lit.networkId !== networkId || !h) return
+    if (!fitted || !layout || pannedFor.get(session) === selection) return
+    if (!lit.openCards.every((key) => open.has(key))) return
+    const boxes = selectionBoxes(h, layout, lit.scrollTo)
+    if (boxes.length === 0) return
+    let cancelled = false
+    void settled().then(() => {
+      const where = visibleArea(surface.current)
+      if (cancelled || !where || pannedFor.get(session) === selection) return
+      pannedFor.set(session, selection)
+      // The hierarchy drawer is over the canvas too.
+      const drawer = surface.current
+        ?.querySelector('.hierarchy-drawer')
+        ?.getBoundingClientRect()
+      const covers = {
+        ...where.covers,
+        right: Math.max(
+          where.covers.right,
+          drawer ? where.box.right - drawer.left : 0,
+        ),
+      }
+      const view = panToShowFirstFit(
+        boxes.map((b) => ({ x: b.x, y: b.y, width: b.w, height: b.h })),
+        flow.getViewport(),
+        { width: where.box.width, height: where.box.height },
+        covers,
+      )
+      if (view)
+        void flow
+          .setViewport(view, { duration: 300 })
+          .then(() => session.setHierarchyViewport(flow.getViewport()))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [selection, lit, networkId, fitted, layout, open, flow, session, h])
+
+  const actions = useMemo(
+    () => ({
+      onCard: (key: string) =>
+        networkId !== undefined &&
+        session.select({ kind: 'card', networkId, key }),
+      onEquipment: (id: string) => session.select({ kind: 'equipment', id }),
+      onClose: (key: string) => {
+        session.toggleNode(key)
+        const now = session.selection()
+        if (now?.kind === 'card' && now.key === key) session.clear()
+      },
+    }),
+    [session, networkId],
+  )
   const drawerActions = useMemo(
     () => ({
-      onClose: () => setSelectedKey(undefined),
-      onFocus,
+      onClose: session.clear,
       onInspect: onSelect,
       onFind: onFindDevice,
       onShowEquipment: onShowInPhysical,
       onShowNode: (nodeId: string) => onShowPlace({ nodeId }),
+      onSelectEquipment: (id: string) =>
+        session.select({ kind: 'equipment', id }),
+      onTraceJack: onTraceJack ?? (() => undefined),
     }),
-    [onFocus, onSelect, onFindDevice, onShowInPhysical, onShowPlace],
+    [
+      session,
+      onSelect,
+      onFindDevice,
+      onShowInPhysical,
+      onShowPlace,
+      onTraceJack,
+    ],
   )
 
   const empty = !h
@@ -466,6 +567,7 @@ function Canvas({
       data-fitted={fitted || empty}
       data-network={networkId ?? ''}
       data-card-positions={layout ? positionMarks(layout.boxes) : ''}
+      data-open-cards={[...open].sort().join(' ')}
       data-route-view={active}
     >
       {empty ? (
@@ -510,6 +612,7 @@ function Canvas({
                 counts={h.counts}
                 onlyProblems={onlyProblems}
                 onOnlyProblems={session.setOnlyProblems}
+                nothing={onlyProblems && layout?.frames.size === 0}
               />
             )}
             <Panel position="top-right" className="map-tools">
@@ -522,13 +625,17 @@ function Canvas({
           </ReactFlow>
         </HierarchyActions.Provider>
       )}
-      {!active && h && card && selectedKey !== undefined && (
+      {!active && selection && !gone && (
         <HierarchyDrawer
-          h={h}
+          hierarchies={hierarchies}
           index={index}
-          card={card}
-          cardKey={selectedKey}
-          color={color}
+          selection={selection}
+          colorOf={(id) => colorOf(colors, id)}
+          isProposed={(id) =>
+            snapshot.context === 'planned' &&
+            !!installedIDs &&
+            !installedIDs.has(id)
+          }
           networkName={networkName}
           actions={drawerActions}
         />

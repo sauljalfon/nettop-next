@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { fitted, hierarchyState, settledViewport, viewport } from './helpers'
 
 // HI-09. The hierarchy of one network, from the acceptance fixture and the
@@ -10,7 +10,7 @@ const card = (page: Page, key: string) =>
   page.locator(`[data-card-key="${key}"]`)
 const line = (page: Page, key: string) => page.locator(`[data-line="${key}"]`)
 const frame = (page: Page, groupKey: string) =>
-  page.getByTestId(`rf__node-frame:${groupKey}`)
+  page.locator(`[data-frame-key="${groupKey}"]`)
 const panel = (page: Page) => page.locator('.hierarchy-panel')
 const drawer = (page: Page) => page.getByTestId('hierarchy-drawer')
 const BUILDING_A = 'agg-03+agg-08|node-building-a'
@@ -37,48 +37,80 @@ test('HI-09 Network A: the Backbone over three AGGs, Building A under AGG-03 + A
   for (const id of ['bb-01', 'agg-03', 'agg-08', 'agg-15'])
     await expect(card(page, id)).toBeVisible()
   await expect(card(page, 'bb-01')).toContainText('BB-01')
+  // A closed card is one row: the name, the switch count; the site is its title.
   await expect(card(page, BUILDING_A)).toContainText('Building A')
-  await expect(card(page, BUILDING_A)).toContainText('Main Campus')
-  await expect(card(page, BUILDING_A)).toContainText('1 switch')
+  await expect(card(page, BUILDING_A)).toHaveAttribute('title', 'Main Campus')
+  await expect(card(page, BUILDING_A)).toHaveAttribute('data-open', 'false')
+  await expect(card(page, BUILDING_A)).toContainText('1')
   // EDGE-17 has three uplinks (AGG-03, AGG-08, BB-01): the neutral "2↑ 1" badge, and no fault.
   await expect(card(page, BUILDING_A)).toContainText('2↑ 1')
   await expect(card(page, BUILDING_A)).not.toContainText('single')
   await expect(card(page, BUILDING_A)).not.toContainText('chained')
   await expect(page.locator('[data-card-key]')).toHaveCount(5)
-  // The tier labels, and the frames with their heads.
+  // The column heads, and the frames: the AGGs are buttons inside them.
   for (const label of ['Backbone', 'Aggregation', 'Nodes'])
     await expect(page.getByTestId(`rf__node-label:${label}`)).toBeVisible()
-  await expect(frame(page, 'agg-03+agg-08')).toContainText('1 node · 1 switch')
-  await expect(frame(page, 'agg-15')).toContainText('0 nodes · 0 switches')
-  // The cards sit inside their frame, the Backbone above the AGGs.
-  const inside = async (key: string, group: string) => {
-    const c = (await card(page, key).boundingBox())!
-    const f = (await frame(page, group).boundingBox())!
-    expect(c.x).toBeGreaterThanOrEqual(f.x - 1)
-    expect(c.y).toBeGreaterThanOrEqual(f.y - 1)
-    expect(c.x + c.width).toBeLessThanOrEqual(f.x + f.width + 1)
-    expect(c.y + c.height).toBeLessThanOrEqual(f.y + f.height + 1)
-  }
-  await inside(BUILDING_A, 'agg-03+agg-08')
-  expect((await card(page, 'bb-01').boundingBox())!.y).toBeLessThan(
-    (await card(page, 'agg-03').boundingBox())!.y,
-  )
-  expect((await card(page, 'agg-03').boundingBox())!.y).toBeLessThan(
-    (await card(page, BUILDING_A).boundingBox())!.y,
-  )
-  // Each AGG hangs a line over its frame. No cable joins the AGGs and the BB here.
-  await expect(line(page, 'group:agg-03+agg-08:agg-03')).toHaveCount(1)
-  await expect(line(page, 'group:agg-03+agg-08:agg-08')).toHaveCount(1)
-  await expect(line(page, 'group:agg-15:agg-15')).toHaveCount(1)
+  await expect(frame(page, 'agg-03+agg-08')).toBeVisible()
+  await expect(
+    frame(page, 'agg-03+agg-08').locator('[data-card-key]'),
+  ).toHaveCount(2)
+  await expect(
+    frame(page, 'agg-15').locator('[data-card-key="agg-15"]'),
+  ).toBeVisible()
+  // Three columns, left to right: the BB, the frames, the node cards.
+  const box = async (loc: Locator) => (await loc.boundingBox())!
+  const bb = await box(card(page, 'bb-01'))
+  const f1 = await box(frame(page, 'agg-03+agg-08'))
+  const f2 = await box(frame(page, 'agg-15'))
+  const a = await box(card(page, BUILDING_A))
+  expect(bb.x + bb.width).toBeLessThan(f1.x)
+  expect(f1.x + f1.width).toBeLessThan(a.x)
+  expect(f1.x).toBeCloseTo(f2.x, 0)
+  expect(f2.y).toBeGreaterThan(f1.y + f1.height)
+  // The frame is level with its card (centred on its row).
+  expect(f1.y + f1.height / 2).toBeCloseTo(a.y + a.height / 2, 0)
+  // One line from the frame to its card. No cable joins the AGGs and the BB here.
+  await expect(line(page, `group:${BUILDING_A}`)).toHaveCount(1)
+  await expect(page.locator('[data-line^="group:"]')).toHaveCount(1)
   await expect(page.locator('[data-line^="uplink:"]')).toHaveCount(0)
   await expect(page.locator('[data-weak]')).toHaveCount(0)
   // No cable joins an AGG to BB-01, so each of the three says so; the BB does not.
   for (const id of ['agg-03', 'agg-08', 'agg-15'])
-    await expect(card(page, id)).toContainText('No BB uplink')
-  await expect(card(page, 'bb-01')).not.toContainText('No BB uplink')
+    await expect(card(page, id)).toContainText('no BB')
+  await expect(card(page, 'bb-01')).not.toContainText('no BB')
   // Nothing on it can be dragged, and the legend says what the lines are.
-  await expect(panel(page)).toContainText('peer link')
+  await expect(panel(page)).toContainText('peers')
   await expect(panel(page)).toContainText('proposed')
+})
+
+test('OV-02 a click on Building A opens it and lists EDGE-17; “Building A ▴” closes it', async ({
+  page,
+}) => {
+  await toHierarchy(page)
+  const scaleBefore = /scale\(([\d.]+)\)/.exec((await viewport(page))!)![1]
+  const closed = (await card(page, BUILDING_A).boundingBox())!
+  const below = (await card(page, 'agg-15').boundingBox())!
+  await card(page, BUILDING_A).click()
+  await expect(card(page, BUILDING_A)).toHaveAttribute('data-open', 'true')
+  await expect(card(page, BUILDING_A)).toContainText('EDGE-17')
+  await expect(card(page, BUILDING_A)).toContainText('2 uplinks')
+  await expect(root(page)).toHaveAttribute('data-open-cards', BUILDING_A)
+  await expect(drawer(page)).toBeVisible()
+  const settled = await settledViewport(page) // a pan to the card has finished
+  const opened = (await card(page, BUILDING_A).boundingBox())!
+  expect(opened.height).toBeGreaterThan(closed.height + 30)
+  // The selection may pan, never zoom.
+  expect(/scale\(([\d.]+)\)/.exec(settled)![1]).toBe(scaleBefore)
+  // The frame stays level with the card's rows, which moved.
+  const f1 = (await frame(page, 'agg-03+agg-08').boundingBox())!
+  expect(f1.y + f1.height / 2).toBeCloseTo(opened.y + opened.height / 2, 0)
+  expect((await card(page, 'agg-15').boundingBox())!.y).toBeGreaterThan(below.y)
+  await card(page, BUILDING_A)
+    .getByRole('button', { name: /Building A ▴/ })
+    .click()
+  await expect(card(page, BUILDING_A)).toHaveAttribute('data-open', 'false')
+  await expect(card(page, BUILDING_A)).not.toContainText('EDGE-17')
+  await expect(root(page)).toHaveAttribute('data-open-cards', '')
 })
 
 test('HI-09 Network B has no top row: AGG-12 over DR Access; the header redraws and fits once, and All networks keeps B', async ({
@@ -93,6 +125,7 @@ test('HI-09 Network B has no top row: AGG-12 over DR Access; the header redraws 
   await expect(panel(page)).toContainText('1 AGG · 1 node · 1 switch')
   await expect(card(page, 'agg-12')).toBeVisible()
   await expect(card(page, 'agg-12|node-dr-access')).toContainText('DR Access')
+  await expect(page.getByTestId('rf__node-label:Nodes')).toBeVisible()
   await expect(card(page, 'agg-03')).toHaveCount(0)
   await expect(page.getByTestId('rf__node-label:Backbone')).toHaveCount(0)
   await expect(page.getByTestId('rf__node-label:Top AGG')).toHaveCount(0)
@@ -169,7 +202,7 @@ test('HI-09 the drawer of Building A: EDGE-17 reaches AGG-03, AGG-08 and BB-01, 
   await expect(drawer(page)).toHaveCount(0)
 })
 
-test('HI-09 from the drawer: Inspector, Find AGG / BB, Show in Physical and Focus, which comes back to the hierarchy with no drawer', async ({
+test('HI-09 from the drawer: Inspector, Find AGG / BB, and Show in Physical', async ({
   page,
 }) => {
   await toHierarchy(page)
@@ -197,23 +230,9 @@ test('HI-09 from the drawer: Inspector, Find AGG / BB, Show in Physical and Focu
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await fitted(page)
   await expect(root(page)).toBeVisible()
-
-  // Focus on the switch; ‹ Hierarchy returns, and the drawer is gone.
-  await page.reload()
-  await fitted(page)
-  detail = await open()
-  await detail.getByRole('button', { name: 'Focus', exact: true }).click()
-  await expect(page.locator('[data-view="focus"]')).toHaveAttribute(
-    'data-focus-id',
-    'edge-17',
-  )
-  await page.getByRole('button', { name: '‹ Hierarchy' }).click()
-  await expect(root(page)).toBeVisible()
-  await expect(drawer(page)).toHaveCount(0)
-  await expect(page.locator('[data-view="focus"]')).toHaveCount(0)
 })
 
-test('HI-09 the drawer of AGG-03: no cable to the top here, what is under it and shared with, Focus and Inspector', async ({
+test('HI-09 the drawer of AGG-03: its sentence, no way up beyond a gap, who depends on it, its cable, Inspector', async ({
   page,
 }) => {
   await toHierarchy(page)
@@ -223,9 +242,12 @@ test('HI-09 the drawer of AGG-03: no cable to the top here, what is under it and
   )
   await expect(drawer(page)).toContainText('Main Campus')
   await expect(drawer(page)).toContainText('Main Distribution')
-  await expect(drawer(page)).toContainText('No cable to another AGG or BB')
-  await expect(drawer(page)).toContainText('1 node, 1 switch')
-  await expect(drawer(page)).toContainText('shared with AGG-08')
+  await expect(drawer(page).getByTestId('hd-say')).toContainText('No BB uplink')
+  await expect(drawer(page).getByTestId('hd-way')).toContainText('No BB uplink')
+  await expect(drawer(page).getByTestId('hd-depends')).toContainText('EDGE-17')
+  await expect(drawer(page).getByTestId('hd-cables')).toContainText(
+    'HDF-02 2B/3',
+  )
   await expect(card(page, 'agg-03')).toHaveAttribute('data-hot', 'true')
   await expect(card(page, 'agg-08')).toHaveAttribute('data-hot', 'false')
   // Another card replaces the drawer's content.
@@ -234,29 +256,27 @@ test('HI-09 the drawer of AGG-03: no cable to the top here, what is under it and
     'BB-01',
   )
   await expect(card(page, 'agg-03')).toHaveAttribute('data-hot', 'false')
+  await expect(drawer(page).getByRole('button', { name: 'Focus' })).toHaveCount(
+    0,
+  )
   await drawer(page).getByRole('button', { name: 'Inspector' }).click()
   await expect(page.locator('.inspector-header h2')).toHaveText('BB-01')
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  await drawer(page).getByRole('button', { name: 'Focus', exact: true }).click()
-  await expect(page.locator('[data-view="focus"]')).toHaveAttribute(
-    'data-focus-id',
-    'bb-01',
-  )
 })
 
-test('HI-09 Only nodes with problems hides every unmarked node and says so in each frame; it never refits', async ({
+test('HI-09 Only nodes with problems hides every unmarked node and keeps the frames of AGGs with no BB; it never refits', async ({
   page,
 }) => {
   await toHierarchy(page)
   const fit = await settledViewport(page)
   const before = await root(page).getAttribute('data-card-positions')
   await panel(page).getByLabel('Only nodes with problems').check()
-  // The fixture is clean: no node card is left, and each frame keeps its head.
+  // The fixture's switches are clean: no node card is left. Every AGG has no BB,
+  // so each frame stays, and so does the top.
   await expect(card(page, BUILDING_A)).toHaveCount(0)
-  await expect(frame(page, 'agg-03+agg-08')).toContainText('No problems here')
-  await expect(frame(page, 'agg-03+agg-08')).toContainText('(only these shown)')
-  await expect(frame(page, 'agg-15')).toContainText('No problems here')
-  await expect(card(page, 'agg-03')).toBeVisible()
+  await expect(frame(page, 'agg-03+agg-08')).toBeVisible()
+  await expect(frame(page, 'agg-15')).toBeVisible()
+  await expect(card(page, 'agg-03')).toContainText('no BB')
+  await expect(card(page, 'bb-01')).toBeVisible()
   expect(await viewport(page)).toBe(fit)
   expect(await root(page).getAttribute('data-card-positions')).not.toBe(before)
   await panel(page).getByLabel('Only nodes with problems').uncheck()
@@ -280,12 +300,12 @@ test('HI-09 the Expansion plan: EDGE-18 gives a dashed card and line under AGG-1
   await expect(card(page, 'agg-15')).toHaveAttribute('data-proposed', 'false')
   await expect(
     page.locator(
-      '.react-flow__edge.proposed [data-line="group:agg-15:agg-15"]',
+      '.react-flow__edge.proposed [data-line="group:agg-15|node-building-a"]',
     ),
   ).toHaveCount(1)
   await expect(
     page.locator(
-      '.react-flow__edge.proposed [data-line="group:agg-03+agg-08:agg-03"]',
+      `.react-flow__edge.proposed [data-line="group:${BUILDING_A}"]`,
     ),
   ).toHaveCount(0)
   const dash = await page
@@ -295,7 +315,6 @@ test('HI-09 the Expansion plan: EDGE-18 gives a dashed card and line under AGG-1
     .first()
     .evaluate((p) => getComputedStyle(p).strokeDasharray)
   expect(dash).not.toBe('none')
-  await expect(frame(page, 'agg-15')).toContainText('1 node · 1 switch')
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await fitted(page)
   await expect(card(page, 'agg-15|node-building-a')).toHaveCount(0)

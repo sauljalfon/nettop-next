@@ -11,7 +11,6 @@ import {
 test.describe.configure({ mode: 'serial' })
 
 const root = (page: Page) => page.locator('[data-view="hierarchy"]')
-const focusRoot = (page: Page) => page.locator('[data-view="focus"]')
 const card = (page: Page, key: string) =>
   page.locator(`[data-card-key="${key}"]`)
 const line = (page: Page, key: string) => page.locator(`[data-line="${key}"]`)
@@ -45,23 +44,15 @@ test('HI-10 the route lights its cards and lines in place; choosing another rout
   await settledViewport(page)
   const first = await hierarchyState(page)
   const view = await viewport(page)
-  // Route 1 is AGG-03: the node card, AGG-03 and its line to the frame.
+  // Route 1 is AGG-03: the node card, AGG-03 and the frame's line to the card.
   await expect(card(page, BUILDING_A)).toHaveAttribute('data-on-route', 'true')
   await expect(card(page, 'agg-03')).toHaveAttribute('data-on-route', 'true')
   await expect(card(page, 'agg-08')).toHaveAttribute('data-on-route', 'false')
   await expect(card(page, 'bb-01')).toHaveAttribute('data-on-route', 'false')
   await expect(card(page, 'agg-15')).toHaveAttribute('data-on-route', 'false')
-  await expect(line(page, 'group:agg-03+agg-08:agg-03')).toHaveAttribute(
+  await expect(line(page, `group:${BUILDING_A}`)).toHaveAttribute(
     'data-on-route',
     'true',
-  )
-  await expect(line(page, 'group:agg-03+agg-08:agg-08')).toHaveAttribute(
-    'data-on-route',
-    'false',
-  )
-  await expect(line(page, 'group:agg-15:agg-15')).toHaveAttribute(
-    'data-on-route',
-    'false',
   )
 
   // The BB-01 route: the lit cards change, nothing moves.
@@ -70,7 +61,8 @@ test('HI-10 the route lights its cards and lines in place; choosing another rout
   await expect(card(page, 'bb-01')).toHaveAttribute('data-on-route', 'true')
   await expect(card(page, 'agg-03')).toHaveAttribute('data-on-route', 'false')
   await expect(card(page, BUILDING_A)).toHaveAttribute('data-on-route', 'true')
-  await expect(line(page, 'group:agg-03+agg-08:agg-03')).toHaveAttribute(
+  // The route now goes straight to the BB, not through the frame's AGGs: the line stays unlit.
+  await expect(line(page, `group:${BUILDING_A}`)).toHaveAttribute(
     'data-on-route',
     'false',
   )
@@ -118,42 +110,19 @@ test('HI-10 the Route view covers the hierarchy, and turning it off restores it 
   await expect(card(page, BUILDING_A)).toHaveAttribute('data-on-route', 'true')
 })
 
-test('HI-10 Focus on EDGE-17 lights the AGG-03 card and line, and choosing another route moves nothing', async ({
+test('HI-10 the route of EDGE-17 lights the AGG-03 card, and choosing another route moves nothing', async ({
   page,
 }) => {
   await toHierarchy(page)
   await findFromEdge17(page)
   await card(page, BUILDING_A).click()
-  await drawer(page).locator('[data-switch-id="edge-17"]').click()
-  await drawer(page).getByRole('button', { name: 'Focus', exact: true }).click()
-  await expect(focusRoot(page)).toHaveAttribute('data-focus-id', 'edge-17')
-  await expect(equipmentCard(page, 'agg-03')).toBeVisible()
-  await expect(equipmentCard(page, 'edge-17')).toHaveAttribute(
-    'data-on-route',
-    'true',
-  )
-  await expect(equipmentCard(page, 'agg-03')).toHaveAttribute(
-    'data-on-route',
-    'true',
-  )
-  await expect(equipmentCard(page, 'agg-08')).toHaveAttribute(
-    'data-on-route',
-    'false',
-  )
-  const focusLine = (to: string) => page.locator(`[data-line="edge-17|${to}"]`)
-  await expect(focusLine('agg-03')).toHaveAttribute('data-on-route', 'true')
-  await expect(focusLine('agg-08')).toHaveAttribute('data-on-route', 'false')
+  await expect(card(page, 'agg-03')).toHaveAttribute('data-on-route', 'true')
+  await expect(card(page, 'agg-08')).toHaveAttribute('data-on-route', 'false')
   await settledViewport(page)
   const view = await viewport(page)
   await rows(page).nth(2).click()
-  await expect(equipmentCard(page, 'bb-01')).toHaveAttribute(
-    'data-on-route',
-    'true',
-  )
-  await expect(equipmentCard(page, 'agg-03')).toHaveAttribute(
-    'data-on-route',
-    'false',
-  )
+  await expect(card(page, 'bb-01')).toHaveAttribute('data-on-route', 'true')
+  await expect(card(page, 'agg-03')).toHaveAttribute('data-on-route', 'false')
   expect(await viewport(page)).toBe(view)
 })
 

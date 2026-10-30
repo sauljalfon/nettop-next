@@ -1,8 +1,6 @@
 import type { LocationRef } from './highlight'
 import type { Network } from '../../shared/types'
-
-/** Which conceptual map is drawn. */
-export type MapMode = 'hierarchy' | 'focus'
+import type { Selection } from './hierarchySelection'
 
 export interface Viewport {
   x: number
@@ -11,9 +9,8 @@ export interface Viewport {
 }
 
 /**
- * Session-only state of the conceptual map: the view, the hierarchy's viewport,
- * the shown network, Only problems, open nodes, the focus, the highlight and
- * the route view. Nothing here is persisted to the server or fed to traversal.
+ * Session-only state of the conceptual map: the hierarchy's viewport, the shown
+ * network, Only problems, open nodes, the selection, the highlight and the route view. Nothing here is persisted to the server or fed to traversal.
  */
 export interface MapSession {
   /**
@@ -36,10 +33,7 @@ export interface MapSession {
   requestFit(ids: readonly string[]): void
   fitHandled(): number
   markFitHandled(serial: number): void
-  /** The map drawn under the Conceptual header; session-only. */
-  view(): MapMode
-  setView(view: MapMode): void
-  /** The hierarchy's viewport; it fits once per session, and Focus has none of its own. */
+  /** The hierarchy's viewport; it fits once per session. */
   hierarchyViewport(): Viewport | undefined
   setHierarchyViewport(viewport: Viewport): void
   /** True until a hierarchy viewport has been recorded. */
@@ -57,21 +51,13 @@ export interface MapSession {
   /** Node cards that are open (listing their equipment). Replaced on every change. */
   openNodes(): ReadonlySet<string>
   toggleNode(id: string): void
-  /** The equipment Focus is on; undefined until the first focusOn. */
-  focusId(): string | undefined
-  /** Rings shown around the focus, 1–3. Kept across focus changes. */
-  hops(): number
-  setHops(hops: number): void
   /**
-   * Opens Focus on this equipment; the hops are kept and any opened group
-   * cards are closed.
+   * What Show on map or a card click selected on the tree; undefined when
+   * nothing is. It opens nothing and changes no network by itself.
    */
-  focusOn(id: string): void
-  /** Leaves Focus for the hierarchy; its viewport is untouched. */
-  back(): void
-  /** Group cards that are open (by their key). Replaced on every change. */
-  openGroups(): ReadonlySet<string>
-  toggleGroup(key: string): void
+  selection(): Selection | undefined
+  select(selection: Selection): void
+  clear(): void
   /** Notified after any change; returns the unsubscribe function. */
   subscribe(listener: () => void): () => void
 }
@@ -95,14 +81,11 @@ export function createMapSession(): MapSession {
   let routeView = false
   let fit: { ids: string[]; serial: number } | undefined
   let fitHandled = 0
-  let view: MapMode = 'hierarchy'
   let hierarchyViewport: Viewport | undefined
   let networks: readonly string[] = []
   let onlyProblems = false
   let openNodes: ReadonlySet<string> = new Set()
-  let focusId: string | undefined
-  let hops = 1
-  let openGroups: ReadonlySet<string> = new Set()
+  let selection: Selection | undefined
   const listeners = new Set<() => void>()
   const notify = () => {
     for (const listener of listeners) listener()
@@ -128,12 +111,6 @@ export function createMapSession(): MapSession {
       fit = { ids: [...ids], serial: (fit?.serial ?? 0) + 1 }
       notify()
     },
-    view: () => view,
-    setView(next) {
-      if (next === view) return
-      view = next
-      notify()
-    },
     hierarchyViewport: () => hierarchyViewport,
     setHierarchyViewport: (v) =>
       void (hierarchyViewport = { x: v.x, y: v.y, zoom: v.zoom }),
@@ -157,30 +134,13 @@ export function createMapSession(): MapSession {
       openNodes = next
       notify()
     },
-    focusId: () => focusId,
-    hops: () => hops,
-    setHops(n) {
-      const next = Math.min(3, Math.max(1, Math.floor(n)))
-      if (next === hops) return
-      hops = next
+    selection: () => selection,
+    select(next) {
+      selection = { ...next }
       notify()
     },
-    focusOn(id) {
-      view = 'focus'
-      focusId = id
-      openGroups = new Set()
-      notify()
-    },
-    back() {
-      if (view !== 'focus') return
-      view = 'hierarchy'
-      notify()
-    },
-    openGroups: () => openGroups,
-    toggleGroup(key) {
-      const next = new Set(openGroups)
-      if (!next.delete(key)) next.add(key)
-      openGroups = next
+    clear() {
+      selection = undefined
       notify()
     },
     subscribe(listener) {

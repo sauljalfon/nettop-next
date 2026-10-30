@@ -64,7 +64,7 @@ test('POL-32 a trace that fails with every drawer closed shows its error on the 
 }) => {
   await page.goto('/')
   await fitted(page)
-  // Focus on EDGE-17 with every drawer closed; the trace starts from a line's circuit panel.
+  // EDGE-17 selected with every drawer closed; the trace starts from a passive chip in its drawer.
   await selectEquipment(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(page.locator('.studio-drawer')).toHaveCount(0)
@@ -75,10 +75,10 @@ test('POL-32 a trace that fails with every drawer closed shows its error on the 
       body: JSON.stringify({ error: 'Trace engine unavailable' }),
     }),
   )
-  await page.locator('[data-line="edge-17|agg-03"]').click()
   await page
-    .getByRole('dialog', { name: /circuits/i })
-    .getByRole('button', { name: 'Find AGG / BB from Port 1' })
+    .getByTestId('hierarchy-drawer')
+    .getByRole('button', { name: /^HDF-01/ })
+    .first()
     .click()
   const alert = page
     .getByRole('alert')

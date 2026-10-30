@@ -1,9 +1,11 @@
-import { equipmentWalks, type FocusStep } from './focus'
+import { equipmentWalks, type WalkStep } from './walks'
 import type {
   HierarchyNodeCard,
   NetworkHierarchy,
   UplinkMark,
 } from './hierarchy'
+import type { TextPiece } from '../../shared/textPieces'
+import { litBy } from './hierarchySelection'
 import type { SnapshotIndex } from './snapshotIndex'
 
 /** How the drawer words a switch's mark. */
@@ -104,10 +106,10 @@ export interface SwitchWalk {
   end: string
   farId: string
   /** The passives it passes, in order; empty is "direct". */
-  via: FocusStep[]
+  via: WalkStep[]
 }
 
-/** Every walk from a switch that reaches another switch, by far switch name; read like Focus. */
+/** Every walk from a switch that reaches another switch, by far switch name. */
 export function switchWalks(
   index: SnapshotIndex,
   switchId: string,
@@ -129,60 +131,167 @@ export function switchWalks(
     .sort((a, b) => order(a.farId, b.farId) || a.start.localeCompare(b.start))
 }
 
-export interface TierLink {
-  kind: 'up' | 'down' | 'peer link'
-  otherId: string
-  /** The port on this card's equipment. */
-  mine: string
-  /** The port on the other. */
-  theirs: string
-  via: FocusStep[]
+/** One step of a way up, from the device toward the tops. */
+export type WayStep =
+  | { kind: 'port'; endpointId: string }
+  | {
+      kind: 'passive'
+      equipmentId: string
+      endpointId: string
+      place: string
+    }
+  | {
+      kind: 'device'
+      equipmentId: string
+      fault?: 'chained only' | 'other network'
+    }
+  | { kind: 'tops'; ids: string[] }
+  | { kind: 'gap'; text: TextPiece[] }
+
+/**
+ * The ways up of an access switch or a mid AGG, one row per circuit of
+ * `NetworkHierarchy.ups`: its port, the passives passed (each with its jack),
+ * the device reached, then the tops that AGG reaches, or a gap. A chained switch
+ * continues through its parent's ways up (their first port is not repeated).
+ * A top, a passive or an unknown ID has none.
+ */
+export function wayUp(
+  hierarchies: ReadonlyMap<string, NetworkHierarchy>,
+  index: SnapshotIndex,
+  id: string,
+): WayStep[][] {
+  for (const h of hierarchies.values()) {
+    if (h.switches.has(id) || h.aggIds.includes(id)) return rowsOf(h, index, id)
+  }
+  return []
 }
 
-const KIND_ORDER = { up: 0, down: 1, 'peer link': 2 } as const
-
-/** A tier card's cables to other tier equipment, one per circuit. */
-export function tierLinks(
+function rowsOf(
   h: NetworkHierarchy,
   index: SnapshotIndex,
   id: string,
-): TierLink[] {
-  const order = byName(index)
-  const out: TierLink[] = []
-  for (const l of h.lines) {
-    if (l.a !== id && l.b !== id) continue
-    const mineIsA = l.a === id
-    const kind: TierLink['kind'] =
-      l.kind === 'peer' ? 'peer link' : mineIsA ? 'down' : 'up'
-    for (const c of l.circuits)
-      out.push({
-        kind,
-        otherId: mineIsA ? l.b : l.a,
-        mine: mineIsA ? c.start : c.end,
-        theirs: mineIsA ? c.end : c.start,
-        via: c.via,
-      })
+  seen = new Set<string>(),
+): WayStep[][] {
+  if (seen.has(id)) return []
+  seen.add(id)
+  const own = h.switches.get(id)
+  const isAgg = h.aggIds.includes(id)
+  let ups = h.ups.get(id) ?? []
+  let fault: 'chained only' | 'other network' | undefined
+  if (own?.mark === 'chained') fault = 'chained only'
+  else if (own?.mark === 'other-network') {
+    ups = own.otherNetwork
+    fault = 'other network'
   }
-  return out.sort(
-    (x, y) =>
-      KIND_ORDER[x.kind] - KIND_ORDER[y.kind] ||
-      order(x.otherId, y.otherId) ||
-      x.mine.localeCompare(y.mine),
-  )
+  if (ups.length === 0)
+    return [
+      [
+        {
+          kind: 'gap',
+          text: [
+            { text: isAgg ? 'No BB uplink' : 'No uplink · no port cabled' },
+          ],
+        },
+      ],
+    ]
+  const rows: WayStep[][] = []
+  for (const c of ups) {
+    const head: WayStep[] = [
+      { kind: 'port', endpointId: c.start },
+      ...c.via.map((v): WayStep => ({
+        kind: 'passive',
+        equipmentId: v.equipmentId,
+        endpointId: v.endpointId,
+        place: v.place,
+      })),
+      { kind: 'device', equipmentId: c.farId, ...(fault ? { fault } : {}) },
+    ]
+    if (fault === 'other network' || h.topIds.includes(c.farId)) rows.push(head)
+    else if (h.aggIds.includes(c.farId)) {
+      const tops = [...new Set((h.ups.get(c.farId) ?? []).map((u) => u.farId))]
+      rows.push([
+        ...head,
+        tops.length > 0
+          ? { kind: 'tops', ids: tops }
+          : {
+              kind: 'gap',
+              text: [
+                { name: nameOf(index, c.farId) },
+                { text: ' has no BB uplink' },
+              ],
+            },
+      ])
+    } else {
+      const onward = rowsOf(h, index, c.farId, seen)
+      if (onward.length === 0) rows.push(head)
+      for (const r of onward) rows.push([...head, ...r.slice(1)])
+    }
+  }
+  return rows
 }
 
-/** What hangs under a tier card: its group's nodes and switches, and the AGGs it shares them with. */
-export function tierUnder(
-  h: NetworkHierarchy,
-  id: string,
-): { nodes: number; switches: number; sharedWith: string[] } | undefined {
-  const g = h.groups.find((g) =>
-    g.kind === 'aggs' ? g.aggIds.includes(id) : g.topIds.includes(id),
+export interface CableRow {
+  endpointId: string
+  linkId: string
+  farEndpointId: string
+  /** The device or passive at the other end of the cable. */
+  farEquipmentId: string
+}
+
+/** Each cabled port of an equipment with the jack at the other end of its cable, in port order. */
+export function cables(index: SnapshotIndex, id: string): CableRow[] {
+  const ports = [...(index.lookup.byEquipment.get(id) ?? [])]
+  const side = (p: { side?: string }) => (p.side === 'rear' ? 1 : 0)
+  ports.sort(
+    (a, b) =>
+      (a.position ?? Infinity) - (b.position ?? Infinity) ||
+      side(a) - side(b) ||
+      a.label.localeCompare(b.label, undefined, { numeric: true }) ||
+      a.id.localeCompare(b.id),
   )
-  if (!g) return undefined
-  return {
-    nodes: g.nodes.length,
-    switches: g.switches,
-    sharedWith: g.aggIds.filter((a) => a !== id),
-  }
+  return ports.flatMap((p) => {
+    const cable = index.cableByEndpoint.get(p.id)
+    const far = cable && index.owner.get(cable.farEndpointId)
+    return cable && far
+      ? [
+          {
+            endpointId: p.id,
+            linkId: cable.linkId,
+            farEndpointId: cable.farEndpointId,
+            farEquipmentId: far,
+          },
+        ]
+      : []
+  })
+}
+
+/**
+ * What a passive carries: how many circuits of which network run through it,
+ * on the network its selection lights. Undefined when none does.
+ */
+export function passiveSentence(
+  hierarchies: ReadonlyMap<string, NetworkHierarchy>,
+  index: SnapshotIndex,
+  id: string,
+): TextPiece[] | undefined {
+  if (index.equipment.get(id)?.role !== 'passive') return undefined
+  const networkId = litBy(hierarchies, index, {
+    kind: 'equipment',
+    id,
+  }).networkId
+  const h = networkId === undefined ? undefined : hierarchies.get(networkId)
+  if (!h) return undefined
+  const through = new Set<string>()
+  for (const circuits of h.ups.values())
+    for (const c of circuits)
+      if (c.via.some((v) => v.equipmentId === id))
+        through.add([...c.linkIds].sort().join('|'))
+  if (through.size === 0) return undefined
+  return [
+    {
+      text: `${through.size} ${through.size === 1 ? 'circuit' : 'circuits'} of `,
+    },
+    { name: index.networkNames.get(h.networkId) ?? h.networkId },
+    { text: through.size === 1 ? ' runs through it.' : ' run through it.' },
+  ]
 }

@@ -38,6 +38,7 @@
   --amber-ink: #3a2a00; /* text on an amber count pill */
   --amber-halo: #f2b134; /* outline and glow of a highlight */
   --env-ink: #7a5200; /* DEV badge text */
+  --warn-ink: #7a5200; /* a fault mark on the map: the fault count, "no BB", a switch's mark */
   --env-border: #ecd49a; /* DEV badge border */
   /* Steel-side greys (racks, faceplates, HDF chassis), from the demo. */
   --steel-line: #36414d; /* dashed free slots, module borders */

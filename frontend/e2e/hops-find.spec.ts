@@ -69,32 +69,33 @@ test('POL-04 the map overlay lists the same walk rows in Physical, in order', as
   await expect(page.getByRole('button', { name: 'Route view' })).toHaveCount(0)
 })
 
-test('POL-05 clicking a walk row selects its equipment and opens the inspector, keeping the route and the focus', async ({
+test('POL-05 clicking a walk row selects its equipment and opens the inspector, keeping the route and the selection', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await traceFromEdge17(page)
-  const focus = page.locator('[data-view="focus"]')
-  await expect(focus).toHaveAttribute('data-focus-id', 'edge-17')
+  const tree = page.locator('[data-view="hierarchy"]')
+  const selected = tree.locator('[data-card-switch="edge-17"]')
+  await expect(selected).toHaveAttribute('data-selected', 'true')
 
   await page
     .getByTestId('walk-row')
     .filter({ hasText: 'in front 2B/3' })
     .click()
   await expect(page.locator('.inspector-header h2')).toHaveText('HDF-02')
-  // The row selects; it does not move the map (D35: Focus is where Show on map goes).
-  await expect(focus).toHaveAttribute('data-focus-id', 'edge-17')
+  // The row selects the equipment for the inspector; the tree's selection stays.
+  await expect(selected).toHaveAttribute('data-selected', 'true')
   await expect(rows(page)).toHaveCount(3)
-  await expect(focus.locator('[data-equipment-id="edge-17"]')).toHaveAttribute(
+  await expect(tree.locator('[data-card-key="agg-03"]')).toHaveAttribute(
     'data-on-route',
     'true',
   )
 
-  // The focus survives a context switch.
+  // The selection survives a context switch.
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
-  await expect(focus).toHaveAttribute('data-focus-id', 'edge-17')
+  await expect(selected).toHaveAttribute('data-selected', 'true')
 })
 
 test('there is exactly one search field labelled "Find equipment" in the whole app', async ({

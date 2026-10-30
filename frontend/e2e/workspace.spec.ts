@@ -3,6 +3,7 @@ import {
   fitted,
   openRackInPhysical,
   viewport,
+  settledViewport,
   hierarchyState,
   pick,
   expandResults,
@@ -26,7 +27,7 @@ test('trace physical continuity on the map and in rack elevations', async ({
     .poll(async () => (await hierarchyState(page)).cards)
     .toEqual(['agg-03', 'agg-03+agg-08|node-building-a'])
   expect((await hierarchyState(page)).lines).toEqual([
-    'group:agg-03+agg-08:agg-03',
+    'group:agg-03+agg-08|node-building-a',
   ])
   const sheet = page.getByTestId('walk-sheet')
   await expect(sheet).toContainText('3C/5')
@@ -107,15 +108,14 @@ test('panels overlay the full-page map and panning does not render the shell', a
   await page.getByLabel('Find equipment').fill('agg-12')
   await expect(page.locator('.tree-equipment')).toHaveCount(1)
   await page.locator('.tree-equipment').click()
-  // Choosing equipment in Explore opens the inspector on it (and Focus), with no highlight.
+  // Choosing equipment in Explore opens the inspector on it (and selects it on the tree), with no highlight.
   await expect(page.locator('.inspector-header h2')).toHaveText('AGG-12')
   await expect(page.locator('.location-breadcrumb')).toContainText(
     'DR Site › DR Distribution › Rack DR02 › AGG-12',
   )
   expect(await page.locator('.flow-surface').boundingBox()).toEqual(bounds)
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  // Back on the hierarchy: panning it must not touch the shell.
-  await page.getByRole('button', { name: '‹ Hierarchy' }).click()
+  // The tree shows AGG-12 selected: panning it must not touch the shell.
   await fitted(page)
   await page.evaluate(() => {
     ;(window as unknown as { shellMutations: number }).shellMutations = 0
@@ -127,9 +127,10 @@ test('panels overlay the full-page map and panning does not render the shell', a
       attributes: true,
     })
   })
-  const view = await viewport(page)
+  const view = await settledViewport(page)
   const box = (await page.locator('[data-view="hierarchy"]').boundingBox())!
-  const from = { x: box.x + box.width - 90, y: box.y + box.height - 160 }
+  // Empty canvas, clear of the selection's drawer on the right.
+  const from = { x: box.x + box.width / 2, y: box.y + box.height - 160 }
   await page.mouse.move(from.x, from.y)
   await page.mouse.down()
   await page.mouse.move(from.x - 60, from.y - 30, { steps: 12 })

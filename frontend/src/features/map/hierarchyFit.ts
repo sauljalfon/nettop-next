@@ -1,8 +1,11 @@
-import { FIT, FIT_MANY } from './center'
+import { FIT } from './center'
 
-/** Above this many node cards the hierarchy fits at a readable zoom, like the Physical site screen. */
-export const MANY_CARDS = 12
+/**
+ * The hierarchy's automatic fit (first fit, and after choosing another network).
+ * It reads left to right and grows downward, so it fits its width (at zoom 1 at
+ * most, 0.6 at least) and starts at its top; the rest is scrolled to. A tree
+ * that fits whole at a readable zoom is fitted whole, as the other maps are.
+ */
+export const HIERARCHY_FIT = { ...FIT, minZoom: 0.6, fit: 'width' as const }
 
-/** The hierarchy's automatic fit (first fit, and after choosing another network). */
-export const hierarchyFit = (cardCount: number) =>
-  cardCount > MANY_CARDS ? FIT_MANY : FIT
+export const hierarchyFit = () => HIERARCHY_FIT

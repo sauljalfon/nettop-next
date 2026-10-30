@@ -326,7 +326,7 @@ test('F10 a standard panel shows positions 1..N on the chosen side, and switchin
   )
 })
 
-test('Show on map returns to the conceptual map with Focus on this equipment', async ({
+test('Show on map returns to the conceptual map with this equipment selected on the tree', async ({
   page,
 }) => {
   await openHdf01(page)
@@ -334,14 +334,11 @@ test('Show on map returns to the conceptual map with Focus on this equipment', a
   await endpoint(page, HDF01_3C5_REAR).click()
   await page.getByRole('button', { name: 'Show on map' }).click()
   await expect(root(page)).toHaveCount(0)
-  // D35: Show on map is Focus; the equipment is its center.
-  await expect(page.locator('[data-view="focus"]')).toHaveAttribute(
-    'data-focus-id',
-    'hdf-01',
-  )
+  // D40: Show on map selects on the tree: HDF-01 lights the switch behind it.
+  await expect(page.locator('[data-view="hierarchy"]')).toBeVisible()
   await expect(
-    page.locator('[data-equipment-id="hdf-01"][data-side="center"]'),
-  ).toBeVisible()
+    page.locator('[data-card-key="agg-03+agg-08|node-building-a"]'),
+  ).toHaveAttribute('data-lit', 'true')
 })
 
 test('a walk row opens the exact endpoint', async ({ page }) => {

@@ -108,12 +108,19 @@ export function fitViewport(
     minZoom = 0.25,
     maxZoom = 1,
     anchor = 'center',
+    fit = 'both',
   }: {
     padding?: number
     minZoom?: number
     maxZoom?: number
     /** When the zoom is floored and the bounds are taller than the room: 'top' starts at their top edge instead of their middle, 'top-left' at their top-left corner. */
     anchor?: 'center' | 'top' | 'top-left'
+    /**
+     * 'width': bounds too tall to show whole at `minZoom` or more fit their width
+     * (between `minZoom` and `maxZoom`) and start at their top edge; bounds that
+     * fit whole are fitted as 'both' does.
+     */
+    fit?: 'both' | 'width'
   } = {},
 ) {
   const width = size.width - covers.left - covers.right - 2 * padding
@@ -128,6 +135,12 @@ export function fitViewport(
   const zoom = Math.min(maxZoom, Math.max(minZoom, wanted))
   const target = centerTarget(bounds)
   const at = visibleCenter(size, covers)
+  if (fit === 'width' && wanted < minZoom && width > 0 && bounds.width > 0)
+    return viewportFor(
+      { x: target.x, y: bounds.y },
+      { x: at.x, y: covers.top + padding },
+      Math.min(maxZoom, Math.max(minZoom, width / bounds.width)),
+    )
   if (anchor === 'top-left' && wanted < minZoom)
     return viewportFor(
       { x: bounds.x, y: bounds.y },
@@ -147,3 +160,69 @@ export function fitViewport(
 export const FIT = { padding: 40, minZoom: 0.1, maxZoom: 1 }
 /** More than 12 nodes: cards stay readable (zoom 0.6 at least); the rest is panned or scrolled to. */
 export const FIT_MANY = { ...FIT, minZoom: 0.6, anchor: 'top' as const }
+
+/**
+ * The viewport that brings a box (in flow coordinates) into the free part of
+ * the canvas at the same zoom, moving as little as it can; undefined when the
+ * box is already in view. A box wider or taller than the free part is aligned by
+ * its start. Never changes the zoom, so it never refits.
+ */
+export function panToShow(
+  box: { x: number; y: number; width: number; height: number },
+  view: { x: number; y: number; zoom: number },
+  size: { width: number; height: number },
+  covers: Covers,
+  margin = 24,
+): { x: number; y: number; zoom: number } | undefined {
+  const axis = (
+    start: number,
+    length: number,
+    offset: number,
+    low: number,
+    high: number,
+  ) => {
+    const s = start * view.zoom + offset
+    const e = s + length * view.zoom
+    const lo = low + margin
+    const hi = high - margin
+    if (s >= lo && e <= hi) return offset
+    if (e - s >= hi - lo || s < lo) return offset + lo - s
+    return offset + hi - e
+  }
+  const x = axis(
+    box.x,
+    box.width,
+    view.x,
+    covers.left,
+    size.width - covers.right,
+  )
+  const y = axis(
+    box.y,
+    box.height,
+    view.y,
+    covers.top,
+    size.height - covers.bottom,
+  )
+  return x === view.x && y === view.y ? undefined : { ...view, x, y }
+}
+
+/**
+ * `panToShow` for the first of these boxes that fits the free part of the canvas
+ * at this zoom (the last one is used when none does). Nothing when that box is
+ * already in view. Never changes the zoom.
+ */
+export function panToShowFirstFit(
+  boxes: readonly { x: number; y: number; width: number; height: number }[],
+  view: { x: number; y: number; zoom: number },
+  size: { width: number; height: number },
+  covers: Covers,
+  margin = 24,
+): { x: number; y: number; zoom: number } | undefined {
+  const freeW = size.width - covers.left - covers.right - 2 * margin
+  const freeH = size.height - covers.top - covers.bottom - 2 * margin
+  const box =
+    boxes.find(
+      (b) => b.width * view.zoom <= freeW && b.height * view.zoom <= freeH,
+    ) ?? boxes.at(-1)
+  return box && panToShow(box, view, size, covers, margin)
+}

@@ -5,7 +5,7 @@ export const BUILDING_A = 'agg-03+agg-08|node-building-a'
 
 /**
  * Selects EDGE-17 from the hierarchy: Building A's drawer, the switch, Inspector.
- * This only selects (the inspector opens); it does not open Focus.
+ * This only selects (the inspector opens).
  */
 export async function selectEdge17(page: Page) {
   await page.locator(`[data-card-key="${BUILDING_A}"]`).click()
@@ -18,20 +18,11 @@ export async function selectEdge17(page: Page) {
 export const viewport = (page: Page) =>
   page.locator('.react-flow__viewport').getAttribute('style')
 
-/**
- * Waits for the map view that is showing to be ready: the hierarchy fitted, or
- * Focus drawn with a settled viewport.
- */
+/** Waits for the hierarchy to be drawn and fitted. */
 export async function fitted(page: Page) {
   const hierarchy = page.locator('[data-view="hierarchy"]')
-  const focus = page.locator('[data-view="focus"]')
-  await expect(hierarchy.or(focus)).toBeVisible()
-  if (await hierarchy.count()) {
-    await expect(hierarchy).toHaveAttribute('data-fitted', 'true')
-  } else {
-    await expect(focus.locator('[data-equipment-id]').first()).toBeVisible()
-    await settledViewport(page)
-  }
+  await expect(hierarchy).toBeVisible()
+  await expect(hierarchy).toHaveAttribute('data-fitted', 'true')
 }
 
 /** The hierarchy as the user sees it: where the cards are, and what the selected route lights. */
@@ -65,7 +56,7 @@ export async function cardPositions(page: Page) {
 
 /**
  * Chooses equipment by its exact name through Explore: search, Enter. On the
- * hierarchy (or in Focus) this opens Focus on it and the inspector.
+ * hierarchy this selects it on the tree and opens the inspector.
  */
 export async function selectEquipment(page: Page, name: string) {
   await openExplore(page)

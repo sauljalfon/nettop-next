@@ -19,84 +19,38 @@ The conceptual map's overview was "only a worse version than Physical"; the owne
   - **What the view answers,** in order: where a device sits, then what depends on it, then what is around it, then one port.
   - **Focus:** the separate view adds nothing the tree and its drawer cannot show, so it goes.
 
-### What the user sees
+### Phase 2, done
 
-- **One tree per network, left to right:**
-  - **Top:** the network's **BBs**. With no BB, the Top AGG rule of phase 1 applies.
-  - **Aggregation:** frames of AGGs, all from the cables:
-    - a **pair**: two AGGs joined by a peer link, drawn as one frame "AGG-01 — AGG-02";
-    - a **single AGG**, marked "no BB" when it has no BB uplink;
-    - **Direct to BB**: access switches whose only way up is a BB;
-    - **No AGG**: no uplink, or uplinks only into another network.
-  - **Nodes:** a card per node under its frame, with the number of switches, a fault count and a neutral "2↑ N" for switches with two uplinks. A node whose switches go to two frames appears under each (a **split**).
-- **Lines:** a line from each BB to every frame whose AGGs it is cabled to, and one line from a frame to each of its node cards. Lines are drawing aids and never feed traversal.
-- **A node opens in place** to a list of its switch names. Each switch shows its fault or its "2 uplinks" badge, and one quiet line counts the node's switches on another frame or network. Several nodes can be open; "▴" folds one.
-- **Selecting** a switch, node, AGG, BB, panel or HDF, by a click on the tree, Find in the panel, or **Show on map** from the Inspector, Inventory, Physical or Explore:
-  - **The right network:** the tree switches to the device's network, or for a panel to the network most of its circuits are on.
-  - **The open node:** the device's node opens and the device is marked. For a panel or HDF, the nodes it serves open when there are at most 3.
-  - **The way up:** the path to the AGGs and BBs is lit, through the parent for a chained switch.
-  - **What depends on it:** that is lit as well:
-    - an AGG lights its nodes;
-    - a panel or HDF lights every switch whose uplink runs through it;
-    - a switch lights the switches chained under it.
-
-    In the open nodes, a switch with no other way to a BB is marked **cut off**.
-  - **The rest dims.** The view scrolls to the selection and never refits the whole tree. Esc or ✕ clears.
-- **The drawer** opens on the selection:
-  - **Node:** a summary ("9 switches → AGG-23 + AGG-24"), the split, the faults and the two-uplink switches.
-  - **Equipment:** one sentence (for example "One uplink: AGG-21", "Chained only: …", "No BB uplink"), then:
-    - **Way up:** one row per uplink: Port → each panel and HDF with its position → AGG → BBs, faults in red. A panel's chip traces that jack (the route view); a device selects it.
-    - **Depends on it:** how many would be cut off and how many have another way up, with a list that selects.
-    - **Cables (N):** each port and its far end.
-  - **Actions:** Inspector, Find AGG / BB, Show in Physical.
-- **Only problems** in the panel hides every node with no fault.
-- **Kept as they are:** the header's network, Find AGG / BB with the route drawn over the tree, the route view and its export, and plans: the tree is drawn from the proposed snapshot with additions dashed, and a stale draft is never drawn.
-- **Gone:** the Focus view, its button in the Inspector, the hops, the Hierarchy / Focus switch, and the "single uplink" mark.
-
-### How it is built
-
-- **Frontend only. No new API and no migration.** Everything comes from the loaded snapshot, as in phase 1.
-- **`features/map/hierarchy`** keeps the levels, frames, cards and marks, built once per snapshot. Its marks change: "single" goes, a two-uplink count is added, and the "weak" line (fewer BBs than there are) becomes "no BB" (none at all).
-- **A new pure module, `hierarchySelection`**, maps a selected ID to what is lit: cards, frames, AGGs, BBs, switches, cut-off switches and the network. It is unit-tested and computed per selection.
-- **A new pure module for the drawer** (in `hierarchyDetails`): the way up as rows of steps, what depends on it with **cut off** (no other way to a BB without that device or passive), and the cables.
-- **The walks come from `followPort` and `equipmentWalks`.** These move from `focus.ts` into `walks.ts`, and the rest of `focus.ts`, `focusLayout`, `focusFlow` and `FocusCanvas` are deleted.
-- **`mapSession`:**
-  - the selection replaces the view, the focus, the hops and the open groups;
-  - `focusOn` becomes `select`;
-  - App's `focusOnMap` becomes "show on map" and is still the one entry point.
-- **One problem definition:** Inventory's Problems reads the same marks, so "N problems" on the map equals the Problems rows.
-- **Measure on the campus fixture:** the first draw, a selection to lit, and opening the busiest node.
+The one conceptual view (the left-to-right tree, selection and drawer, no Focus) is built; what runs is in [status.md](status.md), its design and steps are in [history/plans/2026-10-28-one-conceptual-view.md](history/plans/2026-10-28-one-conceptual-view.md), and the lasting rules are D39 and D40 in [decisions.md](decisions.md). Phase 3 below builds on the same tree.
 
 ### Phases, each deployed and checked on real data before the next
 
 1. **The hierarchy replaces the overview:** done 2026-10-27 ([plan](history/plans/2026-10-26-network-hierarchy-phase-1.md); what runs is in [status.md](status.md)). It is deployed together with phase 2.
-2. **One conceptual view:** the left-to-right tree, selection and the drawer, Focus retired ([plan](plans/2026-10-28-one-conceptual-view.md)).
+2. **One conceptual view:** done 2026-10-30 ([plan](history/plans/2026-10-28-one-conceptual-view.md); what runs is in [status.md](status.md)). Phases 1 and 2 are deployed together.
 3. **Networks and size:** the network chips with + add and ✕, several networks as stacked bands with Fold, and other-network dots on closed cards.
 
-**Acceptance:**
-- Every line, mark and "cut off" maps to real cables. Nothing is guessed from names (roles only, D04).
-- The counts on the map equal the Problems rows.
-- Show on map from every screen lands on the tree with the device selected.
-- In a plan, added items are dashed.
-- On the campus fixture, the first draw is at most phase 1's measured time.
+**Acceptance of phase 3:**
+- The network chips add and remove networks, several networks show as stacked bands that fold, and a closed card shows other-network dots.
+- Everything stays computed from real cables, with roles only (D04), and the counts on the map equal the Problems rows.
+- On the campus fixture, the first draw is no slower than phase 2's measured time in [status.md](status.md).
 
 ## 2. More equipment
 
 Today equipment is a switch, a panel or an HDF. **Owner's answers (2026-10-25):** the real network also has
 - **rack items with no ports** (UPS, PDU, shelves, cable managers, blanks): they take units and have details, never cables, never in a trace;
-- **active devices with ports** (servers, firewalls, routers, controllers): cabled like a switch, a trace can end there, shown in Focus and the hierarchy.
+- **active devices with ports** (servers, firewalls, routers, controllers): cabled like a switch, a trace can end there, shown on the tree.
 
 Equipment outside a rack (wall outlets, access points, cameras) is not wanted now. **Order:** after phase 1 of the network hierarchy, as its own item; rack items first, then active devices. Not designed yet: it starts with a demo (D30) and the owner's answers on the roles of active devices and where a trace stops.
 
 ## 3. M6 — Layout, undo and measured scale
 
-- **Measure on real data** before go-live and agree budgets. Starting point (campus fixture, development machine; measurements, not budgets): see the campus timings in [status.md](status.md) (the overview's first render is about 2 s, Focus on an access switch about 1.6 s). Reduce what the first render draws.
+- **Measure on real data** before go-live and agree budgets. Starting point (campus fixture, development machine; measurements, not budgets): see the campus timings in [status.md](status.md) (the tree's first draw and a selection to lit). Reduce what the first render draws.
 - Scoped APIs: neighbourhood and route-object fetch, summaries and bundles, pagination of `GET /api/plans` (large drafts); bounded neighbourhoods; detailed-port virtualization. Revision-keyed graph caching only when measurements justify it.
-- Persist workspace preferences (open node cards, the viewport, the last Focus) if wanted; separate layout undo and plan undo.
+- Persist workspace preferences (open node cards, the viewport, the selection) if wanted; separate layout undo and plan undo.
 - Drag-to-rack on the map (dropped from M5) may return here.
 - The Copy rack layout popover is positioned once when it opens and does not follow page scroll or resize.
 
-**Acceptance:** reload restores layout and context without changing physical placement; summary counts map to real cables; search, focus and trace work on hundreds of equipment and tens of thousands of cables, including large HDFs; measured costs are recorded with agreed budgets.
+**Acceptance:** reload restores layout and context without changing physical placement; summary counts map to real cables; search, selection and trace work on hundreds of equipment and tens of thousands of cables, including large HDFs; measured costs are recorded with agreed budgets.
 
 ## 4. M7 — Identity and governance
 

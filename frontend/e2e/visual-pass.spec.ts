@@ -95,7 +95,7 @@ test('VP-02 the rack keeps clear of the Changes drawer', async ({ page }) => {
 test('VP-02 on the map the inspector floats over the canvas and nothing moves', async ({
   page,
 }) => {
-  // Focus on EDGE-17 with the drawers closed, then open the inspector over it.
+  // EDGE-17 selected on the tree with the drawers closed, then open the inspector over it.
   await selectEquipment(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page.getByRole('button', { name: 'Open explorer', exact: true }).click()

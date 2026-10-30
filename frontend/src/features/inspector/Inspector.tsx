@@ -1,6 +1,5 @@
 import {
   Crosshair,
-  Focus,
   GitFork,
   Network,
   Table2,
@@ -56,8 +55,6 @@ interface Props {
   onFindFromHere: (endpointId: string) => void
   /** Select the card and center on it (no highlight). */
   onShowOnMap: (equipmentId: string) => void
-  /** Open Focus on this equipment. */
-  onFocus: (equipmentId: string) => void
   /** Open the equipment page in Physical, with an endpoint selected when given. */
   onShowInPhysical: (equipmentId: string, endpointId?: string) => void
   /** Open the Inventory's Ports list with only this equipment. */
@@ -100,7 +97,6 @@ export default function Inspector({
   onFindFromDevice,
   onFindFromHere,
   onShowOnMap,
-  onFocus,
   onShowInPhysical,
   onOpenInInventory,
   onHighlight,
@@ -238,14 +234,6 @@ export default function Inspector({
           <Name text={header.name} />
         </p>
         <div className="inspector-actions">
-          <button
-            className="btn"
-            aria-label={`Focus on ${equipment.name}`}
-            onClick={() => onFocus(equipment.id)}
-          >
-            <Focus size={14} />
-            Focus
-          </button>
           <button
             className="btn"
             aria-label={`Show on map: ${equipment.name}`}

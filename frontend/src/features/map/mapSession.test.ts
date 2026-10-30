@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createMapSession, shownNetworks, type MapMode } from './mapSession'
+import { createMapSession, shownNetworks } from './mapSession'
 
 describe('POL-14 the location highlight lives in the session', () => {
   const building = { kind: 'node', id: 'node-a' } as const
@@ -119,32 +119,11 @@ describe('POL-22 route view state', () => {
 })
 
 describe('HI-07 hierarchy session state', () => {
-  it('defaults: the hierarchy is the default view, nothing open', () => {
+  it('defaults: nothing open and no viewport', () => {
     const session = createMapSession()
-    expect(session.view()).toBe('hierarchy')
     expect(session.hierarchyViewport()).toBeUndefined()
     expect(session.hierarchyNeedsFit()).toBe(true)
     expect(session.openNodes().size).toBe(0)
-  })
-
-  it('has only the hierarchy and Focus', () => {
-    const views: MapMode[] = ['hierarchy', 'focus']
-    // @ts-expect-error the device map is gone
-    const gone: MapMode = 'devices'
-    expect(views).not.toContain(gone)
-  })
-
-  it('switches the view and notifies', () => {
-    const session = createMapSession()
-    let calls = 0
-    session.subscribe(() => calls++)
-    session.setView('focus')
-    expect(session.view()).toBe('focus')
-    expect(calls).toBe(1)
-    session.setView('focus')
-    expect(calls).toBe(1)
-    session.setView('hierarchy')
-    expect(session.view()).toBe('hierarchy')
   })
 
   it('records its viewport and fits once until it has one', () => {
@@ -187,55 +166,21 @@ describe('HI-07 hierarchy session state', () => {
   })
 })
 
-describe('CM-10 focus session state', () => {
-  it('defaults: no focus, one hop, nothing open', () => {
-    const session = createMapSession()
-    expect(session.focusId()).toBeUndefined()
-    expect(session.hops()).toBe(1)
-    expect(session.openGroups().size).toBe(0)
-  })
-
-  it('back from Focus returns to the hierarchy, its viewport untouched', () => {
-    const session = createMapSession()
-    session.setView('hierarchy')
-    session.setHierarchyViewport({ x: 1, y: 2, zoom: 0.7 })
-    session.focusOn('a')
-    expect(session.view()).toBe('focus')
-    expect(session.focusId()).toBe('a')
-    session.focusOn('b')
-    expect(session.focusId()).toBe('b')
-    session.back()
-    expect(session.view()).toBe('hierarchy')
-    expect(session.hierarchyViewport()).toEqual({ x: 1, y: 2, zoom: 0.7 })
-  })
-
-  it('keeps the hops, clamped to 1–3', () => {
-    const session = createMapSession()
-    session.setHops(2)
-    session.focusOn('a')
-    expect(session.hops()).toBe(2)
-    session.setHops(9)
-    expect(session.hops()).toBe(3)
-    session.setHops(0)
-    expect(session.hops()).toBe(1)
-    session.setHops(2.7)
-    expect(session.hops()).toBe(2)
-  })
-
-  it('toggles open groups by replacing the set; focusOn clears them', () => {
-    const session = createMapSession()
-    let calls = 0
-    session.subscribe(() => calls++)
-    const empty = session.openGroups()
-    session.toggleGroup('g1')
-    expect(session.openGroups()).not.toBe(empty)
-    expect([...session.openGroups()]).toEqual(['g1'])
-    session.toggleGroup('g1')
-    expect(session.openGroups().size).toBe(0)
-    session.toggleGroup('g2')
-    session.focusOn('x')
-    expect(session.openGroups().size).toBe(0)
-    expect(calls).toBeGreaterThanOrEqual(4)
+describe('OV-06 nothing of the retired Focus is left in the session', () => {
+  it('has none of the view, the focus, the hops, back or the open groups', () => {
+    const session = createMapSession() as unknown as Record<string, unknown>
+    for (const gone of [
+      'view',
+      'setView',
+      'focusId',
+      'focusOn',
+      'hops',
+      'setHops',
+      'back',
+      'openGroups',
+      'toggleGroup',
+    ])
+      expect(session[gone]).toBeUndefined()
   })
 })
 
@@ -286,5 +231,47 @@ describe('HI-07 the hierarchy in the session', () => {
     v.x = 99
     expect(session.hierarchyViewport()).toEqual({ x: 1, y: 2, zoom: 0.5 })
     expect(session.hierarchyNeedsFit()).toBe(false)
+  })
+})
+
+describe('OV-06 the selection lives in the session', () => {
+  it('reads back what was selected and clears it', () => {
+    const session = createMapSession()
+    expect(session.selection()).toBeUndefined()
+    session.select({ kind: 'equipment', id: 'EDGE-17' })
+    expect(session.selection()).toEqual({ kind: 'equipment', id: 'EDGE-17' })
+    session.select({ kind: 'card', networkId: 'A', key: 'AGG1|n1' })
+    expect(session.selection()).toEqual({
+      kind: 'card',
+      networkId: 'A',
+      key: 'AGG1|n1',
+    })
+    session.clear()
+    expect(session.selection()).toBeUndefined()
+  })
+
+  it('notifies on select and on clear, and on nothing else', () => {
+    const session = createMapSession()
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.select({ kind: 'equipment', id: 'a' })
+    session.clear()
+    expect(calls).toBe(2)
+  })
+
+  it('opens nothing and changes no network and opens no node', () => {
+    const session = createMapSession()
+    session.showNetwork('B')
+    session.toggleNode('x')
+    const before = {
+      networks: session.networks(),
+      nodes: session.openNodes(),
+    }
+    session.select({ kind: 'card', networkId: 'A', key: 'AGG1|n1' })
+    session.clear()
+    expect({
+      networks: session.networks(),
+      nodes: session.openNodes(),
+    }).toEqual(before)
   })
 })

@@ -930,15 +930,34 @@ function Workspace({
     },
     [startTrace],
   )
-  // Select the equipment and open Focus on it. No highlight.
-  const focusOnMap = useCallback(
+  // The one entry point to the tree (D40): select the equipment and show it on the
+  // hierarchy. The canvas opens its node, lights its way up and what depends on it.
+  // No highlight.
+  const showOnMap = useCallback(
     (id: string) => {
       setSelected(id)
       onViewChange('conceptual')
-      mapSession.focusOn(id)
+      mapSession.select({ kind: 'equipment', id })
     },
     [onViewChange],
   )
+  // A passive chip in the drawer: the route from that jack, drawn as the route view
+  // as soon as the trace answers.
+  const wantRouteView = useRef(false)
+  const showJackRoute = useCallback(
+    (endpointId: string) => {
+      wantRouteView.current = true
+      traceFromPort(endpointId)
+    },
+    [traceFromPort],
+  )
+  useEffect(() => {
+    if (!wantRouteView.current || traceMutation.isPending) return
+    if (routeSheet) {
+      wantRouteView.current = false
+      mapSession.setRouteView(true)
+    } else if (traceMutation.isError) wantRouteView.current = false
+  }, [traceMutation.isPending, traceMutation.isError, routeSheet])
   // A row of the Inventory: select its equipment and open the inspector, on the
   // port when the row has one (the same request Explore's port hits make).
   const openFromInventory = useCallback(
@@ -991,8 +1010,8 @@ function Workspace({
     [onNetworkChange, onViewChange],
   )
   // A port or cable chosen in Explore's search. In Physical it opens that endpoint
-  // on its equipment page; in Conceptual it selects the equipment, opens Focus on
-  // it and opens the inspector's Ports/Positions tab filtered to that label.
+  // on its equipment page; in Conceptual it selects the equipment on the tree
+  // and opens the inspector's Ports/Positions tab filtered to that label.
   const [portSearch, setPortSearch] = useState<{
     equipmentId: string
     query: string
@@ -1009,7 +1028,7 @@ function Workspace({
         query: inspectorQuery(index, endpointId),
         serial: (previous?.serial ?? 0) + 1,
       }))
-      focusOnMap(owner)
+      showOnMap(owner)
       onSelectEquipment()
     },
     [
@@ -1017,7 +1036,7 @@ function Workspace({
       view,
       openEndpointPhysical,
       openFromInventory,
-      focusOnMap,
+      showOnMap,
       onSelectEquipment,
     ],
   )
@@ -1026,14 +1045,14 @@ function Workspace({
     (id: string) => {
       if (view === 'physical') return openEquipmentPhysical(id)
       if (view === 'inventory') return openFromInventory(id)
-      focusOnMap(id)
+      showOnMap(id)
       onSelectEquipment()
     },
     [
       view,
       openEquipmentPhysical,
       openFromInventory,
-      focusOnMap,
+      showOnMap,
       onSelectEquipment,
     ],
   )
@@ -1047,8 +1066,11 @@ function Workspace({
       installedIDs={installedIDs}
       onFindFromDevice={traceSelectedDevice}
       onFindFromHere={traceFromPort}
-      onShowOnMap={focusOnMap}
-      onFocus={focusOnMap}
+      // Leaving the inspector for the map: its drawer closes, so the tree has the room.
+      onShowOnMap={(id) => {
+        showOnMap(id)
+        closeDrawer()
+      }}
       onShowInPhysical={showInPhysical}
       onOpenInInventory={openInInventory}
       openRequest={openRequest}
@@ -1080,17 +1102,15 @@ function Workspace({
           index={index}
           installedIDs={installedIDs}
           installedLinkIDs={installedLinkIDs}
-          selected={selected}
           route={route}
           routeSheet={routeSheet}
           onRouteStep={showStepInPhysical}
           networkId={mapNetworkId}
           onSelect={select}
-          onPort={traceFromPort}
           onFindDevice={findFromDevice}
           onShowInPhysical={showInPhysical}
           onShowPlace={showPlace}
-          onFocus={focusOnMap}
+          onTraceJack={showJackRoute}
           installedContainerIds={installedContainerIds}
         />
       ) : view === 'inventory' ? (
@@ -1108,7 +1128,7 @@ function Workspace({
           onOpenAdd={onOpenAdd}
           onRefresh={onRefresh}
           onOpenEquipment={openFromInventory}
-          onShowOnMap={focusOnMap}
+          onShowOnMap={showOnMap}
           onShowInPhysical={showInPhysical}
           onAskDelete={askDelete}
           onAskDisconnect={askDisconnect}
@@ -1136,7 +1156,7 @@ function Workspace({
           onCreateEquipment={onCreateEquipment}
           onSelectEquipment={setSelected}
           onFindFromEndpoint={traceFromPort}
-          onShowOnMap={focusOnMap}
+          onShowOnMap={showOnMap}
           onOpenInInventory={openInInventory}
           onError={setPhysicalError}
         />
@@ -1363,7 +1383,7 @@ function Explorer({
   /** Ports and cables the search can find; built when the browser is idle. */
   searchItems: Lazy<SearchItems>
   selected: string
-  /** Select the equipment, open the inspector and open Focus on it. */
+  /** Select the equipment on the tree and open the inspector. */
   onChoose: (id: string) => void
   /** A port or cable found by the search: open that endpoint (Physical), or select its equipment and filter the inspector (Conceptual). */
   onChooseHit: (endpointId: string) => void

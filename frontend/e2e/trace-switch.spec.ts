@@ -62,7 +62,7 @@ test('TR-05 the same Find AGG / BB is rerun in the plan with AGG-08 still select
   }
   const state = await lit()
   expect(state.cards).toEqual(['agg-03+agg-08|node-building-a', 'agg-08'])
-  expect(state.lines).toEqual(['group:agg-03+agg-08:agg-08'])
+  expect(state.lines).toEqual(['group:agg-03+agg-08|node-building-a'])
   const before = { viewport: await viewport(page), state }
 
   await toPlan(page)

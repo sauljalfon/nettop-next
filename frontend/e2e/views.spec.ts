@@ -64,7 +64,7 @@ const WALKS = [
     name: 'AGG-03',
     route: 0,
     lit: ['agg-03', 'agg-03+agg-08|node-building-a'],
-    litLines: ['group:agg-03+agg-08:agg-03'],
+    litLines: ['group:agg-03+agg-08|node-building-a'],
     position: '3C/5',
     block: '3C',
     rear: 'hdf-01:sp-3C:5:r',
@@ -188,7 +188,7 @@ test('PHY-11 the same walkthrough with Network B and AGG-12: 3C/2 is selected, a
   }
   // The Network B route lights AGG-12, DR Access and the line between them.
   expect(before.state.cards).toEqual(['agg-12', 'agg-12|node-dr-access'])
-  expect(before.state.lines).toEqual(['group:agg-12:agg-12'])
+  expect(before.state.lines).toEqual(['group:agg-12|node-dr-access'])
 
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()

@@ -870,3 +870,67 @@ describe('OV-01 ups', () => {
     expect(h.ups.get('BB2') ?? []).toEqual([])
   })
 })
+
+describe('OV-01 elsewhere', () => {
+  it('counts a split node’s switches on its other card, in its own network', () => {
+    const f = base()
+      .sw('ACC1', 'access', 'A', 'n1')
+      .sw('ACC2', 'access', 'A', 'n1')
+      .sw('ACC3', 'access', 'A', 'n1')
+    f.run('BB1', 'AGG1')
+    f.run('BB1', 'AGG2')
+    f.run('ACC1', 'AGG1')
+    f.run('ACC2', 'AGG2')
+    f.run('ACC3', 'AGG2')
+    const h = of(f.snapshot())
+    const cards = Object.fromEntries(
+      h.groups.flatMap((g) => g.nodes.map((c) => [c.key, c.elsewhere])),
+    )
+    expect(cards).toEqual({
+      'AGG1|n1': [{ networkId: 'A', count: 2 }],
+      'AGG2|n1': [{ networkId: 'A', count: 1 }],
+    })
+  })
+
+  it('lists its own network first, then the other networks by name; AGGs and panels are not counted', () => {
+    const f = base()
+      .sw('ACC1', 'access', 'A', 'n1')
+      .sw('ACC2', 'access', 'A', 'n1')
+      // Names order C before B, so the order is by name, not by ID.
+      .sw('B1', 'access', 'B', 'n1')
+      .sw('C1', 'access', 'C', 'n1')
+      .sw('C2', 'access', 'C', 'n1')
+      .sw('AGGB', 'aggregation', 'B', 'n1')
+      .panel('P1', 'n1')
+    f.run('ACC1', 'AGG1')
+    f.run('ACC2', 'AGG2')
+    const s = f.snapshot()
+    s.networks = [
+      { id: 'A', name: 'Net A' },
+      { id: 'B', name: 'Zulu' },
+      { id: 'C', name: 'Alpha' },
+    ]
+    const card = of(s).groups.find((g) => g.key === 'AGG1')!.nodes[0]
+    expect(card.elsewhere).toEqual([
+      { networkId: 'A', count: 1 },
+      { networkId: 'C', count: 2 },
+      { networkId: 'B', count: 1 },
+    ])
+  })
+
+  it('is empty for a node that holds only this card’s switches, and for a card with no node', () => {
+    const f = base().sw('ACC', 'access', 'A', 'n1').sw('LOOSE', 'access', 'A')
+    f.run('ACC', 'AGG1')
+    f.run('LOOSE', 'AGG1')
+    const cards = of(f.snapshot()).groups[0].nodes
+    expect(cards.map((c) => [c.key, c.elsewhere])).toEqual([
+      ['AGG1|n1', []],
+      ['AGG1|', []],
+    ])
+  })
+
+  it('reads the acceptance fixture: Building A has nothing elsewhere', () => {
+    const h = of(acceptanceSnapshot(), 'A')
+    expect(h.groups[0].nodes[0].elsewhere).toEqual([])
+  })
+})

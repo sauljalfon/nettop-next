@@ -45,6 +45,8 @@ export interface SnapshotIndex {
   places: ReadonlyMap<string, { nodeId?: string; siteId?: string }>
   nodes: ReadonlyMap<string, { id: string; name: string; siteId: string }>
   sites: ReadonlyMap<string, { id: string; name: string }>
+  /** Network names by ID. */
+  networkNames: ReadonlyMap<string, string>
 }
 
 export function indexSnapshot(s: Snapshot): SnapshotIndex {
@@ -110,6 +112,7 @@ export function indexSnapshot(s: Snapshot): SnapshotIndex {
     places,
     nodes,
     sites,
+    networkNames: new Map(s.networks.map((n) => [n.id, n.name])),
     circuits,
     badges: passiveNetworks(s, circuits),
     summaries: cabledSummaries(s),

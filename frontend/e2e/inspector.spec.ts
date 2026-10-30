@@ -16,7 +16,7 @@ const unit = (page: Page, key: string) =>
 const portsTab = (page: Page) =>
   page.getByRole('tab', { name: /^(Ports|Positions)$/ })
 
-/** Choose equipment through Explore, which opens Focus and the inspector on it. */
+/** Choose equipment through Explore, which selects it on the tree and opens the inspector. */
 async function inspect(page: Page, card: string) {
   await selectEquipment(page, card.toUpperCase())
 }
@@ -129,7 +129,7 @@ test('POL-09 HDF-01 lists its 4 cabled positions by default, grouped by subpanel
   )
 })
 
-test('POL-10 Find AGG / BB from an inspector entry, and Show on map opens Focus', async ({
+test('POL-10 Find AGG / BB from an inspector entry, and Show on map selects it on the tree', async ({
   page,
 }) => {
   await page.goto('/')
@@ -146,13 +146,15 @@ test('POL-10 Find AGG / BB from an inspector entry, and Show on map opens Focus'
   await expect(results.getByTestId('route-row')).toContainText('3C/5 front')
   await expect(results.getByTestId('route-row')).toContainText('AGG-03')
 
-  // Show on map (header): Focus on this equipment, nothing highlighted, the route kept.
+  // Show on map (header): selected on the tree, nothing highlighted, the route kept.
   await page.getByRole('button', { name: 'Show on map: HDF-01' }).click()
-  const focus = page.locator('[data-view="focus"]')
-  await expect(focus).toHaveAttribute('data-focus-id', 'hdf-01')
-  await expect(
-    focus.locator('[data-equipment-id="hdf-01"][data-side="center"]'),
-  ).toHaveClass(/selected/)
+  await expect(page.locator(`[data-card-key="${BUILDING_A}"]`)).toHaveAttribute(
+    'data-lit',
+    'true',
+  )
+  await expect(page.getByTestId('hierarchy-drawer').locator('h2')).toHaveText(
+    'HDF-01',
+  )
   await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
   await expect(results.getByTestId('route-row')).toHaveCount(1)
 })
@@ -332,7 +334,9 @@ test('POL-21 the inspector has no trace form: one Find AGG / BB button, and its 
     0,
   )
   await expect(page.getByText('Pathfinding')).toHaveCount(0)
-  const find = page.getByRole('button', { name: /Find AGG \/ BB/ })
+  const find = page
+    .getByLabel('Equipment inspector')
+    .getByRole('button', { name: /Find AGG \/ BB/ })
   await expect(find).toHaveCount(1)
   await find.click()
   await expect(

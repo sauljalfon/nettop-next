@@ -4,7 +4,7 @@ import { fitted, openExplore } from './helpers'
 const clear = (page: Page) =>
   page.getByRole('button', { name: 'Clear highlight' })
 
-test('POL-15 equipment in Explore is selected, opens the inspector and Focus on it, with no highlight', async ({
+test('POL-15 equipment in Explore is selected, opens the inspector and is selected on the tree, with no highlight', async ({
   page,
 }) => {
   await page.goto('/')
@@ -13,14 +13,13 @@ test('POL-15 equipment in Explore is selected, opens the inspector and Focus on 
   await page.locator('.tree-equipment').filter({ hasText: 'AGG-08' }).click()
 
   await expect(page.locator('.inspector-header h2')).toHaveText('AGG-08')
-  const focus = page.locator('[data-view="focus"]')
-  await expect(focus).toHaveAttribute('data-focus-id', 'agg-08')
-  await expect(
-    focus.locator('[data-equipment-id="agg-08"][data-side="center"]'),
-  ).toHaveClass(/selected/)
+  const tree = page.locator('[data-view="hierarchy"]')
+  await expect(tree.locator('[data-card-key="agg-08"]')).toHaveAttribute(
+    'data-selected',
+    'true',
+  )
   await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
   await expect(clear(page)).toHaveCount(0)
-  await expect(page.locator('.focus-card.dimmed')).toHaveCount(0)
 
   // Enter in the search chooses the first match the same way.
   await openExplore(page)
@@ -28,7 +27,10 @@ test('POL-15 equipment in Explore is selected, opens the inspector and Focus on 
   await search.fill('bb')
   await search.press('Enter')
   await expect(page.locator('.inspector-header h2')).toHaveText('BB-01')
-  await expect(focus).toHaveAttribute('data-focus-id', 'bb-01')
+  await expect(tree.locator('[data-card-key="bb-01"]')).toHaveAttribute(
+    'data-selected',
+    'true',
+  )
   await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
 
   // In Physical, Explore follows the view: equipment opens its rack there, and

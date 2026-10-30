@@ -98,7 +98,7 @@ interface Props {
   onRefresh: () => Promise<void>
   /** Select the equipment and open the inspector, on the port when there is one. */
   onOpenEquipment: (equipmentId: string, endpointId?: string) => void
-  /** Select the equipment and open Focus on it. */
+  /** Select the equipment on the tree. */
   onShowOnMap: (equipmentId: string) => void
   /** The equipment page, at the endpoint when given. */
   onShowInPhysical: (equipmentId: string, endpointId?: string) => void

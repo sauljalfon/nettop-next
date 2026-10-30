@@ -1,4 +1,4 @@
-import { equipmentWalks, type FocusStep } from './focus'
+import { equipmentWalks, type WalkStep } from './walks'
 import type { SnapshotIndex } from './snapshotIndex'
 
 /** Why an access switch is marked; one mark per switch, the first that holds. */
@@ -12,7 +12,7 @@ export interface Circuit {
   end: string
   /** The switch the walk reaches. */
   farId: string
-  via: FocusStep[]
+  via: WalkStep[]
   /** Every cable and bridge of the walk, in order. */
   linkIds: string[]
 }
@@ -44,6 +44,12 @@ export interface HierarchyNodeCard {
   nodeId?: string
   siteId?: string
   switchIds: string[]
+  /**
+   * The node's access switches that are not on this card: first its own
+   * network (those on another card), then the other networks by name. Empty
+   * for a card with no node.
+   */
+  elsewhere: { networkId: string; count: number }[]
   /** Its switches with two or more ways up. */
   twoUplinks: number
   chained: number
@@ -142,11 +148,22 @@ export function buildHierarchies(
     else networks.set(e.networkId, [e.id])
   }
 
+  // The access switches of each node, by network: what a card's quiet line counts.
+  const accessAt = new Map<string, Map<string, number>>()
+  for (const e of index.equipment.values()) {
+    const nodeId = index.places.get(e.id)?.nodeId
+    if (e.kind !== 'switch' || e.role !== 'access' || !e.networkId || !nodeId)
+      continue
+    const counts = accessAt.get(nodeId) ?? new Map<string, number>()
+    counts.set(e.networkId, (counts.get(e.networkId) ?? 0) + 1)
+    accessAt.set(nodeId, counts)
+  }
+
   const result = new Map<string, NetworkHierarchy>()
   for (const id of [...networks.keys()].sort())
     result.set(
       id,
-      buildNetwork(index, id, networks.get(id)!, byName, installed),
+      buildNetwork(index, id, networks.get(id)!, byName, accessAt, installed),
     )
   return result
 }
@@ -156,6 +173,7 @@ function buildNetwork(
   networkId: string,
   members: string[],
   byName: (a: string, b: string) => number,
+  accessAt: ReadonlyMap<string, ReadonlyMap<string, number>>,
   installed?: InstalledSets,
 ): NetworkHierarchy {
   const role = (id: string) => index.equipment.get(id)?.role
@@ -382,7 +400,16 @@ function buildNetwork(
     )
   for (const id of topIds) ups.set(id, [])
 
-  const groups = buildGroups(index, tops, joined, info, byName, installed)
+  const groups = buildGroups(
+    index,
+    networkId,
+    tops,
+    joined,
+    info,
+    byName,
+    accessAt,
+    installed,
+  )
   const cards = groups.flatMap((g) => g.nodes)
   const marked = access.filter((id) => info.get(id)!.mark).length + noTop.size
   return {
@@ -482,10 +509,12 @@ function groupsOf(
 
 function buildGroups(
   index: SnapshotIndex,
+  networkId: string,
   tops: ReadonlySet<string>,
   joined: JoinedGroups,
   info: ReadonlyMap<string, SwitchUplinks>,
   byName: (a: string, b: string) => number,
+  accessAt: ReadonlyMap<string, ReadonlyMap<string, number>>,
   installed?: InstalledSets,
 ): HierarchyGroup[] {
   const switchesOf = new Map<string, string[]>()
@@ -514,6 +543,26 @@ function buildGroups(
   const nodeName = (id?: string) =>
     id ? (index.nodes.get(id)?.name ?? '') : ''
 
+  const networkName = (id: string) => index.networkNames.get(id) ?? id
+  const elsewhereOf = (nodeId: string, here: number) => {
+    const counts = accessAt.get(nodeId)
+    if (!counts) return []
+    const out: { networkId: string; count: number }[] = []
+    const own = (counts.get(networkId) ?? 0) - here
+    if (own > 0) out.push({ networkId, count: own })
+    return [
+      ...out,
+      ...[...counts]
+        .filter(([id]) => id !== networkId)
+        .sort(
+          (a, b) =>
+            networkName(a[0]).localeCompare(networkName(b[0])) ||
+            a[0].localeCompare(b[0]),
+        )
+        .map(([id, count]) => ({ networkId: id, count })),
+    ]
+  }
+
   const make = (g: Joined): HierarchyGroup => {
     const ids = (switchesOf.get(g.key) ?? []).sort(byName)
     const byNode = new Map<string, string[]>()
@@ -532,6 +581,7 @@ function buildGroups(
         ...(nodeId ? { nodeId } : {}),
         ...(siteId ? { siteId } : {}),
         switchIds,
+        elsewhere: elsewhereOf(nodeId, switchIds.length),
         twoUplinks: switchIds.filter((s) => info.get(s)!.twoUplinks).length,
         chained: marks.filter((m) => m === 'chained').length,
         problem: marks.some((m) => m !== undefined),

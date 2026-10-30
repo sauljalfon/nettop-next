@@ -2,28 +2,80 @@ import type { Edge, Node } from '@xyflow/react'
 import type { RouteMarks } from '../physical/inventory'
 import { resolveLocation, type LocationRef } from './highlight'
 import type { HierarchyGroup, NetworkHierarchy } from './hierarchy'
+import { MARK_TEXT } from './hierarchyDetails'
+import type { Lit, Selection } from './hierarchySelection'
 import type { HierarchyLayout } from './hierarchyLayout'
 import { colorOf } from './networkColors'
 import type { SnapshotIndex } from './snapshotIndex'
 
+/**
+ * What a selection does to a thing on the tree: on the selected thing's way up
+ * or among what depends on it it is lit, the rest is dimmed. Undefined when
+ * nothing is selected (or the selection is on no network's tree).
+ */
+export type Emphasis = 'lit' | 'dim'
+
+/** The marks a card, row, frame or line carries for the selection, as `data-*` attributes. */
+export const emphasisMarks = (e: Emphasis | undefined, selected = false) => ({
+  'data-lit': e === 'lit' ? true : undefined,
+  'data-dim': e === 'dim' ? true : undefined,
+  'data-selected': selected ? true : undefined,
+})
+
+/** A top (a BB, or the Top AGG): a card of its own in the left column. */
 export interface HierarchyTierData extends Record<string, unknown> {
   id: string
-  /** A top, a mid AGG, or the "No AGG" card. */
-  kind: 'top' | 'agg' | 'none'
+  kind: 'top'
   name: string
   role: string
   /** The place, as plain names for `Name`. */
   siteName: string
   nodeName: string
   color: string
-  /** "N uplink to the top": the AGG reaches fewer of the tops than there are. */
-  uplinkText?: string
-  /** An AGG with no cable to any top, in a network that has one. */
-  noTop: boolean
   proposed: boolean
   onRoute: boolean
   highlighted: boolean
   hot: boolean
+  emphasis?: Emphasis
+  selected: boolean
+}
+
+/** One AGG, a button inside its frame. */
+export interface HierarchyFrameAgg {
+  id: string
+  name: string
+  siteName: string
+  nodeName: string
+  /** The AGG reaches no top while the network has one: "no BB". */
+  noTop: boolean
+  /** "N uplink to the top": the AGG reaches fewer of the tops than there are. */
+  title?: string
+  proposed: boolean
+  onRoute: boolean
+  highlighted: boolean
+  hot: boolean
+  emphasis?: Emphasis
+  selected: boolean
+}
+
+/** One row of an open card: a switch, its mark in words or the 2 uplinks badge. */
+export interface HierarchyCardRow {
+  id: string
+  name: string
+  mark?: string
+  twoUplinks: boolean
+  emphasis?: Emphasis
+  selected: boolean
+  /** The selection fails and this switch has no other way up. */
+  cutOff: boolean
+}
+
+/** One part of an open card's quiet line: "2 on another AGG" or "3 on <Network B>". */
+export interface HierarchyElsewhere {
+  /** On another card of this network. */
+  own: boolean
+  networkName: string
+  count: number
 }
 
 export interface HierarchyNodeData extends Record<string, unknown> {
@@ -34,6 +86,8 @@ export interface HierarchyNodeData extends Record<string, unknown> {
   siteName: string
   noNode: boolean
   switches: number
+  /** Its switches with a mark. */
+  faults: number
   twoUplinks: number
   chained: number
   problem: boolean
@@ -42,18 +96,24 @@ export interface HierarchyNodeData extends Record<string, unknown> {
   onRoute: boolean
   highlighted: boolean
   hot: boolean
+  emphasis?: Emphasis
+  selected: boolean
+  open: boolean
+  /** Only when open. */
+  rows: HierarchyCardRow[]
+  elsewhere: HierarchyElsewhere[]
 }
 
+/** A group's frame: its AGGs, or "Direct to BB" / "No AGG". */
 export interface HierarchyFrameData extends Record<string, unknown> {
   groupKey: string
   kind: HierarchyGroup['kind']
+  topKind: NetworkHierarchy['topKind']
+  aggs: HierarchyFrameAgg[]
   nodes: number
   switches: number
   withProblems: number
-  /** Only the nodes with problems are drawn. */
-  onlyProblems: boolean
-  /** Only problems is on and none is drawn: "No problems here". */
-  empty: boolean
+  emphasis?: Emphasis
 }
 
 export interface HierarchyLabelData extends Record<string, unknown> {
@@ -71,20 +131,21 @@ export type HierarchyFlowNode =
   | HierarchyNodeNode
 
 export interface HierarchyLineData extends Record<string, unknown> {
-  /** A tier line, or the line from an AGG (or top) to its frame. */
-  kind: 'uplink' | 'peer' | 'group'
+  /** From a top to a frame, or from a frame to one of its cards. */
+  kind: 'uplink' | 'group'
   linkIds: string[]
   count: number
   proposed: boolean
   onRoute: boolean
   hot: boolean
+  emphasis?: Emphasis
+  /** The x of the line's vertical stretch. */
+  bendX: number
 }
 
 const ROUTE = 'var(--route)'
 const HOT = 'var(--amber)'
 const PROPOSED = 'var(--proposed)'
-/** Frames sit behind every card. */
-const FRAME_Z = -1
 
 /** The node cards of the site or node, and the tier cards placed there. */
 export function highlightedCards(
@@ -126,11 +187,11 @@ export function hotCards(
 }
 
 /**
- * The hierarchy as React Flow nodes and edges: a frame per group behind
- * everything, the tier labels, a card per top and AGG, a card per node, a line
- * per tier line and one from each AGG (or top) to its frame. A projection of
- * the hierarchy only: it never feeds a trace, the route lights what it touches
- * and nothing moves or dims.
+ * The hierarchy as React Flow nodes and edges: a frame per group, the column
+ * heads, a card per top, a card per node, a line from each top to the frames it
+ * is cabled to and one from each frame to its cards. A projection of the
+ * hierarchy only: it never feeds a trace, the route lights what it touches and
+ * nothing moves or dims.
  */
 export function projectHierarchy(args: {
   h: NetworkHierarchy
@@ -139,15 +200,32 @@ export function projectHierarchy(args: {
   colors: ReadonlyMap<string, string>
   /** What the selected route touches; D11: it is never dimmed. */
   marks: RouteMarks
+  /** The node cards that are open (`mapSession.openNodes`). */
+  open: ReadonlySet<string>
   /** Cards the location highlight marks (`highlightedCards`). */
   highlighted: ReadonlySet<string>
   /** The selected card and its AGGs (`hotCards`). */
   hot: ReadonlySet<string>
+  /** What the selection lights (`litBy`); nothing is dimmed without it. */
+  lit?: Lit
+  selection?: Selection
 }): { nodes: HierarchyFlowNode[]; edges: Edge[] } {
-  const { h, layout, index, marks, highlighted, hot } = args
+  const { h, layout, index, marks, open, highlighted, hot, selection } = args
+  // A selection on another network lights nothing here.
+  const lit = args.lit?.networkId === h.networkId ? args.lit : undefined
+  const emphasis = (isLit: boolean): Emphasis | undefined =>
+    lit ? (isLit ? 'lit' : 'dim') : undefined
+  const selectedId = selection?.kind === 'equipment' ? selection.id : undefined
   const color = colorOf(args.colors, h.networkId)
-  const lit = (id: string) => marks.equipment.has(id)
+  const onRouteOf = (id: string) => marks.equipment.has(id)
   const style = (b: { w: number; h: number }) => ({ width: b.w, height: b.h })
+  const placeOf = (id: string) => {
+    const place = index.places.get(id)
+    return {
+      siteName: index.sites.get(place?.siteId ?? '')?.name ?? '',
+      nodeName: index.nodes.get(place?.nodeId ?? '')?.name ?? '',
+    }
+  }
   const fixed = {
     draggable: false,
     selectable: false,
@@ -155,27 +233,45 @@ export function projectHierarchy(args: {
     connectable: false,
   } as const
 
+  const aggOf = (id: string): HierarchyFrameAgg => {
+    const reached = h.topsReached.get(id) ?? 0
+    return {
+      id,
+      name: index.equipment.get(id)?.name ?? '',
+      ...placeOf(id),
+      noTop: h.noTop.has(id),
+      title:
+        reached > 0 && reached < h.topIds.length
+          ? `${reached} uplink${reached === 1 ? '' : 's'} to the top`
+          : undefined,
+      proposed: h.proposed.has(id),
+      onRoute: onRouteOf(id),
+      highlighted: highlighted.has(id),
+      hot: hot.has(id),
+      emphasis: emphasis(!!lit?.aggs.has(id)),
+      selected: selectedId === id,
+    }
+  }
+
   const nodes: HierarchyFlowNode[] = []
-  const cardOnRoute = new Map<string, boolean>()
   for (const g of h.groups) {
     const frame = layout.frames.get(g.key)
     if (!frame) continue
-    const visible = g.nodes.filter((c) => layout.boxes.has(c.key))
     nodes.push({
       id: `frame:${g.key}`,
       type: 'hierarchyFrame',
       position: { x: frame.x, y: frame.y },
       style: style(frame),
-      zIndex: FRAME_Z,
       ...fixed,
       data: {
         groupKey: g.key,
         kind: g.kind,
+        topKind: h.topKind,
+        aggs: g.kind === 'aggs' ? g.aggIds.map(aggOf) : [],
         nodes: g.nodes.length,
         switches: g.switches,
         withProblems: g.problemNodes,
-        onlyProblems: layout.onlyProblems,
-        empty: layout.onlyProblems && visible.length === 0,
+        emphasis: emphasis(!!lit?.frames.has(g.key)),
       },
     })
   }
@@ -188,51 +284,42 @@ export function projectHierarchy(args: {
       data: { text: l.text },
     })
 
-  const tier = (id: string, kind: 'top' | 'agg' | 'none') => {
+  for (const id of h.topIds) {
     const box = layout.boxes.get(id)
-    if (!box) return
+    if (!box) continue
     const e = index.equipment.get(id)
-    const place = index.places.get(id)
-    const reached = h.topsReached.get(id) ?? 0
     nodes.push({
-      id: kind === 'none' ? 'none' : id,
+      id,
       type: 'hierarchyTier',
       position: { x: box.x, y: box.y },
       style: style(box),
       ...fixed,
       data: {
         id,
-        kind,
+        kind: 'top',
         name: e?.name ?? '',
         role: e?.role ?? '',
-        siteName: index.sites.get(place?.siteId ?? '')?.name ?? '',
-        nodeName: index.nodes.get(place?.nodeId ?? '')?.name ?? '',
+        ...placeOf(id),
         color,
-        uplinkText:
-          kind === 'agg' && reached > 0 && reached < h.topIds.length
-            ? `${reached} uplink${reached === 1 ? '' : 's'} to the top`
-            : undefined,
-        noTop: kind === 'agg' && h.noTop.has(id),
         proposed: h.proposed.has(id),
-        onRoute: kind !== 'none' && lit(id),
+        onRoute: onRouteOf(id),
         highlighted: highlighted.has(id),
         hot: hot.has(id),
+        emphasis: emphasis(!!lit?.tops.has(id)),
+        selected: selectedId === id,
       },
     })
   }
-  for (const id of h.topIds) tier(id, 'top')
-  for (const g of h.groups) {
-    if (g.kind === 'none') tier('none', 'none')
-    for (const id of g.kind === 'aggs' ? g.aggIds : []) tier(id, 'agg')
-  }
 
+  const cardOnRoute = new Map<string, boolean>()
   for (const g of h.groups)
     for (const c of g.nodes) {
       const box = layout.boxes.get(c.key)
       if (!box) continue
       const node = c.nodeId ? index.nodes.get(c.nodeId) : undefined
-      const onRoute = c.switchIds.some(lit)
+      const onRoute = c.switchIds.some(onRouteOf)
       cardOnRoute.set(c.key, onRoute)
+      const isOpen = open.has(c.key)
       nodes.push({
         id: c.key,
         type: 'hierarchyNode',
@@ -246,6 +333,7 @@ export function projectHierarchy(args: {
           siteName: index.sites.get(c.siteId ?? '')?.name ?? '',
           noNode: c.nodeId === undefined,
           switches: c.switchIds.length,
+          faults: c.switchIds.filter((id) => h.switches.get(id)?.mark).length,
           twoUplinks: c.twoUplinks,
           chained: c.chained,
           problem: c.problem,
@@ -254,6 +342,33 @@ export function projectHierarchy(args: {
           onRoute,
           highlighted: highlighted.has(c.key),
           hot: hot.has(c.key),
+          emphasis: emphasis(!!lit?.cards.has(c.key)),
+          selected:
+            selection?.kind === 'card' &&
+            selection.networkId === h.networkId &&
+            selection.key === c.key,
+          open: isOpen,
+          rows: isOpen
+            ? c.switchIds.map((id) => {
+                const s = h.switches.get(id)
+                return {
+                  id,
+                  name: index.equipment.get(id)?.name ?? '',
+                  mark: s?.mark ? MARK_TEXT[s.mark] : undefined,
+                  twoUplinks: !!s?.twoUplinks,
+                  emphasis: emphasis(!!lit?.switches.has(id)),
+                  selected: selectedId === id,
+                  cutOff: !!lit?.cutOff.has(id),
+                }
+              })
+            : [],
+          elsewhere: isOpen
+            ? c.elsewhere.map((x) => ({
+                own: x.networkId === h.networkId,
+                networkName: index.networkNames.get(x.networkId) ?? x.networkId,
+                count: x.count,
+              }))
+            : [],
         },
       })
     }
@@ -263,11 +378,9 @@ export function projectHierarchy(args: {
     id: string,
     source: string,
     target: string,
-    handles: [string, string],
     data: HierarchyLineData,
   ) => {
     const classes = [
-      data.kind === 'peer' && 'peer',
       data.proposed && 'proposed',
       data.onRoute && 'on-route',
       data.hot && 'hot',
@@ -276,8 +389,8 @@ export function projectHierarchy(args: {
       id,
       source,
       target,
-      sourceHandle: handles[0],
-      targetHandle: handles[1],
+      sourceHandle: 'right',
+      targetHandle: 'left',
       type: 'hierarchyLine',
       className: classes.join(' ') || undefined,
       interactionWidth: 20,
@@ -295,40 +408,74 @@ export function projectHierarchy(args: {
       },
     })
   }
-  for (const l of h.lines) {
-    const linkIds = l.circuits.flatMap((c) => c.linkIds)
-    const data: HierarchyLineData = {
-      kind: l.kind,
-      linkIds,
-      count: l.circuits.length,
-      proposed: l.proposed,
-      onRoute: linkIds.some((id) => marks.links.has(id)),
-      hot: l.kind === 'uplink' ? hot.has(l.b) : hot.has(l.a) && hot.has(l.b),
+
+  // From each top to every frame whose AGGs it is cabled to (a frame of
+  // switches cabled straight to a top: that top).
+  h.topIds.forEach((top, k) => {
+    for (const g of h.groups) {
+      const frame = layout.frames.get(g.key)
+      if (!frame) continue
+      const bendX = frame.x - 24 + k * 8
+      if (g.kind === 'aggs') {
+        const lines = h.lines.filter(
+          (l) => l.kind === 'uplink' && l.a === top && g.aggIds.includes(l.b),
+        )
+        if (lines.length === 0) continue
+        const linkIds = lines.flatMap((l) =>
+          l.circuits.flatMap((c) => c.linkIds),
+        )
+        line(`line:uplink:${top}|${g.key}`, top, `frame:${g.key}`, {
+          kind: 'uplink',
+          linkIds,
+          count: lines.reduce((n, l) => n + l.circuits.length, 0),
+          proposed: lines.every((l) => l.proposed),
+          onRoute: linkIds.some((id) => marks.links.has(id)),
+          hot: lines.some((l) => hot.has(l.b)),
+          emphasis: emphasis(
+            !!lit?.tops.has(top) &&
+              (lit.frames.has(g.key) || g.aggIds.some((a) => lit.aggs.has(a))),
+          ),
+          bendX,
+        })
+      } else if (g.kind === 'top' && g.topIds.includes(top))
+        line(`line:uplink:${top}|${g.key}`, top, `frame:${g.key}`, {
+          kind: 'uplink',
+          linkIds: [],
+          count: 0,
+          proposed: g.proposedFrom.includes(top),
+          onRoute:
+            onRouteOf(top) && g.nodes.some((c) => cardOnRoute.get(c.key)),
+          hot: hot.has(top) && g.nodes.some((c) => hot.has(c.key)),
+          emphasis: emphasis(!!lit?.tops.has(top) && lit.frames.has(g.key)),
+          bendX,
+        })
     }
-    if (l.kind === 'uplink') {
-      line(`line:${l.key}`, l.a, l.b, ['bottom', 'top'], data)
-      continue
-    }
-    const [left, right] =
-      layout.boxes.get(l.a)!.x <= layout.boxes.get(l.b)!.x
-        ? [l.a, l.b]
-        : [l.b, l.a]
-    line(`line:${l.key}`, left, right, ['right', 'left'], data)
-  }
+  })
+  // From each frame to its cards.
   for (const g of h.groups) {
-    if (g.kind === 'none' || !layout.frames.has(g.key)) continue
-    const from = g.kind === 'top' ? g.topIds : g.aggIds
-    const cardsHot = g.nodes.some((c) => hot.has(c.key))
-    const cardsLit = g.nodes.some((c) => cardOnRoute.get(c.key))
-    for (const id of from)
-      line(`group:${g.key}:${id}`, id, `frame:${g.key}`, ['bottom', 'top'], {
+    if (!layout.frames.has(g.key)) continue
+    for (const c of g.nodes) {
+      const box = layout.boxes.get(c.key)
+      if (!box) continue
+      line(`group:${c.key}`, `frame:${g.key}`, c.key, {
         kind: 'group',
         linkIds: [],
         count: 0,
-        proposed: g.proposedFrom.includes(id),
-        onRoute: lit(id) && cardsLit,
-        hot: hot.has(id) && cardsHot,
+        proposed: c.proposed,
+        // The route runs through the frame's AGGs (or the top) into the card.
+        onRoute:
+          !!cardOnRoute.get(c.key) &&
+          (g.kind === 'aggs'
+            ? g.aggIds
+            : g.kind === 'top'
+              ? g.topIds
+              : []
+          ).some(onRouteOf),
+        hot: hot.has(c.key),
+        emphasis: emphasis(!!lit?.cards.has(c.key)),
+        bendX: box.x - 16,
       })
+    }
   }
   return { nodes, edges }
 }

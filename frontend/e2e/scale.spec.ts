@@ -46,7 +46,6 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
   expect(snapshot.racks.length).toBeGreaterThan(280)
 
   const hierarchy = page.locator('[data-view="hierarchy"]')
-  const focus = page.locator('[data-view="focus"]')
   const scale = (page: Page) =>
     page
       .locator('.react-flow__viewport')
@@ -111,8 +110,7 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
     // The count has its own span: the card's whole text would run the name into it.
     const count = (c: Element) =>
       Number(
-        /\d+/.exec(c.querySelector('.hcard-count')?.textContent ?? '')?.[0] ??
-          0,
+        /\d+/.exec(c.querySelector('.hcard-n')?.textContent ?? '')?.[0] ?? 0,
       )
     return cards
       .sort((x, y) => count(y) - count(x))[0]
@@ -140,90 +138,109 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
   await page.waitForTimeout(1000)
   await shot(page, '0-campus-hierarchy-drawer')
 
-  // Focus on one of its switches from the drawer, and back.
-  await drawer.locator('[data-switch-id]').first().click()
-  await timed('Focus on a switch from the drawer', async () => {
-    await drawer.getByRole('button', { name: 'Focus', exact: true }).click()
-    await expect(focus.locator('[data-equipment-id]').first()).toBeVisible({
-      timeout: 60_000,
-    })
-    await settledViewport(page)
-  })
-  await timed('‹ Hierarchy back (from the drawer’s Focus)', async () => {
-    await page.getByRole('button', { name: '‹ Hierarchy' }).click()
-    await expect(hierarchy).toHaveAttribute('data-fitted', 'true', {
-      timeout: 60_000,
-    })
-  })
-
-  await timed('Focus opens on an access switch', async () => {
-    await page
-      .getByRole('button', { name: 'Open explorer', exact: true })
-      .click()
+  // OV-12: a selection to lit, the drawer of an AGG, and a sub-main HDF, each
+  // chosen in Explore (the Show on map path) and timed until the tree shows it.
+  const equipment = snapshot.equipment as {
+    id: string
+    name: string
+    kind: string
+    role?: string
+    rackId: string
+  }[]
+  const nodeOf = new Map<string, string>(
+    (snapshot.racks as { id: string; nodeId: string }[]).map((r) => [
+      r.id,
+      r.nodeId,
+    ]),
+  )
+  const building16 = (snapshot.nodes as { id: string; name: string }[]).find(
+    (n) => n.name === 'Building 16',
+  )!
+  const inBuilding16 = equipment.find(
+    (e) => e.role === 'access' && nodeOf.get(e.rackId) === building16.id,
+  )!
+  const sm1Hdf = equipment.find(
+    (e) => e.kind === 'hdf' && e.name.startsWith('SM1-HDF'),
+  )!
+  const showOnMap = async (name: string) => {
+    if ((await page.locator('.studio-drawer.left').count()) === 0)
+      await page
+        .getByRole('button', { name: 'Open explorer', exact: true })
+        .click()
     const search = page.getByLabel('Find equipment')
-    await search.fill('ACC-B17')
+    await search.fill(name)
+    await page.waitForTimeout(400) // the list follows the typing
     await search.press('Enter')
-    await expect(focus.locator('[data-equipment-id]').first()).toBeVisible({
-      timeout: 60_000,
+  }
+  const closeInspector = async () => {
+    const close = page.getByRole('button', {
+      name: 'Close Equipment inspector',
     })
-    await settledViewport(page)
-  })
-  const focusCards = () =>
-    focus.locator('[data-equipment-id]:not([data-side="center"])').count()
-  const neighbours = await focusCards()
-  const groups = await focus.locator('.focus-group').count()
-  timings.push([
-    `  (Focus: ${neighbours} neighbour cards, grouped: ${groups > 0 ? `yes, ${groups} groups` : 'no'})`,
-    0,
-  ])
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  const explorer = page.getByRole('button', {
-    name: 'Close Explore infrastructure',
-  })
-  if (await explorer.count()) await explorer.click()
-  await expect(page.locator('.studio-drawer')).toHaveCount(0)
-  await page.waitForTimeout(1000)
-  await shot(page, '0-campus-focus')
+    if (await close.count()) await close.click()
+  }
+  await timed(
+    'select a Building 16 switch: Show on map until lit and its drawer open',
+    async () => {
+      await showOnMap(inBuilding16.name)
+      await expect(
+        page.locator('[data-card-switch][data-selected]'),
+      ).toHaveCount(1, {
+        timeout: 60_000,
+      })
+      await expect(drawer.locator('h2')).toBeVisible()
+    },
+  )
+  await settledViewport(page) // the pan to the selection has finished
+  await closeInspector()
+  await page.waitForTimeout(800)
+  await shot(page, '0-campus-building-16-selected')
 
-  await timed('+1 hop', async () => {
-    await page.getByRole('button', { name: '+1 hop' }).click()
-    await expect(focus).toHaveAttribute('data-hops', '2')
-    // A dual-homed switch's second hop can add nothing (its AGGs end the walk),
-    // so the count is logged below, not asserted.
-    await settledViewport(page)
-  })
+  await timed(
+    'select AGG-60: Show on map until lit and its drawer open',
+    async () => {
+      await showOnMap('AGG-60')
+      await expect(drawer.locator('h2')).toHaveText('AGG-60', {
+        timeout: 60_000,
+      })
+      await expect(page.locator('.hframe-agg[data-selected]')).toHaveCount(1)
+    },
+  )
+  await settledViewport(page) // the pan to the selection has finished
+  await closeInspector()
   timings.push([
-    `  (Focus at 2 hops: ${await focusCards()} neighbour cards)`,
+    `  (AGG-60 drawer: ${await drawer.locator('[data-depends]').count()} dependents shown of ${(await drawer.getByTestId('hd-depends').locator('h3').innerText()).trim()}; ${await page.locator('[data-lit]').count()} lit marks, ${await page.locator('[data-dim]').count()} dimmed)`,
     0,
   ])
-  await shot(page, '0-campus-focus-2-hops')
-  // How many lines end at one card (its via rows), at 2 and then 3 hops: info, not an assertion.
-  const mostRows = () =>
-    focus.evaluate((root) =>
-      Math.max(
-        0,
-        ...[
-          ...root.querySelectorAll('[data-equipment-id], [data-group-node]'),
-        ].map((c) => c.querySelectorAll('[data-line]').length),
-      ),
-    )
-  timings.push([
-    `  (Focus at 2 hops: most via rows on one card: ${await mostRows()})`,
-    0,
-  ])
-  await page.getByRole('button', { name: '+1 hop' }).click()
-  await expect(focus).toHaveAttribute('data-hops', '3')
-  await settledViewport(page)
-  timings.push([
-    `  (Focus at 3 hops: ${await focusCards()} neighbour cards, most via rows on one card: ${await mostRows()})`,
-    0,
-  ])
+  await page.waitForTimeout(800)
+  await shot(page, '0-campus-agg-60-selected')
 
-  await timed('‹ Hierarchy back', async () => {
-    await page.getByRole('button', { name: '‹ Hierarchy' }).click()
-    await expect(hierarchy).toHaveAttribute('data-fitted', 'true', {
-      timeout: 60_000,
-    })
+  await timed(
+    `select ${sm1Hdf.name} (a sub-main HDF): Show on map until its drawer is open`,
+    async () => {
+      await showOnMap(sm1Hdf.name)
+      await expect(drawer.locator('h2')).toHaveText(sm1Hdf.name, {
+        timeout: 60_000,
+      })
+    },
+  )
+  await settledViewport(page) // the pan to the selection has finished
+  await closeInspector()
+  timings.push([
+    `  (${sm1Hdf.name}: "${(await drawer.getByTestId('hd-say').innerText()).trim()}"; ${await page.locator('[data-card-key][data-lit]').count()} cards lit)`,
+    0,
+  ])
+  await page.waitForTimeout(800)
+  await shot(page, '0-campus-sm1-hdf-selected')
+  await page.keyboard.press('Escape')
+
+  // The selections above moved the map to other networks: back to the biggest one,
+  // where the trace below finds Building 17.
+  await page
+    .getByRole('combobox', { name: 'Show network' })
+    .selectOption(biggest)
+  await expect(hierarchy).toHaveAttribute('data-network', biggest)
+  await expect(hierarchy).toHaveAttribute('data-fitted', 'true', {
+    timeout: 60_000,
   })
 
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
@@ -758,7 +775,10 @@ test('INV-16 the new lists and commands at campus size', async ({ page }) => {
       ) => y.counts.switches - x.counts.switches,
     )[0]
     const [layoutMs, laid] = time(() =>
-      layout.hierarchyLayout(biggest, { onlyProblems: false }),
+      layout.hierarchyLayout(biggest, {
+        onlyProblems: false,
+        open: new Set(),
+      }),
     )
     const [projectMs] = time(() =>
       flow.projectHierarchy({
@@ -773,6 +793,7 @@ test('INV-16 the new lists and commands at campus size', async ({ page }) => {
           equipment: new Set(),
           links: new Set(),
         },
+        open: new Set(),
         highlighted: new Set(),
         hot: new Set(),
       }),

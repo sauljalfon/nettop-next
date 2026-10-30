@@ -1,6 +1,6 @@
 # Plan: One conceptual view (2026-10-28)
 
-The item is phase 2 of [roadmap.md §1](../roadmap.md#1-the-network-hierarchy-the-conceptual-views-new-purpose); the design and the owner's answers (2026-10-28) are there, and the rules are D39 and D40 in [decisions.md](../decisions.md). The look is the approved demo [history/demos/conceptual-demo.html](../history/demos/conceptual-demo.html): the columns, the frames, the open node as a list of names, the lit and dimmed selection, the drawer's sections and their wording. Where this plan and the demo differ, this plan wins and says so.
+The item is phase 2 of [roadmap.md §1](../../roadmap.md#1-the-network-hierarchy-the-conceptual-views-new-purpose); the design and the owner's answers (2026-10-28) are there, and the rules are D39 and D40 in [decisions.md](../../decisions.md). The look is the approved demo [history/demos/conceptual-demo.html](../demos/conceptual-demo.html): the columns, the frames, the open node as a list of names, the lit and dimmed selection, the drawer's sections and their wording. Where this plan and the demo differ, this plan wins and says so.
 
 **Frontend only. No new API, no migration, no backend change.** Phase 1 (the top-to-bottom hierarchy, D39) is merged and not deployed; phases 1 and 2 are deployed together.
 

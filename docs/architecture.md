@@ -6,7 +6,7 @@ The rules the domain, pathfinding, plans and persistence must keep. How each par
 
 Net-Top Next is a pathfinding-centered physical infrastructure manager with **two views of the same network** (locked 1–4):
 
-- **Conceptual:** the network hierarchy of one network (top, aggregation, nodes) drawn from real cables and laid out from the data (D39), and a Focus on one device with the active equipment it reaches (D35). A trace highlights it in place.
+- **Conceptual:** the tree of one network, left to right (top, aggregation, nodes), drawn from real cables and laid out from the data (D39, D40), with a selection that lights a device's way up and what depends on it. A trace highlights it in place.
 - **Physical:** site → node → rack → equipment → exact ports, following the useful drill-down of legacy NetTop.
 - **Inventory:** a table of the same inventory (equipment, ports and positions, cables, racks, the problems the data shows and, in a plan, its work list), not a third drawing, that also acts on many rows at once (D37, D38).
 

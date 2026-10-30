@@ -57,12 +57,10 @@ test('VP-01 Hebrew names sit in their own bdi, and a location reads site › nod
   // The hierarchy draws only nodes that hold switches (North Sub-main holds none): its
   // Hebrew node names are checked in hierarchy.recording.spec.ts (HI-13).
 
-  // Focus card: the equipment's name and its place, each name in its own bdi.
+  // The drawer of the selected equipment: its name and its place, each name in its own bdi.
   await selectEquipment(page, HEBREW.equipment.now)
-  const panel = page.locator(`[data-equipment-id="${HEBREW.equipment.id}"]`)
-  await expect(panel.locator('.focus-card-name bdi')).toHaveText(
-    HEBREW.equipment.now,
-  )
+  const panel = page.getByTestId('hierarchy-drawer')
+  await expect(panel.locator('h2 bdi')).toHaveText(HEBREW.equipment.now)
   expect(await texts(panel.locator('.place-path bdi'))).toEqual([
     'Main Campus',
     'Building A',

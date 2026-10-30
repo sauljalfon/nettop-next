@@ -222,328 +222,11 @@
   padding-right: var(--clear-of-right-drawer);
 }
 
-/* Shared by Focus and the hierarchy. */
-.map-empty {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  margin: 0;
-  font-size: var(--t-md);
-  color: var(--ink-soft);
-}
-.react-flow__handle.map-handle {
-  top: 50%;
-  left: 50%;
-  opacity: 0;
-  pointer-events: none;
-}
-.map-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: 4px 8px;
-  font: inherit;
-  font-size: var(--t-sm);
-  color: var(--ink);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--r-control);
-  cursor: pointer;
-}
-.map-row:hover {
-  background: var(--paper-sunk);
-}
-.map-row:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-.react-flow__edge.dimmed path {
-  opacity: 0.25;
-}
-
-/* Focus (step 4): one device and the active equipment it reaches. */
-.focus-surface {
-  position: relative;
-  height: 100%;
-  background: var(--floor);
-}
-.focus-surface .react-flow.map-hidden {
-  visibility: hidden;
-}
-.focus-surface .react-flow__background-pattern {
-  fill: var(--rule);
-}
-.focus-surface .react-flow__edgelabel-renderer {
-  z-index: 20;
-}
-.focus-toolbar {
-  position: absolute;
-  z-index: 5;
-  top: 12px;
-  left: 100px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  font-size: var(--t-sm);
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-}
-.studio.drawer-left .focus-surface .focus-toolbar {
-  left: var(--clear-of-left-drawer);
-}
-.focus-hops {
-  font-weight: 600;
-}
-.focus-nothing {
-  color: var(--ink-soft);
-}
-.focus-empty {
-  position: absolute;
-  inset: auto 0 15% 0;
-  margin: 0;
-  text-align: center;
-  font-size: var(--t-md);
-  color: var(--ink-soft);
-}
-
-/* A card: paper, a 1px rule, rings for state. */
-.focus-card {
-  display: flex;
-  flex-direction: column;
-  width: 220px;
-  height: 112px;
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-}
-.focus-card.center {
-  width: 280px;
-  height: 144px;
-  border: 2px solid var(--ink);
-}
-.focus-card.proposed {
-  border: 1.5px dashed var(--proposed);
-}
-.focus-card.selected {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-.focus-card.dimmed {
-  opacity: 0.4;
-}
-.focus-card.focus-group.open {
-  height: auto;
-  min-height: 112px;
-}
-.focus-card-body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 8px 12px;
-  font: inherit;
-  color: var(--ink);
-  text-align: start;
-  cursor: pointer;
-  background: none;
-  border: 0;
-  border-radius: 8px;
-}
-/* With via rows the body keeps its own height, so the rows follow the place line. */
-.focus-card-body:has(+ .focus-rows) {
-  flex: none;
-}
-.focus-card-body:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-.focus-card-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.focus-card-name {
-  font-size: var(--t-md);
-  font-weight: 600;
-}
-.focus-card.center .focus-card-name {
-  font-size: var(--t-xl);
-}
-.focus-card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.focus-card-place {
-  font-size: var(--t-xs);
-  line-height: 1.35;
-  color: var(--ink-soft);
-}
-.focus-card-place .num {
-  font-family: var(--mono);
-}
-.focus-group-list {
-  max-height: 320px;
-  margin: 0;
-  padding: 4px 8px 8px;
-  overflow-y: auto;
-  list-style: none;
-  border-top: 1px solid var(--rule-soft);
-}
-
-/* The lines that end at a card, one row each, under its place line. */
-.focus-rows {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 0;
-  padding: 0 12px 8px;
-}
-.focus-via {
-  display: block;
-  padding: 0;
-  font: inherit;
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-  text-align: start;
-  background: none;
-  border: 0;
-}
-button.focus-via {
-  cursor: pointer;
-}
-button.focus-via:hover,
-button.focus-via:focus-visible {
-  color: var(--ink);
-  outline: 1px solid var(--ink);
-  outline-offset: 1px;
-}
-/* One line each, so the card's height is the layout's: a long name is cut, never wrapped. */
-.focus-via-line {
-  display: block;
-  height: 16px;
-  overflow: hidden;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.focus-via-parent {
-  font-weight: 600;
-  color: var(--ink);
-}
-.focus-via .num,
-.focus-step .num {
-  font-family: var(--mono);
-}
-/* A step (equipment and its place) never breaks. */
-.focus-step {
-  white-space: nowrap;
-}
-
-.focus-ends {
-  width: 360px;
-  padding: 8px 12px;
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-}
-.focus-ends h3 {
-  margin: 0 0 4px;
-}
-.focus-ends ul {
-  margin: 0;
-  padding: 0;
-  font-size: var(--t-xs);
-  list-style: none;
-}
-.focus-ends li {
-  padding: 2px 0;
-}
-.focus-end-port {
-  font-family: var(--mono);
-}
-
-.focus-panel {
-  position: absolute;
-  z-index: 30;
-  bottom: 16px;
-  left: 50%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: min(520px, calc(100% - 200px));
-  max-height: 50%;
-  padding: 12px 14px;
-  overflow-y: auto;
-  transform: translateX(-50%);
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  box-shadow: var(--shadow-pop);
-}
-.focus-panel:focus {
-  outline: none;
-}
-.focus-panel h3 {
-  margin: 0;
-}
-.focus-panel ul {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.focus-panel li {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  font-size: var(--t-sm);
-}
-.focus-circuit-via {
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-}
-.focus-panel .num {
-  font-family: var(--mono);
-}
-
-/* The selected route (teal) and a location highlight (amber), in place (locked 3). */
-.map-row.on-route {
-  color: var(--ink);
-  background: var(--route-soft);
-  border-color: var(--route);
-}
-.map-row.on-route.selected {
-  color: var(--paper);
-  background: var(--ink);
-}
-.focus-card.on-route {
-  border: 2px solid var(--route);
-}
-.focus-card.center.on-route {
-  border: 3px solid var(--route);
-}
-.focus-via.on-route {
-  color: var(--route);
-}
-
 /* The hierarchy (D39): tops, AGGs and node cards in frames, drawn from real cables. */
 .hierarchy-surface {
   position: relative;
   height: 100%;
   background: var(--floor);
-}
-.hierarchy-surface .react-flow.map-hidden {
-  visibility: hidden;
 }
 .hierarchy-surface .react-flow__background-pattern {
   fill: var(--rule);
@@ -623,56 +306,103 @@ button.focus-via:focus-visible {
   stroke: var(--proposed);
 }
 
-/* A group's frame: a quiet sunk area behind its node cards, the head at the top left. */
-.hierarchy-frame {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: var(--paper-sunk);
-  border: 1px solid var(--rule-soft);
-  border-radius: 10px;
-}
-.hierarchy-frame-head {
-  position: absolute;
-  top: 6px;
-  left: 10px;
-  right: 10px;
-  overflow: hidden;
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.hierarchy-frame-empty {
-  position: absolute;
-  top: 30px;
-  left: 10px;
-  font-size: var(--t-sm);
-  color: var(--ink-soft);
-}
+/* The column heads. */
 .hierarchy-label {
-  font-size: var(--t-xs);
+  font-size: var(--t-min);
   font-weight: 500;
   color: var(--ink-soft);
   white-space: nowrap;
 }
 
-/* Cards: paper, a 1px rule. Proposed is dashed, the route teal, a highlight amber. Nothing is dimmed. */
-.hcard {
+/* A group's frame (one row): one or two AGGs as buttons, or "Direct to BB" / "No AGG". */
+.hframe {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  padding: 7px 10px;
+  overflow: hidden;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+  pointer-events: auto;
+}
+.hframe.plain {
+  padding: 0 9px;
+  font-weight: 400;
+  color: var(--ink-soft);
+  border-style: dashed;
+}
+.hframe-item {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+}
+.hframe-agg {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  padding: 0 9px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.hframe-agg:hover {
+  background: var(--paper-sunk);
+}
+.hframe-agg:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.hframe-agg.proposed {
+  outline: 1.5px dashed var(--proposed);
+  outline-offset: -3px;
+}
+.hframe-agg.on-route {
+  color: var(--route);
+}
+.hframe-agg.highlighted,
+.hframe-agg.hot {
+  box-shadow: inset 0 0 0 2px var(--amber-halo);
+}
+.hframe-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hframe-peer {
+  flex: none;
+  width: 12px;
+  border-top: 3px solid var(--ink-soft);
+}
+
+/* Cards: paper, a 1px rule, one row. Proposed is dashed, the route teal, a highlight amber. A route never dims; a selection does. */
+.hcard {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0 9px;
   overflow: hidden;
   font: inherit;
+  font-size: var(--t-sm);
   color: var(--ink);
   text-align: start;
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   pointer-events: auto;
 }
@@ -684,11 +414,8 @@ button.focus-via:focus-visible {
   outline-offset: 2px;
 }
 .hcard.top {
+  font-weight: 600;
   border-color: var(--rule-strong);
-}
-.hcard.none {
-  background: transparent;
-  border-style: dashed;
 }
 .hcard.proposed {
   border: 1.5px dashed var(--proposed);
@@ -707,57 +434,154 @@ button.focus-via:focus-visible {
 .hcard.on-route.hot {
   border-color: var(--route);
 }
-.hcard-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
 .hcard-name {
   min-width: 0;
   overflow: hidden;
-  font-size: var(--t-sm);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.hcard-tier .hcard-name {
-  font-size: var(--t-md);
-}
-.hcard-top .chip {
+.hcard-tier .chip {
   flex: none;
   height: 18px;
   margin-inline-start: auto;
   padding: 0 6px;
 }
-.hcard-place {
-  overflow: hidden;
+.hcard-node {
+  justify-content: space-between;
+}
+.hcard-end {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+}
+.hcard-n {
   font-size: var(--t-xs);
   color: var(--ink-soft);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .hcard-warn {
   font-size: var(--t-xs);
-}
-.hcard-count {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  overflow: hidden;
-  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--warn-ink);
   white-space: nowrap;
 }
-.hcard-flag {
-  padding: 0 5px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 999px;
+.hcard-warn::before {
+  content: '⚠ ';
 }
 .hcard-badge {
-  padding: 0 5px;
+  padding: 0 6px;
+  font-size: var(--t-min);
   color: var(--ink-soft);
-  border: 1px solid var(--rule-soft);
+  white-space: nowrap;
+  border: 1px solid var(--rule);
   border-radius: 999px;
+}
+/* An open card: its head, a row per switch, one quiet line. */
+.hcard-node.open {
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0 9px;
+}
+.hcard-row {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+}
+.hcard-close {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.hcard-close:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.hcard-list {
+  display: grid;
+  overflow: hidden;
+}
+.hcard-switch {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  height: 20px;
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+}
+.hcard-switch-name {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.hcard-switch-name:hover {
+  text-decoration: underline;
+}
+.hcard-switch-name:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+/* A selection: what it lights is in the route colour, the rest is dimmed, the selected thing is marked. */
+.hframe[data-dim],
+.hframe-agg[data-dim],
+.hcard[data-dim],
+.hcard:not([data-dim]) .hcard-switch[data-dim] {
+  opacity: 0.35;
+}
+.hcard[data-lit] {
+  border: 2px solid var(--route);
+}
+.hframe[data-lit] {
+  border-color: var(--route);
+}
+.hframe-agg[data-lit] {
+  color: var(--route);
+}
+.hcard-switch[data-lit] {
+  color: var(--route);
+}
+.hcard[data-selected],
+.hframe-agg[data-selected] {
+  box-shadow: inset 0 0 0 2px var(--route);
+}
+.hcard-switch[data-selected] .hcard-switch-name {
+  font-weight: 700;
+  text-decoration: underline;
+}
+.hcard-rest {
+  box-sizing: border-box;
+  height: 30px;
+  padding: 2px 6px 0;
+  overflow: hidden;
+  font-size: var(--t-min);
+  font-style: italic;
+  line-height: 1.25;
+  color: var(--ink-soft);
 }
 
 /* The drawer over the canvas (D34): the shared .drawer, on the right; right of an open inspector it moves left. */
@@ -882,6 +706,71 @@ button.focus-via:focus-visible {
   white-space: nowrap;
   border: 1px solid var(--rule-strong);
   border-radius: 999px;
+}
+/* The equipment drawer: the sentence, the way up as chips, who depends on it, its cables. */
+.hd-say {
+  font-size: var(--t-sm);
+}
+.hd-say-warn {
+  color: var(--warn-ink);
+}
+.hd-way {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: var(--t-sm);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.hd-sep {
+  color: var(--ink-soft);
+}
+.hd-chip {
+  padding: 1px 7px;
+  font: inherit;
+  font-size: var(--t-xs);
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+}
+.hd-chip:hover {
+  background: var(--paper-sunk);
+}
+.hd-chip:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+.hd-warn {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--warn-ink);
+}
+.hd-list {
+  display: grid;
+  font-size: var(--t-sm);
+}
+.hd-list > button,
+.hd-list > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px;
+  font: inherit;
+  color: var(--ink);
+  text-align: start;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.hd-list > button {
+  cursor: pointer;
+}
+.hd-list > button:hover {
+  background: var(--paper-sunk);
 }
 .hierarchy-switch-detail {
   display: grid;

@@ -4,6 +4,8 @@ import {
   coversFromRects,
   withToolRail,
   fitViewport,
+  panToShow,
+  panToShowFirstFit,
   viewportFor,
   visibleCenter,
 } from './center'
@@ -291,5 +293,134 @@ describe('POL-31 the tool rail covers the canvas edge too', () => {
     expect(withToolRail(covers, surface, rect(900, 156, 960, 423))).toEqual(
       covers,
     )
+  })
+})
+
+describe("fitViewport's fit: 'width' option", () => {
+  const size = { width: 1000, height: 600 }
+  const none = { left: 0, right: 0, top: 0, bottom: 0 }
+  const opts = { padding: 40, minZoom: 0.5, maxZoom: 1, fit: 'width' as const }
+
+  it('fits the width of bounds that are too tall to fit whole, starting at their top', () => {
+    const v = fitViewport(
+      { x: 10, y: 20, width: 800, height: 5000 },
+      size,
+      none,
+      opts,
+    )
+    expect(v.zoom).toBe(1) // 920 / 800 is capped at maxZoom
+    expect(v.y + 20 * v.zoom).toBeCloseTo(40)
+  })
+
+  it('does not change a fit that shows the bounds whole', () => {
+    const b = { x: 0, y: 0, width: 400, height: 300 }
+    expect(fitViewport(b, size, none, opts)).toEqual(
+      fitViewport(b, size, none, { ...opts, fit: undefined }),
+    )
+  })
+
+  it('is not used by the default options', () => {
+    const b = { x: 0, y: 0, width: 800, height: 5000 }
+    expect(fitViewport(b, size, none).zoom).toBe(0.25)
+  })
+})
+
+describe('panToShow', () => {
+  const size = { width: 1000, height: 600 }
+  const none = { left: 0, right: 0, top: 0, bottom: 0 }
+  const at = { x: 0, y: 0, zoom: 1 }
+
+  it('returns nothing when the box is already in view', () => {
+    expect(
+      panToShow({ x: 100, y: 100, width: 200, height: 40 }, at, size, none),
+    ).toBeUndefined()
+  })
+
+  it('pans by the least that brings the box in, keeping the zoom', () => {
+    const view = panToShow(
+      { x: 1100, y: 100, width: 200, height: 40 },
+      { x: 0, y: 0, zoom: 0.5 },
+      size,
+      none,
+    )
+    // On screen it is at x 550..650: inside. Nothing to do.
+    expect(view).toBeUndefined()
+    const far = panToShow(
+      { x: 1100, y: 100, width: 200, height: 40 },
+      at,
+      size,
+      none,
+    )!
+    expect(far.zoom).toBe(1)
+    expect(far.y).toBe(0)
+    // The right edge (1300) ends 24px inside the canvas's right edge.
+    expect(far.x + 1300).toBe(1000 - 24)
+  })
+
+  it('keeps the box out from under what covers the canvas', () => {
+    const view = panToShow(
+      { x: 700, y: 100, width: 200, height: 40 },
+      at,
+      size,
+      { ...none, right: 410 },
+    )!
+    expect(view.x + 900).toBe(1000 - 410 - 24)
+  })
+
+  it('aligns a box wider than the free area by its start', () => {
+    const view = panToShow(
+      { x: 300, y: 100, width: 2000, height: 40 },
+      at,
+      size,
+      { ...none, left: 60 },
+    )!
+    expect(view.x + 300).toBe(60 + 24)
+  })
+
+  it('brings a box below the canvas up', () => {
+    const view = panToShow(
+      { x: 100, y: 900, width: 200, height: 100 },
+      at,
+      size,
+      none,
+    )!
+    expect(view.y + 1000).toBe(600 - 24)
+    expect(view.x).toBe(0)
+  })
+})
+
+describe('panToShowFirstFit', () => {
+  const size = { width: 1000, height: 600 }
+  const none = { left: 0, right: 0, top: 0, bottom: 0 }
+  const at = { x: 0, y: 0, zoom: 1 }
+  const wide = { x: 100, y: 100, width: 800, height: 40 }
+  const narrow = { x: 700, y: 100, width: 200, height: 40 }
+
+  it('pans to the first box when it fits the free area', () => {
+    const view = panToShowFirstFit([wide, narrow], at, size, {
+      ...none,
+      right: 100,
+    })!
+    expect(view.x + 100).toBeGreaterThanOrEqual(24)
+    expect(view.x + 900).toBeLessThanOrEqual(1000 - 100 - 24)
+  })
+
+  it('falls back to the next box when the first does not fit', () => {
+    const view = panToShowFirstFit([wide, narrow], at, size, {
+      ...none,
+      right: 400,
+    })!
+    expect(view.x + 900).toBe(1000 - 400 - 24)
+  })
+
+  it('does nothing when the box it would use is already in view, and never zooms', () => {
+    expect(panToShowFirstFit([wide, narrow], at, size, none)).toBeUndefined()
+    const view = panToShowFirstFit(
+      [wide, narrow],
+      { x: 0, y: 0, zoom: 1.5 },
+      size,
+      { ...none, right: 400 },
+    )
+    expect(view?.zoom ?? 1.5).toBe(1.5)
   })
 })

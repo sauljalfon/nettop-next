@@ -50,11 +50,14 @@ export default function HierarchyPanel({
   counts,
   onlyProblems,
   onOnlyProblems,
+  nothing,
 }: {
   networkName: string
   counts?: NetworkHierarchy['counts']
   onlyProblems: boolean
   onOnlyProblems: (on: boolean) => void
+  /** Only problems is on and nothing is left to draw. */
+  nothing?: boolean
 }) {
   return (
     <Panel position="top-left" className="hierarchy-panel">
@@ -70,18 +73,23 @@ export default function HierarchyPanel({
         />
         Only nodes with problems
       </label>
+      {nothing && <p className="hierarchy-meta">No problems here</p>}
       <div className="hierarchy-legend">
         <div className="hierarchy-legend-row">
-          <Swatch className="legend-uplink" />
-          uplink, from real cables through any panels
+          <Swatch className="legend-uplink" />a top to the AGGs of a frame, and
+          a frame to its nodes, from real cables through any panels
         </div>
         <div className="hierarchy-legend-row">
           <Swatch className="legend-peer" width={3} />
-          peer link between two of the same level
+          the two AGGs of a frame are peers
         </div>
         <div className="hierarchy-legend-row">
           <Swatch className="legend-proposed" dash="6 4" width={2} />
           proposed in this plan
+        </div>
+        <div className="hierarchy-legend-row">
+          <span className="hcard-warn">no BB</span>
+          an AGG with no cable to a BB
         </div>
         <div className="hierarchy-legend-row">
           <span className="hcard-badge">2↑ 1</span>

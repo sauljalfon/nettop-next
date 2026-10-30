@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted, selectEquipment, viewport } from './helpers'
+import { fitted, selectEquipment, settledViewport, viewport } from './helpers'
 
 // The test database is shared by every spec in a run and networks cannot be
 // deleted, so this spec uses unique names and puts Network A back.
@@ -116,20 +116,15 @@ test('NET-05 renaming Network A updates the selector, badges and inspector; its 
   await page.goto('/')
   await fitted(page)
   await select(page).selectOption('net-a')
-  // EDGE-17's Focus card carries its network's badge.
+  // The tree's panel names the network; EDGE-17 is selected on it.
   await selectEquipment(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await fitted(page)
-  const badge = (text: string) =>
-    page
-      .locator('[data-equipment-id="edge-17"]')
-      .locator('.network-badge', { hasText: text })
-  const color = await badge('Network A').evaluate(
-    (el) => (el.querySelector('.dot') as HTMLElement).style.backgroundColor,
-  )
-  const card = page.locator('[data-equipment-id="edge-17"]')
+  const panel = page.locator('.hierarchy-panel')
+  await expect(panel).toContainText('Network A')
+  const card = page.locator('[data-card-key="agg-03+agg-08|node-building-a"]')
+  const before = await settledViewport(page)
   const box = await card.boundingBox()
-  const before = await viewport(page)
 
   await openDrawer(page)
   await rename(page, 'Network A').click()
@@ -158,14 +153,8 @@ test('NET-05 renaming Network A updates the selector, badges and inspector; its 
   // Selector: the same network (ID) is still chosen, under its new name.
   await expect(select(page)).toHaveValue('net-a')
   await expect(select(page).locator('option:checked')).toHaveText(renamed)
-  // Badges: the new name in the same color.
-  await expect(badge(renamed)).toBeVisible()
-  await expect(badge('Network A')).toHaveCount(0)
-  expect(
-    await badge(renamed).evaluate(
-      (el) => (el.querySelector('.dot') as HTMLElement).style.backgroundColor,
-    ),
-  ).toBe(color)
+  // The panel: the new name.
+  await expect(panel).toContainText(renamed)
   await expect(rows(page).first().getByTestId('network-swatch')).toHaveCSS(
     'background-color',
     PALETTE[0],

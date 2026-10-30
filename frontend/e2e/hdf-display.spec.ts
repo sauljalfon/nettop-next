@@ -31,13 +31,14 @@ test('a proposed HDF renders as passive equipment, not an active switch', async 
 
   await page.goto(`/?plan=${plan.id}`)
   await fitted(page)
-  // Focus on it (D35): a proposed passive, with the HDF role and no network, never an active switch.
+  // Selected on the tree (D40): a passive with the HDF role and no network, never an active switch.
   await selectEquipment(page, 'HDF-DISPLAY')
-  const card = page.locator(`[data-equipment-id="${hdf}"]`)
+  expect(hdf).toBeTruthy()
+  const card = page.getByTestId('hierarchy-drawer')
   await expect(card).toBeVisible()
   await expect(card.locator('.chip', { hasText: 'HDF' })).toBeVisible()
   await expect(card.locator('.chip', { hasText: 'Proposed' })).toBeVisible()
   await expect(card.locator('.network-badge')).toHaveCount(0)
-  for (const role of ['Access', 'Aggregation', 'Backbone'])
+  for (const role of ['Access', 'Switch', 'AGG', 'BB'])
     await expect(card.locator('.chip', { hasText: role })).toHaveCount(0)
 })

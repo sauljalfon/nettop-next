@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest'
+import type { Snapshot } from '../../shared/types'
 import { acceptanceSnapshot } from './acceptanceFixture'
 import { buildHierarchies, type NetworkHierarchy } from './hierarchy'
 import { hierarchyFixture } from './hierarchyFixture'
-import { hierarchyLayout } from './hierarchyLayout'
+import { hierarchyLayout, selectionBoxes } from './hierarchyLayout'
 import { indexSnapshot } from './snapshotIndex'
-import type { Snapshot } from '../../shared/types'
 
 const hierarchyOf = (s: Snapshot, net = 'A') =>
   buildHierarchies(indexSnapshot(s)).get(net)!
-const layoutOf = (s: Snapshot, net = 'A', onlyProblems = false) =>
-  hierarchyLayout(hierarchyOf(s, net), { onlyProblems })
+const layoutOf = (
+  s: Snapshot,
+  net = 'A',
+  onlyProblems = false,
+  open: ReadonlySet<string> = new Set(),
+) => hierarchyLayout(hierarchyOf(s, net), { onlyProblems, open })
 
 interface Box {
   x: number
@@ -19,11 +23,8 @@ interface Box {
 }
 const overlap = (a: Box, b: Box) =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
-const inside = (inner: Box, outer: Box) =>
-  inner.x >= outer.x &&
-  inner.y >= outer.y &&
-  inner.x + inner.w <= outer.x + outer.w &&
-  inner.y + inner.h <= outer.y + outer.h
+const centreY = (b: Box) => b.y + b.h / 2
+const none = new Set<string>()
 
 /** A BB, two AGGs, and `count` access switches, one in each of `count` nodes, under both AGGs. */
 function wide(count: number, withBB = true) {
@@ -43,7 +44,28 @@ function wide(count: number, withBB = true) {
   return f.snapshot()
 }
 
-describe('HI-06 the hierarchy layout', () => {
+/** One node holding three switches of A under AGG1, and `other` of network B (so a quiet line). */
+function crowded(other: number) {
+  const f = hierarchyFixture()
+    .site('s1', 'Main')
+    .node('n1', 's1', 'Hall')
+    .node('n2', 's1', 'Hall 2')
+    .sw('BB1', 'backbone', 'A')
+    .sw('AGG1', 'aggregation', 'A')
+    .sw('AGG2', 'aggregation', 'A')
+  f.run('BB1', 'AGG1')
+  f.run('BB1', 'AGG2')
+  for (const id of ['S1', 'S2', 'S3']) {
+    f.sw(id, 'access', 'A', 'n1')
+    f.run(id, 'AGG1')
+  }
+  f.sw('T1', 'access', 'A', 'n2')
+  f.run('T1', 'AGG2')
+  for (let i = 0; i < other; i++) f.sw(`B${i}`, 'access', 'B', 'n1')
+  return f.snapshot()
+}
+
+describe('OV-02 the hierarchy layout, left to right', () => {
   it('is deterministic: the same hierarchy lays out the same', () => {
     const s = acceptanceSnapshot()
     const a = layoutOf(s)
@@ -54,28 +76,49 @@ describe('HI-06 the hierarchy layout', () => {
     expect(a.size).toEqual(b.size)
   })
 
-  it('uses the demo sizes: tier card 140 × 58, node card 178 × 86', () => {
+  it('uses the demo sizes: top 120 × 30, frame 280 × 30, closed card 270 × 22', () => {
     const l = layoutOf(acceptanceSnapshot())
-    expect(l.boxes.get('BB-01')).toMatchObject({ w: 140, h: 58 })
-    expect(l.boxes.get('AGG-03')).toMatchObject({ w: 140, h: 58 })
-    expect(l.boxes.get('AGG-03+AGG-08|node-a')).toMatchObject({ w: 178, h: 86 })
+    expect(l.boxes.get('BB-01')).toMatchObject({ w: 120, h: 30 })
+    expect(l.frames.get('AGG-03+AGG-08')).toMatchObject({ w: 280, h: 30 })
+    expect(l.boxes.get('AGG-03+AGG-08|node-a')).toMatchObject({ w: 270, h: 22 })
+    // The AGGs live inside their frame: only tops and cards have boxes.
+    expect([...l.boxes.keys()].sort()).toEqual([
+      'AGG-03+AGG-08|node-a',
+      'BB-01',
+    ])
   })
 
-  it('puts the top row above Aggregation above the frames, and gives the labels', () => {
+  it('puts the tops in the left column, the frames in the middle and the cards on the right', () => {
+    const s = wide(5)
+    const l = layoutOf(s)
+    const top = l.boxes.get('BB1')!
+    const frame = l.frames.get('AGG1+AGG2')!
+    const cards = [...l.boxes]
+      .filter(([k]) => k.includes('|'))
+      .map(([, b]) => b)
+    expect(cards).toHaveLength(5)
+    expect(top.x + top.w).toBeLessThan(frame.x)
+    for (const c of cards) expect(frame.x + frame.w).toBeLessThan(c.x)
+    expect(new Set(cards.map((c) => c.x)).size).toBe(1)
+  })
+
+  it('gives the column heads: Backbone, Aggregation, Nodes above their columns', () => {
     const l = layoutOf(acceptanceSnapshot())
-    const top = l.boxes.get('BB-01')!
-    const agg = l.boxes.get('AGG-03')!
-    const frame = l.frames.get('AGG-03+AGG-08')!
-    expect(top.y + top.h).toBeLessThan(agg.y)
-    expect(agg.y + agg.h).toBeLessThan(frame.y)
     expect(l.labels.map((x) => x.text)).toEqual([
       'Backbone',
       'Aggregation',
       'Nodes',
     ])
+    expect(l.labels[0].x).toBe(l.boxes.get('BB-01')!.x)
+    expect(l.labels[1].x).toBe(l.frames.get('AGG-03+AGG-08')!.x)
+    expect(l.labels[2].x).toBe(l.boxes.get('AGG-03+AGG-08|node-a')!.x)
+    const first = Math.min(
+      ...[...l.boxes.values(), ...l.frames.values()].map((b) => b.y),
+    )
+    for (const label of l.labels) expect(label.y).toBeLessThan(first)
   })
 
-  it('labels the top row "Top AGG" when the top is an AGG, and has no top label with no top', () => {
+  it('labels the top column "Top AGG" when the top is an AGG, and has no top head with no top', () => {
     const f = hierarchyFixture()
       .node('n1', 's1')
       .sw('TOP', 'aggregation', 'A')
@@ -90,83 +133,133 @@ describe('HI-06 the hierarchy layout', () => {
     ])
     const b = layoutOf(acceptanceSnapshot(), 'B')
     expect(b.labels.map((x) => x.text)).toEqual(['Aggregation', 'Nodes'])
+    expect([...b.boxes.keys()]).toEqual(['AGG-12|node-dr1'])
   })
 
-  it('gives AGGs of a group 40 px apart, and groups 48 px apart', () => {
-    const l = layoutOf(acceptanceSnapshot())
-    const a = l.boxes.get('AGG-03')!
-    const b = l.boxes.get('AGG-08')!
-    expect(b.x - (a.x + a.w)).toBe(40)
-    const g1 = l.frames.get('AGG-03+AGG-08')!
-    const g2 = l.frames.get('AGG-15')!
-    expect(g2.x - (g1.x + g1.w)).toBeGreaterThanOrEqual(48)
-  })
-
-  it('has no two boxes overlap, and every frame holds its cards', () => {
-    const s = wide(7)
+  it('stacks cards 22 high with 4 between them, and frames 12 more apart', () => {
+    const s = wide(3)
     const h = hierarchyOf(s)
-    const l = hierarchyLayout(h, { onlyProblems: false })
-    const all = [...l.boxes.values()]
-    for (let i = 0; i < all.length; i++)
-      for (let j = i + 1; j < all.length; j++)
-        expect(overlap(all[i], all[j])).toBe(false)
-    for (const g of h.groups) {
-      const frame = l.frames.get(g.key)!
-      for (const c of g.nodes)
-        expect(inside(l.boxes.get(c.key)!, frame)).toBe(true)
-      for (const other of h.groups)
-        if (other !== g)
-          expect(overlap(frame, l.frames.get(other.key)!)).toBe(false)
-    }
-    for (const [key, box] of l.boxes)
-      if (!key.includes('|'))
-        for (const frame of l.frames.values())
-          expect(overlap(box, frame)).toBe(false)
+    const l = hierarchyLayout(h, { onlyProblems: false, open: none })
+    const cards = h.groups[0].nodes.map((c) => l.boxes.get(c.key)!)
+    expect(cards[1].y - (cards[0].y + cards[0].h)).toBe(4)
+    expect(cards[2].y - (cards[1].y + cards[1].h)).toBe(4)
+    const two = layoutOf(acceptanceSnapshot())
+    const a = [...two.frames.values()]
+    expect(a[1].y).toBeGreaterThan(a[0].y + a[0].h)
   })
 
-  it('uses max(1, min(max(AGGs, 2), nodes)) node columns', () => {
-    const cols = (s: Snapshot) => {
-      const h = hierarchyOf(s)
-      const l = hierarchyLayout(h, { onlyProblems: false })
-      const xs = new Set(h.groups[0].nodes.map((c) => l.boxes.get(c.key)!.x))
-      return xs.size
+  it('has no two boxes overlap, frames included', () => {
+    for (const s of [wide(7), wide(50), acceptanceSnapshot(), crowded(2)]) {
+      const l = layoutOf(s, 'A', false, new Set(['AGG1|n1']))
+      const all = [...l.boxes.values(), ...l.frames.values()]
+      for (let i = 0; i < all.length; i++)
+        for (let j = i + 1; j < all.length; j++)
+          expect(overlap(all[i], all[j])).toBe(false)
     }
-    expect(cols(wide(1))).toBe(1)
-    expect(cols(wide(2))).toBe(2)
-    expect(cols(wide(9))).toBe(2)
   })
 
-  it('centres the top row over all groups', () => {
+  it('centres each frame on its cards’ rows, and gives a frame with no cards one empty row', () => {
     const s = acceptanceSnapshot()
     const l = layoutOf(s)
-    const top = l.boxes.get('BB-01')!
-    const frames = [...l.frames.values()]
-    const aggs = ['AGG-03', 'AGG-08', 'AGG-15'].map((id) => l.boxes.get(id)!)
-    const left = Math.min(...frames.map((f) => f.x), ...aggs.map((a) => a.x))
-    const right = Math.max(
-      ...frames.map((f) => f.x + f.w),
-      ...aggs.map((a) => a.x + a.w),
-    )
-    expect(top.x + top.w / 2).toBeCloseTo((left + right) / 2, 5)
+    const card = l.boxes.get('AGG-03+AGG-08|node-a')!
+    expect(centreY(l.frames.get('AGG-03+AGG-08')!)).toBe(centreY(card))
+    const empty = l.frames.get('AGG-15')!
+    expect(empty.y).toBeGreaterThan(card.y + card.h)
+    const wideS = wide(4)
+    const h = hierarchyOf(wideS)
+    const w = hierarchyLayout(h, { onlyProblems: false, open: none })
+    const cards = h.groups[0].nodes.map((c) => w.boxes.get(c.key)!)
+    const top = cards[0].y
+    const bottom = cards[3].y + cards[3].h
+    expect(centreY(w.frames.get('AGG1+AGG2')!)).toBe((top + bottom) / 2)
   })
 
-  it('lays out a 50-node group without overlap, the frame growing downward', () => {
+  it('holds an open card’s rows and its quiet line: 42 + 20 per switch, + 30 with the quiet line', () => {
+    const s = crowded(2)
+    const h = hierarchyOf(s)
+    const card = h.groups.find((g) => g.key === 'AGG1')!.nodes[0]
+    expect(card.switchIds).toHaveLength(3)
+    expect(card.elsewhere.length).toBeGreaterThan(0)
+    const open = hierarchyLayout(h, {
+      onlyProblems: false,
+      open: new Set([card.key]),
+    })
+    expect(open.boxes.get(card.key)!.h).toBe(42 + 3 * 20 + 30)
+    const closed = hierarchyLayout(h, { onlyProblems: false, open: none })
+    expect(closed.boxes.get(card.key)!.h).toBe(22)
+    // With nothing elsewhere, no quiet line.
+    const t = h.groups.find((g) => g.key === 'AGG2')!.nodes[0]
+    expect(t.elsewhere).toEqual([])
+    const openT = hierarchyLayout(h, {
+      onlyProblems: false,
+      open: new Set([t.key]),
+    })
+    expect(openT.boxes.get(t.key)!.h).toBe(42 + 1 * 20)
+  })
+
+  it('moves the cards below an opened card down, and nothing sideways', () => {
+    const s = wide(4)
+    const h = hierarchyOf(s)
+    const keys = h.groups[0].nodes.map((c) => c.key)
+    const closed = hierarchyLayout(h, { onlyProblems: false, open: none })
+    const open = hierarchyLayout(h, {
+      onlyProblems: false,
+      open: new Set([keys[1]]),
+    })
+    const grow = open.boxes.get(keys[1])!.h - closed.boxes.get(keys[1])!.h
+    expect(grow).toBe(42 + 20 - 22)
+    expect(open.boxes.get(keys[0])).toEqual(closed.boxes.get(keys[0]))
+    for (const k of keys.slice(2)) {
+      const a = closed.boxes.get(k)!
+      const b = open.boxes.get(k)!
+      expect(b.x).toBe(a.x)
+      expect(b.y).toBe(a.y + grow)
+    }
+    for (const [id, a] of closed.boxes) {
+      expect(open.boxes.get(id)!.x).toBe(a.x)
+      expect(open.boxes.get(id)!.w).toBe(a.w)
+    }
+    for (const [key, a] of closed.frames) {
+      expect(open.frames.get(key)!.x).toBe(a.x)
+      expect(open.frames.get(key)!.w).toBe(a.w)
+    }
+  })
+
+  it('keeps the tops on screen: their y never goes below the cap, however long the list', () => {
+    const l = layoutOf(wide(50))
+    const top = l.boxes.get('BB1')!
+    expect(top.y).toBe(140)
+    const small = layoutOf(acceptanceSnapshot())
+    expect(small.boxes.get('BB-01')!.y).toBeLessThan(140)
+    // Several tops stack, the first no higher than the first row.
+    const f = hierarchyFixture()
+      .site('s1', 'Main')
+      .sw('BB1', 'backbone', 'A')
+      .sw('BB2', 'backbone', 'A')
+      .sw('AGG1', 'aggregation', 'A')
+    f.run('BB1', 'AGG1')
+    f.run('BB2', 'AGG1')
+    const two = layoutOf(f.snapshot())
+    const a = two.boxes.get('BB1')!
+    const b = two.boxes.get('BB2')!
+    expect(a.x).toBe(b.x)
+    expect(b.y).toBeGreaterThan(a.y + a.h)
+    expect(a.y).toBeGreaterThanOrEqual(44)
+  })
+
+  it('lays out a 50-node group without overlap, the size holding everything', () => {
     const s = wide(50)
     const h = hierarchyOf(s)
-    const l = hierarchyLayout(h, { onlyProblems: false })
+    const l = hierarchyLayout(h, { onlyProblems: false, open: none })
     const cards = h.groups[0].nodes.map((c) => l.boxes.get(c.key)!)
     expect(cards).toHaveLength(50)
-    for (let i = 0; i < cards.length; i++)
-      for (let j = i + 1; j < cards.length; j++)
-        expect(overlap(cards[i], cards[j])).toBe(false)
-    const frame = l.frames.get('AGG1+AGG2')!
-    for (const c of cards) expect(inside(c, frame)).toBe(true)
-    expect(frame.h).toBeGreaterThan((50 * 86) / 2)
-    expect(l.size.height).toBeGreaterThanOrEqual(frame.y + frame.h)
-    expect(l.size.width).toBeGreaterThanOrEqual(frame.x + frame.w)
+    for (const b of [...l.boxes.values(), ...l.frames.values()]) {
+      expect(l.size.width).toBeGreaterThanOrEqual(b.x + b.w)
+      expect(l.size.height).toBeGreaterThanOrEqual(b.y + b.h)
+    }
   })
 
-  it('gives No AGG one "No AGG" card in the Aggregation row, and Under the top no AGG card', () => {
+  it('gives "Direct to BB" and "No AGG" a frame and no box of their own', () => {
     const f = hierarchyFixture()
       .site('s1', 'Main')
       .node('n1', 's1', 'Hall')
@@ -174,81 +267,118 @@ describe('HI-06 the hierarchy layout', () => {
       .sw('LOST', 'access', 'A', 'n1')
       .sw('BBONLY', 'access', 'A', 'n1')
     f.run('BBONLY', 'BB1')
-    const s = f.snapshot()
-    const h = hierarchyOf(s)
+    const h = hierarchyOf(f.snapshot())
     expect(h.groups.map((g) => g.key)).toEqual(['top', 'none'])
-    const l = hierarchyLayout(h, { onlyProblems: false })
-    const none = l.boxes.get('none')!
-    expect(none).toMatchObject({ w: 140, h: 58 })
-    const agg = l.labels.find((x) => x.text === 'Aggregation')!
-    expect(none.y).toBeLessThan(l.frames.get('none')!.y)
-    expect(agg.y).toBeGreaterThanOrEqual(none.y)
-    expect(l.boxes.has('top')).toBe(false)
+    const l = hierarchyLayout(h, { onlyProblems: false, open: none })
     expect(l.frames.has('top')).toBe(true)
+    expect(l.frames.has('none')).toBe(true)
+    expect(l.boxes.has('none')).toBe(false)
+    expect(l.boxes.has('top')).toBe(false)
+    expect(l.boxes.has('top|n1')).toBe(true)
   })
 
-  it('with Only problems lays out only the cards with a problem, and keeps every frame', () => {
+  it('with Only problems lays out only the cards with a mark', () => {
     const f = hierarchyFixture()
       .site('s1', 'Main')
       .node('n1', 's1', 'Hall 1')
       .node('n2', 's1', 'Hall 2')
       .node('n3', 's1', 'Hall 3')
+      .sw('BB1', 'backbone', 'A')
       .sw('AGG1', 'aggregation', 'A')
       .sw('AGG2', 'aggregation', 'A')
       .sw('ONE', 'access', 'A', 'n1') // chained behind BOTH: the one problem
       .sw('BOTH', 'access', 'A', 'n2')
       .sw('FINE', 'access', 'A', 'n3')
+    f.run('BB1', 'AGG1')
+    f.run('BB1', 'AGG2')
     f.run('ONE', 'BOTH')
     f.run('BOTH', 'AGG1')
     f.run('BOTH', 'AGG2')
     f.run('FINE', 'AGG1')
     f.run('FINE', 'AGG2')
-    const s = f.snapshot()
-    const h = hierarchyOf(s)
-    const all = hierarchyLayout(h, { onlyProblems: false })
-    const some = hierarchyLayout(h, { onlyProblems: true })
+    const h = hierarchyOf(f.snapshot())
+    const all = hierarchyLayout(h, { onlyProblems: false, open: none })
+    const some = hierarchyLayout(h, { onlyProblems: true, open: none })
     expect([...all.boxes.keys()].filter((k) => k.includes('|'))).toHaveLength(3)
     expect([...some.boxes.keys()].filter((k) => k.includes('|'))).toEqual([
       'AGG1+AGG2|n1',
     ])
     expect(some.frames.has('AGG1+AGG2')).toBe(true)
-    expect(some.frames.get('AGG1+AGG2')!.h).toBeLessThan(
-      all.frames.get('AGG1+AGG2')!.h,
-    )
-    // None with a problem: the frame stays, with room for "No problems here".
-    const clean = hierarchyFixture()
+  })
+
+  it('with Only problems keeps a frame whose AGG has no BB, and drops a clean frame', () => {
+    const f = hierarchyFixture()
       .site('s1', 'Main')
       .node('n1', 's1', 'Hall 1')
+      .node('n2', 's1', 'Hall 2')
+      .sw('BB1', 'backbone', 'A')
       .sw('AGG1', 'aggregation', 'A')
-      .sw('S', 'access', 'A', 'n1')
-    clean.run('S', 'AGG1')
-    const none = hierarchyLayout(hierarchyOf(clean.snapshot()), {
-      onlyProblems: true,
-    })
-    const frame = none.frames.get('AGG1')!
-    expect(frame.h).toBeGreaterThanOrEqual(24)
-    expect([...none.boxes.keys()]).toEqual(['AGG1'])
+      .sw('AGG2', 'aggregation', 'A') // no cable to the BB
+      .sw('S1', 'access', 'A', 'n1')
+      .sw('S2', 'access', 'A', 'n2')
+    f.run('BB1', 'AGG1')
+    f.run('S1', 'AGG1')
+    f.run('S2', 'AGG2')
+    const h = hierarchyOf(f.snapshot())
+    expect([...h.noTop]).toEqual(['AGG2'])
+    const l = hierarchyLayout(h, { onlyProblems: true, open: none })
+    expect([...l.frames.keys()]).toEqual(['AGG2'])
+    expect([...l.boxes.keys()].filter((k) => k.includes('|'))).toEqual([])
+    // A clean network shows no frame at all.
+    const clean = hierarchyOf(wide(2))
+    const none2 = hierarchyLayout(clean, { onlyProblems: true, open: none })
+    expect(none2.frames.size).toBe(0)
   })
 
   it('gives an empty layout for a network with nothing in it', () => {
+    const base = hierarchyOf(acceptanceSnapshot())
     const empty: NetworkHierarchy = {
-      networkId: 'A',
+      ...base,
       topKind: 'none',
       topIds: [],
       aggIds: [],
-      topsReached: new Map(),
-      noTop: new Set(),
-      ups: new Map(),
-      lines: [],
       groups: [],
-      switches: new Map(),
-      proposed: new Set(),
-      counts: { bb: 0, agg: 0, nodes: 0, switches: 0, marked: 0 },
+      lines: [],
+      noTop: new Set(),
     }
-    const l = hierarchyLayout(empty, { onlyProblems: false })
+    const l = hierarchyLayout(empty, { onlyProblems: false, open: none })
     expect(l.boxes.size).toBe(0)
     expect(l.frames.size).toBe(0)
     expect(l.labels).toEqual([])
     expect(l.size).toEqual({ width: 0, height: 0 })
+  })
+})
+
+describe('OV-07 what a selection pans to', () => {
+  const f = () => {
+    const s = crowded(0)
+    const h = hierarchyOf(s)
+    return {
+      h,
+      layout: hierarchyLayout(h, { onlyProblems: false, open: none }),
+    }
+  }
+
+  it('gives a card together with its frame first, then the card alone', () => {
+    const { h, layout } = f()
+    const card = h.groups[0].nodes[0]
+    const own = layout.boxes.get(card.key)!
+    const frame = layout.frames.get(card.groupKey)!
+    const [union, alone] = selectionBoxes(h, layout, card.key)
+    expect(alone).toEqual(own)
+    expect(union.x).toBe(Math.min(own.x, frame.x))
+    expect(union.x + union.w).toBe(Math.max(own.x + own.w, frame.x + frame.w))
+    expect(union.y).toBe(Math.min(own.y, frame.y))
+    expect(union.y + union.h).toBe(Math.max(own.y + own.h, frame.y + frame.h))
+  })
+
+  it('gives an AGG’s frame, a top itself, and nothing for an unknown key', () => {
+    const { h, layout } = f()
+    expect(selectionBoxes(h, layout, h.groups[0].key)).toEqual([
+      layout.frames.get(h.groups[0].key),
+    ])
+    expect(selectionBoxes(h, layout, 'BB1')).toEqual([layout.boxes.get('BB1')])
+    expect(selectionBoxes(h, layout, 'nope')).toEqual([])
+    expect(selectionBoxes(h, layout, undefined)).toEqual([])
   })
 })

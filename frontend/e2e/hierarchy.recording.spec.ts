@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fitted } from './helpers'
+import { fitted, settledViewport } from './helpers'
 
 // HI-13. A direct fix while the hierarchy is open: the drawer stays on the same
 // card, the new name is drawn isolated and cut with an ellipsis, nothing moves.
@@ -11,8 +11,6 @@ test.describe.configure({ mode: 'serial' })
 const root = (page: Page) => page.locator('[data-view="hierarchy"]')
 const card = (page: Page, key: string) =>
   page.locator(`[data-card-key="${key}"]`)
-const frame = (page: Page, groupKey: string) =>
-  page.getByTestId(`rf__node-frame:${groupKey}`)
 const drawer = (page: Page) => page.getByTestId('hierarchy-drawer')
 const BUILDING_A = 'agg-03+agg-08|node-building-a'
 const HEBREW =
@@ -34,7 +32,7 @@ test('HI-13 a long Hebrew name from a direct fix, while the drawer is open: isol
   await card(page, BUILDING_A).click()
   await expect(drawer(page)).toBeVisible()
   const positions = await root(page).getAttribute('data-card-positions')
-  const view = await page.locator('.react-flow__viewport').getAttribute('style')
+  const view = await settledViewport(page)
 
   try {
     await renameNode(page, HEBREW)
@@ -77,10 +75,7 @@ test('HI-13 a long Hebrew name from a direct fix, while the drawer is open: isol
     const n = (await name.locator('..').boundingBox())!
     expect(n.x + n.width).toBeLessThanOrEqual(c.x + c.width + 1)
     await expect(name).toHaveCSS('unicode-bidi', /isolate/)
-    // The frame holds the card; nothing moved and nothing refit.
-    const f = (await frame(page, 'agg-03+agg-08').boundingBox())!
-    expect(c.x).toBeGreaterThanOrEqual(f.x - 1)
-    expect(c.x + c.width).toBeLessThanOrEqual(f.x + f.width + 1)
+    // Nothing moved and nothing refit.
     expect(await root(page).getAttribute('data-card-positions')).toBe(positions)
     expect(
       await page.locator('.react-flow__viewport').getAttribute('style'),
