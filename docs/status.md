@@ -2,10 +2,10 @@
 
 **This is the only document that says where the project is.** Everything else links here.
 
-> **Now / Next** (updated 2026-10-30)
+> **Now / Next** (updated 2026-11-01)
 > - **Done:** M1–M4.2, M5a, M5c, M5b steps 11–13, P1, P2 (the data-entry fixes), Explanatory paths (2026-10-14), the visual pass (2026-10-15) and the conceptual map for real data (2026-10-19, D35, D36, migration 009), the inventory view (M5b step 14, D37) and a more useful inventory (2026-10-20, D38), all deployed. The [network hierarchy](roadmap.md#1-the-network-hierarchy-the-conceptual-views-new-purpose)'s phase 1 (D39, 2026-10-27) and phase 2, **one conceptual view** (D40, 2026-10-30: the left-to-right tree, selection and drawer, no Focus; [plan](history/plans/2026-10-28-one-conceptual-view.md)), are built and not yet deployed; they are deployed together, and the owner checks the tree on the test server. The test server runs `main` with real data entered by hand.
-> - **Now:** nothing in progress. Next is the network hierarchy's **phase 3**, [networks and size](roadmap.md#1-the-network-hierarchy-the-conceptual-views-new-purpose), once the owner has checked phase 2 on real data.
-> - **Then:** [more equipment](roadmap.md#2-more-equipment), [M6](roadmap.md#3-m6--layout-undo-and-measured-scale), M7 and the production servers. See [roadmap.md](roadmap.md).
+> - **Now:** nothing in progress. The hierarchy's phase 3 (networks and size) is dropped (D41); its other-network dots on closed cards are a backlog item. Next is [more equipment](roadmap.md#2-more-equipment), once the owner has checked phases 1 and 2 on real data.
+> - **Then:** [M6](roadmap.md#3-m6--layout-undo-and-measured-scale), M7 and the production servers. See [roadmap.md](roadmap.md).
 
 Below is what the code runs today, by area. The headings name the milestone that built each part (the milestones themselves are in [history/implementation-plan-m1-to-p2.md](history/implementation-plan-m1-to-p2.md)). The rules behind it are [architecture.md](architecture.md), [ui-spec.md](ui-spec.md) and [decisions.md](decisions.md).
 
