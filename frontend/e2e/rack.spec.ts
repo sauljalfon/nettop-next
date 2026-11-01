@@ -1,9 +1,4 @@
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from './fixtures'
 import { fitted, openRackInPhysical } from './helpers'
 
 // The explorer writes its state on its root; these specs assert that model.

@@ -1,9 +1,4 @@
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from './fixtures'
 import { fitted, openRackInPhysical } from './helpers'
 
 const root = (page: Page) => page.locator('.physical-explorer')

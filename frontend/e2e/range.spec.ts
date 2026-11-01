@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 import { fitted, openRackInPhysical } from './helpers'
 import { addSwitch, getPlan, newPlan, unique } from './plan-api'
 import {

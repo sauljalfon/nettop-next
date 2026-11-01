@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { pick } from './helpers'
 
 // Find AGG / BB in the UI against the acceptance fixture: EDGE-17 reaches two

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 import { fitted, selectEquipment, settledViewport, viewport } from './helpers'
 
 // The test database is shared by every spec in a run and networks cannot be

@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from '@playwright/test'
+import { expect, test, type APIRequestContext } from './fixtures'
 import { openRackInPhysical, expandResults } from './helpers'
 import { chooseRack } from './patching-helpers'
 import { getPlan } from './plan-api'

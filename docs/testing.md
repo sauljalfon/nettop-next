@@ -16,8 +16,9 @@ Default local ports:
 | Development PostgreSQL | 55432 |
 | Go development API | 8080 |
 | Vite development UI | 5174 |
-| Browser-test API | 18080 |
-| Browser-test Vite | 5175 |
+| Browser-test API | 18090–18093 (one per lane) |
+| Browser-test Vite | 5180–5183 (one per lane) |
+| Scale-test API / Vite | 18081 / 5176 |
 
 Use `HTTP_ADDR` and `API_PROXY_TARGET` together when changing development API location. The test server has separate configured ports; check for conflicts before starting it.
 
@@ -113,9 +114,11 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`playwright.config.ts` starts an isolated test-only Go server and Vite. The test-only server creates an isolated schema, migrates/seeds it, and cleans it on shutdown. It can run alongside development. Its default test DSN can be overridden with `TEST_DATABASE_URL`.
+`playwright.config.ts` runs the specs on **lanes**, one per worker (4 by default; `E2E_WORKERS` in `.env` changes it, e.g. `E2E_WORKERS=1` to debug one spec). Each lane is its own test-only Go server and its own Vite pointing at it: the server creates an isolated schema, migrates and seeds it (the acceptance fixture plus the Expansion draft), and drops it on shutdown, so lanes never share data. Worker N uses lane N; **specs import `test` and `expect` from `e2e/fixtures.ts`**, never from `@playwright/test`, because that fixture gives each worker its lane's base URL (`laneURL` is there for a `beforeAll` that makes its own request context). A file's tests run in order on one lane; files are spread over the lanes. It all runs alongside development. `E2E_API_PORT` and `E2E_WEB_PORT` move the first lane's ports; the default test DSN can be overridden with `TEST_DATABASE_URL`.
 
-The Playwright config has two projects: `main` (every spec except `*.recording.spec.ts`) and `recording` (`changes.recording.spec.ts`), which depends on `main` and runs after it with one worker. Recording a plan changes the shared test server's installed revision and makes every other draft stale, so specs that record or make drafts stale must be named `*.recording.spec.ts`, build their own drafts, and not depend on each other's order. If a `main` spec fails, `recording` does not run.
+**On the test machine.** `npm run test:e2e:remote` (`scripts/e2e-remote.sh`; any Playwright arguments after `--`) copies this working folder, uncommitted changes included and never `.env`, to the machine in `E2E_REMOTE` (with `E2E_REMOTE_KEY`), installs packages there when the lock files changed, runs the suite on 8 lanes (`E2E_REMOTE_WORKERS`) and copies `test-results/` back to `frontend/test-results-remote/` when something fails. The machine (16 cores, Ubuntu) has Go and Node under `~/.local/opt`, Playwright's Chromium with its system libraries, and a local PostgreSQL with the same `nettop` test role; it holds no real data and never may. Measured on 2026-11-01, the whole suite (273 tests): about 10 minutes on the Mac one at a time (estimated from about 2 s a test), 6.0–6.4 minutes on the Mac with 4 lanes, **3.3 minutes on the test machine with 8 lanes** (12 lanes: 3.5).
+
+The Playwright config has two projects: `main` (every spec except `*.recording.spec.ts`) and `recording`, which depends on `main` and runs after it, on the same lanes. Recording a plan changes its lane's installed revision and makes every other draft on that lane stale, so specs that record or make drafts stale must be named `*.recording.spec.ts`, build their own drafts, and not depend on each other's order. If a `main` spec fails, `recording` does not run.
 
 `src/shared/theme.test.ts` is the look's rule test (D33): colours, font sizes under 11px and uppercase transforms are allowed in `theme.css` only (its allowlist of unconverted files is empty), the retired names (`--purple`, `--line`, `--muted`, `--green`, `.button`, `.outline-button`) are gone, and every token has its planned value. It runs with `npm test`.
 

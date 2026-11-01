@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 import { fitted, openRackInPhysical, expandResults } from './helpers'
 
 // The explorer writes its state on its root; these specs assert that model.

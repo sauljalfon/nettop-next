@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 // PR-05: the header labels the environment the API reports; the test server
 // reports dev, and the old fixed "LOCAL DEV" text is gone.

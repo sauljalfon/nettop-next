@@ -34,10 +34,11 @@ npx vitest run src/features/pathfinding/projection.test.ts -t "name"   # single 
 npm run typecheck
 npm run build                # tsc --noEmit + vite build
 npm run format:check         # prettier; `npm run format` to fix
+npm run test:e2e:remote      # the same on the test machine (E2E_REMOTE in .env; 8 lanes, ~3.5 min); `-- e2e/x.spec.ts` for one file
 npm run test:e2e             # Playwright (project `main`, then `recording`: specs named *.recording.spec.ts record plans and make drafts stale, so they run last); `npx playwright test e2e/planning.spec.ts` for one file
 ```
 
-`go run ./cmd/testserver -fixture campus` and `go run ./cmd/db seed -fixture campus` use the generated campus fixture (development only); `SCALE=1 npx playwright test -c playwright.scale.config.ts` runs the opt-in scale spec against it. Playwright starts `backend/cmd/testserver` (isolated schema, migrate+acceptance seed plus an "Expansion" draft, cleaned on shutdown) on 18080 and Vite on 5175, so it can run alongside dev. Before handoff, run Go tests, frontend tests, typecheck, and build.
+`go run ./cmd/testserver -fixture campus` and `go run ./cmd/db seed -fixture campus` use the generated campus fixture (development only); `SCALE=1 npx playwright test -c playwright.scale.config.ts` runs the opt-in scale spec against it. Playwright runs 4 workers, each on its own **lane**: its own `backend/cmd/testserver` (isolated schema, migrate+acceptance seed plus an "Expansion" draft, cleaned on shutdown) on 18090+N and its own Vite on 5180+N, so lanes never share data and it all runs alongside dev; `E2E_WORKERS` changes the count. Specs import `test`/`expect` from `e2e/fixtures.ts` (it points each worker at its lane), never from `@playwright/test`. Before handoff, run Go tests, frontend tests, typecheck, and build.
 
 When `api/openapi.yaml` changes, lint it from `frontend/` with `npx --yes @redocly/cli lint ../api/openapi.yaml --extends minimal`.
 

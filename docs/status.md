@@ -386,7 +386,7 @@ React/TypeScript, TanStack Query, React Flow. The conceptual map lives in `front
 
 - **Go:** domain, engine, API and database tests with `-race`; PostgreSQL tests use unique schemas and skip without `TEST_DATABASE_URL`. `internal/scalefixture` checks the campus fixture (SC-01).
 - **Frontend unit tests:** 1,128 in 84 files (2026-10-30), plus strict TypeScript, the build, Prettier and the OpenAPI lint.
-- **Playwright:** against a test-only API (`cmd/testserver`: the acceptance fixture plus the Expansion draft, in an isolated schema) on ports 18080/5175; 276 tests in two projects, `main` then `recording` (273 run and pass; the three opt-in `scale` tests are skipped without `SCALE=1`). Specs assert the projection's and the explorer's own `data-*` marks instead of counting elements React Flow may not have drawn. How to run them is in [testing.md](testing.md); the test IDs map to [acceptance-tests.md](acceptance-tests.md) and to the step tables in history.
+- **Playwright:** against a test-only API (`cmd/testserver`: the acceptance fixture plus the Expansion draft, in an isolated schema) on lanes (one test server and Vite per worker, 4 by default, ports 18090+/5180+); 276 tests in two projects, `main` then `recording` (273 run and pass; the three opt-in `scale` tests are skipped without `SCALE=1`). Specs assert the projection's and the explorer's own `data-*` marks instead of counting elements React Flow may not have drawn. How to run them is in [testing.md](testing.md); the test IDs map to [acceptance-tests.md](acceptance-tests.md) and to the step tables in history.
 
 ## Not built yet
 

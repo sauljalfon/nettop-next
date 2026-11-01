@@ -8,7 +8,7 @@ import {
   type APIRequestContext,
   type Page,
   type Request,
-} from '@playwright/test'
+} from './fixtures'
 import { fitted } from './helpers'
 import { addRoom, addSwitch, getPlan, newPlan, unique } from './plan-api'
 

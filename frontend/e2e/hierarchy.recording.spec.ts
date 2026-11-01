@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 import { fitted, settledViewport } from './helpers'
 
 // HI-13. A direct fix while the hierarchy is open: the drawer stays on the same

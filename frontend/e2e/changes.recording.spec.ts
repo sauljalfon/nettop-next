@@ -3,12 +3,7 @@
 // project, after all other specs (see playwright.config.ts). Each one builds its
 // own drafts on the revision it finds, and only adds or removes what it made
 // itself, so none depends on another's order.
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from './fixtures'
 import { expandResults, fitted, openRackInPhysical } from './helpers'
 import {
   addRoom,

@@ -1,16 +1,10 @@
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from './fixtures'
 import { fitted, selectEquipment } from './helpers'
 import { addSwitch, newPlan, unique } from './plan-api'
 
 // VP-01: Hebrew names read correctly everywhere. The renames are direct fixes
 // of installed objects (change-log rows), so this spec runs in the recording
 // project, and it renames everything back afterwards.
-const BASE = 'http://127.0.0.1:5175'
 const HEBREW = {
   equipment: { id: 'panel-a', was: 'PANEL-A', now: 'פאנל ראשי 1' },
   nodes: {
@@ -33,13 +27,13 @@ async function rename(
   }
 }
 
-test.beforeAll(async ({ playwright }) => {
-  const request = await playwright.request.newContext({ baseURL: BASE })
+test.beforeAll(async ({ playwright, laneURL }) => {
+  const request = await playwright.request.newContext({ baseURL: laneURL })
   await rename(request, 'now')
   await request.dispose()
 })
-test.afterAll(async ({ playwright }) => {
-  const request = await playwright.request.newContext({ baseURL: BASE })
+test.afterAll(async ({ playwright, laneURL }) => {
+  const request = await playwright.request.newContext({ baseURL: laneURL })
   await rename(request, 'was')
   await request.dispose()
 })

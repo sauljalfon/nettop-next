@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 import { fitted, expandResults } from './helpers'
 
 // The explorer writes its state on its root, so these specs assert the model
@@ -330,8 +330,13 @@ test('PHY-18 dragging a node saves once at the drop, and it stays there after a 
   await page.mouse.down()
   await page.mouse.move(box.x + 24 + 180, box.y + 14 + 120, { steps: 15 })
   expect(puts).toHaveLength(0) // nothing is sent while dragging
+  // Wait for the server's answer, not only the request, before reading it back.
+  const stored = page.waitForResponse(
+    (r) => r.request().method() === 'PUT' && r.url().includes('/layout/nodes/'),
+  )
   await page.mouse.up()
-  await expect.poll(() => puts.length).toBe(1)
+  expect((await stored).ok()).toBe(true)
+  expect(puts).toHaveLength(1)
   expect(puts[0]).toContain(
     '/api/sites/site-main-campus/layout/nodes/node-north-sub-main',
   )
@@ -367,7 +372,11 @@ test('PHY-18 dragging a node saves once at the drop, and it stays there after a 
     moved['node-north-sub-main'],
   )
   await page.getByRole('button', { name: 'Reset layout' }).click()
+  const removed = page.waitForResponse(
+    (r) => r.request().method() === 'DELETE' && r.url().includes('/layout'),
+  )
   await page.getByRole('button', { name: 'Reset', exact: true }).click()
+  expect((await removed).ok()).toBe(true)
   await expect
     .poll(async () => (await positions(page))['node-north-sub-main'])
     .toEqual(before['node-north-sub-main'])

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import type { Plan } from '../src/shared/types'
 import { fitted, selectEquipment } from './helpers'
 

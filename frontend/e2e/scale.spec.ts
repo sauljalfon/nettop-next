@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 import { settledViewport } from './helpers'
 
 // SC-02 / HI-12, opt-in: `SCALE=1 npx playwright test -c playwright.scale.config.ts`.

@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from './fixtures'
 import { fitted, hierarchyState, settledViewport, viewport } from './helpers'
 
 // HI-09. The hierarchy of one network, from the acceptance fixture and the

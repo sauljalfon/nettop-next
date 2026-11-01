@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 import { fitted, openRackInPhysical } from './helpers'
 
 const root = (page: Page) => page.locator('.physical-explorer')

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import type { Plan, Snapshot, TraceResult } from '../src/shared/types'
 
 // API-level browser-suite check of atomic HDF creation against the real test

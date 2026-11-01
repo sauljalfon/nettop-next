@@ -1,9 +1,4 @@
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from './fixtures'
 import { pick } from './helpers'
 import { chooseRack } from './patching-helpers'
 
