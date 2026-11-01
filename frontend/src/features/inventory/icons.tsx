@@ -37,6 +37,7 @@ const ICONS = {
       <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
     </>
   ),
+  rack_item: <rect x="2" y="8" width="20" height="8" rx="1.5" />,
   rack: (
     <>
       <rect x="5" y="3" width="14" height="18" rx="1.5" />

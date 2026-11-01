@@ -188,3 +188,38 @@ func TestUnknownObjectKindAndLongNote(t *testing.T) {
 		t.Fatalf("long note: err = %v", err)
 	}
 }
+
+// RI-04: the rack item's type and text are detail fields of a direct fix.
+func TestRI04RackItemTypeAndTextFixes(t *testing.T) {
+	s := acceptance.Installed()
+	s.Equipment = append(s.Equipment, topology.Equipment{ID: "ri", Name: "Shelf 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 1, Height: 1, ItemType: "shelf"})
+	fix := func(typ string, text *string) Fix {
+		return Fix{Kind: Equipment, ID: "ri", Details: topology.Details{ItemType: ptr(typ), ItemText: text}}
+	}
+
+	next, changes := mustApply(t, s, fix("other", ptr("KVM switch")))
+	want := []Change{{Field: "itemType", OldValue: "shelf", NewValue: "other"}, {Field: "itemText", OldValue: "", NewValue: "KVM switch"}}
+	if !reflect.DeepEqual(changes, want) {
+		t.Fatalf("changes = %+v, want %+v", changes, want)
+	}
+	if next.Revision != s.Revision {
+		t.Fatal("a fix must not change the revision")
+	}
+
+	back, changes := mustApply(t, next, fix("ups", ptr("")))
+	want = []Change{{Field: "itemType", OldValue: "other", NewValue: "ups"}, {Field: "itemText", OldValue: "KVM switch", NewValue: ""}}
+	if !reflect.DeepEqual(changes, want) {
+		t.Fatalf("changes = %+v, want %+v", changes, want)
+	}
+	if e := equipmentNamed(back, "ri"); e.ItemType != "ups" || e.ItemText != "" {
+		t.Fatalf("%+v", e)
+	}
+
+	if _, _, err := Apply(next, fix("ups", nil)); !errors.Is(err, topology.ErrInvalidInput) || !strings.Contains(err.Error(), "what it is is only for an Other") {
+		t.Fatalf("keeping the text must be refused: %v", err)
+	}
+	_, _, err := Apply(s, Fix{Kind: Equipment, ID: "agg-03", Details: topology.Details{ItemType: ptr("ups")}})
+	if !errors.Is(err, topology.ErrInvalidInput) || !strings.Contains(err.Error(), "does not apply here") {
+		t.Fatalf("itemType on a switch must be refused: %v", err)
+	}
+}

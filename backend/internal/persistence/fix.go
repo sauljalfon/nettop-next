@@ -94,8 +94,8 @@ func writeFixed(ctx context.Context, tx pgx.Tx, next topology.Snapshot, f fixes.
 	case fixes.Equipment:
 		e := next.Equipment[slices.IndexFunc(next.Equipment, func(x topology.Equipment) bool { return x.ID == f.ID })]
 		tag, err = tx.Exec(ctx, `UPDATE equipment SET name=$2, manufacturer=NULLIF($3,''), model=NULLIF($4,''), serial_number=NULLIF($5,''),
-			ip_address=NULLIF($6,''), status=NULLIF($7,''), description=NULLIF($8,'') WHERE id=$1`,
-			e.ID, e.Name, e.Manufacturer, e.Model, e.SerialNumber, e.IPAddress, e.Status, e.Description)
+			ip_address=NULLIF($6,''), status=NULLIF($7,''), description=NULLIF($8,''), item_type=NULLIF($9,''), item_text=NULLIF($10,'') WHERE id=$1`,
+			e.ID, e.Name, e.Manufacturer, e.Model, e.SerialNumber, e.IPAddress, e.Status, e.Description, e.ItemType, e.ItemText)
 	case fixes.Endpoint:
 		p := next.Endpoints[slices.IndexFunc(next.Endpoints, func(x topology.Endpoint) bool { return x.ID == f.ID })]
 		tag, err = tx.Exec(ctx, `UPDATE endpoints SET label=$2, port_type=NULLIF($3,''), connector=NULLIF($4,''), speed=NULLIF($5,''),

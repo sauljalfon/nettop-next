@@ -64,7 +64,7 @@ type Entry struct {
 // order is the order changes are listed in: the name, then the detail fields
 // in the order of topology.Details.Fields.
 var order = []string{"name", "manufacturer", "model", "serialNumber", "ipAddress", "status", "description",
-	"portType", "connector", "speed", "state", "label", "notes", "location", "rackType"}
+	"portType", "connector", "speed", "state", "label", "notes", "location", "rackType", "itemType", "itemText"}
 
 func invalid(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", topology.ErrInvalidInput, fmt.Sprintf(format, args...))
@@ -102,7 +102,7 @@ func diff(before, after map[string]string) []Change {
 
 func equipmentValues(e topology.Equipment) map[string]string {
 	return map[string]string{"name": e.Name, "manufacturer": e.Manufacturer, "model": e.Model, "serialNumber": e.SerialNumber,
-		"ipAddress": e.IPAddress, "status": e.Status, "description": e.Description}
+		"ipAddress": e.IPAddress, "status": e.Status, "description": e.Description, "itemType": e.ItemType, "itemText": e.ItemText}
 }
 func endpointValues(p topology.Endpoint) map[string]string {
 	return map[string]string{"name": p.Label, "portType": p.PortType, "connector": p.Connector, "speed": p.Speed,

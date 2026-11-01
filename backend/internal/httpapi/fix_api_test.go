@@ -82,3 +82,16 @@ func TestFixAnswersAreDeterministicAndNullMeansNotGiven(t *testing.T) {
 		t.Fatalf("null fields must change nothing: %+v", got.Changes)
 	}
 }
+
+// RI-06: the type of an installed rack item is fixed over PATCH.
+func TestRI06FixRackItemTypeOverHTTP(t *testing.T) {
+	base := acceptance.Installed()
+	base.Equipment = append(base.Equipment, topology.Equipment{ID: "ri", Name: "Shelf 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 1, Height: 1, ItemType: "shelf"})
+	call := newCaller(t, handlerFor(t, base))
+	got := decodeBody[fixAnswer](t, call("PATCH", "/api/installed/equipment/ri", `{"details":{"itemType":"other","itemText":"KVM switch"}}`, 200))
+	if len(got.Changes) != 2 || got.Changes[0].Field != "itemType" || got.Changes[1].NewValue != "KVM switch" {
+		t.Fatalf("changes = %+v", got.Changes)
+	}
+	call("PATCH", "/api/installed/equipment/ri", `{"details":{"itemType":"ups"}}`, 422)
+	call("PATCH", "/api/installed/equipment/agg-03", `{"details":{"itemType":"ups"}}`, 422)
+}

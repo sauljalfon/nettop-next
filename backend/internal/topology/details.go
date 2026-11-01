@@ -20,6 +20,12 @@ var (
 	rackTypes         = []string{"standard", "wall-mount", "open-frame"}
 )
 
+// RackItemTypes are the types of a rack item (kind rack_item).
+var RackItemTypes = []string{"ups", "pdu", "shelf", "cable-manager", "other"}
+
+// MaxItemText is the longest "what it is" of an Other rack item, in characters.
+const MaxItemText = 100
+
 // Details is the optional `details` payload of a command: any subset of the
 // detail fields of the objects the plan adds. A nil field is not given; an
 // empty string clears the field. Which fields apply depends on the object
@@ -39,6 +45,8 @@ type Details struct {
 	Notes        *string `json:"notes,omitempty"`
 	Location     *string `json:"location,omitempty"`
 	RackType     *string `json:"rackType,omitempty"`
+	ItemType     *string `json:"itemType,omitempty"`
+	ItemText     *string `json:"itemText,omitempty"`
 }
 
 // Fields lists the given fields, names in a fixed order, values trimmed.
@@ -51,6 +59,7 @@ func (d Details) Fields() []DetailField {
 		{"manufacturer", d.Manufacturer}, {"model", d.Model}, {"serialNumber", d.SerialNumber}, {"ipAddress", d.IPAddress},
 		{"status", d.Status}, {"description", d.Description}, {"portType", d.PortType}, {"connector", d.Connector},
 		{"speed", d.Speed}, {"state", d.State}, {"label", d.Label}, {"notes", d.Notes}, {"location", d.Location}, {"rackType", d.RackType},
+		{"itemType", d.ItemType}, {"itemText", d.ItemText},
 	} {
 		if f.v != nil {
 			out = append(out, DetailField{f.name, strings.TrimSpace(*f.v)})
@@ -74,6 +83,7 @@ func (d Details) Merge(later Details) Details {
 		PortType: pick(d.PortType, later.PortType), Connector: pick(d.Connector, later.Connector),
 		Speed: pick(d.Speed, later.Speed), State: pick(d.State, later.State), Label: pick(d.Label, later.Label),
 		Notes: pick(d.Notes, later.Notes), Location: pick(d.Location, later.Location), RackType: pick(d.RackType, later.RackType),
+		ItemType: pick(d.ItemType, later.ItemType), ItemText: pick(d.ItemText, later.ItemText),
 	}
 }
 
@@ -96,6 +106,16 @@ func (e *Equipment) SetDetail(f DetailField) bool {
 		e.Status = f.Value
 	case "description":
 		e.Description = f.Value
+	case "itemType":
+		if e.Kind != "rack_item" {
+			return false
+		}
+		e.ItemType = f.Value
+	case "itemText":
+		if e.Kind != "rack_item" {
+			return false
+		}
+		e.ItemText = f.Value
 	default:
 		return false
 	}
@@ -187,6 +207,10 @@ func DetailWord(name string) string {
 		return "port type"
 	case "rackType":
 		return "rack type"
+	case "itemType":
+		return "type"
+	case "itemText":
+		return "what it is"
 	}
 	return name
 }
@@ -237,7 +261,8 @@ func (e Equipment) DetailProblem() string {
 	if p := firstProblem(e.Name,
 		field{"manufacturer", e.Manufacturer, MaxDetailText, nil}, field{"model", e.Model, MaxDetailText, nil},
 		field{"serialNumber", e.SerialNumber, MaxDetailText, nil}, field{"ipAddress", e.IPAddress, MaxDetailText, nil},
-		field{"status", e.Status, MaxDetailText, equipmentStatuses}, field{"description", e.Description, MaxDetailLong, nil}); p != "" {
+		field{"status", e.Status, MaxDetailText, equipmentStatuses}, field{"description", e.Description, MaxDetailLong, nil},
+		field{"itemType", e.ItemType, MaxDetailText, RackItemTypes}, field{"itemText", e.ItemText, MaxItemText, nil}); p != "" {
 		return p
 	}
 	if e.IPAddress != "" {

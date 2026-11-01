@@ -384,3 +384,44 @@ func TestMigration007PlanRecordStateConstraint(t *testing.T) {
 		t.Fatalf("change_log: %v", err)
 	}
 }
+
+// RI-05: a recorded plan that adds a rack item reads back whole; migration 010
+// refuses a rack item without a type at the database too.
+func TestRI05RecordedRackItemRoundTrips(t *testing.T) {
+	ctx := context.Background()
+	typ, text := "other", "KVM switch"
+	draft, err := planning.Execute(acceptance.Installed(), planning.Plan{ID: "ri", Name: "Rack item", Revision: "1", BaseRevision: "acceptance-1"},
+		planning.Command{Type: "add_equipment", ExpectedRevision: "1", Equipment: &planning.EquipmentInput{Name: "KVM 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 3, Height: 2,
+			Details: &topology.Details{ItemType: &typ, ItemText: &text}}}, "ri-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, _ := seeded(t, draft)
+	if _, _, err = s.Record(ctx, "ri", draft.Revision, "installed", "Tester"); err != nil {
+		t.Fatal(err)
+	}
+	e := installedEquipment(t, s, "ri-1")
+	if e.Kind != "rack_item" || e.Role != "none" || e.ItemType != "other" || e.ItemText != "KVM switch" || e.NetworkID != "" || e.Height != 2 {
+		t.Fatalf("%+v", e)
+	}
+	occupancyIsConsistent(t, s)
+
+	insert := func(id, role, itemType, itemText string) error {
+		_, err := s.pool.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,rack_id,unit,height,item_type,item_text) VALUES ($1,$1,'rack_item',$2,'rack-a03',9,1,NULLIF($3,''),NULLIF($4,''))`, id, role, itemType, itemText)
+		return err
+	}
+	for name, args := range map[string][3]string{
+		"no type":          {"none", "", ""},
+		"unknown type":     {"none", "toaster", ""},
+		"other no text":    {"none", "other", ""},
+		"text on a shelf":  {"none", "shelf", "x"},
+		"role is not none": {"passive", "shelf", ""},
+	} {
+		if err := insert("bad-"+strings.ReplaceAll(name, " ", "-"), args[0], args[1], args[2]); err == nil {
+			t.Errorf("%s: the database accepted it", name)
+		}
+	}
+	if _, err := s.pool.Exec(ctx, `UPDATE equipment SET item_type='ups' WHERE id='agg-03'`); err == nil {
+		t.Error("the database accepted a type on a switch")
+	}
+}

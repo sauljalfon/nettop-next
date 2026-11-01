@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Rack items — demo</title>
+<style>
+  /* Theme values copied from frontend/src/shared/theme.css (D33). */
+  :root {
+    --floor: #eef1f3; --paper: #fff; --paper-sunk: #f6f8f9; --ink: #1c2b3a; --ink-soft: #56636f;
+    --rule: #d3dae1; --rule-soft: #e6ebef; --steel: #1f2731; --steel-2: #2a3440; --steel-3: #3a4552;
+    --tape: #fbfbf8; --tape-ink: #15202b; --amber: #d99a0b; --amber-soft: #fdf3dc; --amber-halo: #f2b134;
+    --proposed: #8a6100; --proposed-soft: #fff6dd; --danger: #b4361f; --route: #0f8b7a;
+    --steel-line: #36414d; --steel-edge: #4b5765; --steel-hover: #7d8a98; --steel-ink: #a8b4c0;
+    --steel-ink-strong: #c3ccd6; --steel-ink-soft: #8d9aa8; --steel-free: #6f7c8a; --steel-rail: #11171e;
+    --steel-port: #8795a3; --proposed-on-steel: #e3b84d; --proposed-steel-bg: #3d3a2e;
+    --net-a: #3b6fd8; --net-b: #8a4fc4;
+    --sans: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif; --mono: 'IBM Plex Mono', Consolas, monospace;
+    --unit: 26px; --gap: 2px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; font: 14px/1.4 var(--sans); color: var(--ink); background: var(--floor); }
+  header.app { display: flex; align-items: center; gap: 16px; padding: 10px 18px; background: var(--paper); border-bottom: 1px solid var(--rule); }
+  header.app h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; background: var(--paper); padding: 6px 12px; font: inherit; cursor: pointer; color: var(--ink-soft); }
+  .seg button[aria-pressed='true'] { background: var(--ink); color: #fff; }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .btn { height: 32px; padding: 0 12px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); font: inherit; cursor: pointer; color: var(--ink); }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .note { margin-left: auto; color: var(--ink-soft); font-size: 12px; max-width: 520px; }
+  main { display: grid; grid-template-columns: 300px auto 1fr; gap: 20px; padding: 18px; align-items: start; }
+  .crumbs { font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+  .crumbs b { color: var(--ink); font-weight: 600; }
+  .rack-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .rack-head h2 { margin: 0; font-size: 20px; }
+  .rack-head small { color: var(--ink-soft); }
+
+  .cabinet { position: relative; display: grid; grid-template-columns: 38px 1fr; gap: var(--gap) 8px; width: 520px; padding: 14px 20px 14px 12px; background: var(--steel); border-radius: 6px; }
+  .rail { position: absolute; top: 14px; bottom: 14px; width: 8px; background-image: repeating-linear-gradient(to bottom, transparent 0 9px, var(--steel-rail) 9px 13px, transparent 13px calc(var(--unit) + var(--gap))); }
+  .rail.l { left: 3px; } .rail.r { right: 3px; }
+  .u { align-self: center; font: 11px var(--mono); color: var(--steel-ink-soft); text-align: right; }
+  .u.strong { color: var(--steel-ink-strong); font-weight: 500; }
+  .free { display: flex; align-items: center; padding: 0 10px; font-size: 11px; color: var(--steel-free); border: 1px dashed var(--steel-line); border-radius: 2px; cursor: default; }
+  .block { position: relative; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 14px; overflow: hidden; color: var(--steel-ink-strong); background: var(--steel-3); border: 1px solid var(--steel-edge); border-radius: 2px; cursor: pointer; text-align: left; font: inherit; }
+  .block::before { content: ''; position: absolute; top: 3px; bottom: 3px; left: 3px; width: 4px; border-radius: 1px; background: var(--stripe, var(--steel-hover)); }
+  .block:hover { border-color: var(--steel-hover); }
+  .block[data-selected='true'] { outline: 2px solid var(--amber-halo); outline-offset: 1px; }
+  .block[data-proposed='true'] { background: var(--proposed-steel-bg); border: 1px dashed var(--proposed-on-steel); }
+  .tape { flex: 0 1 auto; max-width: 220px; height: 18px; padding: 0 8px; line-height: 18px; font-size: 12px; font-weight: 500; background: var(--tape); color: var(--tape-ink); border-radius: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kind { margin-left: auto; font-size: 11px; color: var(--steel-ink); white-space: nowrap; }
+  .plate { flex: 1; height: 8px; min-width: 40px; }
+  .plate.switch { background: radial-gradient(circle, var(--steel-port) 1.3px, transparent 1.7px) 0 center / 5px 5px repeat-x; }
+  .plate.panel { background: repeating-linear-gradient(90deg, var(--steel-port) 0 3px, transparent 3px 5px); }
+  /* Rack items: no jacks, so no port dots; each type has a plain faceplate. */
+  .block.item { background: var(--steel-2); --stripe: var(--steel-line); }
+  .plate.ups { height: 60%; max-width: 150px; background:
+      linear-gradient(var(--steel-3), var(--steel-3)) 6px 50% / 28px 10px no-repeat,
+      repeating-linear-gradient(90deg, var(--steel-line) 0 2px, transparent 2px 6px) 44px 0 / calc(100% - 44px) 100% no-repeat; border-radius: 2px; }
+  .plate.pdu { max-width: 190px; height: 10px; background: repeating-linear-gradient(90deg, var(--steel-edge) 0 9px, transparent 9px 14px); border-radius: 1px; }
+  .plate.shelf { height: 4px; max-width: 220px; background: var(--steel-edge); border-radius: 1px; align-self: flex-end; margin-bottom: 5px; }
+  .plate.cable-manager { height: 12px; max-width: 220px; background: repeating-linear-gradient(90deg, var(--steel-edge) 0 3px, transparent 3px 11px); border-top: 2px solid var(--steel-edge); }
+  .plate.other { height: 8px; max-width: 120px; border: 1px solid var(--steel-edge); border-radius: 1px; }
+  .what { font-size: 11px; color: var(--steel-ink); font-style: italic; white-space: nowrap; }
+
+  aside { display: grid; gap: 14px; align-content: start; max-width: 560px; }
+  .card { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; box-shadow: 0 2px 6px #1c2b3a12; }
+  .card h3 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .card .sub { color: var(--ink-soft); font-size: 13px; margin-bottom: 10px; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: var(--paper-sunk); border: 1px solid var(--rule); color: var(--ink-soft); font-weight: 500; }
+  .chip.proposed { background: var(--proposed-soft); border: 1px dashed var(--proposed); color: var(--proposed); }
+  dl { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; margin: 0; font-size: 13px; }
+  dt { color: var(--ink-soft); }
+  dd { margin: 0; }
+  .muted { color: var(--ink-soft); }
+  .field { display: grid; gap: 4px; margin-bottom: 10px; font-size: 13px; }
+  .field label { color: var(--ink-soft); font-weight: 500; }
+  .field input, .field select { height: 34px; padding: 0 8px; border: 1px solid var(--rule); border-radius: 6px; font: inherit; background: var(--paper); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .err { color: var(--danger); font-size: 13px; margin: 4px 0 10px; }
+  .hint { color: var(--ink-soft); font-size: 12px; }
+  .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; color: var(--ink-soft); background: var(--paper-sunk); padding: 6px 8px; border-bottom: 1px solid var(--rule); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--rule-soft); white-space: nowrap; }
+  tr.proposed td { background: var(--proposed-soft); }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .pill { border: 1px solid var(--rule); background: var(--paper); border-radius: 14px; padding: 2px 10px; font: inherit; font-size: 12px; cursor: pointer; color: var(--ink-soft); }
+  .pill[aria-pressed='true'] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+  .library { display: grid; gap: 8px; align-content: start; }
+  .notice { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+  .notice p { margin: 2px 0 0; color: var(--ink-soft); font-size: 12px; }
+  .lib-item { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; cursor: grab; }
+  .lib-item[aria-disabled='true'] { cursor: default; opacity: .7; }
+  .lib-item.new { border-color: var(--amber-halo); box-shadow: 0 0 0 2px var(--amber-soft); }
+  .lib-item strong { display: block; font-size: 14px; font-weight: 600; }
+  .lib-item small { display: block; font-size: 12px; color: var(--ink-soft); line-height: 1.4; }
+  .icon { width: 32px; height: 32px; border-radius: 6px; background: var(--paper-sunk); color: var(--ink-soft); display: grid; place-items: center; font-size: 16px; }
+  .library .card { box-shadow: none; }
+  .free.drop { border-color: var(--proposed-on-steel); color: var(--proposed-on-steel); }
+  .never { font-size: 12px; color: var(--ink-soft); border-top: 1px solid var(--rule-soft); margin-top: 10px; padding-top: 8px; }
+</style>
+</head>
+<body>
+<header class="app">
+  <h1>Net-Top <span class="chip">TEST</span></h1>
+  <div class="seg" role="group" aria-label="Context">
+    <button id="ctx-installed" aria-pressed="true">Installed</button>
+    <button id="ctx-plan" aria-pressed="false">Plan · Expansion</button>
+  </div>
+  <div class="seg" role="group" aria-label="View">
+    <button id="view-physical" aria-pressed="true">Physical</button>
+    <button id="view-inventory" aria-pressed="false">Inventory</button>
+  </div>
+  <p class="note">Demo of <b>rack items</b> (roadmap 2a). Fictional data. Click a block to inspect it; switch to the plan and drag <b>Rack item</b> from the library onto a free unit (or press its Add…); the Inventory shows the type column, the pill and the Racks count.</p>
+</header>
+
+<main id="physical">
+  <section class="library" id="library"></section>
+  <section>
+    <div class="crumbs">Main Campus › Building A › <b>Rack R01</b></div>
+    <div class="rack-head"><h2>Rack R01</h2><small>24U · <span id="used"></span></small>
+</div>
+    <div class="cabinet" id="cabinet"></div>
+  </section>
+  <aside id="side"></aside>
+</main>
+
+<main id="inventory" hidden style="grid-template-columns: 1fr">
+  <section class="card">
+    <div class="tabs seg" role="group">
+      <button id="list-eq" aria-pressed="true">Equipment</button>
+      <button id="list-racks" aria-pressed="false">Racks</button>
+    </div>
+    <div id="inv"></div>
+  </section>
+</main>
+
+<script>
+const TYPES = { ups: 'UPS', pdu: 'PDU', shelf: 'Shelf', 'cable-manager': 'Cable manager', other: 'Other' }
+const DEFAULT_HEIGHT = { ups: 2, pdu: 1, shelf: 1, 'cable-manager': 1, other: 1 }
+const RACK = { name: 'Rack R01', units: 24 }
+let installed = [
+  { id: 'e1', name: 'UPS U1', kind: 'item', type: 'ups', unit: 1, height: 2, manufacturer: 'APC', model: 'SMT1500RMI2U', serial: 'AS1934120876', ip: '10.20.0.31', status: 'active' },
+  { id: 'e2', name: 'PDU U3', kind: 'item', type: 'pdu', unit: 3, height: 1, manufacturer: 'APC', model: 'AP7920B', ip: '10.20.0.32', status: 'active' },
+  { id: 'e3', name: 'Shelf U5', kind: 'item', type: 'shelf', unit: 5, height: 2, description: 'ISP modem and media converter on the shelf', status: 'active' },
+  { id: 'e4', name: 'KVM', kind: 'item', type: 'other', what: 'KVM switch', unit: 8, height: 1, manufacturer: 'ATEN', model: 'CS1308' },
+  { id: 'e5', name: 'PANEL-A', kind: 'panel', unit: 12, height: 1 },
+  { id: 'e6', name: 'Cable manager U13', kind: 'item', type: 'cable-manager', unit: 13, height: 1 },
+  { id: 'e7', name: 'EDGE-01', kind: 'switch', net: 'a', unit: 14, height: 1 },
+  { id: 'e8', name: 'PANEL-B', kind: 'panel', unit: 16, height: 1 },
+  { id: 'e9', name: 'Cable manager U17', kind: 'item', type: 'cable-manager', unit: 17, height: 1 },
+  { id: 'e10', name: 'EDGE-02', kind: 'switch', net: 'b', unit: 18, height: 1 },
+]
+let proposed = []
+let ctx = 'installed', view = 'physical', selected = null, form = null, list = 'eq', pill = null
+
+const $ = (s) => document.querySelector(s)
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const all = () => (ctx === 'plan' ? installed.concat(proposed) : installed)
+const typeLabel = (e) => e.kind === 'item' ? (e.type === 'other' ? `Other · ${e.what}` : TYPES[e.type]) : e.kind === 'switch' ? 'Switch' : 'Panel'
+const span = (e) => e.height > 1 ? `U${e.unit}–${e.unit + e.height - 1}` : `U${e.unit}`
+function occupant(u, list = all()) { return list.find((e) => u >= e.unit && u < e.unit + e.height) }
+function usedUnits(list) { let n = 0; for (let u = 1; u <= RACK.units; u++) if (occupant(u, list)) n++; return n }
+
+function renderCabinet() {
+  const cab = $('#cabinet')
+  cab.classList.toggle('plan', ctx === 'plan')
+  cab.style.gridTemplateRows = `repeat(${RACK.units}, var(--unit))`
+  let html = '<div class="rail l"></div><div class="rail r"></div>'
+  // Top to bottom, like the real elevation.
+  for (let u = RACK.units; u >= 1; u--) {
+    const row = RACK.units - u + 1
+    html += `<div class="u ${u % 5 === 0 ? 'strong' : ''}" style="grid-row:${row}">${u}</div>`
+    const e = occupant(u)
+    if (!e) { html += `<div class="free" data-unit="${u}" style="grid-row:${row};grid-column:2">Available</div>`; continue }
+    if (u !== e.unit + e.height - 1) continue
+    const plate = e.kind === 'item' ? e.type : e.kind
+    const stripe = e.kind === 'switch' ? `--stripe: var(--net-${e.net})` : ''
+    html += `<button class="block ${e.kind === 'item' ? 'item' : ''}" data-id="${e.id}" data-selected="${selected === e.id}" data-proposed="${proposed.includes(e)}" style="grid-row:${row} / span ${e.height};grid-column:2;${stripe}">
+      <span class="tape">${esc(e.name)}</span>
+      <span class="plate ${plate}"></span>
+      ${e.type === 'other' ? `<span class="what">${esc(e.what)}</span>` : ''}
+      <span class="kind">${e.kind === 'item' ? (e.type === 'other' ? 'Other' : TYPES[e.type]) : typeLabel(e)}</span>
+    </button>`
+  }
+  cab.innerHTML = html
+  const used = usedUnits(all())
+  $('#used').textContent = `${used} used · ${RACK.units - used} free`
+}
+
+const LIB = [
+  { id: 'access', icon: '⇄', name: 'Access switch', desc: 'Connect endpoints at the edge' },
+  { id: 'aggregation', icon: '⑂', name: 'Aggregation', desc: 'An AGG destination for Find AGG / BB' },
+  { id: 'panel', icon: '▤', name: 'Patch panel', desc: 'Front / rear continuity per position' },
+  { id: 'item', icon: '▭', name: 'Rack item', desc: 'UPS, PDU, shelf, cable manager or other: takes units, no ports', isNew: true },
+  { id: 'hdf', icon: '▦', name: 'HDF', desc: 'Rows of subpanels, front and rear' },
+]
+function renderLibrary() {
+  const plan = ctx === 'plan'
+  $('#library').innerHTML = `<div class="notice"><strong>${plan ? 'Build your planned network' : 'Installed view'}</strong>
+    <p>${plan ? 'Drop inside a rack to assign it, or add an item with its form.' : 'Switch to a plan in the top bar to add or move equipment.'}</p></div>` +
+    LIB.map((i) => `<div class="lib-item ${i.isNew ? 'new' : ''}" draggable="${plan && i.id === 'item'}" data-lib="${i.id}" aria-disabled="${!plan}">
+      <span class="icon">${i.icon}</span><div><strong>${i.name}</strong><small>${i.desc}</small></div>
+      ${form && i.id === 'item' ? '' : `<button class="btn" data-add="${i.id}" ${plan && i.id === 'item' ? '' : 'disabled'}>Add…</button>`}</div>
+      ${form && i.id === 'item' ? formHtml() : ''}`).join('') +
+    `<p class="hint">Only <b>Rack item</b> works in this demo; the highlighted entry is the new one.</p>`
+  if (form) wireForm()
+  document.querySelector('[data-add="item"]')?.addEventListener('click', () => openForm())
+  document.querySelector('[data-lib="item"]')?.addEventListener('dragstart', (ev) => { ev.dataTransfer.setData('text/plain', 'item'); ev.dataTransfer.effectAllowed = 'copy' })
+}
+
+function renderSide() {
+  const side = $('#side')
+  const e = all().find((x) => x.id === selected)
+  if (!e) {
+    side.innerHTML = `<div class="card"><h3>Rack R01</h3><div class="sub">Pick a block to inspect it.${ctx === 'plan' ? ' Drag Rack item from the library onto a free unit to add one there.' : ' Switch to the plan to add rack items.'}</div>
+      <div class="never">Rack items have no ports: they are never cabled, never in a trace, Find AGG / BB, the tree or Problems.</div></div>`
+    return
+  }
+  const isProposed = proposed.includes(e)
+  if (e.kind !== 'item') {
+    side.innerHTML = `<div class="card"><h3>${esc(e.name)} <span class="chip">${typeLabel(e)}</span></h3><div class="sub">Rack R01 · ${span(e)} · unchanged by this item: ports, cables and traces as today.</div></div>`
+    return
+  }
+  const typeFix = e.editingType
+  side.innerHTML = `<div class="card">
+    <h3>${esc(e.name)} <span class="chip">${esc(typeLabel(e))}</span>${isProposed ? '<span class="chip proposed">Added in plan</span>' : ''}</h3>
+    <div class="sub">Main Campus › Building A › Rack R01 · ${span(e)} · ${e.height}U</div>
+    ${typeFix ? `
+      <div class="row2">
+        <div class="field"><label for="fix-type">Type</label><select id="fix-type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${k === e.type ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+        <div class="field" id="fix-what-f" ${e.type === 'other' ? '' : 'hidden'}><label for="fix-what">What it is</label><input id="fix-what" value="${esc(e.what || '')}" placeholder="e.g. KVM switch"></div>
+      </div>
+      <div class="err" id="fix-err" hidden></div>
+      <div class="hint">A direct fix, like details: no plan, the revision does not change, History records it.</div>
+      <div class="actions"><button class="btn" id="fix-cancel">Cancel</button><button class="btn primary" id="fix-save">Save</button></div>` : `
+    <dl>
+      <dt>Type</dt><dd>${esc(typeLabel(e))} ${isProposed ? '' : '<button class="btn" id="fix-open" style="height:24px;padding:0 8px;margin-left:6px">Fix type…</button>'}</dd>
+      <dt>Manufacturer</dt><dd>${esc(e.manufacturer) || '<span class="muted">—</span>'}</dd>
+      <dt>Model</dt><dd>${esc(e.model) || '<span class="muted">—</span>'}</dd>
+      <dt>Serial number</dt><dd>${esc(e.serial) || '<span class="muted">—</span>'}</dd>
+      <dt>IP address</dt><dd>${esc(e.ip) || '<span class="muted">—</span>'}</dd>
+      <dt>Status</dt><dd>${esc(e.status) || '<span class="muted">—</span>'}</dd>
+      <dt>Description</dt><dd>${esc(e.description) || '<span class="muted">—</span>'}</dd>
+    </dl>`}
+    <div class="never">No ports, so no port table: never cabled, never in a trace, Find AGG / BB, the tree or Problems.${ctx === 'plan' ? ' In the plan it moves and deletes like any equipment.' : ''}</div>
+  </div>`
+  $('#fix-open')?.addEventListener('click', () => { e.editingType = true; renderSide() })
+  $('#fix-cancel')?.addEventListener('click', () => { e.editingType = false; renderSide() })
+  $('#fix-type')?.addEventListener('change', (ev) => { $('#fix-what-f').hidden = ev.target.value !== 'other' })
+  $('#fix-save')?.addEventListener('click', () => {
+    const t = $('#fix-type').value, w = $('#fix-what').value.trim()
+    if (t === 'other' && !w) { const er = $('#fix-err'); er.hidden = false; er.textContent = 'Say what it is: an Other needs a short text.'; return }
+    e.type = t; e.what = t === 'other' ? w : undefined; e.editingType = false; render()
+  })
+}
+
+function suggestedName(type, unit, what) { return `${type === 'other' && what && what.trim() ? what.trim() : TYPES[type]} U${unit}` }
+function openForm(unit) {
+  const free = unit ?? firstFree(1)
+  form = { type: 'shelf', what: '', unit: free, height: 1, name: suggestedName('shelf', free), nameTouched: false }
+  selected = null
+  render()
+}
+function firstFree(h) { for (let u = 1; u + h - 1 <= RACK.units; u++) { let ok = true; for (let k = 0; k < h; k++) if (occupant(u + k)) ok = false; if (ok) return u } return 1 }
+function problem(f) {
+  if (!f.name.trim()) return 'A name is required.'
+  if (f.type === 'other' && !f.what.trim()) return 'Say what it is: an Other needs a short text.'
+  if (f.unit + f.height - 1 > RACK.units) return `Rack R01 has units 1–${RACK.units}; ${f.height} units from U${f.unit} do not fit.`
+  for (let u = f.unit; u < f.unit + f.height; u++) { const e = occupant(u); if (e) return `${span({ unit: f.unit, height: f.height })} in Rack R01 is taken by ${e.name}.` }
+  return ''
+}
+function formHtml() {
+  const f = form, p = problem(f)
+  return `<div class="card"><h3>Add rack item <span class="chip proposed">Plan</span></h3>
+    <div class="sub">Rack R01 · takes its units like any equipment; no ports.</div>
+    <div class="row2">
+      <div class="field"><label for="f-type">Type</label><select id="f-type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${k === f.type ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <div class="field" ${f.type === 'other' ? '' : 'hidden'}><label for="f-what">What it is</label><input id="f-what" value="${esc(f.what)}" placeholder="e.g. KVM switch, fan tray"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="f-unit">Unit (bottom)</label><input id="f-unit" type="number" min="1" max="${RACK.units}" value="${f.unit}"></div>
+      <div class="field"><label for="f-height">Height (U)</label><input id="f-height" type="number" min="1" max="10" value="${f.height}"></div>
+    </div>
+    <div class="field"><label for="f-name">Name</label><input id="f-name" value="${esc(f.name)}"><span class="hint">Suggested from the type (an Other's text) and the unit until you change it.</span></div>
+    <div class="err" id="f-err" ${p ? '' : 'hidden'}>${esc(p)}</div>
+    <div class="actions"><button class="btn" id="f-cancel">Cancel</button><button class="btn primary" id="f-add" ${p ? 'disabled' : ''}>Add to plan</button></div>
+  </div>`
+}
+function wireForm() {
+  const f = form
+  const refresh = () => { const p = problem(f); $('#f-err').hidden = !p; $('#f-err').textContent = p; $('#f-add').disabled = !!p; if (!f.nameTouched) $('#f-name').value = f.name }
+  $('#f-type').addEventListener('change', (ev) => {
+    f.type = ev.target.value; f.height = DEFAULT_HEIGHT[f.type]
+    if (!f.nameTouched) f.name = suggestedName(f.type, f.unit, f.what)
+    renderLibrary()
+  })
+  $('#f-what')?.addEventListener('input', (ev) => { f.what = ev.target.value; if (!f.nameTouched) f.name = suggestedName(f.type, f.unit, f.what); refresh() })
+  $('#f-unit').addEventListener('input', (ev) => { f.unit = Number(ev.target.value) || 1; if (!f.nameTouched) f.name = suggestedName(f.type, f.unit, f.what); refresh() })
+  $('#f-height').addEventListener('input', (ev) => { f.height = Math.max(1, Number(ev.target.value) || 1); refresh() })
+  $('#f-name').addEventListener('input', (ev) => { f.name = ev.target.value; f.nameTouched = true; refresh() })
+  $('#f-cancel').addEventListener('click', () => { form = null; render() })
+  $('#f-add').addEventListener('click', () => {
+    const e = { id: 'p' + Date.now(), name: f.name.trim(), kind: 'item', type: f.type, what: f.type === 'other' ? f.what.trim() : undefined, unit: f.unit, height: f.height }
+    proposed.push(e); form = null; selected = e.id; render()
+  })
+}
+
+function renderInventory() {
+  const rows = all()
+  if (list === 'eq') {
+    const types = ['Switch', 'Panel', ...Object.values(TYPES)]
+    const shown = rows.filter((e) => !pill || (e.kind === 'item' ? TYPES[e.type] : typeLabel(e)) === pill)
+    $('#inv').innerHTML = `<div class="pills"><span class="muted" style="font-size:12px;align-self:center">Type:</span>${types.map((t) => `<button class="pill" data-pill="${t}" aria-pressed="${pill === t}">${t}</button>`).join('')}</div>
+      <table><thead><tr><th>Name</th><th>Type</th><th>Place</th><th>Ports</th><th>Model</th><th>Serial</th><th>IP</th></tr></thead><tbody>
+      ${shown.sort((a, b) => b.unit - a.unit).map((e) => `<tr class="${proposed.includes(e) ? 'proposed' : ''}"><td>${esc(e.name)}</td><td>${esc(typeLabel(e))}</td><td>Rack R01 · ${span(e)}</td><td>${e.kind === 'item' ? '<span class="muted">—</span>' : e.kind === 'switch' ? '48' : '24'}</td><td>${esc(e.model) || '<span class="muted">—</span>'}</td><td>${esc(e.serial) || '<span class="muted">—</span>'}</td><td>${esc(e.ip) || '<span class="muted">—</span>'}</td></tr>`).join('')}
+      </tbody></table>`
+    document.querySelectorAll('[data-pill]').forEach((b) => b.addEventListener('click', () => { pill = pill === b.dataset.pill ? null : b.dataset.pill; renderInventory() }))
+  } else {
+    const used = usedUnits(rows)
+    $('#inv').innerHTML = `<table><thead><tr><th>Rack</th><th>Place</th><th>Units</th><th>Used</th><th>Free</th></tr></thead><tbody>
+      <tr><td>Rack R01</td><td>Main Campus › Building A</td><td>${RACK.units}</td><td>${used}</td><td>${RACK.units - used}</td></tr></tbody></table>
+      <p class="hint">Rack items count as used units.</p>`
+  }
+}
+
+function render() {
+  $('#physical').hidden = view !== 'physical'; $('#inventory').hidden = view !== 'inventory'
+  if (view === 'physical') { renderLibrary(); renderCabinet(); renderSide() } else renderInventory()
+}
+
+$('#cabinet').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.block'); const free = ev.target.closest('.free')
+  if (b) { form = null; selected = selected === b.dataset.id ? null : b.dataset.id; render() }
+})
+// A drop on a free unit opens the form with that unit, like the real library.
+const cab = $('#cabinet')
+cab.addEventListener('dragover', (ev) => { const f = ev.target.closest('.free'); if (!f || ctx !== 'plan') return; ev.preventDefault(); cab.querySelectorAll('.drop').forEach((x) => x.classList.remove('drop')); f.classList.add('drop') })
+cab.addEventListener('dragleave', (ev) => ev.target.closest?.('.free')?.classList.remove('drop'))
+cab.addEventListener('drop', (ev) => { const f = ev.target.closest('.free'); if (!f || ctx !== 'plan') return; ev.preventDefault(); openForm(Number(f.dataset.unit)) })
+const setCtx = (c) => { ctx = c; form = null; if (!all().some((e) => e.id === selected)) selected = null; $('#ctx-installed').setAttribute('aria-pressed', c === 'installed'); $('#ctx-plan').setAttribute('aria-pressed', c === 'plan'); render() }
+$('#ctx-installed').addEventListener('click', () => setCtx('installed'))
+$('#ctx-plan').addEventListener('click', () => setCtx('plan'))
+const setView = (v) => { view = v; $('#view-physical').setAttribute('aria-pressed', v === 'physical'); $('#view-inventory').setAttribute('aria-pressed', v === 'inventory'); render() }
+$('#view-physical').addEventListener('click', () => setView('physical'))
+$('#view-inventory').addEventListener('click', () => setView('inventory'))
+const setList = (l) => { list = l; $('#list-eq').setAttribute('aria-pressed', l === 'eq'); $('#list-racks').setAttribute('aria-pressed', l === 'racks'); renderInventory() }
+$('#list-eq').addEventListener('click', () => setList('eq'))
+$('#list-racks').addEventListener('click', () => setList('racks'))
+render()
+</script>
+</body>
+</html>

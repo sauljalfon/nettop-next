@@ -463,3 +463,25 @@ func TestBK01BatchEndpointContractOverHTTP(t *testing.T) {
 	repo.plan.Status = "recorded"
 	call("POST", path, body(`[{"type":"add_site","site":{"name":"X"}}]`), 409)
 }
+
+// RI-06 over HTTP: a rack item is added by add_equipment, and a cable to it is refused.
+func TestRI06RackItemOverHTTP(t *testing.T) {
+	s := acceptance.Installed()
+	repo := &memoryRepo{installed: &s, plan: planning.Plan{ID: "p", BaseRevision: "acceptance-1", Revision: "1"}}
+	call := newCaller(t, New(repo, "dev"))
+	add := `{"type":"add_equipment","expectedRevision":"1","equipment":{"name":"UPS 1","kind":"rack_item","role":"none","rackId":"rack-a03","unit":3,"height":2,"details":{"itemType":"ups"}}}`
+	got := decodeBody[planning.Plan](t, call("POST", "/api/plans/p/commands", add, 200))
+	if len(got.Equipment) != 1 || got.Equipment[0].Kind != "rack_item" || got.Equipment[0].ItemType != "ups" || len(got.Endpoints) != 0 {
+		t.Fatalf("plan = %+v", got)
+	}
+	// A rack item has no endpoints, so a cable to one can only name an endpoint that does not exist.
+	msg := errorOf(t, call("POST", "/api/plans/p/commands", `{"type":"add_cable","expectedRevision":"2","cable":{"a":"agg-15:p2","b":"ups-1:p1"}}`, 422))
+	if !strings.Contains(msg, "does not exist") {
+		t.Fatalf("message = %q", msg)
+	}
+	noType := `{"type":"add_equipment","expectedRevision":"2","equipment":{"name":"Shelf","kind":"rack_item","role":"none","rackId":"rack-a03","unit":6,"height":1}}`
+	msg = errorOf(t, call("POST", "/api/plans/p/commands", noType, 422))
+	if !strings.Contains(msg, "a rack item needs a type") {
+		t.Fatalf("message = %q", msg)
+	}
+}

@@ -556,6 +556,8 @@ components:
         notes: {type: string, maxLength: 1000, description: Cable.}
         location: {type: string, maxLength: 200, description: "Site, node or rack."}
         rackType: {type: string, enum: [standard, wall-mount, open-frame, ''], description: Rack.}
+        itemType: {type: string, enum: [ups, pdu, shelf, cable-manager, other, ''], description: "Rack item only (a rack item must have one). Changing it away from other must send itemText '' in the same request."}
+        itemText: {type: string, maxLength: 100, description: "Rack item only: what it is. Required (1–100 characters) when itemType is other, and empty otherwise."}
     DetailUpdate:
       type: object
       required: [id, details]
@@ -670,23 +672,23 @@ components:
       type: object
       additionalProperties: false
       required: [name, kind, role, rackId, unit, height]
-      description: A switch needs portCount or portGroups (not both unless portCount equals their total); a panel needs portCount.
+      description: A switch needs portCount or portGroups (not both unless portCount equals their total); a panel needs portCount. A rack item (kind rack_item, role none) takes no portCount (or 0), no portGroups and no networkId, and gives its type, and its text for an Other, in details (itemType, itemText); it creates no endpoints.
       properties:
         name: {type: string, minLength: 1, maxLength: 100}
-        kind: {type: string, enum: [switch, panel]}
+        kind: {type: string, enum: [switch, panel, rack_item]}
         role:
           type: string
-          enum: [access, aggregation, backbone, passive]
-          description: Switches allow access, aggregation, or backbone; panels require passive.
+          enum: [access, aggregation, backbone, passive, none]
+          description: Switches allow access, aggregation, or backbone; panels require passive; a rack item requires none.
         networkId:
           type: string
-          description: Required for switches and must reference an existing network. Rejected for panels, which are shared passive equipment.
+          description: Required for switches and must reference an existing network. Rejected for panels, which are shared passive equipment, and for rack items.
         rackId: {type: string}
         unit: {type: integer, minimum: 1, maximum: 100}
         height: {type: integer, minimum: 1, maximum: 100}
         portCount:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 96
           description: "Switch ports (1–96) or panel positions (1–48; each creates front/rear endpoints and one internal bridge). A switch made this way has one port group, \"Port {n}\". Leave it out when portGroups is given, or give their total."
         portGroups:
@@ -985,11 +987,11 @@ components:
       properties:
         id: {type: string}
         name: {type: string}
-        kind: {type: string, enum: [switch, panel, hdf]}
-        role: {type: string, enum: [access, aggregation, backbone, passive]}
+        kind: {type: string, enum: [switch, panel, hdf, rack_item]}
+        role: {type: string, enum: [access, aggregation, backbone, passive, none], description: "none is only for a rack item (kind rack_item), which has no endpoints, subpanels or links."}
         networkId:
           type: string
-          description: Present exactly for switches (one network each); omitted for passive panels.
+          description: Present exactly for switches (one network each); omitted for passive panels and rack items.
         rackId: {type: string}
         unit: {type: integer, minimum: 1}
         height: {type: integer, minimum: 1}
@@ -999,6 +1001,8 @@ components:
         ipAddress: {type: string, maxLength: 200}
         status: {type: string, enum: [active, inactive, maintenance]}
         description: {type: string, maxLength: 1000}
+        itemType: {type: string, enum: [ups, pdu, shelf, cable-manager, other], description: Rack items only; required on a rack item and absent on every other kind.}
+        itemText: {type: string, maxLength: 100, description: "Rack items only: what it is. Present exactly when itemType is other."}
     Endpoint:
       type: object
       required: [id, equipmentId, label]

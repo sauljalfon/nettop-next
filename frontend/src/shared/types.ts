@@ -24,6 +24,8 @@ export interface Removals {
   nodes?: string[]
   sites?: string[]
 }
+/** The type of a rack item (kind rack_item). */
+export type RackItemType = 'ups' | 'pdu' | 'shelf' | 'cable-manager' | 'other'
 /**
  * Optional details of an object (step 11). Flat optional strings; absent means
  * not set. Descriptive data only: nothing that follows continuity reads them.
@@ -40,6 +42,10 @@ export interface EquipmentDetails {
   ipAddress?: string
   status?: 'active' | 'inactive' | 'maintenance'
   description?: string
+  /** Rack items only (required on one). Leaving 'other' must send itemText: ''. */
+  itemType?: RackItemType
+  /** Rack items only: what it is, 1–100 characters; required for 'other', empty otherwise. */
+  itemText?: string
 }
 export interface PortDetails {
   portType?: 'copper' | 'fiber'
@@ -162,8 +168,8 @@ export interface Plan {
 
 export interface EquipmentInput {
   name: string
-  kind: 'switch' | 'panel'
-  role: 'access' | 'aggregation' | 'backbone' | 'passive'
+  kind: 'switch' | 'panel' | 'rack_item'
+  role: 'access' | 'aggregation' | 'backbone' | 'passive' | 'none'
   networkId?: string
   rackId: string
   unit: number
@@ -301,7 +307,7 @@ export type PlanCommand =
 export interface Equipment extends EquipmentDetails {
   id: string
   name: string
-  kind: 'switch' | 'panel' | 'hdf'
+  kind: 'switch' | 'panel' | 'hdf' | 'rack_item'
   role: string
   networkId?: string
   rackId: string

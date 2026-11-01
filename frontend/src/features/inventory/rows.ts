@@ -57,7 +57,12 @@ export interface InventoryRows {
 }
 
 const cap = (s?: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
-const KIND = { switch: 'Switch', panel: 'Panel', hdf: 'HDF' } as const
+const KIND = {
+  switch: 'Switch',
+  panel: 'Panel',
+  hdf: 'HDF',
+  rack_item: 'Rack item',
+} as const
 const byName = new Intl.Collator(undefined, { numeric: true })
 
 /**

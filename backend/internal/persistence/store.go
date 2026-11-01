@@ -120,13 +120,13 @@ func loadInstalled(ctx context.Context, tx pgx.Tx) (topology.Snapshot, error) {
 	if err = rows.Err(); err != nil {
 		return s, err
 	}
-	rows, err = tx.Query(ctx, `SELECT id,name,kind,role,COALESCE(network_id,''),rack_id,unit,height,COALESCE(manufacturer,''),COALESCE(model,''),COALESCE(serial_number,''),COALESCE(ip_address,''),COALESCE(status,''),COALESCE(description,'') FROM equipment ORDER BY id`)
+	rows, err = tx.Query(ctx, `SELECT id,name,kind,role,COALESCE(network_id,''),rack_id,unit,height,COALESCE(manufacturer,''),COALESCE(model,''),COALESCE(serial_number,''),COALESCE(ip_address,''),COALESCE(status,''),COALESCE(description,''),COALESCE(item_type,''),COALESCE(item_text,'') FROM equipment ORDER BY id`)
 	if err != nil {
 		return s, err
 	}
 	for rows.Next() {
 		var e topology.Equipment
-		if err = rows.Scan(&e.ID, &e.Name, &e.Kind, &e.Role, &e.NetworkID, &e.RackID, &e.Unit, &e.Height, &e.Manufacturer, &e.Model, &e.SerialNumber, &e.IPAddress, &e.Status, &e.Description); err != nil {
+		if err = rows.Scan(&e.ID, &e.Name, &e.Kind, &e.Role, &e.NetworkID, &e.RackID, &e.Unit, &e.Height, &e.Manufacturer, &e.Model, &e.SerialNumber, &e.IPAddress, &e.Status, &e.Description, &e.ItemType, &e.ItemText); err != nil {
 			rows.Close()
 			return s, err
 		}
@@ -407,7 +407,7 @@ func insertRack(ctx context.Context, tx execer, r topology.Rack) error {
 
 // insertEquipment writes the equipment row and its rack occupancy.
 func insertEquipment(ctx context.Context, tx execer, e topology.Equipment) error {
-	if _, err := tx.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,rack_id,unit,height,network_id,manufacturer,model,serial_number,ip_address,status,description) VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,''),NULLIF($12,''),NULLIF($13,''),NULLIF($14,''))`, e.ID, e.Name, e.Kind, e.Role, e.RackID, e.Unit, e.Height, e.NetworkID, e.Manufacturer, e.Model, e.SerialNumber, e.IPAddress, e.Status, e.Description); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,rack_id,unit,height,network_id,manufacturer,model,serial_number,ip_address,status,description,item_type,item_text) VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,''),NULLIF($12,''),NULLIF($13,''),NULLIF($14,''),NULLIF($15,''),NULLIF($16,''))`, e.ID, e.Name, e.Kind, e.Role, e.RackID, e.Unit, e.Height, e.NetworkID, e.Manufacturer, e.Model, e.SerialNumber, e.IPAddress, e.Status, e.Description, e.ItemType, e.ItemText); err != nil {
 		return err
 	}
 	return insertOccupancy(ctx, tx, e)

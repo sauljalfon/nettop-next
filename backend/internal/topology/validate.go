@@ -3,7 +3,9 @@ package topology
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -69,7 +71,7 @@ func Validate(s Snapshot) error {
 		if !ok || e.Unit < 1 || e.Height < 1 || e.Unit+e.Height-1 > r.Units {
 			return fmt.Errorf("invalid placement for %s", e.ID)
 		}
-		if e.Kind != "switch" && e.Kind != "panel" && e.Kind != "hdf" {
+		if e.Kind != "switch" && e.Kind != "panel" && e.Kind != "hdf" && e.Kind != "rack_item" {
 			return fmt.Errorf("unsupported equipment kind %s", e.Kind)
 		}
 		switch e.Kind {
@@ -87,6 +89,16 @@ func Validate(s Snapshot) error {
 			if e.NetworkID != "" {
 				return fmt.Errorf("passive equipment %s cannot have exclusive network membership", e.ID)
 			}
+		case "rack_item":
+			if e.Role != "none" {
+				return fmt.Errorf("rack item %s must have role none", e.ID)
+			}
+			if e.NetworkID != "" {
+				return fmt.Errorf("rack item %s cannot belong to a network", e.ID)
+			}
+		}
+		if err := rackItemProblem(e); err != nil {
+			return err
 		}
 		for u := e.Unit; u < e.Unit+e.Height; u++ {
 			key := fmt.Sprintf("%s:%d", e.RackID, u)
@@ -149,6 +161,8 @@ func Validate(s Snapshot) error {
 			return fmt.Errorf("unknown owner for %s", p.ID)
 		}
 		switch e.Kind {
+		case "rack_item":
+			return fmt.Errorf("%s is a rack item and has no ports", e.Name)
 		case "panel":
 			if p.Position < 1 || (p.Side != "front" && p.Side != "rear") || p.SubpanelID != "" {
 				return fmt.Errorf("invalid panel endpoint %s", p.ID)
@@ -234,6 +248,28 @@ func Validate(s Snapshot) error {
 		if equipment[p.EquipmentID].Kind == "hdf" && !bridges[p.ID] {
 			return fmt.Errorf("hdf endpoint %s has no internal bridge", p.ID)
 		}
+	}
+	return nil
+}
+
+// rackItemProblem checks the type and text of a rack item, and that no other
+// kind has either.
+func rackItemProblem(e Equipment) error {
+	if e.Kind != "rack_item" {
+		if e.ItemType != "" || e.ItemText != "" {
+			return fmt.Errorf("%s: only a rack item has a type", e.Name)
+		}
+		return nil
+	}
+	if !slices.Contains(RackItemTypes, e.ItemType) {
+		return fmt.Errorf("%s: a rack item needs a type: UPS, PDU, shelf, cable manager or other", e.Name)
+	}
+	n := utf8.RuneCountInString(e.ItemText)
+	if e.ItemType == "other" && (n < 1 || strings.TrimSpace(e.ItemText) != e.ItemText) {
+		return fmt.Errorf("%s: say what it is (an Other needs a short text)", e.Name)
+	}
+	if e.ItemType != "other" && e.ItemText != "" {
+		return fmt.Errorf("%s: what it is is only for an Other", e.Name)
 	}
 	return nil
 }

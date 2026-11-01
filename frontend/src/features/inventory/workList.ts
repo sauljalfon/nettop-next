@@ -38,7 +38,12 @@ const ORDER: Record<ChangeGroup, number> = {
   'Cables disconnected': 5,
 }
 
-const KIND = { switch: 'Switch', panel: 'Panel', hdf: 'HDF' } as const
+const KIND = {
+  switch: 'Switch',
+  panel: 'Panel',
+  hdf: 'HDF',
+  rack_item: 'Rack item',
+} as const
 const name = (n: string): TextPiece => ({ name: n })
 const text = (t: string): TextPiece => ({ text: t })
 

@@ -35,7 +35,29 @@ Today equipment is a switch, a panel or an HDF. **Owner's answers (2026-10-25):*
 - **rack items with no ports** (UPS, PDU, shelves, cable managers, blanks): they take units and have details, never cables, never in a trace;
 - **active devices with ports** (servers, firewalls, routers, controllers): cabled like a switch, a trace can end there, shown on the tree.
 
-Equipment outside a rack (wall outlets, access points, cameras) is not wanted now. **Order:** after phase 1 of the network hierarchy, as its own item; rack items first, then active devices. Not designed yet: it starts with a demo (D30) and the owner's answers on the roles of active devices and where a trace stops.
+Equipment outside a rack (wall outlets, access points, cameras) is not wanted now. **Order:** two items, each designed, built and deployed on its own: rack items first, then active devices.
+
+### 2a. Rack items (approved 2026-11-01 from [the demo](history/demos/rack-items-demo.html))
+
+**Owner's answers (2026-11-01).**
+- **One new kind, "rack item",** with a type: **UPS, PDU, shelf, cable manager, Other**. An Other needs a short "what it is" text (e.g. "KVM"), shown wherever the type is. No blanks.
+- **Units:** a rack item takes its units like any equipment, with no overlap. 0U vertical PDUs are not modelled; a shelf is its own units (what sits on it can go in its description).
+- **Default height** UPS 2U, the rest 1U, editable. **Name** suggested from the type and unit ("Shelf U12"), editable; a name is still required.
+- **Details** as every equipment (manufacturer, model, serial, IP, status, description). The **type** (and Other's text) is fixed directly like details: no plan, no new revision.
+- **Entered through a plan** like all equipment (placed, moved, deleted, recorded). It is **one more entry in the plan's library** on the left ("Rack item"): drag it onto a free unit or press its Add…, and its form opens under it like the other items; no button above the rack.
+- **Other's suggested name** uses its text ("Fan tray U10").
+- **Shown** in the rack elevation (its own faceplate), the equipment page, the inspector and the Inventory (type as a column and a pill); the Racks list counts them as **used** units, with no separate count of them. **Never** in cables, traces, Find AGG / BB, the tree or Problems.
+- **Not now:** converting placeholders already entered (the owner fixes them by hand in a plan; never guessed from names, D04).
+
+**Calls left to Opus (the owner may overrule):** a rack item has no port table on its equipment page; the printable rack sheet lists it like any equipment; Explore search finds it by name.
+
+**Suggested name** (owner, 2026-11-01): it includes the node, so names stay unique; the format is in [the plan](plans/2026-11-01-rack-items.md).
+
+**Plan** approved 2026-11-01: [plans/2026-11-01-rack-items.md](plans/2026-11-01-rack-items.md); the build is in progress.
+
+### 2b. Active devices (not designed yet)
+
+Servers, firewalls, routers, controllers and the owner's other cabled equipment that is not a rack item. It starts with a demo (D30) and the owner's answers on their roles, whether they show on the tree, and where a trace stops.
 
 ## 3. M6 — Layout, undo and measured scale
 

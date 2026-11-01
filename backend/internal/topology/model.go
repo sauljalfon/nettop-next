@@ -39,6 +39,11 @@ type Equipment struct {
 	IPAddress    string `json:"ipAddress,omitempty"`
 	Status       string `json:"status,omitempty"`
 	Description  string `json:"description,omitempty"`
+
+	// ItemType and ItemText are only for a rack item (kind rack_item): its
+	// type and, for an Other, what it is.
+	ItemType string `json:"itemType,omitempty"`
+	ItemText string `json:"itemText,omitempty"`
 }
 
 type Rack struct {

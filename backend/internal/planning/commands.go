@@ -222,6 +222,10 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 				return invalid(fmt.Sprintf("%s: portCount %d disagrees with the %d ports of its port groups; give one or the other", e.Name, e.PortCount, len(ports)))
 			}
 			e.PortCount = len(ports)
+		} else if e.Kind == "rack_item" {
+			if e.PortCount != 0 {
+				return invalid(e.Name + ": a rack item has no ports")
+			}
 		} else {
 			most := 48 // panel positions
 			if e.Kind == "switch" {
@@ -239,14 +243,17 @@ func applyCommand(base, current topology.Snapshot, p Plan, c Command, id string)
 		if e.Unit < 1 || e.Unit > 100 || e.Height < 1 || e.Height > 100 {
 			return invalid("rack unit and height must be between 1 and 100")
 		}
-		if (e.Kind == "switch" && e.Role != "access" && e.Role != "aggregation" && e.Role != "backbone") || (e.Kind == "panel" && e.Role != "passive") || (e.Kind != "panel" && e.Kind != "switch") {
-			return invalid("choose access/aggregation/backbone for a switch or passive for a panel")
+		if (e.Kind == "switch" && e.Role != "access" && e.Role != "aggregation" && e.Role != "backbone") || (e.Kind == "panel" && e.Role != "passive") || (e.Kind == "rack_item" && e.Role != "none") || (e.Kind != "panel" && e.Kind != "switch" && e.Kind != "rack_item") {
+			return invalid("choose access/aggregation/backbone for a switch, passive for a panel or none for a rack item")
 		}
 		if e.Kind == "switch" && e.NetworkID == "" {
 			return invalid("a switch requires networkId")
 		}
 		if e.Kind == "panel" && e.NetworkID != "" {
 			return invalid("passive panels are shared and cannot have a networkId")
+		}
+		if e.Kind == "rack_item" && e.NetworkID != "" {
+			return invalid("a rack item cannot have a networkId")
 		}
 		for _, existing := range current.Equipment {
 			if strings.EqualFold(existing.Name, e.Name) {

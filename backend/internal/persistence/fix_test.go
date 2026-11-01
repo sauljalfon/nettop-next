@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"nettop.local/backend/internal/acceptance"
 	"nettop.local/backend/internal/fixes"
 	"nettop.local/backend/internal/topology"
 )
@@ -137,5 +138,46 @@ func TestFixThenRecordKeepsTheFix(t *testing.T) {
 	}
 	if got := installedEquipment(t, s, "agg-15").Name; got != "AGG-15X" {
 		t.Fatalf("the fix was lost by Record: %q", got)
+	}
+}
+
+// RI-04 at the store: the type and text fix writes change_log rows and keeps the revision.
+func TestRI04RackItemFixWritesChangeLog(t *testing.T) {
+	base := acceptance.Installed()
+	base.Equipment = append(base.Equipment, topology.Equipment{ID: "ri", Name: "Shelf 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 1, Height: 1, ItemType: "shelf"})
+	s, _ := testStore(t)
+	ctx := context.Background()
+	if err := s.Seed(ctx, base); err != nil {
+		t.Fatal(err)
+	}
+	revision := installedRevision(t, s)
+	entries, err := s.Fix(ctx, fixes.Fix{Kind: fixes.Equipment, ID: "ri", Details: topology.Details{ItemType: ptr("other"), ItemText: ptr("KVM switch")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 || entries[0].Field != "itemType" || entries[1].Field != "itemText" {
+		t.Fatalf("entries = %+v", entries)
+	}
+	if e := installedEquipment(t, s, "ri"); e.ItemType != "other" || e.ItemText != "KVM switch" {
+		t.Fatalf("%+v", e)
+	}
+	if _, err = s.Fix(ctx, fixes.Fix{Kind: fixes.Equipment, ID: "ri", Details: topology.Details{ItemType: ptr("ups"), ItemText: ptr("")}}); err != nil {
+		t.Fatal(err)
+	}
+	if e := installedEquipment(t, s, "ri"); e.ItemType != "ups" || e.ItemText != "" {
+		t.Fatalf("%+v", e)
+	}
+	if _, err = s.Fix(ctx, fixes.Fix{Kind: fixes.Equipment, ID: "ri", Details: topology.Details{ItemType: ptr("other"), ItemText: ptr("x")}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Fix(ctx, fixes.Fix{Kind: fixes.Equipment, ID: "ri", Details: topology.Details{ItemType: ptr("pdu")}}); !errors.Is(err, topology.ErrInvalidInput) {
+		t.Fatalf("keeping the text must be refused: %v", err)
+	}
+	if got := installedRevision(t, s); got != revision {
+		t.Fatalf("revision changed: %s -> %s", revision, got)
+	}
+	log, err := s.ChangeLog(ctx, fixes.Equipment, "ri")
+	if err != nil || len(log) != 6 {
+		t.Fatalf("log = %+v, err = %v", log, err)
 	}
 }

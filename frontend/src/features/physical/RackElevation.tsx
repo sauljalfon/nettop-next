@@ -298,7 +298,7 @@ function Plate({
   count,
   rows,
 }: {
-  kind: 'switch' | 'panel' | 'hdf'
+  kind: 'switch' | 'panel' | 'hdf' | 'rack_item'
   count: number
   rows: number
 }) {
