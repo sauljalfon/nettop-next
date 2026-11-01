@@ -1,3 +1,4 @@
+import { hasPorts } from '../../shared/equipment'
 import { comparePorts } from '../../shared/ports'
 import type { TextPiece } from '../../shared/textPieces'
 import type { Equipment, Snapshot } from '../../shared/types'
@@ -68,7 +69,8 @@ export function inspectorGroups(
   equipmentId: string,
 ): InspectorGroup[] {
   const equipment = index.equipment.get(equipmentId)
-  if (!equipment) return []
+  // A rack item has no endpoints: no Ports or Positions section.
+  if (!equipment || !hasPorts(equipment)) return []
   const { lookup } = index
   const endpointLabel = (id: string) => {
     const p = lookup.endpoints.get(id)

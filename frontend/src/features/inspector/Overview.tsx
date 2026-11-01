@@ -4,6 +4,10 @@ import { networkCounts, type InspectorGroup } from './model'
 
 interface Props {
   role: string
+  /** A rack item's type, shown as the Type row in place of Role. */
+  type?: ReactNode
+  /** False for a rack item: no "Cabled by network", only "No ports". */
+  hasPorts?: boolean
   /** Placement, e.g. "Rack A03 · U11"; undefined when unplaced. */
   placement?: ReactNode
   groups: InspectorGroup[]
@@ -21,6 +25,8 @@ interface Props {
 /** Placement, the cabled circuits per network, and (in a plan) the placement form. */
 export default function Overview({
   role,
+  type,
+  hasPorts = true,
   placement,
   groups,
   networkName,
@@ -34,10 +40,17 @@ export default function Overview({
     <div className="inspector-overview">
       {uplinks}
       <dl className="detail-list">
-        <div>
-          <dt>Role</dt>
-          <dd>{role}</dd>
-        </div>
+        {type ? (
+          <div>
+            <dt>Type</dt>
+            <dd>{type}</dd>
+          </div>
+        ) : (
+          <div>
+            <dt>Role</dt>
+            <dd>{role}</dd>
+          </div>
+        )}
         {placement && (
           <div>
             <dt>Placement</dt>
@@ -46,8 +59,14 @@ export default function Overview({
         )}
       </dl>
       {details}
-      <h3 className="inspector-section section-title">Cabled by network</h3>
-      {counts.length ? (
+      {!hasPorts ? (
+        <p className="muted" data-testid="no-ports">
+          No ports
+        </p>
+      ) : (
+        <h3 className="inspector-section section-title">Cabled by network</h3>
+      )}
+      {!hasPorts ? null : counts.length ? (
         <ul className="network-counts">
           {counts.map((c) => (
             <li key={c.networkId} data-testid="network-count">

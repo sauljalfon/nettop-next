@@ -1,4 +1,7 @@
+import { hasPorts } from '../../shared/equipment'
 import { hasSide } from '../../shared/ports'
+import { rackItemPieces } from '../../shared/rackItems'
+import type { TextPiece } from '../../shared/textPieces'
 import type { Equipment, Network } from '../../shared/types'
 import { facetLabel } from '../map/facets'
 import type { SnapshotIndex } from '../map/snapshotIndex'
@@ -212,7 +215,37 @@ export function faceFor(
       kind: 'panel',
       face: panelFace(index, e.id, side ?? 'front', options),
     }
+  if (e.kind === 'rack_item')
+    throw new Error('a rack item has no face: check hasPorts first')
   return { kind: 'hdf', face: hdfFace(index, e.id, side ?? 'front', options) }
+}
+
+/**
+ * The face an equipment's page draws, or none for a rack item: it has no
+ * endpoints, so `faceFor` is never asked about one.
+ */
+export function pageFace(
+  index: SnapshotIndex,
+  e: Pick<Equipment, 'id' | 'kind'>,
+  side: 'front' | 'rear' | undefined,
+  options: FaceOptions,
+): Face | undefined {
+  return hasPorts(e) ? faceFor(index, e, side, options) : undefined
+}
+
+/**
+ * What a rack item is, as pieces: its type (an Other with its text as a name
+ * piece) and its height, "UPS · 2U".
+ */
+export function equipmentSubtitle(
+  e: Pick<Equipment, 'itemType' | 'itemText' | 'height'>,
+): TextPiece[] {
+  const pieces = rackItemPieces(e)
+  const units = ` · ${e.height}U`
+  const last = pieces[pieces.length - 1]
+  return last && 'text' in last
+    ? [...pieces.slice(0, -1), { text: last.text + units }]
+    : [...pieces, { text: units }]
 }
 
 /** `data-face-*` on the explorer's root: the kind, the blocks row-major, and how many positions. */

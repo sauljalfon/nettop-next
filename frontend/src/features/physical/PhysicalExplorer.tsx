@@ -27,7 +27,8 @@ import { buildInventory, routeMarks } from './inventory'
 import NodeLevel from './NodeLevel'
 import EquipmentPage from './EquipmentPage'
 import RackElevation from './RackElevation'
-import { faceFor, faceMarks } from './equipmentModel'
+import { hasPorts } from '../../shared/equipment'
+import { faceMarks, pageFace } from './equipmentModel'
 import PrintSheet from './PrintSheet'
 import RouteTrail from './RouteTrail'
 import { currentStep, trailSteps } from './trail'
@@ -66,7 +67,7 @@ interface Props {
   installedContainerIds: ReadonlySet<string>
   onMoveEquipment: (equipmentId: string, rackId: string, unit?: number) => void
   onCreateEquipment: (
-    kind: 'switch' | 'panel',
+    kind: 'switch' | 'panel' | 'rack_item',
     rackId: string,
     unit?: number,
     role?: 'aggregation',
@@ -200,7 +201,7 @@ export default function PhysicalExplorer({
   const face = useMemo(
     () =>
       onPage
-        ? faceFor(index, equipment!, location.side, {
+        ? pageFace(index, equipment!, location.side, {
             marks,
             selectedEndpointId: location.endpointId,
           })
@@ -403,7 +404,7 @@ export default function PhysicalExplorer({
             onCreateEquipment={onCreateEquipment}
           />
         )}
-        {onPage && face && (
+        {onPage && equipment && (face || !hasPorts(equipment)) && (
           <EquipmentPage
             snapshot={snapshot}
             index={index}

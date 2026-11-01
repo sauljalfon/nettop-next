@@ -1,5 +1,6 @@
 import type { Equipment, Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
+import { hasPorts } from '../../shared/equipment'
 import { endpointTooltip, faceFor, faceMeta } from './equipmentModel'
 import FaceView from './FaceView'
 
@@ -15,6 +16,8 @@ export default function EquipmentFaceStatic({
   equipment: Equipment
   colors: ReadonlyMap<string, string>
 }) {
+  // A rack item has no ports: there is no face to print.
+  if (!hasPorts(equipment)) return null
   const sides =
     equipment.kind === 'switch' ? [undefined] : (['front', 'rear'] as const)
   return (

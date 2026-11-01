@@ -887,6 +887,63 @@
   border-radius: 2px;
 }
 
+/* Rack items: no jacks, so no port dots; each type has a plain faceplate. */
+.rack-block[data-kind='rack_item'] {
+  background: var(--steel-2);
+}
+.plate[data-plate='rack-item'] {
+  flex: 1;
+  min-width: 40px;
+}
+.plate[data-item-type='ups'] {
+  height: 60%;
+  max-width: 150px;
+  background:
+    linear-gradient(var(--steel-3), var(--steel-3)) 6px 50% / 28px 10px
+      no-repeat,
+    repeating-linear-gradient(
+        90deg,
+        var(--steel-line) 0 2px,
+        transparent 2px 6px
+      )
+      44px 0 / calc(100% - 44px) 100% no-repeat;
+  border-radius: 2px;
+}
+.plate[data-item-type='pdu'] {
+  max-width: 190px;
+  height: 10px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--steel-edge) 0 9px,
+    transparent 9px 14px
+  );
+  border-radius: 1px;
+}
+.plate[data-item-type='shelf'] {
+  height: 4px;
+  max-width: 220px;
+  background: var(--steel-edge);
+  border-radius: 1px;
+  align-self: flex-end;
+  margin-bottom: 5px;
+}
+.plate[data-item-type='cable-manager'] {
+  height: 12px;
+  max-width: 220px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--steel-edge) 0 3px,
+    transparent 3px 11px
+  );
+  border-top: 2px solid var(--steel-edge);
+}
+.plate[data-item-type='other'] {
+  height: 8px;
+  max-width: 120px;
+  border: 1px solid var(--steel-edge);
+  border-radius: 1px;
+}
+
 /* Switch faceplate and panel strip: a steel plate, a head line, then the jacks. */
 .faceplate {
   position: relative;

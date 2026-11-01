@@ -437,3 +437,31 @@ describe('F04 an equipment block says its role, network and units', () => {
     ).toBe('access · 1U at U8')
   })
 })
+
+describe('RI-09 a rack item in the elevation', () => {
+  const item = (over: object) =>
+    ({
+      ...s.equipment[0],
+      kind: 'rack_item',
+      role: 'none',
+      networkId: undefined,
+      unit: 3,
+      height: 2,
+      ...over,
+    }) as (typeof s.equipment)[number]
+
+  it('reads its type and height, with no role and no network', () => {
+    expect(
+      elevationSubtitlePieces(item({ itemType: 'ups' }), s.networks),
+    ).toEqual([{ text: 'UPS · 2U' }])
+  })
+
+  it('keeps an Other’s text as a name piece', () => {
+    expect(
+      elevationSubtitlePieces(
+        item({ itemType: 'other', itemText: 'KVM switch', height: 1 }),
+        s.networks,
+      ),
+    ).toEqual([{ text: 'Other · ' }, { name: 'KVM switch' }, { text: ' · 1U' }])
+  })
+})

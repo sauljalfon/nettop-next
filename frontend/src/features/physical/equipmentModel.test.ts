@@ -12,6 +12,8 @@ import {
   faceFor,
   faceMarks,
   faceMeta,
+  equipmentSubtitle,
+  pageFace,
 } from './equipmentModel'
 import { hdfFace, panelFace, switchBank } from './faces'
 import { routeMarks } from './inventory'
@@ -444,5 +446,57 @@ describe('PD-02 a port, and a side with no cable', () => {
 
   it('an unknown endpoint has no chain', () => {
     expect(connectionChain(index, s.networks, 'nope')).toEqual([])
+  })
+})
+
+describe('RI-09 a rack item has a subtitle and no face', () => {
+  const base = s.equipment[0]
+  const item = (over: object) =>
+    ({
+      ...base,
+      kind: 'rack_item',
+      role: 'none',
+      networkId: undefined,
+      height: 1,
+      ...over,
+    }) as typeof base
+
+  it('says the type and the height for each type', () => {
+    expect(equipmentSubtitle(item({ itemType: 'ups', height: 2 }))).toEqual([
+      { text: 'UPS · 2U' },
+    ])
+    for (const [itemType, label] of [
+      ['pdu', 'PDU'],
+      ['shelf', 'Shelf'],
+      ['cable-manager', 'Cable manager'],
+    ] as const)
+      expect(equipmentSubtitle(item({ itemType }))).toEqual([
+        { text: `${label} · 1U` },
+      ])
+    expect(
+      equipmentSubtitle(item({ itemType: 'other', itemText: 'KVM switch' })),
+    ).toEqual([{ text: 'Other · ' }, { name: 'KVM switch' }, { text: ' · 1U' }])
+  })
+
+  it('never builds a face for a rack item, and still does for the others', () => {
+    expect(
+      pageFace(index, item({ itemType: 'ups' }), undefined, {}),
+    ).toBeUndefined()
+    expect(
+      pageFace(
+        index,
+        s.equipment.find((e) => e.kind === 'switch')!,
+        undefined,
+        {},
+      )?.kind,
+    ).toBe('switch')
+    expect(
+      pageFace(
+        index,
+        s.equipment.find((e) => e.kind === 'hdf')!,
+        'front',
+        {},
+      )?.kind,
+    ).toBe('hdf')
   })
 })

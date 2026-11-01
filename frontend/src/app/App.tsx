@@ -208,7 +208,7 @@ export default function App() {
   )
   const requestEquipment = useCallback(
     (
-      kind: 'switch' | 'panel',
+      kind: 'switch' | 'panel' | 'rack_item',
       rackID?: string,
       unit?: number,
       role?: 'aggregation',
@@ -548,7 +548,7 @@ interface WorkspaceProps {
   closeDrawer: () => void
   pending?: PendingEquipment
   onCreateEquipment: (
-    kind: 'switch' | 'panel',
+    kind: 'switch' | 'panel' | 'rack_item',
     rackID?: string,
     unit?: number,
     role?: 'aggregation',

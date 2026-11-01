@@ -1,17 +1,18 @@
-import { GitFork, Network as NetworkIcon, PanelTop } from 'lucide-react'
+import { Box, GitFork, Network as NetworkIcon, PanelTop } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Network, Plan } from '../../shared/types'
 import type { Near, SiteBranch } from '../patching/patching'
 import AddEquipmentForm, { type EquipmentKind } from './AddEquipmentForm'
 import { useLastEdit, type PlanEdit } from './editing'
 import HdfForm from './HdfForm'
+import AddRackItemForm from './AddRackItemForm'
 import './editing.css'
 import './planning.css'
 
 /** A drop on a rack waiting for its details. */
 export interface PendingEquipment {
   token: number
-  kind: 'switch' | 'panel'
+  kind: 'switch' | 'panel' | 'rack_item'
   role?: 'aggregation'
   rackId: string
   unit: number
@@ -39,10 +40,18 @@ const ITEMS = [
     Icon: PanelTop,
     description: 'Front / rear continuity per position',
   },
+  {
+    id: 'rack_item',
+    name: 'Rack item',
+    type: { kind: 'rack_item', role: 'none' },
+    Icon: Box,
+    description:
+      'UPS, PDU, shelf, cable manager or other: takes units, no ports',
+  },
 ] as const satisfies readonly {
   id: string
   name: string
-  type: EquipmentKind
+  type: EquipmentKind | { kind: 'rack_item'; role: 'none' }
   Icon: unknown
   description: string
 }[]
@@ -51,11 +60,13 @@ const itemFor = (p: PendingEquipment) =>
   ITEMS.find((i) =>
     p.kind === 'panel'
       ? i.id === 'panel'
-      : i.id === (p.role === 'aggregation' ? 'aggregation' : 'access'),
+      : p.kind === 'rack_item'
+        ? i.id === 'rack_item'
+        : i.id === (p.role === 'aggregation' ? 'aggregation' : 'access'),
   )!.id
 
 /**
- * The equipment library: the three items (drag onto a rack, or Add… for the
+ * The equipment library: the four items (drag onto a rack, or Add… for the
  * form), the HDF form, and in a plan the unplaced-preview notice. A drop opens
  * the matching item's form with the rack and unit it landed on.
  */
@@ -146,7 +157,26 @@ export default function LibraryItems({
                 </button>
               )}
             </div>
-            {open === item.id && formEdit && (
+            {open === item.id && formEdit && item.type.kind === 'rack_item' && (
+              <AddRackItemForm
+                key={pending?.token ?? 'manual'}
+                tree={tree}
+                near={near}
+                initial={
+                  pending && itemFor(pending) === item.id
+                    ? { rackId: pending.rackId, unit: pending.unit }
+                    : { rackId: defaultRackId }
+                }
+                edit={formEdit}
+                openerKey={`library:add:${item.id}`}
+                onClose={close}
+                onAdded={(plan) => {
+                  setOpen(undefined)
+                  onAdded(plan)
+                }}
+              />
+            )}
+            {open === item.id && formEdit && item.type.kind !== 'rack_item' && (
               <AddEquipmentForm
                 key={pending?.token ?? 'manual'}
                 title={item.name}

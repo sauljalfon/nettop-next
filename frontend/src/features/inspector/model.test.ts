@@ -351,3 +351,26 @@ describe('VP-03 far ends carry pieces', () => {
     )
   })
 })
+
+describe('RI-09 a rack item has no ports to show', () => {
+  const item = {
+    id: 'ri-1',
+    name: 'UPS 1',
+    kind: 'rack_item' as const,
+    role: 'none',
+    rackId: s.racks[0].id,
+    unit: 1,
+    height: 2,
+    itemType: 'ups' as const,
+  }
+  const withItem = { ...s, equipment: [...s.equipment, item] }
+  const idx = indexSnapshot(withItem)
+
+  it('has no sections, no network and nothing to find from', () => {
+    expect(inspectorGroups(withItem, idx, 'ri-1')).toEqual([])
+    expect(
+      inspectorHeader(withItem, idx, item, new Set()).network,
+    ).toBeUndefined()
+    expect(canFindFromDevice(item)).toBe(false)
+  })
+})

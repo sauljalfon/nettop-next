@@ -22,6 +22,13 @@ describe('PHY-06 what a drop carries', () => {
     expect(parseDrop('new:panel:::')).toEqual({ type: 'create', kind: 'panel' })
   })
 
+  it('RI-09 reads a rack item from the library', () => {
+    expect(parseDrop('new:rack_item:::')).toEqual({
+      type: 'create',
+      kind: 'rack_item',
+    })
+  })
+
   it('ignores anything else', () => {
     expect(parseDrop('')).toBeUndefined()
     expect(parseDrop('text/plain')).toBeUndefined()

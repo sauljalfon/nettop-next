@@ -267,6 +267,7 @@ export default function RackElevation({
                   )}
                   <Plate
                     kind={e.kind}
+                    itemType={e.itemType}
                     count={e.kind === 'hdf' ? 0 : ports}
                     rows={facts.hdfRows.get(e.id) ?? 0}
                   />
@@ -295,13 +296,24 @@ export default function RackElevation({
 /** The face of the equipment: port dots, an HDF grid with its rows, or a row of jacks. */
 function Plate({
   kind,
+  itemType,
   count,
   rows,
 }: {
   kind: 'switch' | 'panel' | 'hdf' | 'rack_item'
+  itemType?: string
   count: number
   rows: number
 }) {
+  if (kind === 'rack_item')
+    return (
+      <span
+        className="plate"
+        data-plate="rack-item"
+        data-item-type={itemType}
+        aria-hidden
+      />
+    )
   if (kind === 'hdf')
     return (
       <span className="plate" data-plate="hdf">

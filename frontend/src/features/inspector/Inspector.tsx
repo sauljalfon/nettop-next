@@ -1,4 +1,5 @@
 import {
+  Box,
   Crosshair,
   GitFork,
   Network,
@@ -17,7 +18,9 @@ import {
 import EquipmentDetails from '../details/EquipmentDetails'
 import HistoryTab from '../details/HistoryTab'
 import { editMode } from '../details/model'
-import { isPassiveEquipment } from '../../shared/equipment'
+import { hasPorts, isPassiveEquipment } from '../../shared/equipment'
+import { rackItemPieces } from '../../shared/rackItems'
+import Pieces from '../../shared/ui/Pieces'
 import type { Equipment, Snapshot } from '../../shared/types'
 import DeleteEquipment from '../planning/DeleteEquipment'
 import DuplicateEquipment from '../planning/DuplicateEquipment'
@@ -84,6 +87,8 @@ export type OpenRequest = { equipmentId: string; serial: number } & (
 
 type Tab = 'overview' | 'ports' | 'history'
 const TABS: readonly Tab[] = ['overview', 'ports', 'history']
+/** A rack item has no ports, so no Ports tab. */
+const RACK_ITEM_TABS: readonly Tab[] = ['overview', 'history']
 
 /**
  * The equipment inspector: a sticky header (identity, cabling meter, location,
@@ -138,7 +143,7 @@ export default function Inspector({
       event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
     if (!step) return
     event.preventDefault()
-    const next = TABS[(TABS.indexOf(tab) + step + TABS.length) % TABS.length]
+    const next = tabs[(tabs.indexOf(tab) + step + tabs.length) % tabs.length]
     setTab(next)
     tabRefs.current[next]?.focus()
   }
@@ -155,8 +160,10 @@ export default function Inspector({
   const networkColor = (id: string) => colorOf(colors, id)
   const summary = index.summaries.get(equipment.id) ?? { cabled: 0, total: 0 }
   const passive = isPassiveEquipment(equipment)
-  const Icon = passive ? PanelTop : Network
+  const ported = hasPorts(equipment)
+  const Icon = !ported ? Box : passive ? PanelTop : Network
   const portsLabel = passive ? 'Positions' : 'Ports'
+  const tabs = ported ? TABS : RACK_ITEM_TABS
   return (
     <div className="inspector">
       <header className="inspector-header">
@@ -180,16 +187,18 @@ export default function Inspector({
             {header.proposed ? 'Proposed' : 'Installed'}
           </Chip>
         </div>
-        <div className="cabling-meter">
-          <div className="meter-bar" aria-hidden>
-            <span
-              style={{
-                width: `${summary.total ? (100 * summary.cabled) / summary.total : 0}%`,
-              }}
-            />
+        {ported && (
+          <div className="cabling-meter">
+            <div className="meter-bar" aria-hidden>
+              <span
+                style={{
+                  width: `${summary.total ? (100 * summary.cabled) / summary.total : 0}%`,
+                }}
+              />
+            </div>
+            <span>{header.summary}</span>
           </div>
-          <span>{header.summary}</span>
-        </div>
+        )}
         <p className="location-breadcrumb">
           {location.site && (
             <>
@@ -234,14 +243,16 @@ export default function Inspector({
           <Name text={header.name} />
         </p>
         <div className="inspector-actions">
-          <button
-            className="btn"
-            aria-label={`Show on map: ${equipment.name}`}
-            onClick={() => onShowOnMap(equipment.id)}
-          >
-            <Crosshair size={14} />
-            Show on map
-          </button>
+          {ported && (
+            <button
+              className="btn"
+              aria-label={`Show on map: ${equipment.name}`}
+              onClick={() => onShowOnMap(equipment.id)}
+            >
+              <Crosshair size={14} />
+              Show on map
+            </button>
+          )}
           <button
             className="btn"
             aria-label={`Show in Physical: ${equipment.name}`}
@@ -292,7 +303,7 @@ export default function Inspector({
           />
         )}
         <div className="inspector-tabs" role="tablist" onKeyDown={onTabKey}>
-          {TABS.map((id) => (
+          {tabs.map((id) => (
             <button
               key={id}
               ref={(el) => void (tabRefs.current[id] = el)}
@@ -321,6 +332,10 @@ export default function Inspector({
         {tab === 'overview' ? (
           <Overview
             role={cardRoleLabel(equipment)}
+            type={
+              ported ? undefined : <Pieces pieces={rackItemPieces(equipment)} />
+            }
+            hasPorts={ported}
             placement={
               location.rack ? (
                 <>

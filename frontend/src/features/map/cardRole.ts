@@ -10,5 +10,6 @@ const SWITCH_ROLES: Record<string, string> = {
 export function cardRoleLabel(e: Pick<Equipment, 'kind' | 'role'>): string {
   if (e.kind === 'panel') return 'Patch panel'
   if (e.kind === 'hdf') return 'HDF'
+  if (e.kind === 'rack_item') return 'Rack item'
   return SWITCH_ROLES[e.role] ?? e.role
 }

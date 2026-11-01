@@ -36,6 +36,8 @@ const counts = (): Counts => ({ equipment: 0, passive: 0, active: new Map() })
 
 function count(c: Counts, e: Equipment) {
   c.equipment++
+  // A rack item is neither passive nor an active device of a network.
+  if (e.kind === 'rack_item') return
   if (e.role === 'passive') c.passive++
   else
     c.active.set(e.networkId ?? '', (c.active.get(e.networkId ?? '') ?? 0) + 1)

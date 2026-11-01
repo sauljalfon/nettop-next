@@ -1,4 +1,5 @@
 import type { Endpoint, Equipment, Snapshot } from '../../shared/types'
+import { kindLabel } from '../../shared/equipment'
 import { comparePorts } from '../../shared/ports'
 import type { TextPiece } from '../../shared/textPieces'
 import { endpointNetwork } from '../map/circuitNetwork'
@@ -57,12 +58,6 @@ export interface InventoryRows {
 }
 
 const cap = (s?: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
-const KIND = {
-  switch: 'Switch',
-  panel: 'Panel',
-  hdf: 'HDF',
-  rack_item: 'Rack item',
-} as const
 const byName = new Intl.Collator(undefined, { numeric: true })
 
 /**
@@ -148,7 +143,7 @@ export function buildRows(
       i,
       values: {
         name: e.name,
-        kind: KIND[e.kind],
+        kind: kindLabel(e),
         role: cap(e.role),
         net: netText(net),
         site,

@@ -1,3 +1,5 @@
+import { piecesText } from '../../shared/textPieces'
+import { rackItemPieces } from '../../shared/rackItems'
 import { facetLabel } from '../map/facets'
 import type { Network } from '../../shared/types'
 import type { ExportHeader } from '../map/exportRoute'
@@ -27,10 +29,11 @@ export function rackSheetRows(
       unit:
         e.height > 1 ? `U${e.unit}–U${e.unit + e.height - 1}` : `U${e.unit}`,
       name: e.name,
-      kind: e.kind,
-      role: e.role,
+      // A rack item reads as its type ("UPS", "Other · KVM switch") and has no role.
+      kind: e.kind === 'rack_item' ? piecesText(rackItemPieces(e)) : e.kind,
+      role: e.kind === 'rack_item' ? '' : e.role,
       network:
-        e.role === 'passive'
+        e.role === 'passive' || e.kind === 'rack_item'
           ? ''
           : (networks.find((n) => n.id === e.networkId)?.name ?? ''),
     }))

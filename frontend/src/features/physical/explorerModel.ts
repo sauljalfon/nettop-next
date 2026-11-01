@@ -8,6 +8,7 @@ import type {
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import { piecesText, type TextPiece } from '../../shared/textPieces'
 import { defaultNodeLayout, type NodeGraph, type Position } from './layout'
+import { equipmentSubtitle } from './equipmentModel'
 import { resolveLocation, type PhysicalLocation } from './location'
 import { rackElevation } from './elevation'
 import type { Inventory, RouteMarks } from './inventory'
@@ -337,9 +338,11 @@ export function elevationSubtitle(
 
 /** The same line with the network name as its own piece, for <bdi>. */
 export function elevationSubtitlePieces(
-  e: Pick<Equipment, 'role' | 'networkId' | 'unit' | 'height'>,
+  e: Pick<Equipment, 'role' | 'networkId' | 'unit' | 'height'> &
+    Partial<Pick<Equipment, 'kind' | 'itemType' | 'itemText'>>,
   networks: readonly Network[],
 ): TextPiece[] {
+  if (e.kind === 'rack_item') return equipmentSubtitle(e)
   const network =
     e.role === 'passive'
       ? undefined

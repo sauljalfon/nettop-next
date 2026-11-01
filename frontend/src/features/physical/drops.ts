@@ -3,7 +3,11 @@ export const DRAG_TYPE = 'application/x-nettop-item'
 
 export type Drop =
   | { type: 'move'; equipmentId: string }
-  | { type: 'create'; kind: 'switch' | 'panel'; role?: 'aggregation' }
+  | {
+      type: 'create'
+      kind: 'switch' | 'panel' | 'rack_item'
+      role?: 'aggregation'
+    }
 
 /** `equipment:<id>` (an existing equipment) or `new:<kind>:::<role>` (a library item). */
 export function parseDrop(payload: string): Drop | undefined {
@@ -13,7 +17,8 @@ export function parseDrop(payload: string): Drop | undefined {
   }
   if (payload.startsWith('new:')) {
     const [kind, , , role] = payload.slice('new:'.length).split(':')
-    if (kind !== 'switch' && kind !== 'panel') return undefined
+    if (kind !== 'switch' && kind !== 'panel' && kind !== 'rack_item')
+      return undefined
     return role === 'aggregation'
       ? { type: 'create', kind, role }
       : { type: 'create', kind }
@@ -24,7 +29,7 @@ export function parseDrop(payload: string): Drop | undefined {
 export interface DropHandlers {
   onMoveEquipment?: (equipmentId: string, rackId: string, unit?: number) => void
   onCreateEquipment?: (
-    kind: 'switch' | 'panel',
+    kind: 'switch' | 'panel' | 'rack_item',
     rackId: string,
     unit?: number,
     role?: 'aggregation',

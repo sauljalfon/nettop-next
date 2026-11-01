@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react'
 import ConnectPopover from '../patching/ConnectPopover'
 import type { Snapshot } from '../../shared/types'
+import Chip from '../../shared/ui/Chip'
+import Name from '../../shared/ui/Name'
+import Pieces from '../../shared/ui/Pieces'
+import PlacePath from '../../shared/ui/PlacePath'
+import { editMode } from '../details/model'
+import EquipmentDetails from '../details/EquipmentDetails'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import DeleteEquipment from '../planning/DeleteEquipment'
 import DuplicateEquipment from '../planning/DuplicateEquipment'
@@ -17,6 +23,7 @@ import {
   connectionChain,
   detailModel,
   endpointTooltip,
+  equipmentSubtitle,
   faceMeta,
   type Face,
 } from './equipmentModel'
@@ -66,7 +73,8 @@ export default function EquipmentPage({
   index: SnapshotIndex
   inv: Inventory
   location: PhysicalLocation
-  face: Face
+  /** Absent for a rack item: it has no ports, so no face. */
+  face?: Face
   rackRows: ElevationRow[]
   colors: ReadonlyMap<string, string>
   onOpenEquipment: (equipmentId: string) => void
@@ -118,6 +126,84 @@ export default function EquipmentPage({
       : undefined
   }, [index, snapshot.networks, location.endpointId])
   if (!equipment) return null
+  if (!face) {
+    const proposed =
+      snapshot.context === 'planned' && !installedIds.has(equipment.id)
+    return (
+      <div className="equipment-page">
+        <div className="equipment-layout">
+          <RackStrip
+            inv={inv}
+            rackId={location.rackId ?? ''}
+            name={index.racks.get(location.rackId ?? '')?.name ?? ''}
+            rows={rackRows}
+            colors={colors}
+            onOpen={onOpenEquipment}
+          />
+          <div className="equipment-main">
+            <section
+              className="face-card rack-item-card"
+              aria-label={`${equipment.name} rack item`}
+              data-item-type={equipment.itemType}
+            >
+              <header className="face-head">
+                <div>
+                  <h2>
+                    <Name text={equipment.name} />
+                    {proposed && (
+                      <Chip
+                        kind="proposed"
+                        className="proposed-tag"
+                        testId="proposed-tag"
+                      >
+                        Proposed
+                      </Chip>
+                    )}
+                  </h2>
+                  <p>
+                    <Pieces pieces={equipmentSubtitle(equipment)} />
+                    {(index.locationParts.get(equipment.id)?.length ?? 0) >
+                      0 && (
+                      <>
+                        {' · '}
+                        <PlacePath
+                          parts={index.locationParts.get(equipment.id)!}
+                        />
+                      </>
+                    )}
+                  </p>
+                </div>
+              </header>
+              <p className="muted" data-testid="no-ports">
+                No ports
+              </p>
+              {edit && (
+                <DeleteEquipment
+                  snapshot={snapshot}
+                  index={index}
+                  equipmentId={equipment.id}
+                  proposed={!installedIds.has(equipment.id)}
+                  edit={edit}
+                  where="page"
+                />
+              )}
+              <EquipmentDetails
+                key={equipment.id}
+                equipment={equipment}
+                mode={editMode(
+                  snapshot.context === 'installed' ? 'installed' : 'planned',
+                  proposed,
+                  !!edit,
+                )}
+                edit={edit}
+                onFixed={onFixed}
+              />
+            </section>
+          </div>
+        </div>
+      </div>
+    )
+  }
   const side = face.kind === 'switch' ? undefined : (location.side ?? 'front')
   const meta = faceMeta(equipment, {
     rows: face.kind === 'hdf' ? face.face.rows : undefined,

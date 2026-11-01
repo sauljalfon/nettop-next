@@ -132,3 +132,31 @@ describe('PHY-03 route marks use the selected route only', () => {
     expect([...m.sites].sort()).toEqual(['site-dr', 'site-main'])
   })
 })
+
+describe('RI-09 a rack item is counted, but is neither active nor passive', () => {
+  it('adds to the equipment count only', () => {
+    const withItem = {
+      ...s,
+      equipment: [
+        ...s.equipment,
+        {
+          id: 'ri',
+          name: 'UPS 1',
+          kind: 'rack_item' as const,
+          role: 'none',
+          rackId: 'rack-core-01',
+          unit: 1,
+          height: 2,
+          itemType: 'ups' as const,
+        },
+      ],
+    }
+    const after = buildInventory(withItem, indexSnapshot(withItem))
+    const before = inv.racks.get('rack-core-01')!
+    const rack = after.racks.get('rack-core-01')!
+    expect(rack.equipment).toBe(before.equipment + 1)
+    expect(rack.passive).toBe(before.passive)
+    expect([...rack.active]).toEqual([...before.active])
+    expect(rack.occupiedUnits).toBe(before.occupiedUnits + 2)
+  })
+})

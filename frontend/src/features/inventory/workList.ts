@@ -1,3 +1,4 @@
+import { kindLabel } from '../../shared/equipment'
 import { piecesText, type TextPiece } from '../../shared/textPieces'
 import type { Endpoint, Plan, Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
@@ -38,12 +39,6 @@ const ORDER: Record<ChangeGroup, number> = {
   'Cables disconnected': 5,
 }
 
-const KIND = {
-  switch: 'Switch',
-  panel: 'Panel',
-  hdf: 'HDF',
-  rack_item: 'Rack item',
-} as const
 const name = (n: string): TextPiece => ({ name: n })
 const text = (t: string): TextPiece => ({ text: t })
 
@@ -135,7 +130,7 @@ export function buildWorkList(
         onEquipment()
         if (equipment) {
           const cables = installedIndex.cablesByEquipment.get(id)?.length ?? 0
-          const kind = equipment.model || KIND[equipment.kind]
+          const kind = equipment.model || kindLabel(equipment)
           detail = [
             text(
               cables === 0

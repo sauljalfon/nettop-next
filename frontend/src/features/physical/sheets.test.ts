@@ -146,3 +146,37 @@ describe('the sheet header and file names', () => {
     ])
   })
 })
+
+describe('RI-09 a rack item on the rack sheet', () => {
+  it('reads its type as the kind, with no role and no network', () => {
+    const withItem = {
+      ...s,
+      equipment: [
+        ...s.equipment,
+        {
+          id: 'ri',
+          name: 'KVM 1',
+          kind: 'rack_item' as const,
+          role: 'none',
+          rackId: 'rack-core-01',
+          unit: 1,
+          height: 1,
+          itemType: 'other' as const,
+          itemText: 'KVM switch',
+        },
+      ],
+    }
+    const rows = rackSheetRows(
+      buildInventory(withItem, indexSnapshot(withItem)),
+      'rack-core-01',
+      s.networks,
+    )
+    expect(rows.at(-1)).toEqual({
+      unit: 'U1',
+      name: 'KVM 1',
+      kind: 'Other · KVM switch',
+      role: '',
+      network: '',
+    })
+  })
+})
