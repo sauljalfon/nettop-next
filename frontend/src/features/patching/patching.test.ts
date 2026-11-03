@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { acceptanceSnapshot } from '../map/acceptanceFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import { rangePairs } from '../planning/range'
+import type { Snapshot } from '../../shared/types'
 import {
   chooseNode,
   chooseSite,
@@ -330,5 +331,93 @@ describe('P2-1 the far-end picker keeps its behaviour', () => {
     expect(chooseNode(tree, 'site-main', 'node-core', near).rackId).toBe(
       'rack-core-01',
     )
+  })
+})
+
+describe('RI-12 patching never offers a rack item as a far end', () => {
+  const rackItem = (
+    id: string,
+    rackId: string,
+    unit: number,
+  ): Snapshot['equipment'][number] => ({
+    id,
+    name: id,
+    kind: 'rack_item',
+    role: 'none',
+    rackId,
+    unit,
+    height: 2,
+    itemType: 'ups',
+  })
+  // A UPS beside EDGE-17 and PANEL-A; Rack A00 (sorted first in Building A)
+  // holds only a UPS; A-UPS sorts first in the first rack of the tree.
+  const base = acceptanceSnapshot()
+  const withItems: Snapshot = {
+    ...base,
+    racks: [
+      ...base.racks,
+      { id: 'rack-a00', nodeId: 'node-a', name: 'Rack A00', units: 12 },
+    ],
+    equipment: [
+      ...base.equipment,
+      rackItem('UPS-A03', 'rack-a03', 1),
+      rackItem('UPS-A00', 'rack-a00', 1),
+      rackItem('A-UPS', 'rack-dr01', 1),
+    ],
+  }
+  const itemIndex = indexSnapshot(withItems)
+  const itemTree = locationTree(withItems)
+  const place = (rackId: string) => ({
+    siteId: 'site-main',
+    nodeId: 'node-a',
+    rackId,
+  })
+
+  it('a rack with a switch and a UPS offers only the switch and the panel', () => {
+    expect(
+      eligibleIn(findRack(itemTree, place('rack-a03')), EQUIPMENT).map(
+        (e) => e.id,
+      ),
+    ).toEqual(['EDGE-17', 'PANEL-A'])
+  })
+
+  it('a rack with only a UPS offers nothing, and the picker skips it', () => {
+    expect(
+      eligibleIn(findRack(itemTree, place('rack-a00')), EQUIPMENT),
+    ).toEqual([])
+    expect(chooseNode(itemTree, 'site-main', 'node-a', EQUIPMENT).rackId).toBe(
+      'rack-a03',
+    )
+    expect(chooseSite(itemTree, 'site-main', EQUIPMENT)).toEqual(
+      place('rack-a03'),
+    )
+  })
+
+  it('the rack picker still offers a rack holding only a rack item', () => {
+    expect(chooseNode(itemTree, 'site-main', 'node-a', RACK).rackId).toBe(
+      'rack-a00',
+    )
+  })
+
+  it('the default far end is never a rack item: near node, fallback, or recent', () => {
+    expect(farDefault(withItems, itemIndex, 'EDGE-17:p5', [], none)).toEqual({
+      equipmentId: 'PANEL-A',
+      side: 'front',
+    })
+    const fallback = farDefault(withItems, itemIndex, 'AGG-12:p2', [], none)
+    expect(fallback?.equipmentId).toBeDefined()
+    expect(itemIndex.equipment.get(fallback!.equipmentId)?.kind).not.toBe(
+      'rack_item',
+    )
+    const recent = [{ equipmentId: 'UPS-A03' }, { equipmentId: 'HDF-01' }]
+    expect(
+      farDefault(withItems, itemIndex, 'EDGE-17:p5', recent, none)?.equipmentId,
+    ).toBe('HDF-01')
+  })
+
+  it('the location tree still lists the rack item, so its name stays taken', () => {
+    expect(
+      findRack(itemTree, place('rack-a03'))?.equipment.map((e) => e.name),
+    ).toEqual(['EDGE-17', 'PANEL-A', 'UPS-A03'])
   })
 })

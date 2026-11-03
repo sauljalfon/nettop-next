@@ -112,7 +112,7 @@ test('INV-08 Racks: used, free, the largest block and Fits, from the snapshot', 
     /8$/,
   )
   await expect(root(page)).toHaveAttribute('data-inventory-total', '8')
-  expect(t.equipment).toHaveLength(11)
+  expect(t.equipment).toHaveLength(14)
   await expect(
     table(page).getByRole('columnheader', { name: /^Largest free block/ }),
   ).toBeVisible()
@@ -126,10 +126,10 @@ test('INV-08 Racks: used, free, the largest block and Fits, from the snapshot', 
     'Main Campus',
     'Main Distribution',
     '12U',
-    '4U',
-    '8U',
-    'U9–U12 (4U)',
-    '2',
+    '5U',
+    '7U',
+    'U1–U3 (3U)',
+    '3',
   ])
   expect(await rowOf(page, 'Rack T42')).toEqual([
     'Rack T42',
@@ -163,7 +163,7 @@ test('INV-08 Racks: used, free, the largest block and Fits, from the snapshot', 
   const main = table(page)
     .locator('tr.group-row')
     .filter({ hasText: 'Main Distribution' })
-  await expect(main.locator('.inv-use')).toHaveText('29U free')
+  await expect(main.locator('.inv-use')).toHaveText('28U free')
 })
 
 test('INV-08 Show in Physical opens the rack', async ({ page }) => {

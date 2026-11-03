@@ -154,7 +154,7 @@ func TestPHY16LayoutAndNetworkWritesDoNotChangeRevisionsOrPlans(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err = s.Command(ctx, plan.ID, planning.Command{Type: "add_equipment", ExpectedRevision: plan.Revision, Equipment: &planning.EquipmentInput{Name: "NEW-1", Kind: "switch", Role: "access", NetworkID: "net-a", RackID: "rack-a03", Unit: 1, Height: 1, PortCount: 4}})
+	plan, err = s.Command(ctx, plan.ID, planning.Command{Type: "add_equipment", ExpectedRevision: plan.Revision, Equipment: &planning.EquipmentInput{Name: "NEW-1", Kind: "switch", Role: "access", NetworkID: "net-a", RackID: "rack-a03", Unit: 7, Height: 1, PortCount: 4}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +263,7 @@ func TestNET01CreatedNetworkAppearsAfterExistingOnes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err = s.Command(ctx, plan.ID, planning.Command{Type: "add_equipment", ExpectedRevision: plan.Revision, Equipment: &planning.EquipmentInput{Name: "EDGE-C", Kind: "switch", Role: "access", NetworkID: created.ID, RackID: "rack-a03", Unit: 1, Height: 1, PortCount: 4}})
+	plan, err = s.Command(ctx, plan.ID, planning.Command{Type: "add_equipment", ExpectedRevision: plan.Revision, Equipment: &planning.EquipmentInput{Name: "EDGE-C", Kind: "switch", Role: "access", NetworkID: created.ID, RackID: "rack-a03", Unit: 7, Height: 1, PortCount: 4}})
 	if err != nil {
 		t.Fatalf("a switch must be addable to the new network: %v", err)
 	}

@@ -31,8 +31,13 @@ All seven example racks have 12U. Main Campus contains three nodes; DR contains 
 | EDGE-22 | Active switch / `access` | B | DR01 | U8, 1U | 24 device ports |
 | PANEL-DR | Standard panel / `passive` | Shared-capable; B circuits in this fixture | DR01 | U11, 1U | 24 local positions |
 | AGG-12 | Active switch / `aggregation` | B | DR02 | U8, 1U | 24 device ports |
+| UPS-A03 | Rack item / `none` | — | A03 | U1–U2, 2U | No ports; type UPS |
+| CM-A03 | Rack item / `none` | — | A03 | U12, 1U | No ports; type Cable manager |
+| KVM-CORE-01 | Rack item / `none` | — | Core 01 | U12, 1U | No ports; type Other, KVM switch |
 
-There are eleven equipment objects: seven active devices and four passive panels. Network A has **three AGGs**, of which only two are reachable from EDGE-17. The single reachable AGG in the small Network B example is not a network-size limit.
+Rack items take units, have no ports and are never in a trace.
+
+There are fourteen equipment objects: seven active devices, four passive panels and three rack items (no endpoints, no links). Network A has **three AGGs**, of which only two are reachable from EDGE-17. The single reachable AGG in the small Network B example is not a network-size limit.
 
 ### HDF physical layout
 
@@ -134,7 +139,7 @@ The BB route likewise ends at BB-01 port 1. Do not append a hidden AGG-to-BB con
 - Choosing AGG-03 reveals HDF-01 3C/5 and HDF-02 2B/3; choosing AGG-08 or BB-01 reveals their different positions.
 - All three results remain available. Coordinates, viewport, and other visible connections do not reset.
 - Manual expansion may reveal additional connected positions. Clearing the route removes its automatic detail only.
-- All-networks mode shows all eleven equipment objects and sixteen actual cable records in this small fixture. Summary views may bundle them while retaining identities.
+- All-networks mode shows all eleven equipment objects with ports (rack items have none) and sixteen actual cable records in this small fixture. Summary views may bundle them while retaining identities.
 
 ### Physical
 

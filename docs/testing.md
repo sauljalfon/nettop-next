@@ -50,7 +50,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:5174`. The seed loads the fictional acceptance fixture (Networks A/B, 11 equipment, HDF-01/HDF-02, cables A01–B04) with no drafts; §2a is the smoke flow, and the README says how to reset a database seeded before M1. The browser tests use the same acceptance fixture plus one draft named Expansion (`cmd/testserver`).
+Open `http://127.0.0.1:5174`. The seed loads the fictional acceptance fixture (Networks A/B, 14 equipment including 3 rack items, HDF-01/HDF-02, cables A01–B04) with no drafts; §2a is the smoke flow, and the README says how to reset a database seeded before M1. The browser tests use the same acceptance fixture plus one draft named Expansion (`cmd/testserver`).
 
 Do not reset Docker volumes, overwrite recorded inventory, or reseed real data as part of a migration test.
 

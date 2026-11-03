@@ -85,7 +85,7 @@ func TestRI02RefusesInvalidRackItems(t *testing.T) {
 // RI-03: a rack item moves, is deleted and is removed from a plan like any equipment.
 func TestRI03MoveDeleteAndRemoveChange(t *testing.T) {
 	base := acceptance.Installed()
-	base.Equipment = append(base.Equipment, topology.Equipment{ID: "ri-inst", Name: "UPS 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 1, Height: 2, ItemType: "ups"})
+	base.Equipment = append(base.Equipment, topology.Equipment{ID: "ri-inst", Name: "UPS 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 9, Height: 2, ItemType: "ups"})
 	if err := topology.Validate(base); err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestRI03MoveDeleteAndRemoveChange(t *testing.T) {
 	}
 
 	move := cmd("move_equipment", "1")
-	move.Placement = &planning.PlacementInput{EquipmentID: "ri-inst", RackID: "rack-a03", Unit: 4}
+	move.Placement = &planning.PlacementInput{EquipmentID: "ri-inst", RackID: "rack-a03", Unit: 3}
 	moved := exec(v2Plan(), move, "x")
 	if conflicts := planning.Check(base, moved); len(conflicts) != 0 {
 		t.Fatalf("conflicts %v", conflicts)
@@ -124,7 +124,7 @@ func TestRI03MoveDeleteAndRemoveChange(t *testing.T) {
 		t.Fatalf("remove delete: %v %v", err, removed)
 	}
 
-	added := exec(v2Plan(), addRackItem("rack-a03", 5, topology.Details{ItemType: str("pdu")}, nil), "ri-new")
+	added := exec(v2Plan(), addRackItem("rack-a03", 7, topology.Details{ItemType: str("pdu")}, nil), "ri-new")
 	got, removed, err := planning.RemoveChange(added, "add_equipment:ri-new")
 	if err != nil || len(removed) != 1 || len(got.Equipment) != 0 {
 		t.Fatalf("remove add: %v %v", err, removed)

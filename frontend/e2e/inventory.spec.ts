@@ -67,7 +67,7 @@ test('INV-01 the Inventory view lists equipment, ports and cables as the snapsho
     'data-inventory-total',
     String(snapshot.equipment.length),
   )
-  await expect(page.getByText('Showing 1 to 11 of 11 records.')).toBeVisible()
+  await expect(page.getByText('Showing 1 to 14 of 14 records.')).toBeVisible()
   await expect(page.locator('[data-view]')).toHaveCount(0)
 })
 
@@ -91,7 +91,7 @@ test('INV-01 a pill narrows the rows, and Reset filters clears it', async ({
     page.getByRole('button', { name: 'Role == Backbone' }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Reset filters' }).click()
-  await expect(root(page)).toHaveAttribute('data-inventory-total', '11')
+  await expect(root(page)).toHaveAttribute('data-inventory-total', '14')
   await expect(root(page)).toHaveAttribute('data-inventory-filters', '{}')
   await expect(page.getByRole('button', { name: 'Reset filters' })).toHaveCount(
     0,
@@ -300,7 +300,7 @@ test('INV-06 the header network and the Network pill follow each other', async (
   await expect(root(page)).toHaveAttribute('data-inventory-total', '2')
   await headerNetwork(page).selectOption({ label: 'All networks' })
   await expect(pill('Network == all')).toBeVisible()
-  await expect(root(page)).toHaveAttribute('data-inventory-total', '11')
+  await expect(root(page)).toHaveAttribute('data-inventory-total', '14')
 
   // Pill (one network) → header.
   await pill(/^Network == /).click()

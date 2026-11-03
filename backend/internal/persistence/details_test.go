@@ -216,7 +216,7 @@ func TestFD02RefusalsInCommandsBatchesRecordAndTheDatabase(t *testing.T) {
 	}
 	other, _ := s.CreatePlan(ctx, "Other", snap.Revision)
 	o, err := s.Command(ctx, other.ID, planning.Command{Type: "add_equipment", ExpectedRevision: other.Revision, Equipment: &planning.EquipmentInput{
-		Name: "EDGE-40", Kind: "switch", Role: "access", NetworkID: "net-a", RackID: "rack-a03", Unit: 5, Height: 1, PortCount: 1,
+		Name: "EDGE-40", Kind: "switch", Role: "access", NetworkID: "net-a", RackID: "rack-a03", Unit: 7, Height: 1, PortCount: 1,
 		Details: &topology.Details{SerialNumber: ptr("SN-0033")}}})
 	if err != nil {
 		t.Fatal(err)

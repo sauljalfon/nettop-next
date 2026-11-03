@@ -249,5 +249,9 @@ test('PHY-07 proposed equipment is marked PROPOSED at node and rack level, and a
   await expect(block(page, 'edge-17')).not.toContainText('Proposed')
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await expect(block(page, 'edge-18')).toHaveCount(0)
-  await expectMark(page, 'data-rack-equipment', 'panel-a edge-17')
+  await expectMark(
+    page,
+    'data-rack-equipment',
+    'cm-a03 panel-a edge-17 ups-a03',
+  )
 })

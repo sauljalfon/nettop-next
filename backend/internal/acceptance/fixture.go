@@ -78,6 +78,17 @@ func Installed() topology.Snapshot {
 			s.Links = append(s.Links, topology.Link{ID: fmt.Sprintf("%s:%d:bridge", p.id, n), A: front, B: rear, Kind: "internal"})
 		}
 	}
+	// Rack items take units and have no endpoints or links.
+	for _, r := range []struct {
+		id, name, itemType, itemText, rack string
+		unit, height                       int
+	}{
+		{"ups-a03", "UPS-A03", "ups", "", "rack-a03", 1, 2},
+		{"cm-a03", "CM-A03", "cable-manager", "", "rack-a03", 12, 1},
+		{"kvm-core-01", "KVM-CORE-01", "other", "KVM switch", "rack-core-01", 12, 1},
+	} {
+		s.Equipment = append(s.Equipment, topology.Equipment{ID: r.id, Name: r.name, Kind: "rack_item", Role: "none", ItemType: r.itemType, ItemText: r.itemText, RackID: r.rack, Unit: r.unit, Height: r.height})
+	}
 	// The 3U rack height is a fixture input, independent of the row count.
 	hdf01 := topology.NewHDF("hdf-01", "HDF-01", "rack-sm01", 4, 3, 4)
 	hdf02 := topology.NewHDF("hdf-02", "HDF-02", "rack-core-01", 4, 3, 3)

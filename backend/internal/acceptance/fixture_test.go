@@ -108,19 +108,22 @@ func TestFixtureCounts(t *testing.T) {
 	if len(s.Sites) != 2 || len(s.Nodes) != 5 || len(s.Racks) != 7 || len(s.Networks) != 2 {
 		t.Fatalf("sites/nodes/racks/networks = %d/%d/%d/%d", len(s.Sites), len(s.Nodes), len(s.Racks), len(s.Networks))
 	}
-	if len(s.Equipment) != 11 {
-		t.Fatalf("%d equipment, want 11", len(s.Equipment))
+	if len(s.Equipment) != 14 {
+		t.Fatalf("%d equipment, want 14", len(s.Equipment))
 	}
-	active, passive := 0, 0
+	active, passive, items := 0, 0, 0
 	for _, e := range s.Equipment {
-		if e.Kind == "switch" {
+		switch e.Kind {
+		case "switch":
 			active++
-		} else {
+		case "rack_item":
+			items++
+		default:
 			passive++
 		}
 	}
-	if active != 7 || passive != 4 {
-		t.Fatalf("active/passive = %d/%d, want 7/4", active, passive)
+	if active != 7 || passive != 4 || items != 3 {
+		t.Fatalf("active/passive/rack items = %d/%d/%d, want 7/4/3", active, passive, items)
 	}
 	if got := x.count("cable", nil); got != 16 {
 		t.Fatalf("%d external cables, want 16", got)
@@ -503,6 +506,58 @@ func TestAGG15IsNeverReached(t *testing.T) {
 	}
 }
 
+// Rack items take units, have no ports and are never in a trace.
+func TestRackItems(t *testing.T) {
+	x := newIndex(t)
+	rackName := map[string]string{}
+	for _, r := range x.s.Racks {
+		rackName[r.ID] = r.Name
+	}
+	for _, tc := range []struct {
+		id, name, itemType, itemText, rack string
+		unit, height                       int
+	}{
+		{"ups-a03", "UPS-A03", "ups", "", "Rack A03", 1, 2},
+		{"cm-a03", "CM-A03", "cable-manager", "", "Rack A03", 12, 1},
+		{"kvm-core-01", "KVM-CORE-01", "other", "KVM switch", "Rack Core 01", 12, 1},
+	} {
+		e := x.equipment(tc.name)
+		if e.ID != tc.id || e.Kind != "rack_item" || e.Role != "none" || e.NetworkID != "" ||
+			e.ItemType != tc.itemType || e.ItemText != tc.itemText ||
+			rackName[e.RackID] != tc.rack || e.Unit != tc.unit || e.Height != tc.height {
+			t.Errorf("%s = %+v, want %s rack_item/none %s %q %s U%d %dU", tc.name, e, tc.id, tc.itemType, tc.itemText, tc.rack, tc.unit, tc.height)
+		}
+		for _, p := range x.s.Endpoints {
+			if p.EquipmentID == e.ID {
+				t.Errorf("%s owns endpoint %s", tc.name, p.ID)
+			}
+		}
+		for _, sp := range x.s.Subpanels {
+			if sp.EquipmentID == e.ID {
+				t.Errorf("%s owns subpanel %s", tc.name, sp.ID)
+			}
+		}
+	}
+	items := map[string]bool{}
+	for _, e := range x.s.Equipment {
+		if e.Kind == "rack_item" {
+			items[e.ID] = true
+		}
+	}
+	owner := map[string]string{}
+	for _, p := range x.s.Endpoints {
+		owner[p.ID] = p.EquipmentID
+	}
+	for _, l := range x.s.Links {
+		if items[owner[l.A]] || items[owner[l.B]] || items[l.A] || items[l.B] {
+			t.Errorf("link %s touches a rack item", l.ID)
+		}
+	}
+	if err := topology.Validate(x.s); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFixtureIDsAreStableAndIndependentOfLabels(t *testing.T) {
 	a, b := acceptance.Installed(), acceptance.Installed()
 	if fmt.Sprint(a) != fmt.Sprint(b) {
@@ -520,6 +575,11 @@ func TestFixtureIDsAreStableAndIndependentOfLabels(t *testing.T) {
 		ids("equipment", e.ID)
 		if strings.TrimSpace(e.Name) == "" {
 			t.Fatal("equipment needs a display name")
+		}
+	}
+	for _, id := range []string{"ups-a03", "cm-a03", "kvm-core-01"} {
+		if !seen["equipment/"+id] {
+			t.Errorf("missing rack item ID %s", id)
 		}
 	}
 }

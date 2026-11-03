@@ -144,7 +144,7 @@ func TestFixThenRecordKeepsTheFix(t *testing.T) {
 // RI-04 at the store: the type and text fix writes change_log rows and keeps the revision.
 func TestRI04RackItemFixWritesChangeLog(t *testing.T) {
 	base := acceptance.Installed()
-	base.Equipment = append(base.Equipment, topology.Equipment{ID: "ri", Name: "Shelf 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 1, Height: 1, ItemType: "shelf"})
+	base.Equipment = append(base.Equipment, topology.Equipment{ID: "ri", Name: "Shelf 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 7, Height: 1, ItemType: "shelf"})
 	s, _ := testStore(t)
 	ctx := context.Background()
 	if err := s.Seed(ctx, base); err != nil {

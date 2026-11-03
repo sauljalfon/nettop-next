@@ -1,3 +1,4 @@
+import { hasPorts } from '../../shared/equipment'
 import { hasSide } from '../../shared/ports'
 import type { Equipment, Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
@@ -89,11 +90,11 @@ export function racksOf(node: NodeBranch | undefined, rules: PickRules) {
     : racks
 }
 
-/** The equipment a rack offers as a far end. */
+/** The equipment a rack offers as a far end: never the near end, never a rack item (it has no jacks). */
 export function eligibleIn(rack: RackBranch | undefined, rules: PickRules) {
   const all = rack?.equipment ?? []
   return rules.level === 'equipment'
-    ? all.filter((e) => e.id !== rules.exclude)
+    ? all.filter((e) => e.id !== rules.exclude && hasPorts(e))
     : all
 }
 
@@ -243,7 +244,8 @@ export function farSide(
 /**
  * The far end the screen starts on: the last far target of the session (never
  * the near equipment), else equipment with a free endpoint in the near end's
- * node (panels and HDFs first), else the first other equipment.
+ * node (panels and HDFs first), else the first other equipment. Never a rack
+ * item: it has no jacks.
  */
 export function farDefault(
   s: Snapshot,
@@ -253,8 +255,12 @@ export function farDefault(
   sides: ReadonlyMap<string, Side>,
 ): FarTarget | undefined {
   const own = index.owner.get(nearEndpointId)
+  const cableable = (id: string) => {
+    const e = index.equipment.get(id)
+    return !!e && hasPorts(e)
+  }
   const last = recent.find(
-    (t) => t.equipmentId !== own && index.equipment.has(t.equipmentId),
+    (t) => t.equipmentId !== own && cableable(t.equipmentId),
   )
   if (last)
     return {
@@ -269,7 +275,7 @@ export function farDefault(
     .flatMap((n) =>
       n.racks.flatMap((r) => r.equipment.map((e) => [n.id, e] as const)),
     )
-    .filter(([, e]) => e.id !== own)
+    .filter(([, e]) => e.id !== own && hasPorts(e))
   const near = others
     .filter(([n, e]) => n === node && freeCount(index, e.id) > 0)
     .map(([, e]) => e)

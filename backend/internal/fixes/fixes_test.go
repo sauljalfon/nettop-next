@@ -192,7 +192,7 @@ func TestUnknownObjectKindAndLongNote(t *testing.T) {
 // RI-04: the rack item's type and text are detail fields of a direct fix.
 func TestRI04RackItemTypeAndTextFixes(t *testing.T) {
 	s := acceptance.Installed()
-	s.Equipment = append(s.Equipment, topology.Equipment{ID: "ri", Name: "Shelf 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 1, Height: 1, ItemType: "shelf"})
+	s.Equipment = append(s.Equipment, topology.Equipment{ID: "ri", Name: "Shelf 1", Kind: "rack_item", Role: "none", RackID: "rack-a03", Unit: 7, Height: 1, ItemType: "shelf"})
 	fix := func(typ string, text *string) Fix {
 		return Fix{Kind: Equipment, ID: "ri", Details: topology.Details{ItemType: ptr(typ), ItemText: text}}
 	}

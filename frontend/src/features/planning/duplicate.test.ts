@@ -554,3 +554,80 @@ describe('P2-2 Duplicate overrides', () => {
     expect(copySummary([])).toBe('')
   })
 })
+
+describe('RI-12 Copy rack layout copies rack items too', () => {
+  // Rack A03 gains a 2U UPS at U1 and an Other "KVM switch" at U3.
+  const withItems = (): Snapshot => {
+    const s = snap()
+    return {
+      ...s,
+      equipment: [
+        ...s.equipment,
+        {
+          id: 'ups-a03',
+          name: 'UPS-A03',
+          kind: 'rack_item',
+          role: 'none',
+          rackId: 'rack-a03',
+          unit: 1,
+          height: 2,
+          itemType: 'ups',
+          manufacturer: 'APC',
+          serialNumber: 'UPS-SN-1',
+        },
+        {
+          id: 'kvm-01',
+          name: 'KVM-01',
+          kind: 'rack_item',
+          role: 'none',
+          rackId: 'rack-a03',
+          unit: 3,
+          height: 1,
+          itemType: 'other',
+          itemText: 'KVM switch',
+        },
+      ],
+    }
+  }
+
+  it('lists the rack items with the switch and the panel, at the same units, with no problem', () => {
+    const result = copyLayout(withItems(), 'rack-a03', 'rack-new')
+    expect(result.problem).toBeUndefined()
+    expect(
+      result.lines.map((l) => [l.unit, l.sourceName, l.name, l.problem]),
+    ).toEqual([
+      [1, 'UPS-A03', 'UPS-A04', undefined],
+      [3, 'KVM-01', 'KVM-02', undefined],
+      [8, 'EDGE-17', 'EDGE-18', undefined],
+      [11, 'PANEL-A', 'PANEL-A-2', undefined],
+    ])
+  })
+
+  it('sends a rack item as add_equipment with its type and text only: no ports, no network, no other details', () => {
+    const [ups, kvm] = copyLayout(withItems(), 'rack-a03', 'rack-new').lines
+    expect(ups.command).toEqual({
+      type: 'add_equipment',
+      equipment: {
+        kind: 'rack_item',
+        role: 'none',
+        name: 'UPS-A04',
+        rackId: 'rack-new',
+        unit: 1,
+        height: 2,
+        details: { itemType: 'ups' },
+      },
+    })
+    expect(kvm.command).toEqual({
+      type: 'add_equipment',
+      equipment: {
+        kind: 'rack_item',
+        role: 'none',
+        name: 'KVM-02',
+        rackId: 'rack-new',
+        unit: 3,
+        height: 1,
+        details: { itemType: 'other', itemText: 'KVM switch' },
+      },
+    })
+  })
+})

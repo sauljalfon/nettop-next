@@ -40,7 +40,7 @@ func TestAcceptanceFixtureSeedsWithoutPlansAndRoundTrips(t *testing.T) {
 	if plans, err := reopened.Plans(ctx); err != nil || len(plans) != 0 {
 		t.Fatalf("seeding the acceptance fixture must not invent a draft: %d %v", len(plans), err)
 	}
-	if len(got.Equipment) != 11 || len(got.Subpanels) != 28 || len(got.Networks) != 2 {
+	if len(got.Equipment) != 14 || len(got.Subpanels) != 28 || len(got.Networks) != 2 {
 		t.Fatalf("unexpected counts: %d equipment, %d subpanels, %d networks", len(got.Equipment), len(got.Subpanels), len(got.Networks))
 	}
 	var edge17 string

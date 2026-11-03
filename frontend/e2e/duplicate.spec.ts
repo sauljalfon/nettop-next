@@ -88,28 +88,27 @@ test('BK-03 a duplicate that runs out of free units is blocked, from the inspect
   await page.getByRole('button', { name: 'Duplicate EDGE-17…' }).click()
   const dup = box(page, 'Duplicate')
   await dup.getByLabel('Count').fill('5')
-  // Rack A03 has 12 units: EDGE-17 at U8 and PANEL-A at U11 leave U9, U10 and U12
-  // above it, then U1 and U2 below it: nothing is blocked while the rack has room.
+  // Rack A03 has 12 units: EDGE-17 at U8, PANEL-A at U11, CM-A03 at U12 and UPS-A03
+  // at U1–U2 leave U9 and U10 above it, then U3, U4 and U5 below it: nothing is
+  // blocked while the rack has room.
   const rows = lines(page, 'Duplicate')
   await expect(rows).toHaveCount(5)
-  await expect(rows.nth(2)).toContainText('U12')
-  await expect(rows.nth(3)).toContainText('U1')
-  await expect(rows.nth(4)).toContainText('U2')
+  await expect(rows.nth(2)).toContainText('U3')
+  await expect(rows.nth(3)).toContainText('U4')
+  await expect(rows.nth(4)).toContainText('U5')
   await expect(
     box(page, 'Duplicate').locator('[data-blocked="true"]'),
   ).toHaveCount(0)
   await expect(dup.getByRole('button', { name: 'Duplicate 5' })).toBeEnabled()
   await shot(page, 'duplicate-wraps')
-  // Ten units are free; the eleventh copy finds none.
-  await dup.getByLabel('Count').fill('11')
-  await expect(rows).toHaveCount(11)
-  await expect(rows.nth(10).getByLabel('Name of copy 11')).toHaveValue(
-    'EDGE-29',
+  // Seven units are free; the eighth copy finds none.
+  await dup.getByLabel('Count').fill('8')
+  await expect(rows).toHaveCount(8)
+  await expect(rows.nth(7).getByLabel('Name of copy 8')).toHaveValue('EDGE-26')
+  await expect(rows.nth(7)).toContainText(
+    'Rack A03 has no free unit for EDGE-26',
   )
-  await expect(rows.nth(10)).toContainText(
-    'Rack A03 has no free unit for EDGE-29',
-  )
-  await expect(dup.getByRole('button', { name: 'Duplicate 11' })).toBeDisabled()
+  await expect(dup.getByRole('button', { name: 'Duplicate 8' })).toBeDisabled()
   await shot(page, 'duplicate-blocked')
   await dup.getByLabel('Count').fill('3')
   await expect(dup.getByRole('button', { name: 'Duplicate 3' })).toBeEnabled()
@@ -155,7 +154,8 @@ test('BK-04 copying Rack A03 into a new empty rack places the same kinds at the 
     node: 'Building A',
     rack: 'Rack A03',
   })
-  await expect(lines(page, 'Copy rack layout').first()).toContainText(
+  // UPS-A03 (U1–U2) fits; EDGE-17 at U8 is the first line that does not.
+  await expect(lines(page, 'Copy rack layout').nth(1)).toContainText(
     `${label} Tiny has units 1–4; 1 unit from U8 does not fit`,
   )
   await expect(
@@ -186,36 +186,38 @@ test('BK-04 copying Rack A03 into a new empty rack places the same kinds at the 
     rack: 'Rack A03',
   })
   await expect(lines(page, 'Copy rack layout')).toHaveText([
-    /✓\s*1\s+U8\s+EDGE-17 → EDGE-18/,
-    /✓\s*2\s+U11\s+PANEL-A → PANEL-A-2/,
+    /✓\s*1\s+U1\s+UPS-A03 → UPS-A04/,
+    /✓\s*2\s+U8\s+EDGE-17 → EDGE-18/,
+    /✓\s*3\s+U11\s+PANEL-A → PANEL-A-2/,
+    /✓\s*4\s+U12\s+CM-A03 → CM-A04/,
   ])
   await shot(page, 'copy-valid')
-  await copy.getByRole('button', { name: 'Copy 2' }).click()
+  await copy.getByRole('button', { name: 'Copy 4' }).click()
   await expect(copy).toHaveCount(0)
 
   const plan = await getPlan(request, id)
   const added = plan.equipment.map(
-    (e: { name: string; unit: number; kind: string; rackId: string }) => [
-      e.name,
-      e.kind,
-      e.unit,
-      e.rackId === room.rackId,
-    ],
+    (e: {
+      name: string
+      unit: number
+      height: number
+      kind: string
+      rackId: string
+    }) => [e.name, e.kind, e.unit, e.height, e.rackId === room.rackId],
   )
   expect(added).toEqual([
-    ['EDGE-18', 'switch', 8, true],
-    ['PANEL-A-2', 'panel', 11, true],
+    ['UPS-A04', 'rack_item', 1, 2, true],
+    ['EDGE-18', 'switch', 8, 1, true],
+    ['PANEL-A-2', 'panel', 11, 1, true],
+    ['CM-A04', 'rack_item', 12, 1, true],
   ])
   expect(
     plan.links.filter((l: { kind?: string }) => l.kind !== 'internal'),
   ).toEqual([])
-  expect(plan.equipment.every((e: { height: number }) => e.height === 1)).toBe(
-    true,
-  )
 
   await page.getByRole('button', { name: /^Changes/ }).click()
   await expect(
-    page.getByTestId('change-group').filter({ hasText: 'Equipment added · 2' }),
+    page.getByTestId('change-group').filter({ hasText: 'Equipment added · 4' }),
   ).toBeVisible()
   await shot(page, 'copy-changes-drawer')
 })

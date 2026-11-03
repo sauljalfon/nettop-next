@@ -263,7 +263,7 @@ test('POL-25 a route that leaves a node and returns gets two node boxes for it',
     data: {
       type: 'move_equipment',
       expectedRevision: plan.revision,
-      placement: { equipmentId: 'agg-03', rackId: 'rack-a03', unit: 2 },
+      placement: { equipmentId: 'agg-03', rackId: 'rack-a03', unit: 3 },
     },
   })
   expect(saved.status()).toBe(200)

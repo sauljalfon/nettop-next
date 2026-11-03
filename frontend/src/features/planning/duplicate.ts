@@ -117,7 +117,7 @@ export interface GroupDetails {
   speed: string
 }
 
-/** A copy of `source` called `name` at `unit` in `rackId`: kind, role, network, height and size, never cables or details. */
+/** A copy of `source` called `name` at `unit` in `rackId`: kind, role, network, height and size, never cables or details (a rack item keeps its type and text). */
 function copyCommand(
   s: Snapshot,
   size: ReadonlyMap<string, number>,
@@ -139,6 +139,22 @@ function copyCommand(
       hdf: { name, rackId, unit, height: source.height, rows },
     }
   }
+  if (source.kind === 'rack_item')
+    return {
+      type: 'add_equipment',
+      equipment: {
+        kind: 'rack_item',
+        role: 'none',
+        name,
+        rackId,
+        unit,
+        height: source.height,
+        details: {
+          itemType: source.itemType,
+          ...(source.itemType === 'other' && { itemText: source.itemText }),
+        },
+      },
+    }
   const equipment: EquipmentInput = {
     name,
     kind: source.kind,
@@ -274,9 +290,9 @@ function sizes(s: Snapshot): Map<string, number> {
   return size
 }
 
-/** What the server says of a switch (1–96 ports) or panel (1–48 positions) of this size. */
+/** What the server says of a switch (1–96 ports) or panel (1–48 positions) of this size; an HDF and a rack item have none. */
 const sizeProblem = (source: Equipment, count: number) => {
-  if (source.kind === 'hdf') return undefined
+  if (source.kind === 'hdf' || source.kind === 'rack_item') return undefined
   const most = source.kind === 'switch' ? 96 : 48
   return count < 1 || count > most
     ? `port count must be between 1 and ${most}`

@@ -70,7 +70,7 @@ test('F01 Sites shows names, counts and the route, with no coordinates', async (
   )
   const dr = page.locator('[data-testid="site-card"][data-site-id="site-dr"]')
   await expect(main).toContainText('Main Campus')
-  await expect(main).toContainText('3 nodes · 5 racks · 8 equipment')
+  await expect(main).toContainText('3 nodes · 5 racks · 11 equipment')
   await expect(main).toContainText('Network A · 5 active')
   await expect(dr).toContainText('2 nodes · 2 racks · 3 equipment')
   await expect(dr).toContainText('Network B · 2 active')
@@ -169,7 +169,7 @@ test('F03 a node shows only its own racks, and the route marks the racks it uses
   await expect(rack('rack-core-02')).toHaveAttribute('data-on-route', 'false')
   await expect(rack('rack-core-03')).toHaveAttribute('data-on-route', 'false')
   await expect(rack('rack-core-01')).toContainText(
-    '2 equipment · 4 of 12U used',
+    '3 equipment · 5 of 12U used',
   )
   // The 3U HDF is one block spanning three units, not three blocks.
   const hdf = rack('rack-core-01').locator('[data-equipment-id="hdf-02"]')
