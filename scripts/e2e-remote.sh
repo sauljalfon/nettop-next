@@ -4,8 +4,8 @@
 #   scripts/e2e-remote.sh                      # the whole suite
 #   scripts/e2e-remote.sh e2e/rack.spec.ts     # any playwright arguments
 #
-# It copies this working folder (uncommitted changes included, never .env) to
-# the machine, installs packages when package-lock.json or go.sum changed, runs
+# It copies this working folder (uncommitted changes included, never .env or a
+# spreadsheet) to the machine, installs packages when package-lock.json or go.sum changed, runs
 # Playwright there and copies test-results/ back when something failed.
 # Settings, in .env at the repository root (see .env.example):
 #   E2E_REMOTE              user@host (required)
@@ -36,6 +36,7 @@ echo "› copying $root to $E2E_REMOTE:$dir"
 rsync -az --delete -e "${ssh_cmd[*]}" \
   --exclude .git --exclude node_modules --exclude 'test-results*' \
   --exclude playwright-report --exclude dist --exclude .env \
+  --exclude '*.xlsx' --exclude '*.xls' \
   "$root/" "$E2E_REMOTE:$dir/"
 
 args=$(printf '%q ' "$@")

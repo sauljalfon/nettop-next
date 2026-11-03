@@ -15,3 +15,7 @@ test-results-remote/
 # infra/compose on a server: secrets and backups never go to git
 infra/compose/secrets/
 infra/compose/backups/
+
+# Real inventory spreadsheets (owner data): never committed
+*.xlsx
+*.xls
