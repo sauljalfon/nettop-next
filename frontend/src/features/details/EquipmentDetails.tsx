@@ -4,7 +4,6 @@ import type { Equipment } from '../../shared/types'
 import type { PlanEdit } from '../planning/editing'
 import DetailsEditor, { DetailList } from './DetailsEditor'
 import {
-  EQUIPMENT_FIELDS,
   equipmentFields,
   equipmentValues,
   planEditCommand,
@@ -47,7 +46,7 @@ export default function EquipmentDetails({
               ? `Fix details of ${equipment.name}`
               : `Details of the proposed ${equipment.name}`
           }
-          fields={equipmentFields(mode)}
+          fields={(values) => equipmentFields(mode, equipment, values)}
           before={before}
           withNote={mode === 'fix'}
           hint={
@@ -72,7 +71,7 @@ export default function EquipmentDetails({
         />
       ) : (
         <DetailList
-          fields={EQUIPMENT_FIELDS.filter((f) => f.key !== 'name')}
+          fields={equipmentFields('none', equipment)}
           values={before}
         />
       )}

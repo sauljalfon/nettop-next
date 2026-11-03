@@ -8,6 +8,8 @@ import type {
   Plan,
 } from '../../shared/types'
 import type { EditCommand } from '../planning/editing'
+import { RACK_ITEM_TYPES, rackItemTypeLabel } from '../../shared/rackItems'
+import type { RackItemType } from '../../shared/types'
 
 export type FieldKey =
   | 'name'
@@ -17,6 +19,8 @@ export type FieldKey =
   | 'ipAddress'
   | 'status'
   | 'description'
+  | 'itemType'
+  | 'itemText'
   | 'portType'
   | 'connector'
   | 'speed'
@@ -30,6 +34,12 @@ export interface FieldSpec {
   options?: readonly string[]
   /** Monospace text (serial numbers, addresses, port names). */
   mono?: boolean
+  /** A select's value in words ("cable-manager" → "Cable manager"); the value itself otherwise. */
+  optionLabel?: (value: string) => string
+  /** A select that must keep a value: no "—" choice. */
+  required?: boolean
+  /** User text shown as a name (isolated, possibly Hebrew). */
+  name?: boolean
 }
 
 /** Field values as typed; a missing or empty value is "not set". */
@@ -81,6 +91,27 @@ export const EQUIPMENT_FIELDS: readonly FieldSpec[] = [
   { key: 'description', label: 'Description', kind: 'textarea' },
 ]
 
+const typeLabel = (v: string) =>
+  (RACK_ITEM_TYPES as readonly string[]).includes(v)
+    ? rackItemTypeLabel(v as RackItemType)
+    : v
+
+/** A rack item's type, and what it is for an Other (decision: the type is a detail). */
+export const ITEM_TYPE_FIELD: FieldSpec = {
+  key: 'itemType',
+  label: 'Type',
+  kind: 'select',
+  options: RACK_ITEM_TYPES,
+  optionLabel: typeLabel,
+  required: true,
+}
+export const ITEM_TEXT_FIELD: FieldSpec = {
+  key: 'itemText',
+  label: 'What it is',
+  kind: 'text',
+  name: true,
+}
+
 export const PORT_FIELDS: readonly FieldSpec[] = [
   { key: 'name', label: 'Name', kind: 'text', mono: true },
   { key: 'portType', label: 'Port type', kind: 'select', options: PORT_TYPES },
@@ -107,6 +138,8 @@ export const FIELD_LABELS: Record<string, string> = {
   notes: 'Notes',
   location: 'Location',
   rackType: 'Rack type',
+  itemType: 'Type',
+  itemText: 'What it is',
 }
 
 export function editMode(
@@ -121,12 +154,26 @@ export function editMode(
 /**
  * Equipment has its name in both modes: a fix renames installed equipment, and
  * rename_equipment renames what a plan adds. The mode stays a parameter so the
- * callers say which one they edit.
+ * callers say which one they edit. A rack item also has its Type after the
+ * name, and What it is while the type (in `values`, else its own) is Other.
  */
-export const equipmentFields = (mode: EditMode): readonly FieldSpec[] =>
-  mode === 'none'
-    ? EQUIPMENT_FIELDS.filter((f) => f.key !== 'name')
-    : EQUIPMENT_FIELDS
+export function equipmentFields(
+  mode: EditMode,
+  equipment?: Pick<Equipment, 'kind' | 'itemType'>,
+  values?: Values,
+): readonly FieldSpec[] {
+  const [name, ...rest] = EQUIPMENT_FIELDS
+  const type =
+    equipment?.kind === 'rack_item'
+      ? [
+          ITEM_TYPE_FIELD,
+          ...((values?.itemType ?? equipment.itemType) === 'other'
+            ? [ITEM_TEXT_FIELD]
+            : []),
+        ]
+      : []
+  return [...(mode === 'none' ? [] : [name]), ...type, ...rest]
+}
 
 export const canRenamePort = (
   equipment: Pick<Equipment, 'kind'>,
@@ -143,6 +190,10 @@ export const portFields = (
 
 export const equipmentValues = (e: Equipment): Values => ({
   name: e.name,
+  ...(e.kind === 'rack_item' && {
+    itemType: e.itemType ?? '',
+    itemText: e.itemText ?? '',
+  }),
   manufacturer: e.manufacturer ?? '',
   model: e.model ?? '',
   serialNumber: e.serialNumber ?? '',
@@ -163,7 +214,11 @@ export const portValues = (p: Endpoint): Values => ({
 /** A select's choices: "" (—) first, the list, then a saved value that is not in the list. */
 export function optionsFor(spec: FieldSpec, current: string): string[] {
   const list = [...(spec.options ?? [])]
-  return ['', ...list, ...(current && !list.includes(current) ? [current] : [])]
+  return [
+    ...(spec.required ? [] : ['']),
+    ...list,
+    ...(current && !list.includes(current) ? [current] : []),
+  ]
 }
 
 /**
@@ -186,6 +241,13 @@ export function changedFix(
     if (f.key === 'name') fix.name = now
     else details[f.key] = now
   }
+  // Leaving Other clears its text in the same fix: the server refuses a text on any other type.
+  if (
+    details.itemType !== undefined &&
+    details.itemType !== 'other' &&
+    (before.itemType ?? '') === 'other'
+  )
+    details.itemText = ''
   if (Object.keys(details).length) fix.details = details as Details
   if (note.trim()) fix.note = note.trim()
   return fix
@@ -220,12 +282,14 @@ export const hasChanges = (fix: DirectFix) =>
   fix.name !== undefined || fix.details !== undefined
 
 export function fixLine(e: ChangeLogEntry) {
+  const value = (v: string) =>
+    !v ? '(empty)' : e.field === 'itemType' ? typeLabel(v) : v
   return {
     id: e.id,
     at: e.at,
     field: FIELD_LABELS[e.field] ?? e.field,
-    from: e.oldValue || '(empty)',
-    to: e.newValue || '(empty)',
+    from: value(e.oldValue),
+    to: value(e.newValue),
     ...(e.note ? { note: e.note } : {}),
   }
 }

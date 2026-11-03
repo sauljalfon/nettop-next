@@ -217,3 +217,25 @@ it('scale probe: a campus-sized request is computed in well under a second, once
   )
   expect(elapsed).toBeLessThan(1000)
 }, 30000)
+
+it('RI-12 deleting a rack item says it has no ports or cables', () => {
+  const ups = {
+    id: 'ups-1',
+    name: 'UPS-A03',
+    kind: 'rack_item' as const,
+    role: 'none',
+    rackId: 'rack-a03',
+    unit: 5,
+    height: 2,
+    itemType: 'ups' as const,
+  }
+  const s = { ...snapshot, equipment: [...snapshot.equipment, ups] }
+  const p = equipmentDeletePreview(s, indexSnapshot(s), 'ups-1')!
+  expect(deleteLines(p, false).headline).toBe(
+    'Removes UPS-A03. It has no ports or cables.',
+  )
+  expect(deleteLines(p, true).headline).toBe(
+    'UPS-A03 is only in this plan, so its addition is dropped. It has no ports or cables.',
+  )
+  expect(deleteLines(p, false).cutsTitle).toBe('No circuit runs through it.')
+})

@@ -341,3 +341,40 @@ it('VP-01 every line has pieces that read as its text, with each name its own pi
         expect(asNames.has(n), `${line.key}: ${n}`).toBe(true)
   }
 })
+
+it('RI-12 a rack item’s line is its type, then its name, then its place', () => {
+  const ups = {
+    id: 'ups-1',
+    name: 'UPS Building A Rack A03 U5',
+    kind: 'rack_item' as const,
+    role: 'none',
+    rackId: 'rack-a03',
+    unit: 5,
+    height: 2,
+    itemType: 'ups' as const,
+  }
+  const kvm = {
+    ...ups,
+    id: 'kvm-1',
+    name: 'KVM-01',
+    unit: 7,
+    height: 1,
+    itemType: 'other' as const,
+    itemText: 'KVM switch',
+  }
+  const lines = planSummary({ ...empty, equipment: [ups, kvm] }, installed)
+  const line = (key: string) => lines.find((l) => l.key === key)!
+  expect(line('add_equipment:ups-1').group).toBe('Equipment added')
+  expect(line('add_equipment:ups-1').text).toBe(
+    'Added UPS · UPS Building A Rack A03 U5 · Rack A03 U5–6',
+  )
+  expect(line('add_equipment:kvm-1').pieces).toEqual([
+    { text: 'Added Other · ' },
+    { name: 'KVM switch' },
+    { text: ' · ' },
+    { name: 'KVM-01' },
+    { text: ' · ' },
+    { name: 'Rack A03' },
+    { text: ' U7' },
+  ])
+})

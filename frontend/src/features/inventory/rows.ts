@@ -1,5 +1,6 @@
 import type { Endpoint, Equipment, Snapshot } from '../../shared/types'
-import { kindLabel } from '../../shared/equipment'
+import { hasPorts, kindLabel } from '../../shared/equipment'
+import { rackItemPieces, rackItemTypeLabel } from '../../shared/rackItems'
 import { comparePorts } from '../../shared/ports'
 import type { TextPiece } from '../../shared/textPieces'
 import { endpointNetwork } from '../map/circuitNetwork'
@@ -62,11 +63,12 @@ const byName = new Intl.Collator(undefined, { numeric: true })
 
 /**
  * The details of an equipment that are empty and worth filling in: a panel has
- * no serial number or address to give, an HDF no address.
+ * no serial number or address to give, an HDF no address, a rack item nothing.
  */
 export function missingOf(e: Equipment): string[] {
   const empty = (v?: string) => !v || v.trim() === ''
   const out: string[] = []
+  if (e.kind === 'rack_item') return out
   if (empty(e.manufacturer)) out.push('Manufacturer')
   if (empty(e.model)) out.push('Model')
   if (e.kind !== 'panel' && empty(e.serialNumber)) out.push('Serial number')
@@ -136,6 +138,9 @@ export function buildRows(
     const missing = missingOf(e)
     const rack = index.racks.get(e.rackId)?.name ?? ''
     const net = e.role === 'passive' ? '' : (e.networkId ?? '')
+    const ported = hasPorts(e)
+    // A rack item's type: "Other" for the pill, its text as a name piece beside it.
+    const type = e.kind === 'rack_item' && e.itemType
     return {
       key: e.id,
       equipmentId: e.id,
@@ -144,14 +149,15 @@ export function buildRows(
       values: {
         name: e.name,
         kind: kindLabel(e),
-        role: cap(e.role),
+        type: type ? rackItemTypeLabel(type) : '',
+        role: ported ? cap(e.role) : '',
         net: netText(net),
         site,
         node,
         rack,
         unit: String(e.unit),
-        used: String(u.used),
-        free: String(u.total - u.used),
+        used: ported ? String(u.used) : '',
+        free: ported ? String(u.total - u.used) : '',
         manufacturer: e.manufacturer ?? '',
         model: e.model ?? '',
         serial: e.serialNumber ?? '',
@@ -162,6 +168,7 @@ export function buildRows(
       raw: { net, status: e.status ?? '' },
       pieces: {},
       lists: { missing },
+      ...(type && { parts: { type: rackItemPieces(e) } }),
     }
   })
 

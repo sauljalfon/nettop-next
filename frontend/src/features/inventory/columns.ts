@@ -41,6 +41,7 @@ export const COLUMNS: Record<InventoryList, readonly Column[]> = {
   equipment: [
     col('name', 'Name', 190, 'name', { first: true }),
     col('kind', 'Kind', 90),
+    col('type', 'Type', 130, 'pieces'),
     col('role', 'Role', 110),
     col('net', 'Network', 130, 'network'),
     col('site', 'Site', 140, 'name'),
@@ -114,6 +115,7 @@ export const PILLS: Choices = {
     ['node', 'Node'],
     ['net', 'Network'],
     ['kind', 'Kind'],
+    ['type', 'Type'],
     ['role', 'Role'],
     ['status', 'Status'],
     ['missing', 'Missing'],

@@ -1,4 +1,5 @@
 import { kindLabel } from '../../shared/equipment'
+import { rackItemPieces } from '../../shared/rackItems'
 import { piecesText, type TextPiece } from '../../shared/textPieces'
 import type { Endpoint, Plan, Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
@@ -130,15 +131,21 @@ export function buildWorkList(
         onEquipment()
         if (equipment) {
           const cables = installedIndex.cablesByEquipment.get(id)?.length ?? 0
-          const kind = equipment.model || kindLabel(equipment)
+          const kind =
+            equipment.model || equipment.kind !== 'rack_item'
+              ? [text(equipment.model || kindLabel(equipment))]
+              : rackItemPieces(equipment)
           detail = [
-            text(
-              cables === 0
-                ? kind
-                : cables === 1
-                  ? `${kind}; its cable goes too`
-                  : `${kind}; its ${plural(cables, 'cable')} go too`,
-            ),
+            ...kind,
+            ...(cables === 0
+              ? []
+              : [
+                  text(
+                    cables === 1
+                      ? '; its cable goes too'
+                      : `; its ${plural(cables, 'cable')} go too`,
+                  ),
+                ]),
           ]
         }
         break
@@ -172,6 +179,19 @@ export function buildWorkList(
           const make = [added.manufacturer, added.model]
             .filter(Boolean)
             .join(' ')
+          if (added.kind === 'rack_item') {
+            // A rack item has no ports: its type, after the make.
+            const [first, ...rest] = rackItemPieces(added)
+            detail =
+              make && first && 'text' in first
+                ? [text(`${make}, ${first.text}`), ...rest]
+                : [
+                    ...(make ? [text(`${make}, `)] : []),
+                    ...(first ? [first] : []),
+                    ...rest,
+                  ]
+            break
+          }
           const count =
             added.kind === 'switch'
               ? plural(ports, 'port')

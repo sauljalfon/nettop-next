@@ -330,3 +330,52 @@ describe('INV-11 work list', () => {
     expect(rows.map((r) => r.icon)).toEqual(['rack', 'switch', 'cable'])
   })
 })
+
+describe('RI-12 rack items in the work list', () => {
+  const ups = {
+    id: 'ups-1',
+    name: 'UPS-A03',
+    kind: 'rack_item' as const,
+    role: 'none',
+    rackId: 'rack-a03',
+    unit: 5,
+    height: 2,
+    itemType: 'ups' as const,
+  }
+  it('an added rack item reads its type, never "0 positions"', () => {
+    const [add] = build({ ...empty, equipment: [ups] })
+    expect(add.values.action).toBe('Add')
+    expect(add.values.detail).toBe('UPS')
+    expect(add.icon).toBe('rack_item')
+  })
+  it('an added Other keeps its make and its text as a name piece', () => {
+    const [add] = build({
+      ...empty,
+      equipment: [
+        { ...ups, itemType: 'other', itemText: 'KVM switch', model: 'CL1008' },
+      ],
+    })
+    expect(add.parts?.detail).toEqual([
+      { text: 'CL1008, Other · ' },
+      { name: 'KVM switch' },
+    ])
+  })
+  it('a removed rack item reads its type', () => {
+    const before = { ...installed, equipment: [...installed.equipment, ups] }
+    const plan = { ...empty, removals: { equipment: ['ups-1'] } }
+    const after = {
+      ...before,
+      context: 'planned' as const,
+      equipment: installed.equipment,
+    }
+    const [remove] = buildWorkList(
+      plan,
+      before,
+      indexSnapshot(before),
+      after,
+      indexSnapshot(after),
+    )
+    expect(remove.values.action).toBe('Remove')
+    expect(remove.values.detail).toBe('UPS')
+  })
+})

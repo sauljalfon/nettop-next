@@ -25,7 +25,8 @@ import Field from '../../shared/ui/Field'
  * "Duplicate…" for one equipment in a plan, with its inline box below the
  * button: N more like it in the next free units of the same rack or another
  * one, as one batch. The same control sits in the inspector header and on the
- * equipment page; `where` keeps their focus targets apart.
+ * equipment page; `where` keeps their focus targets apart. Not offered for a
+ * rack item: adding another from the library is as quick (decision 4).
  */
 export default function DuplicateEquipment({
   snapshot,
@@ -42,6 +43,7 @@ export default function DuplicateEquipment({
 }) {
   const [open, setOpen] = useState(false)
   const key = `duplicate:${where}:${equipmentId}`
+  if (index.equipment.get(equipmentId)?.kind === 'rack_item') return null
   return (
     <div className="delete-equipment" data-testid={`duplicate-${where}`}>
       <button

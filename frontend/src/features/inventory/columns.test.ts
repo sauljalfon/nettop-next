@@ -19,6 +19,7 @@ describe('columns', () => {
     expect(COLUMNS.equipment.map((c) => [c.key, c.label, c.width])).toEqual([
       ['name', 'Name', 190],
       ['kind', 'Kind', 90],
+      ['type', 'Type', 130],
       ['role', 'Role', 110],
       ['net', 'Network', 130],
       ['site', 'Site', 140],
@@ -140,6 +141,7 @@ describe('columns', () => {
       ['node', 'Node'],
       ['net', 'Network'],
       ['kind', 'Kind'],
+      ['type', 'Type'],
       ['role', 'Role'],
       ['status', 'Status'],
       ['missing', 'Missing'],

@@ -3,6 +3,7 @@ import type { DirectFix } from '../../shared/types'
 import { EditError } from '../planning/ConfirmShell'
 import { useAsyncAction } from '../planning/useAsyncAction'
 import { useInlineDialog } from '../planning/useInlineDialog'
+import Name from '../../shared/ui/Name'
 import '../planning/editing.css'
 import './details.css'
 import {
@@ -12,6 +13,13 @@ import {
   type FieldSpec,
   type Values,
 } from './model'
+
+/** A value as read: a select's value in words, user text as a name. */
+function shown(f: FieldSpec, value: string) {
+  if (!value) return ''
+  if (f.optionLabel) return f.optionLabel(value)
+  return f.name ? <Name text={value} /> : value
+}
 
 /** Read-only details: every field, "—" when not set. */
 export function DetailList({
@@ -33,7 +41,7 @@ export function DetailList({
                 .join(' ') || undefined
             }
           >
-            {values[f.key] || '—'}
+            {shown(f, values[f.key] ?? '') || '—'}
           </dd>
         </div>
       ))}
@@ -59,7 +67,8 @@ export default function DetailsEditor({
   onClose,
 }: {
   title: string
-  fields: readonly FieldSpec[]
+  /** The fields, or the fields for the values as typed (a rack item's What it is follows its Type). */
+  fields: readonly FieldSpec[] | ((values: Values) => readonly FieldSpec[])
   before: Values
   withNote: boolean
   hint: string
@@ -73,7 +82,8 @@ export default function DetailsEditor({
   const [note, setNote] = useState('')
   const action = useAsyncAction()
   const dialog = useInlineDialog<HTMLFormElement>(onClose, openerKey)
-  const fix = changedFix(fields, before, values, withNote ? note : '')
+  const shownFields = typeof fields === 'function' ? fields(values) : fields
+  const fix = changedFix(shownFields, before, values, withNote ? note : '')
   return (
     <form
       {...dialog}
@@ -103,7 +113,7 @@ export default function DetailsEditor({
         <strong className="form-title">{title}</strong>
       </div>
       <div className="details-fields">
-        {fields.map((f) => {
+        {shownFields.map((f) => {
           const fieldId = `${id}-${f.key}`
           const value = values[f.key] ?? ''
           const set = (v: string) => {
@@ -126,7 +136,7 @@ export default function DetailsEditor({
                 >
                   {optionsFor(f, value).map((o) => (
                     <option key={o} value={o}>
-                      {o || '—'}
+                      {(o && f.optionLabel?.(o)) || o || '—'}
                     </option>
                   ))}
                 </select>

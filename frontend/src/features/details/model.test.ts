@@ -239,3 +239,116 @@ describe('P2-3 what a save in a plan sends', () => {
     })
   })
 })
+
+describe('RI-10 a rack item’s type is a detail', () => {
+  const shelf: Equipment = {
+    id: 'shelf-1',
+    name: 'Shelf A03 U5',
+    kind: 'rack_item',
+    role: 'none',
+    rackId: 'rack-a03',
+    unit: 5,
+    height: 1,
+    itemType: 'shelf',
+  }
+  const kvm: Equipment = {
+    ...shelf,
+    id: 'kvm-1',
+    name: 'KVM-01',
+    itemType: 'other',
+    itemText: 'KVM switch',
+  }
+
+  it('lists Type after Name, and What it is only while the type is Other', () => {
+    expect(equipmentFields('fix', shelf).map((f) => f.key)).toEqual([
+      'name',
+      'itemType',
+      ...EQUIPMENT_FIELDS.slice(1).map((f) => f.key),
+    ])
+    expect(
+      equipmentFields('fix', shelf, {
+        ...equipmentValues(shelf),
+        itemType: 'other',
+      })
+        .map((f) => f.key)
+        .slice(0, 3),
+    ).toEqual(['name', 'itemType', 'itemText'])
+    expect(
+      equipmentFields('none', kvm)
+        .map((f) => f.key)
+        .slice(0, 2),
+    ).toEqual(['itemType', 'itemText'])
+    expect(equipmentFields('fix', agg).map((f) => f.key)).not.toContain(
+      'itemType',
+    )
+  })
+
+  it('offers the five types in words, with no empty choice', () => {
+    const type = equipmentFields('fix', shelf).find(
+      (f) => f.key === 'itemType',
+    )!
+    expect(optionsFor(type, 'shelf')).toEqual([
+      'ups',
+      'pdu',
+      'shelf',
+      'cable-manager',
+      'other',
+    ])
+    expect(type.options?.map((o) => type.optionLabel!(o))).toEqual([
+      'UPS',
+      'PDU',
+      'Shelf',
+      'Cable manager',
+      'Other',
+    ])
+  })
+
+  it('holds the type and text of a rack item only', () => {
+    expect(equipmentValues(kvm)).toMatchObject({
+      itemType: 'other',
+      itemText: 'KVM switch',
+    })
+    expect(equipmentValues(agg)).not.toHaveProperty('itemType')
+  })
+
+  it('Shelf → Other sends the type and its text', () => {
+    const before = equipmentValues(shelf)
+    const after = { ...before, itemType: 'other', itemText: ' Fan tray ' }
+    expect(
+      changedFix(equipmentFields('fix', shelf, after), before, after),
+    ).toEqual({ details: { itemType: 'other', itemText: 'Fan tray' } })
+  })
+
+  it('leaving Other always sends itemText: ""', () => {
+    const before = equipmentValues(kvm)
+    const after = { ...before, itemType: 'ups' }
+    expect(
+      changedFix(equipmentFields('fix', kvm, after), before, after),
+    ).toEqual({ details: { itemType: 'ups', itemText: '' } })
+  })
+
+  it('History reads the type in words: "Type: Shelf → Other"', () => {
+    const entry: ChangeLogEntry = {
+      id: 8,
+      at: '2026-11-03T09:00:00Z',
+      entityKind: 'equipment',
+      entityId: 'shelf-1',
+      field: 'itemType',
+      oldValue: 'shelf',
+      newValue: 'other',
+    }
+    expect(fixLine(entry)).toMatchObject({
+      field: 'Type',
+      from: 'Shelf',
+      to: 'Other',
+    })
+    expect(
+      fixLine({
+        ...entry,
+        field: 'itemText',
+        oldValue: '',
+        newValue: 'Fan tray',
+      }),
+    ).toMatchObject({ field: 'What it is', from: '(empty)', to: 'Fan tray' })
+  })
+})

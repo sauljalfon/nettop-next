@@ -1,6 +1,7 @@
 import type { TextPiece } from '../../shared/textPieces'
 import type { Plan, Snapshot } from '../../shared/types'
 import { plural } from '../physical/text'
+import { rackItemPieces } from '../../shared/rackItems'
 
 export const GROUPS = [
   'Containers added',
@@ -30,7 +31,7 @@ export interface ChangeLine {
 }
 
 /** A line part: a plain string is text, a `{ name }` is a user-given name. */
-type Part = string | { name: string }
+type Part = string | TextPiece
 const nm = (name: string): Part => ({ name })
 
 /** The line's text and pieces from its parts; the text is the pieces joined. */
@@ -140,17 +141,27 @@ export function planSummary(plan: Plan, installed: Snapshot): ChangeLine[] {
       0,
       ...plan.subpanels.filter((s) => s.equipmentId === e.id).map((s) => s.row),
     )
-    const what =
-      e.kind === 'hdf' ? `HDF, ${plural(rows, 'row')}` : `${e.role} ${e.kind}`
+    const place = [rackName(e.rackId), ` ${unitRange(e.unit, e.height)}`]
+    // A rack item reads its type first, then its name (decision 6), never its role and kind.
+    const line =
+      e.kind === 'rack_item'
+        ? parts(
+            'Added ',
+            ...rackItemPieces(e),
+            ' · ',
+            nm(e.name),
+            ' · ',
+            ...place,
+          )
+        : parts(
+            nm(e.name),
+            ` · ${e.kind === 'hdf' ? `HDF, ${plural(rows, 'row')}` : `${e.role} ${e.kind}`} · `,
+            ...place,
+          )
     add({
       key: `add_equipment:${e.id}`,
       group: 'Equipment added',
-      ...parts(
-        nm(e.name),
-        ` · ${what} · `,
-        rackName(e.rackId),
-        ` ${unitRange(e.unit, e.height)}`,
-      ),
+      ...line,
       go: { kind: 'equipment', equipmentId: e.id },
     })
   }

@@ -148,6 +148,7 @@ const SHOWN_CABLES = 8
 /** The confirm's words for deleting equipment (the same in the inspector and on the equipment page). */
 export function deleteLines(p: EquipmentDeletePreview, proposed: boolean) {
   const name = p.equipment.name
+  const itemOnly = p.equipment.kind === 'rack_item'
   const unit =
     p.equipment.kind === 'switch'
       ? p.endpointCount === 1
@@ -169,9 +170,13 @@ export function deleteLines(p: EquipmentDeletePreview, proposed: boolean) {
   const contents = `its ${p.endpointCount} ${unit}${bridges}${cables}`
   return {
     title: `Delete ${name}?`,
-    headline: proposed
-      ? `${name} is only in this plan, so its addition is dropped, with ${contents}.`
-      : `Removes ${name}, ${contents}.`,
+    headline: itemOnly
+      ? proposed
+        ? `${name} is only in this plan, so its addition is dropped. It has no ports or cables.`
+        : `Removes ${name}. It has no ports or cables.`
+      : proposed
+        ? `${name} is only in this plan, so its addition is dropped, with ${contents}.`
+        : `Removes ${name}, ${contents}.`,
     cutsTitle: p.circuits.length
       ? `Cuts ${plural(p.circuits.length, 'circuit')}:`
       : 'No circuit runs through it.',
