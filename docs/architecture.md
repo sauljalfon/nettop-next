@@ -20,7 +20,8 @@ Physical ownership and connectivity are separate. A sub-main node is not a paren
 
 - Every **active device belongs to exactly one network** (locked 5). Membership is independent of site, node and rack.
 - Panels, HDF chassis and subpanels are **passive** and can carry several networks; a circuit's network comes from the active endpoints on it. Unknown circuits stay unclassified; conflicting endpoints are reported as mismatches.
-- Roles are explicit data: `access`, `aggregation`, `backbone` (BB) for switches, `passive` for panels and HDFs. Never inferred from names. BB is a valid destination and is never relabeled AGG.
+- Roles are explicit data: `access`, `aggregation`, `backbone` (BB) for switches, `passive` for panels and HDFs, `none` for rack items. Never inferred from names. BB is a valid destination and is never relabeled AGG.
+- A **rack item** (UPS, PDU, shelf, cable manager, Other with a short text; D42) is neither active nor passive: it has no network and no endpoints, subpanels or links, so traversal, Find AGG / BB, the tree and Problems never see it. Its type is a detail.
 - Networks are created and renamed, never deleted (D27).
 
 ### Ownership and placement

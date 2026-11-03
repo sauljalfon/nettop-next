@@ -149,3 +149,23 @@ Two prompts, as way-of-work.md asks when both sides change: **3a** the fixture (
 ## After the item
 
 The owner deploys and enters real rack items. 2b, active devices, starts with its own questions and demo.
+
+## Appendix: the roadmap entry (moved here when the item closed, 2026-11-03)
+
+**2a. Rack items** (approved 2026-11-01 from [the demo](../demos/rack-items-demo.html))
+
+**Owner's answers (2026-11-01).**
+- **One new kind, "rack item",** with a type: **UPS, PDU, shelf, cable manager, Other**. An Other needs a short "what it is" text (e.g. "KVM"), shown wherever the type is. No blanks.
+- **Units:** a rack item takes its units like any equipment, with no overlap. 0U vertical PDUs are not modelled; a shelf is its own units (what sits on it can go in its description).
+- **Default height** UPS 2U, the rest 1U, editable. **Name** suggested from the type and unit ("Shelf U12"), editable; a name is still required.
+- **Details** as every equipment (manufacturer, model, serial, IP, status, description). The **type** (and Other's text) is fixed directly like details: no plan, no new revision.
+- **Entered through a plan** like all equipment (placed, moved, deleted, recorded). It is **one more entry in the plan's library** on the left ("Rack item"): drag it onto a free unit or press its Add…, and its form opens under it like the other items; no button above the rack.
+- **Other's suggested name** uses its text ("Fan tray U10").
+- **Shown** in the rack elevation (its own faceplate), the equipment page, the inspector and the Inventory (type as a column and a pill); the Racks list counts them as **used** units, with no separate count of them. **Never** in cables, traces, Find AGG / BB, the tree or Problems.
+- **Not now:** converting placeholders already entered (the owner fixes them by hand in a plan; never guessed from names, D04).
+
+**Calls left to Opus (the owner may overrule):** a rack item has no port table on its equipment page; the printable rack sheet lists it like any equipment; Explore search finds it by name.
+
+**Suggested name** (owner, 2026-11-01): it includes the node, so names stay unique; the format is in [the plan](2026-11-01-rack-items.md).
+
+**Plan** approved 2026-11-01: [plans/2026-11-01-rack-items.md](2026-11-01-rack-items.md); the build is in progress.

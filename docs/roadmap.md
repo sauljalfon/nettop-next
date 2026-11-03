@@ -2,7 +2,7 @@
 
 Only work that is **not done yet**, in order. What runs today is in [status.md](status.md) (its "Now / Next" box says which item below is current); decisions are in [decisions.md](decisions.md); how an item is designed, built and reviewed is in [way-of-work.md](way-of-work.md). When an item is finished, its entry moves to [history/](history/) and status.md describes what shipped.
 
-Finished milestones (M1–M5c, M5b steps 11–13, P1, P2) and their designs, recorded answers and step tables are in [history/implementation-plan-m1-to-p2.md](history/implementation-plan-m1-to-p2.md). Explanatory paths (2026-10-14) and its design are in [history/plans/2026-10-14-explanatory-paths.md](history/plans/2026-10-14-explanatory-paths.md). The visual pass (2026-10-15) and its design are in [history/plans/2026-10-15-visual-pass.md](history/plans/2026-10-15-visual-pass.md). The conceptual map for real data (2026-10-19) and its design are in [history/plans/2026-10-18-conceptual-map.md](history/plans/2026-10-18-conceptual-map.md). The inventory view (2026-10-19) and its design are in [history/plans/2026-10-19-inventory.md](history/plans/2026-10-19-inventory.md). A more useful inventory (2026-10-20) and its design are in [history/plans/2026-10-20-inventory-more.md](history/plans/2026-10-20-inventory-more.md).
+Finished milestones (M1–M5c, M5b steps 11–13, P1, P2) and their designs, recorded answers and step tables are in [history/implementation-plan-m1-to-p2.md](history/implementation-plan-m1-to-p2.md). Explanatory paths (2026-10-14) and its design are in [history/plans/2026-10-14-explanatory-paths.md](history/plans/2026-10-14-explanatory-paths.md). The visual pass (2026-10-15) and its design are in [history/plans/2026-10-15-visual-pass.md](history/plans/2026-10-15-visual-pass.md). The conceptual map for real data (2026-10-19) and its design are in [history/plans/2026-10-18-conceptual-map.md](history/plans/2026-10-18-conceptual-map.md). The inventory view (2026-10-19) and its design are in [history/plans/2026-10-19-inventory.md](history/plans/2026-10-19-inventory.md). A more useful inventory (2026-10-20) and its design are in [history/plans/2026-10-20-inventory-more.md](history/plans/2026-10-20-inventory-more.md). Rack items (2026-11-03) and their design are in [history/plans/2026-11-01-rack-items.md](history/plans/2026-11-01-rack-items.md).
 
 ## 1. The network hierarchy (the conceptual view's new purpose)
 
@@ -37,23 +37,9 @@ Today equipment is a switch, a panel or an HDF. **Owner's answers (2026-10-25):*
 
 Equipment outside a rack (wall outlets, access points, cameras) is not wanted now. **Order:** two items, each designed, built and deployed on its own: rack items first, then active devices.
 
-### 2a. Rack items (approved 2026-11-01 from [the demo](history/demos/rack-items-demo.html))
+### 2a. Rack items, done
 
-**Owner's answers (2026-11-01).**
-- **One new kind, "rack item",** with a type: **UPS, PDU, shelf, cable manager, Other**. An Other needs a short "what it is" text (e.g. "KVM"), shown wherever the type is. No blanks.
-- **Units:** a rack item takes its units like any equipment, with no overlap. 0U vertical PDUs are not modelled; a shelf is its own units (what sits on it can go in its description).
-- **Default height** UPS 2U, the rest 1U, editable. **Name** suggested from the type and unit ("Shelf U12"), editable; a name is still required.
-- **Details** as every equipment (manufacturer, model, serial, IP, status, description). The **type** (and Other's text) is fixed directly like details: no plan, no new revision.
-- **Entered through a plan** like all equipment (placed, moved, deleted, recorded). It is **one more entry in the plan's library** on the left ("Rack item"): drag it onto a free unit or press its Add…, and its form opens under it like the other items; no button above the rack.
-- **Other's suggested name** uses its text ("Fan tray U10").
-- **Shown** in the rack elevation (its own faceplate), the equipment page, the inspector and the Inventory (type as a column and a pill); the Racks list counts them as **used** units, with no separate count of them. **Never** in cables, traces, Find AGG / BB, the tree or Problems.
-- **Not now:** converting placeholders already entered (the owner fixes them by hand in a plan; never guessed from names, D04).
-
-**Calls left to Opus (the owner may overrule):** a rack item has no port table on its equipment page; the printable rack sheet lists it like any equipment; Explore search finds it by name.
-
-**Suggested name** (owner, 2026-11-01): it includes the node, so names stay unique; the format is in [the plan](plans/2026-11-01-rack-items.md).
-
-**Plan** approved 2026-11-01: [plans/2026-11-01-rack-items.md](plans/2026-11-01-rack-items.md); the build is in progress.
+Built 2026-11-03 (D42 in [decisions.md](decisions.md)); what runs is in [status.md](status.md), and the design, the owner's answers and the steps are in [history/plans/2026-11-01-rack-items.md](history/plans/2026-11-01-rack-items.md).
 
 ### 2b. Active devices (not designed yet)
 

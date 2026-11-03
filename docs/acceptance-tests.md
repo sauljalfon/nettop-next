@@ -236,6 +236,28 @@ Explore while the Inventory is shown (equipment and port hits open the inspector
 | INV-15 | Cable labels: sources, label pieces (a Hebrew name in its own bdi), 16 a page, the file name; the download is a PDF with the right page count | `labels.test.ts`; `inventory-more` |
 | INV-16 | Campus: Racks and Problems built and opened, Group by with counts, the Missing pill, Edit details of 500 rows, the label preview and PDF timed; 500 direct fixes in one request (measurements, not budgets) | `scale` (`SCALE=1`); Go `TestFixManyOnCampusIsMeasured` |
 
+## Rack items (2026-11-01)
+
+The design and its steps are in [history/plans/2026-11-01-rack-items.md](history/plans/2026-11-01-rack-items.md); the rules are D42 in [decisions.md](decisions.md).
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| RI-01 | `Validate`: a rack item with each type is valid; refused: no type, an unknown type, Other with no text, a text on a non-Other, a type on a switch, panel or HDF, a role other than `none`, `none` on a switch, a network, an endpoint on a rack item; it collides on units like any equipment | Go `topology/rack_item_test.go` |
+| RI-02 | `add_equipment` with kind `rack_item`: added with its details and no endpoints; refused with a port count, port groups, a network or no type; a taken unit gives the usual "U… in Rack … is taken by …" | Go `planning/rack_item_test.go` |
+| RI-03 | Move, delete and `remove_change` of a rack item in a plan; Check keys unchanged | Go `planning/rack_item_test.go` |
+| RI-04 | Direct fix of `itemType` and `itemText` (Shelf → Other with a text; Other → UPS with `itemText: ""`; keeping the text refused; a type on a switch refused); the revision unchanged; `change_log` rows | Go `fixes`, `persistence/fix_test.go` |
+| RI-05 | A recorded plan adding a rack item reads back with kind, role, type and text; migration 010 refuses a rack item without a type at the database | Go `persistence/record_test.go` (database) |
+| RI-06 | HTTP: `add_equipment` of a rack item 200; a cable to it 422 with the message; `PATCH` of its type 200 | Go `httpapi/commands_v2_api_test.go`, `fix_api_test.go` |
+| RI-07 | The suggested name: the format, Other's text, " 2" when taken (ignoring case), the node left out over 100 characters, Hebrew kept | `shared/rackItems.test.ts` |
+| RI-08 | The Rack item form: Other needs a text; the height and the name follow until edited | `planning/rackItemForm.test.ts` |
+| RI-09 | The elevation's subtitle and plate per type, `equipmentSubtitle`, the inspector's sections, `kindLabel`; a rack item is neither active nor passive | `physical/equipmentModel.test.ts`, `explorerModel.test.ts`, `inventory.test.ts`, `sheets.test.ts`, `inspector/model.test.ts`, `shared/equipment.test.ts` |
+| RI-10 | Details: Type after Name, What it is only for Other, no empty type; leaving Other sends `itemText: ""`; History reads "Type: Shelf → Other" | `details/model.test.ts` |
+| RI-11 | Inventory: Kind "Rack item", the Type column and pill ("Other" with its text as a name piece), Role, Ports and Missing empty; Racks counts its units as used; no Problems row | `inventory/rackItems.test.ts`, `columns.test.ts` |
+| RI-12 | Texts: the Changes line ("Added UPS · <name> · Rack A03 U6–7"), the delete confirm ("It has no ports or cables."), the work list; patching never offers a rack item as a far end; Copy rack layout copies rack items, Duplicate is not offered | `planning/summary.test.ts`, `deletePreview.test.ts`, `duplicate.test.ts`, `inventory/workList.test.ts`, `patching/patching.test.ts`; `duplicate` (BK-04) |
+| RI-13 | Browser, plan: drag Rack item onto a free unit of Rack A03, choose UPS, add; dashed with its plate; move it by a drag; its Changes line; record, Installed shows it; delete it in a later plan | `rack-items.recording` |
+| RI-14 | Browser, Installed: the UPS opens in the inspector and on its page with "No ports", no Duplicate in a plan; the Inventory's Type pill; the cable manager's type fixed to Other "Fan tray" and History lists it | `rack-items`; `rack-items.recording` (the fix) |
+| RI-15 | Browser: a rack item is not in the trace picker, on the tree, a Find AGG / BB start or a patching far end | `rack-items` |
+
 ## M5–M7 — Editing, persistence, scale, and governance
 
 - Valid rack assignment is required to save equipment (the empty-canvas preview was retired with the device map, D35).
