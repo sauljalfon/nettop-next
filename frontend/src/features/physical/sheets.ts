@@ -48,33 +48,38 @@ export interface EquipmentSheetRow {
   farLocation: string
 }
 
-/** The equipment sheet's table: only the cabled endpoints, by position and then side. */
+/** The equipment sheet's table: only the cabled endpoints, an HDF's highest row first, then by position and side. */
 export function equipmentSheetRows(
   index: SnapshotIndex,
   equipmentId: string,
 ): EquipmentSheetRow[] {
-  const rows = (index.lookup.byEquipment.get(equipmentId) ?? []).flatMap(
+  const keyed = (index.lookup.byEquipment.get(equipmentId) ?? []).flatMap(
     (p) => {
       const cable = index.cableByEndpoint.get(p.id)
       if (!cable) return []
       const far = index.lookup.endpoints.get(cable.farEndpointId)
-      return [
-        {
-          label: facetLabel(index.lookup, p),
-          side: p.side ?? '',
-          cableId: cable.linkId,
-          farEnd: readableEndpoint(index, cable.farEndpointId),
-          farLocation: index.locations.get(far?.equipmentId ?? '') ?? '',
-        },
-      ]
+      const row: EquipmentSheetRow = {
+        label: facetLabel(index.lookup, p),
+        side: p.side ?? '',
+        cableId: cable.linkId,
+        farEnd: readableEndpoint(index, cable.farEndpointId),
+        farLocation: index.locations.get(far?.equipmentId ?? '') ?? '',
+      }
+      // An HDF reads like its face: the highest row first (from the subpanel, never the label).
+      const hdfRow = index.lookup.subpanels.get(p.subpanelId ?? '')?.row ?? 0
+      return [{ row, hdfRow }]
     },
   )
   const order = { front: 0, rear: 1, '': 2 } as const
-  return rows.sort(
-    (a, b) =>
-      a.label.localeCompare(b.label, undefined, { numeric: true }) ||
-      order[a.side as keyof typeof order] - order[b.side as keyof typeof order],
-  )
+  return keyed
+    .sort(
+      (a, b) =>
+        b.hdfRow - a.hdfRow ||
+        a.row.label.localeCompare(b.row.label, undefined, { numeric: true }) ||
+        order[a.row.side as keyof typeof order] -
+          order[b.row.side as keyof typeof order],
+    )
+    .map((k) => k.row)
 }
 
 /** The band above a sheet: the name, "Site / Node / Rack", then Installed (or Proposed: plan) and the date. */

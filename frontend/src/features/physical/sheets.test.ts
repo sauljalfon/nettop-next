@@ -68,12 +68,16 @@ describe('PR-02 the equipment sheet table lists cabled endpoints only', () => {
     ).toBe('A03')
   })
 
-  it('orders by position, then front before rear', () => {
-    expect(rows.map((r) => `${r.label} ${r.side}`).slice(0, 4)).toEqual([
-      '1A / 2 front',
-      '1A / 2 rear',
+  it('an HDF lists its highest row first and row 1 last, then A-D, position, front before rear', () => {
+    expect(rows.map((r) => `${r.label} ${r.side}`)).toEqual([
+      '3C / 2 front',
+      '3C / 2 rear',
+      '3C / 5 front',
+      '3C / 5 rear',
       '2D / 4 front',
       '2D / 4 rear',
+      '1A / 2 front',
+      '1A / 2 rear',
     ])
   })
 
