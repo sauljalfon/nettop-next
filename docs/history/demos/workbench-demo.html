@@ -1,0 +1,677 @@
+<title>Net-Top Workbench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: a docked workbench. Fixed 44px header, 48px rail, the work in the middle,
+     one right dock that narrows the work instead of covering it. Paper, steel and ink kept from D33.
+     Light only, like the app: every colour is set here. */
+  :root {
+    --floor: #eef1f3; --paper: #ffffff; --paper-sunk: #f6f8f9; --ink: #1c2b3a; --ink-soft: #56636f;
+    --ink-faint: #7a8691; --rule: #d3dae1; --rule-soft: #e6ebef; --ink-hover: #2b3d50;
+    --steel: #1f2731; --steel-2: #2a3440; --steel-3: #3a4552; --steel-line: #36414d;
+    --steel-ink: #a8b4c0; --steel-ink-strong: #c3ccd6; --tape: #fbfbf8; --tape-ink: #15202b;
+    --route: #0f8b7a; --route-soft: #e2f3f0; --amber: #d99a0b; --amber-soft: #fdf3dc;
+    --amber-ink: #3a2a00; --proposed: #8a6100; --proposed-soft: #fff6dd; --danger: #b4361f;
+    --plan-band: #fbf1d6; --plan-edge: #e8cf8a;
+    --net-a: #3b6fd8; --net-b: #8a4fc4;
+    --pair: #f6c453; --made: #18a58f;
+    --sans: 'IBM Plex Sans', 'IBM Plex Sans Hebrew', 'Segoe UI', Arial, sans-serif;
+    --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
+    --jack: 22px; --jack-gap: 2px;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--floor); color: var(--ink); font: 13px/1.45 var(--sans); }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  bdi { unicode-bidi: isolate; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* The page: a demo strip above the app. */
+  .page { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  .demo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+    padding-block: 6px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    background: var(--ink); color: #fff; font-size: 12px; }
+  .demo b { font-weight: 600; }
+  .demo .tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .demo button { height: 26px; padding: 0 10px; border: 1px solid #ffffff40; border-radius: 5px; background: transparent; color: #fff; }
+  .demo button[aria-pressed='true'] { background: #fff; color: var(--ink); border-color: #fff; }
+  .demo .hint { color: #c9d3dd; min-width: 0; }
+  .demo .size { margin-left: auto; color: #c9d3dd; }
+
+  /* The app frame. */
+  .app { min-height: 0; display: grid; grid-template-rows: 44px minmax(0, 1fr); background: var(--paper); }
+  .top { display: flex; align-items: center; gap: 14px; padding: 0 12px; background: var(--paper); border-bottom: 1px solid var(--rule); min-width: 0; }
+  .app.in-plan .top { background: var(--plan-band); border-bottom-color: var(--plan-edge); }
+  .logo { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 14px; }
+  .logo svg { width: 18px; height: 18px; }
+  .seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--paper-sunk); border: 1px solid var(--rule); border-radius: 6px; }
+  .seg button { height: 26px; padding: 0 10px; border: 0; border-radius: 4px; background: transparent; color: var(--ink-soft); white-space: nowrap; }
+  .seg button[aria-pressed='true'] { background: var(--paper); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--rule); }
+  .top select { height: 30px; border: 1px solid var(--rule); border-radius: 6px; padding: 0 8px; background: var(--paper); max-width: 180px; }
+  .spacer { flex: 1; }
+  .context { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .context .plan-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--amber); color: var(--amber-ink); font-size: 12px; font-weight: 600; }
+  .env { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #ecd49a; color: #7a5200; background: #fdf3dc; }
+
+  .work { min-height: 0; display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; }
+  .rail { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; border-right: 1px solid var(--rule); background: var(--paper); }
+  .rail button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--ink-soft); }
+  .rail button:hover { background: var(--paper-sunk); color: var(--ink); }
+  .rail button[aria-pressed='true'] { background: var(--ink); color: #fff; }
+  .rail svg { width: 18px; height: 18px; }
+  .main { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--paper); }
+
+  /* The dock: one panel, tabs, narrows the work. */
+  .dock { width: 380px; min-height: 0; display: grid; grid-template-rows: 40px minmax(0, 1fr); border-left: 1px solid var(--rule); background: var(--paper); }
+  .dock-tabs { display: flex; align-items: stretch; gap: 2px; padding: 0 6px 0 10px; border-bottom: 1px solid var(--rule); }
+  .dock-tabs button.tab { border: 0; background: transparent; padding: 0 9px; color: var(--ink-soft); border-bottom: 2px solid transparent; }
+  .dock-tabs button.tab[aria-selected='true'] { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+  .dock-tabs .x { margin-left: auto; align-self: center; width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: var(--ink-soft); font-size: 18px; line-height: 1; }
+  .dock-tabs .x:hover { background: var(--paper-sunk); }
+  .dock-body { min-height: 0; overflow: auto; padding: 14px 16px 20px; display: grid; align-content: start; gap: 14px; }
+  .dock h2 { font-size: 16px; margin: 0; font-weight: 600; }
+  .sub { color: var(--ink-soft); }
+  .path { color: var(--ink-soft); display: inline-flex; flex-wrap: wrap; gap: 0 5px; }
+  .path span + span::before { content: '›'; margin-right: 5px; color: var(--ink-faint); }
+  .row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .section-label { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+  .kv { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 5px 10px; }
+  .kv dt { color: var(--ink-soft); } .kv dd { margin: 0; }
+
+  .btn { height: 30px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); white-space: nowrap; }
+  .btn:hover { border-color: #b6c1cc; }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: var(--ink-hover); }
+  .btn.primary:disabled { background: #9aa5b0; border-color: #9aa5b0; cursor: not-allowed; }
+  .btn:disabled { color: var(--ink-faint); cursor: not-allowed; }
+  .btn.quiet { border-color: transparent; background: transparent; color: var(--ink-soft); }
+  .btn.quiet:hover { background: var(--paper-sunk); color: var(--ink); }
+  .btn.danger { color: var(--danger); }
+  .btn.lg { height: 34px; padding: 0 16px; }
+
+  /* A page toolbar: one 44px line, breadcrumb left, actions right. */
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 44px; padding: 6px 14px; border-bottom: 1px solid var(--rule); }
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; min-width: 0; color: var(--ink-soft); }
+  .crumbs button { border: 0; background: none; padding: 2px 4px; border-radius: 4px; color: var(--ink-soft); }
+  .crumbs button:hover { background: var(--paper-sunk); color: var(--ink); }
+  .crumbs .sep { color: var(--ink-faint); }
+  .crumbs .here { color: var(--ink); font-weight: 600; font-size: 15px; padding: 0 2px; }
+  .crumbs .nb { font-family: var(--mono); font-size: 12px; }
+  .menu-wrap { position: relative; }
+  .menu { position: absolute; right: 0; top: 34px; z-index: 20; min-width: 180px; padding: 4px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 10px 30px -10px #1c2b3a80; }
+  .menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 5px; }
+  .menu button:hover { background: var(--paper-sunk); }
+  .menu .danger { color: var(--danger); }
+
+  .scroll { min-height: 0; overflow: auto; }
+  .equip { padding: 14px 16px 24px; display: grid; gap: 12px; align-content: start; }
+  .meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-soft); }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .key { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-soft); font-size: 12px; }
+  .key i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 5px; border: 1px solid var(--rule); }
+
+  /* Faces: steel, compact jacks, sticky row and column labels inside one scroll. */
+  .face { display: block; width: max-content; max-width: 100%; background: var(--steel); border-radius: 4px; padding: 0 10px 10px; color: var(--steel-ink); }
+  .face-head { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0 6px; background: var(--steel); }
+  .tape { background: var(--tape); color: var(--tape-ink); font-weight: 600; font-size: 12px; padding: 1px 7px; border-radius: 2px; }
+  .face-head .side { font-family: var(--mono); font-size: 11px; color: var(--steel-ink); }
+  .hdf { display: grid; grid-template-columns: 22px repeat(4, max-content); gap: 5px 6px; }
+  .hdf .colh { position: sticky; top: 36px; z-index: 2; background: var(--steel); text-align: center; font-family: var(--mono); font-size: 11px; color: var(--steel-ink-strong); padding-bottom: 2px; }
+  .hdf .rowh { position: sticky; left: 0; z-index: 1; background: var(--steel); display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: var(--steel-ink-strong); }
+  .block { display: grid; grid-template-columns: repeat(3, var(--jack)); gap: var(--jack-gap); padding: 3px; background: var(--steel-2); border: 1px solid var(--steel-line); border-radius: 2px; }
+  .ports { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 30px); grid-auto-columns: 28px; gap: 3px; }
+  .ports .jack { width: 28px; height: 30px; }
+  .ports .group { display: contents; }
+  .ports .gap { width: 8px; grid-row: 1 / span 2; }
+
+  .jack { position: relative; width: var(--jack); height: var(--jack); padding: 0; display: grid; place-items: center; border: 0; border-radius: 2px;
+    background: #fff; color: var(--tape-ink); font: 500 11px/1 var(--mono); }
+  .jack:hover { outline: 2px solid #ffffffb0; outline-offset: 1px; }
+  .jack[data-s='a'] { background: var(--net-a); color: #fff; }
+  .jack[data-s='b'] { background: var(--net-b); color: #fff; }
+  .jack[data-s='a'], .jack[data-s='b'] { cursor: default; }
+  .jack[data-s='pair'] { background: var(--pair); color: var(--amber-ink); }
+  .jack[data-s='blocked'] { box-shadow: inset 0 0 0 2px var(--danger); }
+  .jack[data-s='made'] { background: #fff; box-shadow: inset 0 0 0 3px var(--made); }
+  .jack[data-s='proposed'] { background: #fff; box-shadow: inset 0 0 0 2px var(--amber); }
+  .jack[data-sel='true'] { outline: 2px solid #fff; outline-offset: 1px; box-shadow: 0 0 0 4px var(--ink); z-index: 1; }
+  .jack[data-next='true']:not([data-sel='true']) { outline: 2px dashed #fff; outline-offset: 1px; }
+  .jack .up { position: absolute; top: 1px; right: 2px; font: 700 9px/1 var(--sans); color: #fff; }
+  .jack[data-s=''] .up { color: var(--ink); }
+  .banks { display: flex; align-items: flex-end; gap: 18px; }
+  .bank { display: grid; gap: 4px; }
+  .bank .cap { font-family: var(--mono); font-size: 11px; color: var(--steel-ink); white-space: nowrap; }
+  .bank .ports .jack.sfp { width: 34px; }
+  .strip tr { cursor: pointer; }
+  .strip tr:hover td { background: var(--paper-sunk); }
+  .jack .badge { position: absolute; top: -6px; right: -6px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--ink); color: #fff; font: 600 9px/14px var(--sans); text-align: center; z-index: 2; }
+
+  /* Uplinks: a quiet strip under the switch face. */
+  .strip { border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; max-width: 980px; }
+  .strip summary { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; background: var(--paper-sunk); cursor: pointer; font-weight: 600; }
+  .strip summary span { font-weight: 400; color: var(--ink-soft); }
+  .strip table { width: 100%; border-collapse: collapse; }
+  .strip td { padding: 6px 12px; border-top: 1px solid var(--rule-soft); }
+  .tag { display: inline-block; padding: 0 6px; border: 1px solid var(--rule); border-radius: 9px; font-size: 11px; color: var(--ink-soft); }
+
+  /* Port chain in the dock. */
+  .chain { display: grid; gap: 0; }
+  .chain .node { padding: 7px 10px; border: 1px solid var(--rule); border-radius: 6px; }
+  .chain .node.here { border: 2px solid var(--ink); font-weight: 600; }
+  .chain .link { margin-left: 18px; padding: 4px 0 4px 12px; border-left: 2px dashed var(--rule); color: var(--ink-soft); font-size: 12px; }
+  .chain .none { color: var(--ink-faint); }
+
+  /* Tree. */
+  .tree-wrap { position: relative; min-height: 0; overflow: hidden; background: var(--floor); }
+  .tree { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .tree svg { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+  .colhead { position: absolute; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+  .card { position: absolute; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; font-weight: 600; white-space: nowrap; }
+  button.card { cursor: pointer; text-align: left; }
+  .card:hover { border-color: #9aa5b0; }
+  .card.frame { padding: 0 4px; gap: 4px; }
+  .card.frame span { padding: 2px 6px; border-radius: 4px; }
+  .card .n { margin-left: auto; font-weight: 400; color: var(--ink-soft); font-size: 12px; }
+  .card .warn { font-size: 11px; font-weight: 600; color: #7a5200; }
+  .card.sel { border: 2px solid var(--route); box-shadow: 0 0 0 3px var(--route-soft); }
+  .card.lit { border-color: var(--route); color: var(--route); }
+  .card.dim { opacity: .35; }
+  .keybox { position: absolute; left: 14px; top: 12px; z-index: 5; width: 300px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 10px 30px -10px #1c2b3a50; display: grid; gap: 6px; font-size: 12px; color: var(--ink-soft); }
+  .keybox .ln { display: inline-block; width: 26px; vertical-align: middle; border-top: 2px solid #9aa5b0; margin-right: 8px; }
+  .keybox .ln.peer { border-top: 3px solid var(--ink); }
+  .keybox .ln.prop { border-top: 2px dashed var(--proposed); }
+  .zoom { position: absolute; right: 14px; bottom: 14px; display: grid; background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .zoom button { width: 30px; height: 28px; border: 0; background: var(--paper); }
+  .zoom button + button { border-top: 1px solid var(--rule); }
+  .check { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+  .swlist { display: grid; }
+  .swlist button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 4px; border: 0; border-bottom: 1px solid var(--rule-soft); background: none; text-align: left; }
+  .swlist button:hover { background: var(--paper-sunk); }
+  .swlist .up { grid-column: 1 / -1; color: var(--ink-soft); font-size: 12px; }
+
+  /* Patching: a full page. Two panes and a strip; one 48px action bar. */
+  .patch { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) 52px; background: var(--paper); }
+  .pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: 40px minmax(0, 1fr); border-right: 1px solid var(--rule); }
+  .pane-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--rule); background: var(--paper-sunk); min-width: 0; }
+  .pane-head .dir { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--ink-soft); text-transform: uppercase; }
+  .pane-head .name { font-weight: 600; font-size: 14px; }
+  .pane-head .where { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .pane-head .seg { margin-left: auto; }
+  .picker-btn { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 30px; padding: 0 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); }
+  .picker-btn:hover { border-color: #9aa5b0; }
+  .picker { position: absolute; z-index: 30; top: 38px; left: 0; width: 420px; max-width: 90vw; padding: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 10px 30px -10px #1c2b3a80; }
+  .picker label { display: grid; gap: 3px; font-size: 12px; color: var(--ink-soft); }
+  .picker select { height: 30px; border: 1px solid var(--rule); border-radius: 6px; padding: 0 6px; background: var(--paper); color: var(--ink); }
+  .pane-body { min-height: 0; overflow: auto; padding: 12px; background: var(--floor); }
+  .side-strip { width: 270px; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 0.8fr); background: var(--paper); }
+  .side-strip.closed { width: 36px; grid-template-rows: auto; }
+  .side-strip h3 { margin: 0; display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--rule); }
+  .side-strip h3 .tgl { margin-left: auto; border: 0; background: none; color: var(--ink-soft); padding: 2px 6px; border-radius: 4px; }
+  .side-strip.closed h3 { writing-mode: vertical-rl; padding: 10px 8px; border: 0; }
+  .side-strip.closed h3 .tgl { margin: 0 0 8px; }
+  .side-strip ol, .side-strip ul { margin: 0; padding: 6px 0; overflow: auto; list-style: none; }
+  .side-strip li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; padding: 4px 12px; font-size: 12px; }
+  .side-strip li .no { font-weight: 600; color: var(--ink-soft); text-align: right; }
+  .side-strip li.bad { color: var(--danger); }
+  .side-strip li em { display: block; font-style: normal; font-size: 11px; }
+  .side-strip .empty { padding: 8px 12px; color: var(--ink-faint); font-size: 12px; }
+  .actionbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 0 14px; border-top: 1px solid var(--rule); background: var(--paper); position: relative; z-index: 5; }
+  .actionbar .count-in { display: inline-flex; align-items: center; gap: 6px; }
+  .actionbar #count { width: 52px; height: 30px; border: 1px solid var(--rule); border-radius: 6px; padding: 0 6px; text-align: center; }
+  .actionbar .status { color: var(--ink-soft); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .actionbar .status b { color: var(--ink); }
+  .confirm { position: absolute; right: 14px; bottom: 58px; z-index: 40; width: 330px; padding: 12px; display: grid; gap: 10px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 10px 30px -10px #1c2b3a80; }
+  .confirm .row-actions { justify-content: flex-end; }
+  .toolbar-note { padding: 6px 14px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); background: var(--paper); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  @media (max-width: 760px) {
+    .dock { position: fixed; inset: 0 0 0 auto; width: min(380px, 100vw); z-index: 50; }
+    .patch { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; overflow: auto; }
+    .pane { min-height: 360px; }
+    .side-strip { width: auto; }
+    .actionbar { padding-block: 8px; }
+    .demo .size { margin-left: 0; }
+  }
+</style>
+
+<div class="page">
+  <div class="demo" role="navigation" aria-label="Demo screens">
+    <b>Workbench demo</b>
+    <div class="tabs" id="screens"></div>
+    <span class="hint" id="hint"></span>
+    <span class="size" id="size"></span>
+  </div>
+
+  <div class="app in-plan" id="app">
+    <header class="top">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="8.5" y="14" width="7" height="7" rx="1"/><path d="M6.5 10v2h11v-2M12 12v2"/></svg>nettop</span>
+      <div class="seg" role="group" aria-label="View" id="views"></div>
+      <select id="net" aria-label="Network"><option>Network A</option><option>Network B</option><option>All networks</option></select>
+      <span class="spacer"></span>
+      <div class="context">
+        <div class="seg" role="group" aria-label="Editing">
+          <button type="button" id="ctx-installed" aria-pressed="false">Installed</button>
+          <button type="button" id="ctx-plan" aria-pressed="true"><span class="plan-name">Plan: <bdi>הרחבת ליבה</bdi></span></button>
+        </div>
+        <button type="button" class="btn quiet" id="changes">Changes <span class="count" id="changes-n">3</span></button>
+      </div>
+      <span class="env">TEST</span>
+    </header>
+    <div class="work">
+      <nav class="rail" aria-label="Tools" id="rail"></nav>
+      <main class="main" id="main"></main>
+      <aside class="dock" id="dock" hidden aria-label="Details"></aside>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- data shaped like the owner's ----------
+  const NET = { a: 'Network A', b: 'Network B' }
+  const COLS = ['A', 'B', 'C', 'D']
+  const SITE = 'רמלה', CORE = 'ליבה'
+  let hash = 7
+  const rnd = () => ((hash = (hash * 9301 + 49297) % 233280) / 233280)
+
+  /** An HDF: rows × A–D × 6 positions; `used(row, col, pos)` returns 'a', 'b' or ''. */
+  function makeHdf(id, name, rack, rows, used) {
+    const jacks = []
+    for (let r = 1; r <= rows; r++)
+      for (const c of COLS)
+        for (let p = 1; p <= 6; p++) jacks.push({ id: `${id}:${r}${c}/${p}`, label: `${r}${c}/${p}`, row: r, col: c, pos: p, s: used(r, c, p) })
+    return { id, name, kind: 'hdf', rack, rows, jacks }
+  }
+  const nearHdf = makeHdf('bb01-hdf02', 'HDF-02', 'BB01', 12, (r, c) =>
+    r < 12 ? (rnd() < 0.88 ? (r % 5 === 3 ? 'b' : 'a') : '') : (c === 'A' || c === 'B' ? 'a' : ''))
+  const farHdf12 = makeHdf('bb05-hdf02', 'HDF-02 BB05', 'BB05', 12, (r, c, p) =>
+    (r === 1 && c === 'D' && p === 3) || (r === 2 && (c === 'A' || (c === 'B' && p !== 1))) || (r === 2 && c === 'B' && p === 1 ? 'b' : '') || (r === 3 && (c === 'A' || c === 'B')) || (r === 5 && c === 'C' && p < 3)
+      ? (r === 2 && c === 'B' && p === 1 ? 'b' : 'a') : '')
+  const farHdf32 = makeHdf('bb05-hdf04', 'HDF-04 BB05', 'BB05', 32, (r, c) => (r < 6 && c !== 'D' && rnd() < 0.7 ? 'a' : r > 28 && rnd() < 0.5 ? 'b' : ''))
+  const sw = { id: 'sw', name: 'SW-B12-03', kind: 'switch', rack: 'R12-1', ports: [] }
+  for (let p = 1; p <= 48; p++) sw.ports.push({ id: `sw:${p}`, label: String(p), name: `Gi1/0/${p}`, n: p, g: 0, s: p <= 31 ? 'a' : p === 33 ? 'b' : '' })
+  for (let p = 1; p <= 4; p++) sw.ports.push({ id: `sw:te${p}`, label: String(p), name: `Te1/1/${p}`, n: 48 + p, g: 1, s: p <= 2 ? 'a' : '', up: p <= 2 })
+  const GROUPS = [{ caption: 'Gi1/0/1–48 · RJ45 · 1G' }, { caption: 'Te1/1/1–4 · SFP+ · 10G' }]
+
+  // ---------- state ----------
+  const st = {
+    screen: 'tree', plan: true, dock: null, dockTab: 'details', selNode: null, selJack: null,
+    keyOpen: false, menu: false, hdfSide: 'Rear',
+    // patching
+    mode: 'range', count: 6, nearSel: null, farStart: null, farRows: 12, made: [], skip: false,
+    pickerOpen: false, confirmDone: false, stripOpen: true, toast: '',
+  }
+  const far = () => (st.farRows === 12 ? farHdf12 : farHdf32)
+  st.nearSel = nearHdf.jacks.find((j) => j.row === 12 && !j.s)?.id ?? null
+
+  const $ = (s, el = document) => el.querySelector(s)
+  const h = (html) => html
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+  const bdi = (t) => `<bdi>${esc(t)}</bdi>`
+  const path = (parts) => `<span class="path">${parts.map((p) => `<span>${bdi(p)}</span>`).join('')}</span>`
+
+  // ---------- frame ----------
+  const SCREENS = [
+    ['tree', 'Conceptual + dock', 'Click a node card: the details open in the dock and the tree narrows. Key shows the legend.'],
+    ['hdf', 'HDF page', 'A 12-row HDF fits. Click a free jack: its details and Connect open in the dock. ‹ › moves to the neighbour in the rack.'],
+    ['switch', 'Switch 48 + 4', '48 copper ports and the 4 SFP+ uplink ports fit on one line, each group with its caption. ↑ marks the ports that reach an AGG; click a row under the face to select that port.'],
+    ['patching', 'Patching', 'Range: the start on the left is chosen. Click a free jack on the right, then Connect. Try Done before connecting.'],
+  ]
+  function renderFrame() {
+    $('#screens').innerHTML = SCREENS.map(([k, t]) => `<button type="button" data-screen="${k}" aria-pressed="${st.screen === k}">${t}</button>`).join('') +
+      (st.screen === 'patching' ? `<button type="button" id="rows32" aria-pressed="${st.farRows === 32}">Far HDF: ${st.farRows === 32 ? '32 rows' : '12 rows'}</button>` : '')
+    $('#hint').textContent = SCREENS.find((s) => s[0] === st.screen)[2]
+    const view = st.screen === 'tree' ? 'Conceptual' : 'Physical'
+    $('#views').innerHTML = ['Conceptual', 'Physical', 'Inventory'].map((v) => `<button type="button" data-view="${v}" aria-pressed="${v === view}">${v}</button>`).join('')
+    $('#app').classList.toggle('in-plan', st.plan)
+    $('#ctx-installed').setAttribute('aria-pressed', !st.plan)
+    $('#ctx-plan').setAttribute('aria-pressed', st.plan)
+    $('#changes-n').textContent = 3 + st.made.length
+    const icons = {
+      Add: '<path d="M12 5v14M5 12h14"/>',
+      Explore: '<circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/>',
+      Trace: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 8 11 16M16.5 8 13 16"/>',
+      Inspect: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+    }
+    const map = { Explore: 'explore', Trace: 'trace', Inspect: 'inspector' }
+    $('#rail').innerHTML = Object.entries(icons).map(([n, d]) => `<button type="button" title="${n}" aria-label="${n}" data-rail="${n}" aria-pressed="${st.dock && st.dockTab === map[n]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">${d}</svg></button>`).join('')
+  }
+
+  // ---------- dock ----------
+  function renderDock() {
+    const dock = $('#dock')
+    dock.hidden = !st.dock
+    if (!st.dock) return
+    const tabs = [['details', st.screen === 'tree' ? 'Node' : 'Port'], ['inspector', 'Inspector'], ['trace', 'Trace'], ['explore', 'Explore'], ['changes', 'Changes']]
+    let body = ''
+    if (st.dockTab === 'details' && st.screen === 'tree') body = nodeDetails()
+    else if (st.dockTab === 'details') body = portDetails()
+    else if (st.dockTab === 'changes') body = changesBody()
+    else if (st.dockTab === 'inspector') body = `<h2>SW-B12-03</h2><div class="row-actions"><span class="tag">Access</span><span class="tag">Network A</span></div>${path([SITE, 'בניין 12', 'R12-1'])}<div class="row-actions"><button class="btn primary" data-go="switch">Open in Physical</button><button class="btn">Find AGG / BB</button></div><div class="sub">The inspector shares this dock with the node, port, trace and changes. Only one is open at a time, and the page beside it narrows instead of being covered.</div>`
+    else if (st.dockTab === 'trace') body = `<h2>Find AGG / BB</h2><label class="sub">Start<br><select style="width:100%;height:30px;border:1px solid var(--rule);border-radius:6px"><option>SW-B12-03 · all ports</option></select></label><div><button class="btn primary">Find AGG / BB</button></div><div class="sub">Follows real cables and panel bridges only.</div>`
+    else body = `<h2>Explore</h2><input placeholder="Find equipment, port or cable" style="height:30px;border:1px solid var(--rule);border-radius:6px;padding:0 8px"><div class="sub">${path([SITE])}</div><div class="sub" style="padding-left:12px">${bdi(CORE)} · ${bdi('בניין 12')} · ${bdi('בניין 14')} · ${bdi('מחסן')}</div>`
+    dock.innerHTML = `<div class="dock-tabs" role="tablist">${tabs.map(([k, t]) => `<button type="button" class="tab" role="tab" data-tab="${k}" aria-selected="${st.dockTab === k}">${t}</button>`).join('')}<button type="button" class="x" aria-label="Close panel" data-close-dock>×</button></div><div class="dock-body">${body}</div>`
+  }
+  function changesBody() {
+    const lines = st.made.map((m) => `<div class="kv"><dt>Cable</dt><dd class="mono">${esc(m.a)} → ${esc(m.b)}</dd></div>`).join('')
+    return `<h2>Changes in <bdi>הרחבת ליבה</bdi></h2><div class="sub">${3 + st.made.length} changes</div>
+      <div class="kv"><dt>Added</dt><dd>SW-B12-04 · access switch · R12-1 U14</dd><dt>Added</dt><dd>${bdi('מחסן')} › R-M1</dd><dt>Moved</dt><dd>AGG-05 to BB03 U20</dd></div>${lines}
+      <div><button class="btn primary">Record as installed…</button></div>`
+  }
+
+  // ---------- tree ----------
+  const TREE = {
+    bbs: ['BB-01', 'BB-02'],
+    frames: [
+      { aggs: ['AGG-01', 'AGG-02'], up: [0, 1], nodes: [['בניין 12', 8, 0], ['בניין 14', 6, 0], ['מחסן', 4, 1]] },
+      { aggs: ['AGG-03', 'AGG-04'], up: [0, 1], nodes: [['מגורים א׳', 10, 0], ['מגורים ב׳', 7, 0]] },
+      { aggs: ['AGG-05'], up: [1], warn: false, nodes: [['מטבח', 3, 0], ['שער ראשי', 2, 2]] },
+      { aggs: ['AGG-06'], up: [], warn: true, nodes: [['חדר אוכל', 5, 0]] },
+    ],
+  }
+  function renderTree() {
+    const main = $('#main')
+    main.innerHTML = `<div class="toolbar-note"><b style="color:var(--ink)">Network A</b><span>2 BB · 6 AGG · 9 nodes · 51 switches</span><label class="check"><input type="checkbox" id="only-problems"> Only problems</label><span class="spacer"></span><button type="button" class="btn quiet" id="key">${st.keyOpen ? 'Hide key' : 'Key'}</button></div>
+      <div class="tree-wrap" id="tree-wrap">${st.keyOpen ? keyBox() : ''}<div class="tree" id="tree"></div><div class="zoom"><button aria-label="Zoom in">+</button><button aria-label="Zoom out">−</button><button aria-label="Fit">⤢</button></div></div>`
+    const tree = $('#tree')
+    const X = { bb: 0, agg: 170, node: 470 }, W = { bb: 120, agg: 250, node: 230 }
+    let y = 34, out = '', lines = ''
+    const aggY = []
+    TREE.frames.forEach((f, fi) => {
+      const top = y
+      f.nodes.forEach((n, ni) => {
+        const key = `${fi}:${ni}`
+        const sel = st.selNode === key
+        const lit = st.selNode && st.selNode.startsWith(`${fi}:`) && !sel
+        const dim = st.selNode && !st.selNode.startsWith(`${fi}:`)
+        out += `<button type="button" class="card ${sel ? 'sel' : ''} ${dim ? 'dim' : ''}" data-node="${key}" style="left:${X.node}px;top:${y}px;width:${W.node}px">${bdi(n[0])}${n[2] ? `<span class="warn">⚠ ${n[2]}</span>` : ''}<span class="n">${n[1]} sw</span></button>`
+        lines += `<path d="M${X.agg + W.agg} ${top + 15} C ${X.agg + W.agg + 40} ${top + 15}, ${X.node - 40} ${y + 15}, ${X.node} ${y + 15}" stroke="${sel || lit ? 'var(--route)' : '#b6c1cc'}" stroke-width="${sel ? 2 : 1.4}" fill="none" ${dim ? 'opacity=".35"' : ''}/>`
+        y += 40
+      })
+      const dim = st.selNode && !st.selNode.startsWith(`${fi}:`)
+      const lit = st.selNode && st.selNode.startsWith(`${fi}:`)
+      out += `<div class="card frame ${lit ? 'lit' : ''} ${dim ? 'dim' : ''}" style="left:${X.agg}px;top:${top}px;width:${W.agg}px">${f.aggs.map((a) => `<span>${a}</span>`).join('<span style="color:var(--ink);padding:0">━</span>')}${f.warn ? '<span class="warn">⚠ no BB</span>' : ''}</div>`
+      aggY.push({ y: top, up: f.up, dim, lit })
+      y += 14
+    })
+    const bbY = [Math.max(34, y / 2 - 50), Math.max(84, y / 2 + 10)]
+    TREE.bbs.forEach((b, i) => { out += `<div class="card ${st.selNode ? '' : ''}" style="left:${X.bb}px;top:${bbY[i]}px;width:${W.bb}px">${b}<span class="n">BB</span></div>` })
+    aggY.forEach((a) => a.up.forEach((u) => { lines += `<path d="M${X.bb + W.bb} ${bbY[u] + 15} C ${X.bb + W.bb + 30} ${bbY[u] + 15}, ${X.agg - 30} ${a.y + 15}, ${X.agg} ${a.y + 15}" stroke="${a.lit ? 'var(--route)' : '#b6c1cc'}" stroke-width="1.4" fill="none" ${a.dim ? 'opacity=".35"' : ''}/>` }))
+    const heads = `<div class="colhead" style="left:${X.bb}px;top:8px">Backbone</div><div class="colhead" style="left:${X.agg}px;top:8px">Aggregation</div><div class="colhead" style="left:${X.node}px;top:8px">Nodes</div>`
+    const width = X.node + W.node, height = y
+    tree.style.width = width + 'px'; tree.style.height = height + 'px'
+    tree.innerHTML = `<svg width="${width}" height="${height}">${lines}</svg>${heads}${out}`
+    fitTree(width, height)
+  }
+  function fitTree(w, hgt) {
+    const wrap = $('#tree-wrap'), tree = $('#tree')
+    if (!wrap || !tree) return
+    const W = wrap.clientWidth - 60, H = wrap.clientHeight - 60
+    const s = Math.min(1.25, Math.max(0.6, Math.min(W / w, H / hgt)))
+    const left = Math.max(30, (wrap.clientWidth - w * s) / 2), top = Math.max(24, (wrap.clientHeight - hgt * s) / 2)
+    tree.style.transform = `translate(${left}px, ${top}px) scale(${s})`
+  }
+  const keyBox = () => `<div class="keybox"><b style="color:var(--ink)">Key</b><div><span class="ln"></span>a top to the AGGs of a frame, and a frame to its nodes, from real cables</div><div><span class="ln peer"></span>the two AGGs of a frame are peers</div><div><span class="ln prop"></span>proposed in this plan</div><div><span class="warn" style="color:#7a5200;font-weight:600">⚠ no BB</span> an AGG with no cable to a BB</div></div>`
+  function nodeDetails() {
+    if (!st.selNode) return `<div class="sub">Click a node card to see its switches and uplinks.</div>`
+    const [fi, ni] = st.selNode.split(':').map(Number)
+    const f = TREE.frames[fi], n = f.nodes[ni]
+    const sws = Array.from({ length: Math.min(n[1], 8) }, (_, i) => `SW-${['B12', 'B14', 'MH', 'MA', 'MB', 'KT', 'GT', 'DH'][(fi * 3 + ni) % 8]}-0${i + 1}`)
+    return `<div><h2>${bdi(n[0])}</h2><div class="sub">${path([SITE, n[0]])} · Network A · ${n[1]} switches</div></div>
+      <div class="row-actions"><button class="btn primary" data-go="hdf">Show in Physical</button><button class="btn">Find AGG / BB</button></div>
+      <div class="section-label">Switches and their uplinks</div>
+      <div class="swlist">${sws.map((s, i) => `<button type="button" data-go="switch"><b>${s}</b><span class="tag">${i === 0 && n[2] ? '⚠ 1 uplink' : '2 uplinks'}</span><span class="up">→ ${f.aggs.join(' + ')}${f.up.length ? ' · via HDF-02 BB01' : ''}</span></button>`).join('')}</div>`
+  }
+
+  // ---------- equipment pages ----------
+  function jackHtml(j, opts = {}) {
+    const s = opts.state ?? (j.s || '')
+    const badge = opts.badge ? `<span class="badge">${opts.badge}</span>` : ''
+    const title = `${j.name ?? j.label}${j.s ? ` · cabled, ${NET[j.s]}` : ' · free'}${j.up ? ' · uplink to an AGG' : ''}`
+    return `<button type="button" class="jack" data-jack="${j.id}" data-s="${s}" data-sel="${!!opts.sel}" data-next="${!!opts.next}" aria-label="${esc(title)}" title="${esc(title)}" ${j.s && opts.lockCabled ? 'aria-disabled="true"' : ''}>${j.pos ?? j.label}${j.up ? '<span class="up" aria-hidden="true">↑</span>' : ''}${badge}</button>`
+  }
+  function hdfFace(eq, side, decorate) {
+    let cells = `<span></span>${COLS.map((c) => `<span class="colh">${c}</span>`).join('')}`
+    for (let r = 1; r <= eq.rows; r++) {
+      cells += `<span class="rowh">${r}</span>`
+      for (const c of COLS) {
+        const js = eq.jacks.filter((j) => j.row === r && j.col === c)
+        cells += `<div class="block" title="${r}${c}">${js.map((j) => jackHtml(j, decorate(j))).join('')}</div>`
+      }
+    }
+    return `<div class="face"><div class="face-head"><span class="tape">${esc(eq.name)}</span><span class="side">${side.toLowerCase()}</span></div><div class="hdf">${cells}</div></div>`
+  }
+  function equipBar(name, neighbours) {
+    return `<div class="bar"><div class="crumbs"><button data-go="tree">Sites</button><span class="sep">›</span><button>${bdi(SITE)}</button><span class="sep">›</span><button>${bdi(CORE)}</button><span class="sep">›</span><button>${neighbours.rack}</button><span class="sep">›</span><button class="nb" title="Previous in this rack: ${neighbours.prev}" aria-label="Previous in this rack">‹ ${neighbours.prev}</button><span class="here">${esc(name)}</span><button class="nb" title="Next in this rack: ${neighbours.next}" aria-label="Next in this rack">${neighbours.next} ›</button></div>
+      <span class="spacer"></span>
+      ${neighbours.sides ? `<div class="seg" role="group" aria-label="Side"><button type="button" data-side="Front" aria-pressed="${st.hdfSide === 'Front'}">Front</button><button type="button" data-side="Rear" aria-pressed="${st.hdfSide === 'Rear'}">Rear</button></div>` : ''}
+      <button type="button" class="btn">Open in inventory</button>
+      <div class="menu-wrap"><button type="button" class="btn" id="more" aria-haspopup="menu" aria-expanded="${st.menu}" aria-label="More actions">⋯</button>${st.menu ? `<div class="menu" role="menu"><button role="menuitem">Print sheet</button><button role="menuitem">Duplicate…</button><button role="menuitem">Show on map</button><button role="menuitem" class="danger">Delete…</button></div>` : ''}</div></div>`
+  }
+  function renderHdf() {
+    const eq = nearHdf
+    const free = eq.jacks.filter((j) => !j.s).length
+    $('#main').innerHTML = equipBar(eq.name, { rack: 'BB01', prev: 'HDF-01', next: 'HDF-03', sides: true }) +
+      `<div class="scroll"><div class="equip"><div class="meta"><span><b>HDF</b> · 12 rows × A–D · 288 positions</span><span>3U at U30</span><span>${free} free on the ${st.hdfSide.toLowerCase()}</span>${path([SITE, CORE, 'BB01'])}</div>
+      ${hdfFace(eq, st.hdfSide, (j) => ({ sel: st.selJack === j.id }))}
+      <div class="key"><span><i style="background:#fff"></i>free</span><span><i style="background:var(--net-a);border-color:var(--net-a)"></i>Network A</span><span><i style="background:var(--net-b);border-color:var(--net-b)"></i>Network B</span><span><i style="background:#fff;box-shadow:inset 0 0 0 2px var(--amber)"></i>proposed</span><span><i style="background:#fff;outline:2px solid var(--ink)"></i>selected</span></div></div></div>`
+  }
+  function renderSwitch() {
+    const bank = (g) => {
+      const ps = sw.ports.filter((p) => p.g === g)
+      const halves = g === 0 ? [ps.slice(0, 24), ps.slice(24)] : [ps]
+      return `<div class="bank"><span class="cap">${GROUPS[g].caption}</span><div class="ports">${halves.map((h) => h.map((p) => jackHtml(p, { sel: st.selJack === p.id })).join('')).join('<span class="gap"></span>')}</div></div>`
+    }
+    const face = `<div class="banks">${bank(0)}${bank(1)}</div>`
+    $('#main').innerHTML = equipBar(sw.name, { rack: 'R12-1', prev: 'PANEL-B12-02', next: 'SW-B12-04' }) +
+      `<div class="scroll"><div class="equip"><div class="meta"><span><b>Switch</b> · 48 × 1G + 4 × 10G · 1U at U12</span><span>access · Network A</span><span>16 free</span>${path([SITE, 'בניין 12', 'R12-1'])}</div>
+      <div class="face"><div class="face-head"><span class="tape">${sw.name}</span><span class="side">52 ports</span></div>${face}</div>
+      <div class="key"><span><i style="background:#fff"></i>free</span><span><i style="background:var(--net-a);border-color:var(--net-a)"></i>Network A</span><span><i style="background:var(--net-b);border-color:var(--net-b)"></i>Network B</span><span><i style="background:#fff;outline:2px solid var(--ink)"></i>selected</span><span><b style="color:var(--ink)">↑</b> uplink: reaches an AGG or BB</span></div>
+      <details class="strip" open><summary>Uplinks <span>2 of 52 ports reach an AGG or BB</span></summary><table><tr data-jack-row="sw:te1"><td class="mono">Te1/1/1</td><td><b>AGG-01 · Port 12</b> <span class="tag">AGG</span></td><td class="sub">4 cables · via PANEL-B12-01 › HDF-02 BB01 › HDF-02 BB05</td></tr><tr data-jack-row="sw:te2"><td class="mono">Te1/1/2</td><td><b>AGG-02 · Port 12</b> <span class="tag">AGG</span></td><td class="sub">4 cables · via PANEL-B12-01 › HDF-02 BB01 › HDF-02 BB05</td></tr></table></details></div></div>`
+  }
+  function portDetails() {
+    const all = [...nearHdf.jacks, ...sw.ports]
+    const j = all.find((x) => x.id === st.selJack)
+    if (!j) return `<div class="sub">Click a jack to see its cable, its far end and its details.</div>`
+    const isHdf = j.id.startsWith('bb01')
+    const eq = isHdf ? nearHdf.name : sw.name
+    const label = isHdf ? `${j.label} ${st.hdfSide.toLowerCase()}` : j.name
+    const free = !j.s
+    const actions = st.plan
+      ? free ? `<div class="row-actions"><button class="btn primary" data-go="patching">Connect…</button><button class="btn" data-go="patching">Connect a range…</button></div>`
+        : `<div class="row-actions"><button class="btn danger">Disconnect…</button><button class="btn">Trace from here</button></div>`
+      : `<div class="sub">Open a plan to connect or disconnect.</div>`
+    const other = isHdf ? `${j.label} ${st.hdfSide === 'Rear' ? 'front' : 'rear'}` : ''
+    const farEnd = isHdf ? `AGG-0${(j.row ?? 1) % 2 + 1} · Port ${(j.pos ?? 3) + 6}` : j.up ? `AGG-0${j.n - 48} · Port 12` : `PANEL-B12-01 · ${j.n}`
+    const chain = free
+      ? `<div class="chain"><div class="node none">no cable</div><div class="link">this side is free</div><div class="node here">${esc(label)}</div>${isHdf ? `<div class="link">bridge</div><div class="node">${esc(other)}</div><div class="link">cable C-${1200 + j.row * 7}</div><div class="node">SW-B12-03 · Port ${j.row + 2}</div>` : ''}</div>`
+      : `<div class="chain"><div class="node">${esc(farEnd)}</div><div class="link">${j.up ? '4 cables · via HDF-02 BB05 › HDF-02 BB01 › PANEL-B12-01' : `cable C-${880 + (j.pos ?? j.n)}`}</div><div class="node here">${esc(label)}</div>${isHdf ? `<div class="link">bridge</div><div class="node">${esc(other)}</div><div class="link">cable C-${1300 + (j.row ?? 1)}</div><div class="node">HDF-02 BB05 · ${j.label} rear</div>` : ''}</div>`
+    return `<div><h2>${esc(label)}</h2><div class="sub">${esc(eq)} · ${free ? 'free' : `cabled · ${NET[j.s]}`}</div></div>${actions}
+      <div class="section-label">Path</div>${chain}
+      <div class="section-label">Details</div><dl class="kv"><dt>Type</dt><dd>${isHdf ? 'LC duplex' : j.g === 1 ? 'SFP+' : 'RJ45'}</dd><dt>Speed</dt><dd>${isHdf ? '—' : j.g === 1 ? '10G' : '1G'}</dd><dt>Description</dt><dd>—</dd></dl>`
+  }
+
+  // ---------- patching ----------
+  const runOf = (eq) => eq.jacks
+  function pairs() {
+    if (st.mode !== 'range' || !st.nearSel || !st.farStart) return []
+    const nr = runOf(nearHdf), fr = runOf(far())
+    const ni = nr.findIndex((j) => j.id === st.nearSel), fi = fr.findIndex((j) => j.id === st.farStart)
+    const madeIds = new Set(st.made.flatMap((m) => [m.aId, m.bId]))
+    const out = []
+    for (let i = 0; i < st.count; i++) {
+      const a = nr[ni + i], b = fr[fi + i]
+      let problem = ''
+      if (!a || !b) problem = 'past the last position'
+      else if (a.s || madeIds.has(a.id)) problem = `${a.label} rear is already cabled`
+      else if (b.s || madeIds.has(b.id)) problem = `${b.label} rear is already cabled`
+      out.push({ n: i + 1, a, b, problem })
+    }
+    return out
+  }
+  function renderPatching() {
+    const ps = pairs()
+    const nearMarks = new Map(), farMarks = new Map()
+    ps.forEach((p) => { if (p.a) nearMarks.set(p.a.id, p); if (p.b) farMarks.set(p.b.id, p) })
+    const madeA = new Map(st.made.map((m) => [m.aId, m])), madeB = new Map(st.made.map((m) => [m.bId, m]))
+    const nextFar = st.mode === 'one' ? far().jacks.find((j) => !j.s && !madeB.has(j.id))?.id : null
+    const deco = (marks, madeMap, selId, nextId) => (j) => {
+      const p = marks.get(j.id)
+      if (madeMap.has(j.id)) return { state: 'made' }
+      if (p) return { state: p.problem && (j.s || madeMap.has(j.id)) ? 'blocked' : p.problem ? 'blocked' : 'pair', badge: p.n, sel: j.id === selId }
+      return { sel: j.id === selId, next: j.id === nextId }
+    }
+    const ok = ps.filter((p) => !p.problem).length, bad = ps.length - ok
+    const nearJ = nearHdf.jacks.find((j) => j.id === st.nearSel)
+    const farEq = far()
+    let status
+    if (st.mode === 'one') status = nearJ && nextFar ? `Next: <b>${nearJ.label} rear</b> → <b>${esc(farEq.name)} · ${nextFar.split(':')[1]} rear</b>` : 'Click a free jack on the left.'
+    else if (!st.farStart) status = `From <b>${nearJ ? nearJ.label + ' rear' : '—'}</b>, ${st.count} jacks. <b>Click the far start on the right.</b>`
+    else status = `<b>${ok} pair${ok === 1 ? '' : 's'}</b> ready${bad ? `, <span style="color:var(--danger)">${bad} can’t be made</span>` : ''} · the pairs are numbered on both faces`
+    const canConnect = st.mode === 'range' ? ok > 0 && (bad === 0 || st.skip) : !!(nearJ && nextFar)
+    const connectLabel = st.mode === 'range' ? (ps.length ? `Connect ${ok}` : 'Connect') : 'Connect'
+    const pairList = ps.length ? `<ol>${ps.map((p) => `<li class="${p.problem ? 'bad' : ''}"><span class="no">${p.n}</span><span>${p.a ? p.a.label : '—'} → ${p.b ? p.b.label : '—'}${p.problem ? `<em>${esc(p.problem)}</em>` : ''}</span></li>`).join('')}</ol>` : `<div class="empty">${st.mode === 'range' ? 'Pick the far start to see the pairs.' : 'One at a time: each click on the right makes a cable.'}</div>`
+    const madeList = st.made.length ? `<ul>${st.made.slice().reverse().map((m, i) => `<li><span class="no" style="color:var(--made)">✓</span><span>${m.a} → ${esc(m.far)} · ${m.b}</span></li>`).join('')}</ul>` : `<div class="empty">Nothing yet. Each cable is also in Changes, with its own Undo.</div>`
+    $('#main').innerHTML = `<div class="bar"><div class="crumbs"><span class="here">Patching</span><span class="sub">in plan <bdi>הרחבת ליבה</bdi> · each cable is saved to the plan at once</span></div><span class="spacer"></span><button type="button" class="btn quiet" data-go="hdf">← Back to HDF-02</button></div>
+    <div class="patch">
+      <section class="pane" aria-label="From">
+        <div class="pane-head"><span class="dir">From</span><span class="name">HDF-02</span><span class="where">${path([SITE, CORE, 'BB01'])}</span><div class="seg" role="group" aria-label="Near side"><button type="button" aria-pressed="false">Front</button><button type="button" aria-pressed="true">Rear</button></div></div>
+        <div class="pane-body" id="near-body">${hdfFace(nearHdf, 'Rear', deco(nearMarks, madeA, st.nearSel, null))}</div>
+      </section>
+      <section class="pane" aria-label="To" style="position:relative">
+        <div class="pane-head"><span class="dir">To</span><button type="button" class="picker-btn" id="picker" aria-expanded="${st.pickerOpen}"><span class="name">${esc(farEq.name)}</span><span class="where">${path([SITE, CORE, farEq.rack])}</span><span aria-hidden="true">▾</span></button><span class="sub" style="white-space:nowrap">${farEq.jacks.filter((j) => !j.s && !madeB.has(j.id)).length} free</span><div class="seg" role="group" aria-label="Far side"><button type="button" aria-pressed="false">Front</button><button type="button" aria-pressed="true">Rear</button></div></div>
+        ${st.pickerOpen ? `<div class="picker" role="dialog" aria-label="Far end"><label>Site<select><option>${esc(SITE)}</option></select></label><label>Node<select><option>${esc(CORE)}</option></select></label><label>Rack<select><option>BB05 (8)</option><option>BB01 (6)</option></select></label><label>Equipment<select id="far-eq"><option value="12" ${st.farRows === 12 ? 'selected' : ''}>HDF-02 BB05 · ${farHdf12.jacks.filter((j) => !j.s).length} free</option><option value="32" ${st.farRows === 32 ? 'selected' : ''}>HDF-04 BB05 · ${farHdf32.jacks.filter((j) => !j.s).length} free</option></select></label></div>` : ''}
+        <div class="pane-body" id="far-body">${hdfFace(farEq, 'Rear', deco(farMarks, madeB, st.farStart, nextFar))}</div>
+      </section>
+      <aside class="side-strip ${st.stripOpen ? '' : 'closed'}" aria-label="Pairs and made here">
+        <h3>Pairs ${ps.length ? `(${ps.length})` : ''}<button type="button" class="tgl" id="strip" aria-label="${st.stripOpen ? 'Collapse' : 'Expand'}">${st.stripOpen ? '›' : '‹'}</button></h3>
+        ${st.stripOpen ? `${pairList}<h3>Made here (${st.made.length})</h3>${madeList}` : ''}
+      </aside>
+      <div class="actionbar">
+        <div class="seg" role="group" aria-label="Mode"><button type="button" data-mode="one" aria-pressed="${st.mode === 'one'}">One at a time</button><button type="button" data-mode="range" aria-pressed="${st.mode === 'range'}">Range</button></div>
+        ${st.mode === 'range' ? `<label class="count-in">Count <input id="count" type="text" inputmode="numeric" value="${st.count}" aria-label="Count"></label>` : ''}
+        ${bad && st.mode === 'range' ? `<label class="check"><input type="checkbox" id="skip" ${st.skip ? 'checked' : ''}> Skip ${bad}</label>` : ''}
+        <span class="status">${status}</span>
+        <button type="button" class="btn" id="undo" ${st.made.length ? '' : 'disabled'}>Undo last</button>
+        <button type="button" class="btn" id="done">Done</button>
+        <button type="button" class="btn primary lg" id="connect" ${canConnect ? '' : 'disabled'}>${connectLabel}</button>
+        ${st.confirmDone ? `<div class="confirm" role="dialog" aria-label="Pairs not connected"><b>${ok} pair${ok === 1 ? ' is' : 's are'} not connected yet.</b><span class="sub">The numbered pairs are a preview. Nothing is saved until you connect them.</span><div class="row-actions"><button type="button" class="btn" id="close-anyway">Close without connecting</button><button type="button" class="btn primary" id="connect-close">Connect ${ok} and close</button></div></div>` : ''}
+      </div>
+    </div>`
+    const nb = $('#near-body'), sel = nb && nb.querySelector('[data-sel="true"]')
+    if (sel && !renderPatching.scrolled) { sel.scrollIntoView({ block: 'center' }); renderPatching.scrolled = true }
+  }
+  function connect() {
+    const farEq = far()
+    if (st.mode === 'range') {
+      const ok = pairs().filter((p) => !p.problem)
+      ok.forEach((p) => st.made.push({ a: p.a.label, b: p.b.label, aId: p.a.id, bId: p.b.id, far: farEq.name, batch: st.made.length }))
+      const lastA = ok.at(-1)?.a
+      const run = nearHdf.jacks, madeIds = new Set(st.made.map((m) => m.aId))
+      const i = lastA ? run.findIndex((j) => j.id === lastA.id) : -1
+      st.nearSel = run.slice(i + 1).find((j) => !j.s && !madeIds.has(j.id))?.id ?? st.nearSel
+      st.farStart = null; st.skip = false
+    } else {
+      const madeB = new Set(st.made.map((m) => m.bId)), madeA = new Set(st.made.map((m) => m.aId))
+      const a = nearHdf.jacks.find((j) => j.id === st.nearSel)
+      const b = farEq.jacks.find((j) => j.id === (st.farPick ?? farEq.jacks.find((x) => !x.s && !madeB.has(x.id))?.id))
+      if (!a || !b) return
+      st.made.push({ a: a.label, b: b.label, aId: a.id, bId: b.id, far: farEq.name })
+      madeA.add(a.id)
+      st.nearSel = nearHdf.jacks.find((j) => !j.s && !madeA.has(j.id))?.id ?? null
+      st.farPick = null
+    }
+  }
+
+  // ---------- render + events ----------
+  function render() {
+    renderFrame()
+    if (st.screen === 'tree') renderTree()
+    else if (st.screen === 'hdf') renderHdf()
+    else if (st.screen === 'switch') renderSwitch()
+    else renderPatching()
+    renderDock()
+    if (st.screen === 'tree') requestAnimationFrame(() => renderTree())
+    $('#size').textContent = `This window: ${innerWidth} × ${innerHeight}`
+  }
+  function go(screen) {
+    st.screen = screen; st.menu = false; st.selJack = null; st.confirmDone = false; st.pickerOpen = false
+    if (screen === 'patching') { st.dock = null; renderPatching.scrolled = false }
+    else if (screen !== 'tree') st.dock = null
+    try { history.replaceState(null, '', '#' + screen) } catch {}
+    render()
+  }
+
+  document.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-jack-row]')
+    if (row) { st.selJack = row.dataset.jackRow; st.dock = true; st.dockTab = 'details'; return render() }
+    const t = e.target.closest('button, input, select, summary')
+    if (!t) { if (st.menu) { st.menu = false; render() } return }
+    if (t.dataset.screen) return go(t.dataset.screen)
+    if (t.id === 'rows32') { st.farRows = st.farRows === 12 ? 32 : 12; st.farStart = null; return render() }
+    if (t.dataset.go) return go(t.dataset.go)
+    if (t.dataset.view) return go(t.dataset.view === 'Conceptual' ? 'tree' : 'hdf')
+    if (t.id === 'ctx-installed' || t.id === 'ctx-plan') { st.plan = t.id === 'ctx-plan'; return render() }
+    if (t.id === 'changes') { st.dock = true; st.dockTab = 'changes'; return render() }
+    if (t.dataset.rail) {
+      const tab = { Explore: 'explore', Trace: 'trace', Inspect: 'inspector', Add: 'changes' }[t.dataset.rail]
+      if (st.dock && st.dockTab === tab) st.dock = null; else { st.dock = true; st.dockTab = tab }
+      return render()
+    }
+    if (t.dataset.tab) { st.dockTab = t.dataset.tab; return render() }
+    if (t.hasAttribute('data-close-dock')) { st.dock = null; st.selJack = null; if (st.screen === 'tree') st.selNode = null; return render() }
+    if (t.dataset.node) { st.selNode = t.dataset.node; st.dock = true; st.dockTab = 'details'; return render() }
+    if (t.id === 'key') { st.keyOpen = !st.keyOpen; return render() }
+    if (t.id === 'more') { st.menu = !st.menu; return render() }
+    if (t.dataset.side) { st.hdfSide = t.dataset.side; return render() }
+    if (t.dataset.jack) {
+      const id = t.dataset.jack
+      if (st.screen === 'patching') {
+        const isNear = id.startsWith('bb01')
+        const madeIds = new Set(st.made.flatMap((m) => [m.aId, m.bId]))
+        const j = (isNear ? nearHdf : far()).jacks.find((x) => x.id === id)
+        if (!j || j.s || madeIds.has(id)) return
+        st.confirmDone = false
+        if (isNear) { if (e.shiftKey && st.mode === 'range' && st.nearSel) { const r = nearHdf.jacks, a = r.findIndex((x) => x.id === st.nearSel), b = r.findIndex((x) => x.id === id); if (b >= a) st.count = b - a + 1 } else st.nearSel = id }
+        else if (st.mode === 'range') { st.farStart = id; st.skip = false }
+        else { st.farPick = id; connect() }
+        return render()
+      }
+      st.menu = false; st.selJack = id; st.dock = true; st.dockTab = 'details'; return render()
+    }
+    if (t.dataset.mode) { st.mode = t.dataset.mode; st.farStart = null; st.confirmDone = false; return render() }
+    if (t.id === 'skip') { st.skip = t.checked; return render() }
+    if (t.id === 'connect') { connect(); st.confirmDone = false; return render() }
+    if (t.id === 'undo') { const last = st.made.at(-1); if (last) { st.made.pop(); st.nearSel = last.aId } st.confirmDone = false; return render() }
+    if (t.id === 'done') {
+      if (st.mode === 'range' && pairs().some((p) => !p.problem)) { st.confirmDone = true; return render() }
+      return go('hdf')
+    }
+    if (t.id === 'close-anyway') { st.farStart = null; return go('hdf') }
+    if (t.id === 'connect-close') { connect(); return go('hdf') }
+    if (t.id === 'picker') { st.pickerOpen = !st.pickerOpen; return render() }
+    if (t.id === 'strip') { st.stripOpen = !st.stripOpen; return render() }
+  })
+  document.addEventListener('change', (e) => {
+    if (e.target.id === 'far-eq') { st.farRows = Number(e.target.value); st.farStart = null; st.pickerOpen = false; render() }
+  })
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'count') {
+      const v = e.target.value.trim()
+      if (/^\d+$/.test(v) && +v >= 1 && +v <= 500) { st.count = +v; const pos = e.target.selectionStart; render(); const c = $('#count'); c.focus(); try { c.setSelectionRange(pos, pos) } catch {} }
+    }
+  })
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { if (st.confirmDone || st.pickerOpen || st.menu) { st.confirmDone = st.pickerOpen = st.menu = false; render() } else if (st.dock) { st.dock = null; render() } }
+  })
+  addEventListener('resize', () => { $('#size').textContent = `This window: ${innerWidth} × ${innerHeight}`; if (st.screen === 'tree') renderTree() })
+  const start = (location.hash || '').slice(1)
+  if (SCREENS.some((s) => s[0] === start)) st.screen = start
+  render()
+})()
+</script>

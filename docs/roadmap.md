@@ -4,6 +4,28 @@ Only work that is **not done yet**, in order. What runs today is in [status.md](
 
 Finished milestones (M1–M5c, M5b steps 11–13, P1, P2) and their designs, recorded answers and step tables are in [history/implementation-plan-m1-to-p2.md](history/implementation-plan-m1-to-p2.md). Explanatory paths (2026-10-14) and its design are in [history/plans/2026-10-14-explanatory-paths.md](history/plans/2026-10-14-explanatory-paths.md). The visual pass (2026-10-15) and its design are in [history/plans/2026-10-15-visual-pass.md](history/plans/2026-10-15-visual-pass.md). The conceptual map for real data (2026-10-19) and its design are in [history/plans/2026-10-18-conceptual-map.md](history/plans/2026-10-18-conceptual-map.md). The inventory view (2026-10-19) and its design are in [history/plans/2026-10-19-inventory.md](history/plans/2026-10-19-inventory.md). A more useful inventory (2026-10-20) and its design are in [history/plans/2026-10-20-inventory-more.md](history/plans/2026-10-20-inventory-more.md). Rack items (2026-11-03) and their design are in [history/plans/2026-11-01-rack-items.md](history/plans/2026-11-01-rack-items.md).
 
+## The workbench (current; before 2b)
+
+**Why.** The owner (2026-11-15): "the UI is very broken and sometimes bad". A sweep of every screen and a photo of the owner's screen showed the cause is layout, not colour: on their 1920×1080 monitor at 125% (1536×864 for the browser) a tall HDF covered Patching's Connect and Done (fixed the same day, `a4a84cd`), drawers and popovers cover what is being edited, jacks are about twice the size they need, and help text and empty cards take the space. A design review by a separate session and the [workbench demo](history/demos/workbench-demo.html) followed; the owner approved the demo on 2026-11-15 ("it is perfect" for the switch, then "we can start"). The lasting rule is D43.
+
+**Owner's answers (2026-11-15).**
+- Improve the design, not only the bugs; go before 2b active devices.
+- Switches: port groups as banks on one line (48 × RJ45 1G, then 4 × SFP+ 10G), uplinks marked ↑, the uplinks strip under the face. "It is perfect."
+- Not fully sure how the compact HDF will look in the real app, so the compact faceplate is built first and checked on the owner's real HDFs before the rest.
+
+**What it is** (as in the demo; sizes are the demo's):
+- **Frame:** 44px header; the plan's name always visible and the header amber while a plan is open; a 48px icon rail; one **right dock** (about 380px) with tabs for the selected node or port, Inspector, Trace, Explore and Changes. It narrows the page beside it on every view, the tree included; only one is open at a time.
+- **Faceplates:** HDF jacks 22×22 with 2px gaps and 11px mono numbers, no per-block caption, the row number and A–D letters stay put while the face scrolls, one scroll area per face. Switch and panel jacks 28×30; a switch's port groups are banks on one line, each with its caption; a port that reaches an AGG or BB is marked ↑. Occupied jacks are the full network colour with a white number.
+- **Equipment page:** one bar with the breadcrumb (‹ › to the neighbours in the rack), Front/Rear, Open in inventory and a "⋯" menu (Print sheet, Duplicate…, Show on map, Delete…); one meta line; the face; the uplinks strip under a switch face. Selecting a jack opens it in the dock with Connect… / Connect a range… (or Disconnect…) at the top.
+- **Patching:** a full page. From and To panes with a 40px head each (the far end as one button that opens Site › Node › Rack › Equipment), the faces taking the height, a side column with the numbered pairs and Made here (collapsible), and one bottom bar: mode, count, status, Undo last, Done, Connect N. Done with pairs not connected asks "Connect N and close" or "Close without connecting".
+- **Conceptual:** the legend behind a Key button; a node's details in the dock, which narrows the tree.
+
+**Parts, in order** (each designed in detail, built, reviewed and deployed on its own):
+1. **Compact faceplates and the patching page.** The owner checks the compact HDF on their real HDFs before part 2.
+2. **The equipment page** (switch, panel, HDF) with its bar and "⋯" menu, and the port in the dock.
+3. **The frame and the one dock** (header, rail, dock tabs), applied to Conceptual and Physical.
+4. **Inventory and the rack elevation**, as density passes (rows, toolbar, the rack's overflow in a plan).
+
 ## 1. The network hierarchy (the conceptual view's new purpose)
 
 The conceptual map's overview was "only a worse version than Physical"; the owner gave the view a purpose instead: **the network hierarchy**, from the cables. Phase 1 (top to bottom, with Focus beside it) was approved on 2026-10-25 (D39) and is merged. On the realistic campus the owner then chose **one conceptual view**: a left-to-right tree where Show on map lands, with no separate Focus view. Approved 2026-10-28 from [the demo](history/demos/conceptual-demo.html); the lasting rules are D39 and D40 in [decisions.md](decisions.md).
