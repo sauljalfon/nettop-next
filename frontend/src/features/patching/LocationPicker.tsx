@@ -31,6 +31,8 @@ type Props = {
       equipmentId?: string
       freeOf: (equipmentId: string) => number
       onChange: (equipmentId: string) => void
+      /** Only the Equipment select was used (not a Site, Node or Rack change that moved the choice). */
+      onPicked?: (equipmentId: string) => void
     }
   | {
       level: 'rack'
@@ -171,7 +173,10 @@ export default function LocationPicker(props: Props) {
               aria-label="Equipment"
               value={inRack.some((e) => e.id === value) ? value : ''}
               disabled={disabled || inRack.length === 0}
-              onChange={(e) => props.onChange(e.target.value)}
+              onChange={(e) => {
+                props.onChange(e.target.value)
+                props.onPicked?.(e.target.value)
+              }}
             >
               {inRack.length === 0 && (
                 <option value="">No equipment here</option>

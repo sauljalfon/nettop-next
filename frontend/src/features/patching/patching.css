@@ -74,14 +74,12 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 36px;
 }
 .patching-pane {
+  position: relative;
   display: grid;
   grid-template-rows: 40px minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   border-right: 1px solid var(--rule);
-}
-.patching-pane.with-picker {
-  grid-template-rows: 40px auto minmax(0, 1fr);
 }
 .patching-col-head {
   display: flex;
@@ -107,14 +105,69 @@
   white-space: nowrap;
 }
 .patching-col-head .side-switch {
+  flex: none;
   margin-left: auto;
 }
-.patching-picker {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--rule);
+/* The far end: one button in the head that truncates, never pushing Front/Rear out. */
+.patching-far {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
+  white-space: nowrap;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
 }
-.patching-picker:empty {
-  display: none;
+.patching-far:hover {
+  background: var(--paper-sunk);
+}
+.patching-far strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The name is cut in its own direction, so a Hebrew name keeps its start
+   (on the right) and the ellipsis falls at its end. */
+.patching-far strong bdi {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.patching-far .where {
+  flex: 0 1 auto;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.patching-far .place-path {
+  flex-wrap: nowrap;
+}
+.patching-far .free {
+  flex: none;
+}
+.patching-far::after {
+  flex: none;
+  content: '▾';
+  color: var(--ink-soft);
+}
+.patching-far-popover {
+  position: absolute;
+  top: 40px;
+  left: 12px;
+  right: 12px;
+  z-index: 5;
+  padding: 10px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
 }
 /* The one scroll of a pane: a tall HDF scrolls here, never over the action bar. */
 .patching-body {

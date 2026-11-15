@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './fixtures'
 import { fitted, openRackInPhysical } from './helpers'
-import { getPlan, newPlan, planWith32RowHdf, unique } from './plan-api'
+import { command, getPlan, newPlan, planWith32RowHdf, unique } from './plan-api'
 import {
   chooseFar,
   farJack,
@@ -14,6 +14,8 @@ import {
 
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: `test-results/pt-${name}.png` })
+const fs_shot = (page: Page, name: string) =>
+  page.screenshot({ path: `test-results/workbench-1/${name}.png` })
 const popover = (page: Page) => page.getByTestId('connect-popover')
 const cablesOf = async (request: Parameters<typeof getPlan>[0], id: string) =>
   ((await getPlan(request, id)).links as { a: string; b: string }[])
@@ -240,3 +242,138 @@ test('PT-03 each face scrolls in its own pane and the page does not', async ({
     page: false,
   })
 })
+
+const changeFar = (page: Page) =>
+  toHalf(page).getByRole('button', { name: 'Change far end' })
+const farGroup = (page: Page) =>
+  toHalf(page).getByRole('group', { name: 'Far end' })
+
+test('PT-04 the far end is one button; the picker opens from it and closes on a choice', async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 1536, height: 864 })
+  await openPatching(page, request, {
+    equipment: 'hdf-01',
+    endpoint: 'hdf-01:sp-2B:1:r',
+    mode: 'range',
+    rear: true,
+  })
+  // A far default exists: the button names it and the picker is closed.
+  await expect(farGroup(page)).toHaveCount(0)
+  await expect(changeFar(page)).toBeVisible()
+  await expect(changeFar(page)).toContainText('free')
+  await fs_shot(page, 'far-closed')
+
+  await changeFar(page).click()
+  await expect(farGroup(page)).toBeVisible()
+  await fs_shot(page, 'far-open')
+  const shadow = await farGroup(page).evaluate(
+    (el) => getComputedStyle(el.closest('.patching-far-popover')!).boxShadow,
+  )
+  expect(shadow).not.toBe('none')
+
+  // The button toggles it.
+  await changeFar(page).click()
+  await expect(farGroup(page)).toHaveCount(0)
+  await expect(changeFar(page)).toBeFocused()
+
+  // A choice closes it, the head shows the new name, focus returns.
+  await changeFar(page).click()
+  await chooseFar(page, {
+    site: 'Main Campus',
+    node: 'Main Distribution',
+    rack: 'Rack Core 01',
+    equipment: 'HDF-02',
+  })
+  await expect(farGroup(page)).toHaveCount(0)
+  await expect(changeFar(page)).toContainText('HDF-02')
+  await expect(changeFar(page)).toBeFocused()
+
+  // Escape closes only the picker.
+  await changeFar(page).click()
+  await expect(farGroup(page)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(farGroup(page)).toHaveCount(0)
+  await expect(patching(page)).toBeVisible()
+  await expect(changeFar(page)).toBeFocused()
+
+  // A click outside closes it.
+  await changeFar(page).click()
+  await expect(farGroup(page)).toBeVisible()
+  await patching(page).getByRole('heading', { name: 'Patching' }).click()
+  await expect(farGroup(page)).toHaveCount(0)
+  await expect(patching(page)).toBeVisible()
+})
+
+for (const size of [
+  { width: 1536, height: 864 },
+  { width: 1280, height: 720 },
+]) {
+  test(`PT-05 a long Hebrew far name truncates and keeps Front/Rear in the pane at ${size.width}×${size.height}`, async ({
+    page,
+    request,
+  }) => {
+    await page.setViewportSize(size)
+    const hebrew = 'לוח-ניתוב-ראשי-בניין-שתים-עשרה-קומה-שלישית'
+    const { id } = await openPatching(page, request, {
+      equipment: 'hdf-01',
+      endpoint: 'hdf-01:sp-2B:1:r',
+      mode: 'range',
+      rear: true,
+    })
+    await command(request, id, {
+      type: 'add_equipment',
+      equipment: {
+        name: hebrew,
+        kind: 'panel',
+        role: 'passive',
+        rackId: 'rack-a03',
+        unit: 10,
+        height: 1,
+        portCount: 12,
+      },
+    })
+    await page.reload()
+    await fitted(page)
+    await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
+    await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+    await page.getByRole('button', { name: 'Rear', exact: true }).click()
+    await page.locator('[data-endpoint-id="hdf-01:sp-2B:1:r"]').click()
+    await page.getByRole('button', { name: 'Connect a range…' }).click()
+    await expect(patching(page)).toBeVisible()
+    await changeFar(page).click()
+    await chooseFar(page, {
+      site: 'Main Campus',
+      node: 'Building A',
+      rack: 'Rack A03',
+      equipment: hebrew,
+    })
+    await expect(changeFar(page)).toContainText(hebrew)
+    const m = await changeFar(page).evaluate((button) => {
+      const pane = button.closest<HTMLElement>('section')!
+      const side = pane.querySelector<HTMLElement>('.side-switch')!
+      const widest = [
+        button,
+        ...button.querySelectorAll<HTMLElement>('*'),
+      ].some((e) => e.scrollWidth > e.clientWidth)
+      // The name itself is cut, right to left, so a Hebrew name keeps its start.
+      const name = button.querySelector<HTMLElement>('bdi')!
+      return {
+        truncated: widest,
+        nameCut: name.scrollWidth > name.clientWidth,
+        nameDirection: getComputedStyle(name).direction,
+        sideRight: side.getBoundingClientRect().right,
+        paneRight: pane.getBoundingClientRect().right,
+        sideLeft: side.getBoundingClientRect().left,
+        buttonRight: button.getBoundingClientRect().right,
+      }
+    })
+    expect(m.truncated).toBe(true)
+    expect(m.nameCut).toBe(true)
+    expect(m.nameDirection).toBe('rtl')
+    expect(m.sideRight).toBeLessThanOrEqual(m.paneRight)
+    expect(m.buttonRight).toBeLessThanOrEqual(m.sideLeft + 1)
+    if (size.width === 1536) await fs_shot(page, 'far-hebrew')
+  })
+}

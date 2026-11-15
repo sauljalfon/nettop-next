@@ -139,6 +139,33 @@ export default function PatchingScreen({
   const [skip, setSkip] = useState(false)
   const [strip, setStrip] = useState(true)
   const farEquipment = far ? index.equipment.get(far.equipmentId) : undefined
+  // The far end is one button in the To head; the picker is a popover under it,
+  // open from the start only when there is no far end yet.
+  const [pickerOpen, setPickerOpen] = useState(!far)
+  const farButton = useRef<HTMLButtonElement>(null)
+  const farPopover = useRef<HTMLDivElement>(null)
+  const closePicker = () => {
+    setPickerOpen(false)
+    queueMicrotask(() => farButton.current?.focus())
+  }
+  useEffect(() => {
+    if (!pickerOpen) return
+    const away = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (
+        farPopover.current?.contains(target) ||
+        farButton.current?.contains(target)
+      )
+        return
+      setPickerOpen(false)
+      queueMicrotask(() => {
+        const a = document.activeElement
+        if (!a || a === document.body) farButton.current?.focus()
+      })
+    }
+    document.addEventListener('mousedown', away)
+    return () => document.removeEventListener('mousedown', away)
+  }, [pickerOpen])
 
   const chooseFar = (equipmentId: string, side?: Side) => {
     const next: FarTarget = {
@@ -443,43 +470,65 @@ export default function PatchingScreen({
             />
           </div>
         </section>
-        <section className="patching-pane with-picker" aria-label="To">
+        <section
+          className="patching-pane"
+          aria-label="To"
+          onKeyDown={(event) => {
+            // Escape closes the open picker first; the page stays open.
+            if (event.key === 'Escape' && pickerOpen) {
+              event.preventDefault()
+              closePicker()
+            }
+          }}
+        >
           <div className="patching-col-head">
             <span className="eyebrow">To</span>
-            <strong>
-              {farEquipment ? (
-                <Name text={farEquipment.name} />
-              ) : (
-                'Choose the far end'
+            <button
+              ref={farButton}
+              type="button"
+              className="patching-far"
+              aria-label="Change far end"
+              aria-expanded={pickerOpen}
+              onClick={() => (pickerOpen ? closePicker() : setPickerOpen(true))}
+            >
+              <strong>
+                {farEquipment ? (
+                  <Name text={farEquipment.name} />
+                ) : (
+                  'Choose the far end'
+                )}
+              </strong>
+              {farEquipment && (
+                <span className="quiet where">
+                  <PlacePath
+                    parts={index.locationParts.get(farEquipment.id) ?? []}
+                  />
+                </span>
               )}
-            </strong>
-            {farEquipment && (
-              <span className="quiet where">
-                <PlacePath
-                  parts={index.locationParts.get(farEquipment.id) ?? []}
-                />
-              </span>
-            )}
-            {farEquipment && (
-              <span className="quiet free">
-                {freeCount(index, farEquipment.id)} free
-              </span>
-            )}
+              {farEquipment && (
+                <span className="quiet free">
+                  {freeCount(index, farEquipment.id)} free
+                </span>
+              )}
+            </button>
             {farFace &&
               farEquipment &&
               sideSwitch(farFace, far?.side, (s) =>
                 chooseFar(farEquipment.id, s),
               )}
           </div>
-          <div className="patching-picker">
-            <LocationPicker
-              tree={tree}
-              equipmentId={far?.equipmentId}
-              exclude={nearEquipmentId}
-              freeOf={(id) => freeCount(index, id)}
-              onChange={(id) => chooseFar(id)}
-            />
-          </div>
+          {pickerOpen && (
+            <div className="patching-far-popover" ref={farPopover}>
+              <LocationPicker
+                tree={tree}
+                equipmentId={far?.equipmentId}
+                exclude={nearEquipmentId}
+                freeOf={(id) => freeCount(index, id)}
+                onChange={(id) => chooseFar(id)}
+                onPicked={closePicker}
+              />
+            </div>
+          )}
           <div className="patching-body">
             {farEquipment && farFace ? (
               <FaceView

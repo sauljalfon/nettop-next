@@ -432,6 +432,11 @@ test('VP-04 the patching screen: the far end Site, Node and Rack share a row, Eq
     .getByTestId('patching')
     .getByRole('region', { name: 'To' })
     .getByRole('group', { name: 'Far end' })
+  // The picker lives in the popover under the far-end button.
+  await page
+    .getByTestId('patching')
+    .getByRole('button', { name: 'Change far end' })
+    .click()
   const box = async (name: string) =>
     (await picker.getByLabel(name, { exact: true }).boundingBox())!
   const [site, node, rack, equipment] = [

@@ -50,13 +50,15 @@ export async function chooseFar(
   side?: 'Front' | 'Rear',
 ) {
   const picker = toHalf(page).getByRole('group', { name: 'Far end' })
+  if (!(await picker.isVisible()))
+    await toHalf(page).getByRole('button', { name: 'Change far end' }).click()
   await choose(picker.getByLabel('Site'), where.site)
   await choose(picker.getByLabel('Node'), where.node)
   await choose(picker.getByLabel('Rack'), where.rack)
   await choose(picker.getByLabel('Equipment'), `${where.equipment} ·`)
-  await expect(toHalf(page).locator('.patching-col-head strong')).toHaveText(
-    where.equipment,
-  )
+  await expect(
+    toHalf(page).getByRole('button', { name: 'Change far end' }),
+  ).toContainText(where.equipment)
   if (side)
     await toHalf(page)
       .getByRole('group', { name: 'Side' })

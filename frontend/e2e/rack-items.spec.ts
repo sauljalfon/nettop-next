@@ -119,6 +119,7 @@ test('RI-15 a rack item is never a trace start, on the tree, or a patching far e
     .getByRole('button', { name: 'Choose far end…' })
     .click()
   await expect(patching(page)).toBeVisible()
+  await toHalf(page).getByRole('button', { name: 'Change far end' }).click()
   const far = toHalf(page).getByRole('group', { name: 'Far end' })
   await expect(far.getByLabel('Rack').locator('option:checked')).toContainText(
     'Rack A03',
