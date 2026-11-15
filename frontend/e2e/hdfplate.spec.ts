@@ -124,6 +124,56 @@ test('PB-04 the HDF is one steel chassis: letters above, row numbers at the left
   )
 })
 
+test('PB-07 Pairs | Pigtails changes the numbers and is remembered', async ({
+  page,
+}) => {
+  await openEquipment(
+    page,
+    'Main Campus',
+    'North Sub-main',
+    'Rack SM01',
+    'hdf-01',
+  )
+  const jack = endpoint(page, 'hdf-01:sp-3C:5:f')
+  const numbers = page.getByRole('group', { name: 'Numbers' })
+  await expect(jack).toHaveText('5')
+  await expect(numbers.getByRole('button', { name: 'Pairs' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await numbers.getByRole('button', { name: 'Pigtails' }).click()
+  await expect(jack.locator('.jack-line')).toHaveText(['9', '10'])
+  const j = (await jack.boundingBox())!
+  const lines = jack.locator('.jack-line')
+  for (let i = 0; i < 2; i++) {
+    const l = (await lines.nth(i).boundingBox())!
+    expect(l.y).toBeGreaterThanOrEqual(j.y - 0.5)
+    expect(l.y + l.height).toBeLessThanOrEqual(j.y + j.height + 0.5)
+    expect(l.x).toBeGreaterThanOrEqual(j.x - 0.5)
+    expect(l.x + l.width).toBeLessThanOrEqual(j.x + j.width + 0.5)
+  }
+  const lowerTop = (await lines.nth(1).boundingBox())!.y
+  expect(lowerTop).toBeGreaterThan((await lines.nth(0).boundingBox())!.y)
+  const name = (await jack.getAttribute('aria-label')) ?? ''
+  expect(name).toContain('3C')
+  expect(name).toContain('5')
+  await page.reload()
+  await fitted(page)
+  await openEquipment(
+    page,
+    'Main Campus',
+    'North Sub-main',
+    'Rack SM01',
+    'hdf-01',
+  )
+  await expect(jack.locator('.jack-line')).toHaveText(['9', '10'])
+  await numbers.getByRole('button', { name: 'Pairs' }).click()
+  await expect(jack).toHaveText('5')
+
+  await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'edge-17')
+  await expect(page.getByRole('group', { name: 'Numbers' })).toHaveCount(0)
+})
+
 test('PB-05 jacks are 28×30 on a switch and a panel and 32×32 on an HDF, numbers at least 11px', async ({
   page,
 }) => {

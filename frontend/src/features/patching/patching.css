@@ -449,3 +449,10 @@
   gap: 8px;
   justify-content: flex-end;
 }
+.patching-bar .numbering-switch {
+  flex: none;
+  margin-left: auto;
+}
+.patching-bar .numbering-switch + .patching-close {
+  margin-left: 0;
+}

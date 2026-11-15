@@ -14,6 +14,8 @@ import type { SnapshotIndex } from '../map/snapshotIndex'
 import { endpointTooltip, faceFor } from '../physical/equipmentModel'
 import { PATCHING_COLUMNS } from '../physical/faces'
 import FaceView, { type JackMark } from '../physical/FaceView'
+import { useHdfNumbering } from '../physical/hdfNumbering'
+import NumberingSwitch from '../physical/NumberingSwitch'
 import '../physical/physical.css'
 import { EditError } from '../planning/ConfirmShell'
 import {
@@ -28,6 +30,7 @@ import {
   farDefault,
   farSide,
   freeCount,
+  jackLabel,
   locationTree,
   nextFree,
   pairMarks,
@@ -95,6 +98,7 @@ export default function PatchingScreen({
     patchingSession.subscribe,
     patchingSession.sides,
   )
+  const numbering = useHdfNumbering()
   const [made, setMade] = useState<Made[]>([])
   const madeIds = useMemo(
     () => new Set(made.flatMap((m) => [m.near, m.far])),
@@ -307,7 +311,7 @@ export default function PatchingScreen({
     return p
       ? [
           { name: index.equipment.get(p.equipmentId)?.name ?? '' },
-          { text: ` · ${p.label}` },
+          { text: ` · ${jackLabel(index, p, numbering)}` },
         ]
       : [{ text: id }]
   }
@@ -429,6 +433,7 @@ export default function PatchingScreen({
           )}
           each cable is saved to the plan at once
         </span>
+        <NumberingSwitch />
         <button
           type="button"
           className="patching-close"
@@ -587,8 +592,18 @@ export default function PatchingScreen({
                     >
                       <span aria-hidden="true">{p.problem ? '⚠' : '✓'}</span>
                       <span>
-                        {p.n}. {p.near?.label ?? '—'} →{' '}
-                        {p.far ? p.farName : '—'}
+                        {p.n}.{' '}
+                        {p.near ? jackLabel(index, p.near, numbering) : '—'} →{' '}
+                        {p.far ? (
+                          <>
+                            {index.equipment.get(p.far.equipmentId)?.name ??
+                              p.far.equipmentId}
+                            {' · '}
+                            {jackLabel(index, p.far, numbering)}
+                          </>
+                        ) : (
+                          '—'
+                        )}
                       </span>
                       {p.problem && <em>{p.problem}</em>}
                     </li>

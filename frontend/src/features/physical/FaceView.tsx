@@ -1,4 +1,6 @@
-import { FACE_COLUMNS, layoutPlate } from './faces'
+import { FACE_COLUMNS, hdfJackText, layoutPlate } from './faces'
+import { useHdfNumbering } from './hdfNumbering'
+import NumberingSwitch from './NumberingSwitch'
 import {
   useRef,
   useState,
@@ -128,6 +130,7 @@ export default function FaceView({
   columns = FACE_COLUMNS,
   bare,
 }: Props) {
+  const numbering = useHdfNumbering()
   const networkName = (id?: string) => networks.find((n) => n.id === id)?.name
   const cells = navCells(face, columns)
   const container = useRef<HTMLDivElement>(null)
@@ -162,11 +165,21 @@ export default function FaceView({
 
   const button = (
     cell: FaceEndpoint & { fiberPair?: string },
-    text: string,
+    text: string | string[],
     kind: string,
     extra: Record<string, unknown> = {},
     ordinal?: number,
+    aria?: string,
   ) => {
+    const lines = typeof text === 'string' ? [text] : text
+    const body =
+      lines.length === 1
+        ? lines[0]
+        : lines.map((l) => (
+            <span key={l} className="jack-line">
+              {l}
+            </span>
+          ))
     const look = cellLook(cell)
     const mark = cell.endpointId ? decorate?.(cell.endpointId) : undefined
     const uplink = !!cell.endpointId && !!uplinkIds?.has(cell.endpointId)
@@ -179,7 +192,7 @@ export default function FaceView({
         : undefined
     return (
       <button
-        key={cell.endpointId ?? `${text}-${JSON.stringify(extra)}`}
+        key={cell.endpointId ?? `${lines.join()}-${JSON.stringify(extra)}`}
         type="button"
         className={`face-cell ${kind} fill-${look.fill} ${look.selected ? 'is-selected' : ''} ${mark?.tone ? `tone-${mark.tone}` : ''} ${cell.portState ? `port-state-${cell.portState}` : ''}`}
         style={style}
@@ -203,6 +216,7 @@ export default function FaceView({
             networkName(cell.networkId),
             ordinal,
           ),
+          aria,
           cell.portState,
           mark?.note,
         ]
@@ -212,7 +226,7 @@ export default function FaceView({
         onClick={(event) => cell.endpointId && onSelect(cell.endpointId, event)}
         {...extra}
       >
-        {cell.portState ? <span className="jack-number">{text}</span> : text}
+        {cell.portState ? <span className="jack-number">{body}</span> : body}
         {uplink && (
           <span className="uplink-arrow" aria-hidden="true">
             ↑
@@ -275,21 +289,24 @@ export default function FaceView({
               )}
             </p>
           </div>
-          {face.kind !== 'switch' && !printing && (
-            <div className="seg side-switch" role="group" aria-label="Side">
-              {(['front', 'rear'] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  aria-pressed={side === s}
-                  className={side === s ? 'active' : ''}
-                  onClick={() => onSide(s)}
-                >
-                  {s === 'front' ? 'Front' : 'Rear'}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="face-switches">
+            {face.kind !== 'switch' && !printing && (
+              <div className="seg side-switch" role="group" aria-label="Side">
+                {(['front', 'rear'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={side === s}
+                    className={side === s ? 'active' : ''}
+                    onClick={() => onSide(s)}
+                  >
+                    {s === 'front' ? 'Front' : 'Rear'}
+                  </button>
+                ))}
+              </div>
+            )}
+            {face.kind === 'hdf' && !printing && <NumberingSwitch />}
+          </div>
         </header>
       )}
       {!bare && editSlot}
@@ -398,10 +415,19 @@ export default function FaceView({
                       >
                         <div className="hdf-positions">
                           {b.positions.map((p) =>
-                            button(p, String(p.position), 'jack hdf-jack', {
-                              'data-block': b.label,
-                              'data-position': p.position,
-                            }),
+                            button(
+                              p,
+                              hdfJackText(p.position, numbering),
+                              'jack hdf-jack',
+                              {
+                                'data-block': b.label,
+                                'data-position': p.position,
+                              },
+                              undefined,
+                              numbering === 'pigtails'
+                                ? `pigtails ${p.fiberPair}`
+                                : undefined,
+                            ),
                           )}
                         </div>
                       </div>

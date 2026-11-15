@@ -148,6 +148,35 @@ async function hdfToHdf(page: Page, request: Parameters<typeof newPlan>[0]) {
   return id
 }
 
+test('PT-09 Pigtails names HDF jacks by their fibers in patching', async ({
+  page,
+  request,
+}) => {
+  await hdfToHdf(page, request)
+  const list = patching(page).getByTestId('range-pairs')
+  const status = patching(page).locator('.patching-status')
+  await expect(pairs(page).nth(0)).toContainText(
+    '1. 2B/1 rear → HDF-02 · 1C/1 rear',
+  )
+  await expect(status).toContainText('From HDF-01 · 2B/1 rear')
+  const numbers = patching(page).getByRole('group', { name: 'Numbers' })
+  await expect(numbers).toHaveCount(1)
+  await numbers.getByRole('button', { name: 'Pigtails' }).click()
+  await expect(pairs(page).nth(0)).toContainText(
+    '1. 2B/1,2 rear → HDF-02 · 1C/1,2 rear',
+  )
+  await expect(pairs(page).nth(1)).toContainText(
+    '2. 2B/3,4 rear → HDF-02 · 1C/3,4 rear',
+  )
+  await expect(list).not.toContainText('2B/1 rear')
+  await expect(status).toContainText('From HDF-01 · 2B/1,2 rear, 6 pairs')
+  await numbers.getByRole('button', { name: 'Pairs' }).click()
+  await expect(pairs(page).nth(1)).toContainText(
+    '2. 2B/2 rear → HDF-02 · 1C/2 rear',
+  )
+  await expect(status).toContainText('From HDF-01 · 2B/1 rear, 6 pairs')
+})
+
 test('PT-01 patching fills the window and names the plan', async ({
   page,
   request,

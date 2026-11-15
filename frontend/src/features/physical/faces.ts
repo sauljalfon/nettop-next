@@ -1,6 +1,7 @@
 import { comparePorts, hasSide } from '../../shared/ports'
 import type { Endpoint } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
+import type { HdfNumbering } from './hdfNumbering'
 import type { RouteMarks } from './inventory'
 
 export type EndpointState = 'free' | 'cabled' | 'route' | 'selected'
@@ -255,6 +256,19 @@ export interface HdfFace {
 /** Position 5 is carried on fibers 9 and 10; display text only, never identity. */
 export const fiberPair = (position: number) =>
   `${position * 2 - 1},${position * 2}`
+
+/** What an HDF jack shows: its position, or (pigtails) the two fibers, one per line. */
+export const hdfJackText = (position: number, n: HdfNumbering): string[] =>
+  n === 'pigtails'
+    ? [String(position * 2 - 1), String(position * 2)]
+    : [String(position)]
+
+/** "3C/5" by pairs, "3C/9,10" by pigtails, like the stored labels; `block` is the subpanel's row and column. */
+export const hdfJackName = (
+  block: string,
+  position: number,
+  n: HdfNumbering,
+): string => `${block}/${n === 'pigtails' ? fiberPair(position) : position}`
 
 /**
  * The full HDF grid on one side: columns A-D, as many rows as the HDF has

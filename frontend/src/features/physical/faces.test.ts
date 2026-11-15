@@ -5,6 +5,8 @@ import { physicalSnapshot, withFullHdf } from './testFixture'
 import { routeMarks } from './inventory'
 import {
   hdfFace,
+  hdfJackName,
+  hdfJackText,
   layoutPlate,
   panelFace,
   PATCHING_COLUMNS,
@@ -345,4 +347,15 @@ it('FD-05 a port state other than available is carried to its jack', () => {
   expect(cells.find((c) => c.endpointId === 'EDGE-17:p4')?.portState).toBe(
     undefined,
   )
+})
+
+describe('an HDF jack by pairs or by pigtails', () => {
+  it('shows the position, or its two fibers', () => {
+    expect(hdfJackText(5, 'pairs')).toEqual(['5'])
+    expect(hdfJackText(5, 'pigtails')).toEqual(['9', '10'])
+  })
+  it('names it with the block and the position, or its fibers', () => {
+    expect(hdfJackName('3C', 5, 'pairs')).toBe('3C/5')
+    expect(hdfJackName('3C', 5, 'pigtails')).toBe('3C/9,10')
+  })
 })

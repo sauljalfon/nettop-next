@@ -1,7 +1,9 @@
 import { hasPorts } from '../../shared/equipment'
 import { hasSide } from '../../shared/ports'
-import type { Equipment, Snapshot } from '../../shared/types'
+import type { Endpoint, Equipment, Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
+import { hdfJackName } from '../physical/faces'
+import type { HdfNumbering } from '../physical/hdfNumbering'
 import { runOf, type RangePair } from '../planning/range'
 
 export type Side = 'front' | 'rear'
@@ -330,3 +332,22 @@ export function pairMarks(pairs: readonly RangePair[]): {
 /** The first line of the Done confirm: how many previewed pairs are not saved. */
 export const pairsWaitingText = (n: number) =>
   `${n} pair${n === 1 ? ' is' : 's are'} not connected yet.`
+
+/**
+ * An endpoint's label as patching shows it: an HDF jack by pigtails as its block,
+ * its two fibers and its side (by pairs: the stored label, as ever); anything else (a
+ * switch port, a panel position) as stored. The block is the subpanel's row and
+ * column, never parsed from the stored label.
+ */
+export function jackLabel(
+  index: SnapshotIndex,
+  e: Endpoint,
+  n: HdfNumbering,
+): string {
+  // By pairs the stored label is shown as it always was.
+  if (n === 'pairs') return e.label
+  const sub = index.lookup.subpanels.get(e.subpanelId ?? '')
+  if (!sub || e.position === undefined) return e.label
+  const name = hdfJackName(`${sub.row}${sub.column}`, e.position, n)
+  return hasSide(e) ? `${name} ${e.side}` : name
+}

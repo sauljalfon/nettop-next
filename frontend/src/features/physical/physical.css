@@ -1018,6 +1018,11 @@
 .face-cell.jack.hdf-jack.fill-route {
   color: var(--paper);
 }
+.face-cell.jack.hdf-jack .jack-line {
+  display: block;
+  font-family: var(--mono);
+  line-height: 14px;
+}
 .face-cell.jack.hdf-jack .jack-number {
   padding: 0 2px;
 }
@@ -1439,4 +1444,12 @@
   color: var(--ink);
   background: var(--paper-sunk);
   border-color: var(--rule-strong);
+}
+/* Front | Rear and Pairs | Pigtails, side by side at the head's right. */
+.face-switches {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
