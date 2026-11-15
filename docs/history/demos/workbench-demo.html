@@ -141,6 +141,13 @@
   .jack[data-s='proposed'] { background: #fff; box-shadow: inset 0 0 0 2px var(--amber); }
   .jack[data-sel='true'] { outline: 2px solid #fff; outline-offset: 1px; box-shadow: 0 0 0 4px var(--ink); z-index: 1; }
   .jack[data-next='true']:not([data-sel='true']) { outline: 2px dashed #fff; outline-offset: 1px; }
+  .jack .pt { display: grid; line-height: 1.1; }
+  .face .hdf .jack { font-size: max(11px, calc(var(--jack) * 0.4)); }
+  .face[data-pt='wide'] .block { grid-template-columns: repeat(3, calc(var(--jack) + 10px)); }
+  .face[data-pt='wide'] .block .jack { width: calc(var(--jack) + 10px); }
+  .face-head .seg button { padding: 2px 8px; font-size: 11px; }
+  .face-head .right { display: flex; align-items: center; gap: 10px; }
+  .demo-ctl { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; font-size: 12px; color: var(--ink-soft); }
   .jack .up { position: absolute; top: 1px; right: 2px; font: 700 9px/1 var(--sans); color: #fff; }
   .jack[data-s=''] .up { color: var(--ink); }
   .banks { display: flex; align-items: flex-end; gap: 18px; }
@@ -302,11 +309,19 @@
   const st = {
     screen: 'tree', plan: true, dock: null, dockTab: 'details', selNode: null, selJack: null,
     keyOpen: false, menu: false, hdfSide: 'Rear',
+    // HDF: one size (32px square jacks, owner's choice 2026-11-15); every HDF draws its highest row at the top; Pairs | Pigtails is
+    // each person's own choice (remembered in this browser), pigtails stacked in the same square jack.
+    jackSize: 32, numbering: 'pairs', ptStyle: 'stacked', fromBottom: true,
     // patching
     mode: 'range', count: 6, nearSel: null, farStart: null, farRows: 12, made: [], skip: false,
     pickerOpen: false, confirmDone: false, stripOpen: true, toast: '',
   }
   const far = () => (st.farRows === 12 ? farHdf12 : farHdf32)
+  try {
+    if (localStorage.getItem('demo-hdf-numbering') === 'pigtails') st.numbering = 'pigtails'
+  } catch {}
+  /** A jack's name as the person reads it: "12C/5", or "12C/9,10" with Pigtails on. */
+  const jackName = (j) => (j.pos && st.numbering === 'pigtails' ? `${j.row}${j.col}/${2 * j.pos - 1},${2 * j.pos}` : j.label)
   st.nearSel = nearHdf.jacks.find((j) => j.row === 12 && !j.s)?.id ?? null
 
   const $ = (s, el = document) => el.querySelector(s)
@@ -318,13 +333,14 @@
   // ---------- frame ----------
   const SCREENS = [
     ['tree', 'Conceptual + dock', 'Click a node card: the details open in the dock and the tree narrows. Key shows the legend.'],
-    ['hdf', 'HDF page', 'A 12-row HDF fits. Click a free jack: its details and Connect open in the dock. ‹ › moves to the neighbour in the rack.'],
+    ['hdf', 'HDF page', 'The highest row is at the top on every HDF; each row keeps its cables. HDF jacks are 32px squares. Pairs | Pigtails next to Front / Rear is each person\'s own choice, remembered in this browser, and Patching follows it. Click a free jack: its details open in the dock.'],
     ['switch', 'Switch 48 + 4', '48 copper ports and the 4 SFP+ uplink ports fit on one line, each group with its caption. ↑ marks the ports that reach an AGG; click a row under the face to select that port.'],
     ['patching', 'Patching', 'Range: the start on the left is chosen. Click a free jack on the right, then Connect. Try Done before connecting.'],
   ]
   function renderFrame() {
     $('#screens').innerHTML = SCREENS.map(([k, t]) => `<button type="button" data-screen="${k}" aria-pressed="${st.screen === k}">${t}</button>`).join('') +
-      (st.screen === 'patching' ? `<button type="button" id="rows32" aria-pressed="${st.farRows === 32}">Far HDF: ${st.farRows === 32 ? '32 rows' : '12 rows'}</button>` : '')
+      (st.screen === 'patching' ? `<button type="button" id="rows32" aria-pressed="${st.farRows === 32}">Far HDF: ${st.farRows === 32 ? '32 rows' : '12 rows'}</button>` : '') +
+''
     $('#hint').textContent = SCREENS.find((s) => s[0] === st.screen)[2]
     const view = st.screen === 'tree' ? 'Conceptual' : 'Physical'
     $('#views').innerHTML = ['Conceptual', 'Physical', 'Inventory'].map((v) => `<button type="button" data-view="${v}" aria-pressed="${v === view}">${v}</button>`).join('')
@@ -433,23 +449,30 @@
     const s = opts.state ?? (j.s || '')
     const badge = opts.badge ? `<span class="badge">${opts.badge}</span>` : ''
     const title = `${j.name ?? j.label}${j.s ? ` · cabled, ${NET[j.s]}` : ' · free'}${j.up ? ' · uplink to an AGG' : ''}`
-    return `<button type="button" class="jack" data-jack="${j.id}" data-s="${s}" data-sel="${!!opts.sel}" data-next="${!!opts.next}" aria-label="${esc(title)}" title="${esc(title)}" ${j.s && opts.lockCabled ? 'aria-disabled="true"' : ''}>${j.pos ?? j.label}${j.up ? '<span class="up" aria-hidden="true">↑</span>' : ''}${badge}</button>`
+    const text = !j.pos ? j.label
+      : st.numbering === 'pigtails'
+        ? (st.ptStyle === 'wide' ? `${2 * j.pos - 1}·${2 * j.pos}` : `<span class="pt"><span>${2 * j.pos - 1}</span><span>${2 * j.pos}</span></span>`)
+        : j.pos
+    const full = j.pos ? `${title} · pigtails ${2 * j.pos - 1},${2 * j.pos}` : title
+    return `<button type="button" class="jack" data-jack="${j.id}" data-s="${s}" data-sel="${!!opts.sel}" data-next="${!!opts.next}" aria-label="${esc(full)}" title="${esc(full)}" ${j.s && opts.lockCabled ? 'aria-disabled="true"' : ''}>${text}${j.up ? '<span class="up" aria-hidden="true">↑</span>' : ''}${badge}</button>`
   }
   function hdfFace(eq, side, decorate) {
     let cells = `<span></span>${COLS.map((c) => `<span class="colh">${c}</span>`).join('')}`
-    for (let r = 1; r <= eq.rows; r++) {
+    const order = Array.from({ length: eq.rows }, (_, i) => (st.fromBottom ? eq.rows - i : i + 1))
+    for (const r of order) {
       cells += `<span class="rowh">${r}</span>`
       for (const c of COLS) {
         const js = eq.jacks.filter((j) => j.row === r && j.col === c)
         cells += `<div class="block" title="${r}${c}">${js.map((j) => jackHtml(j, decorate(j))).join('')}</div>`
       }
     }
-    return `<div class="face"><div class="face-head"><span class="tape">${esc(eq.name)}</span><span class="side">${side.toLowerCase()}</span></div><div class="hdf">${cells}</div></div>`
+    return `<div class="face" data-pt="${st.numbering === 'pigtails' ? st.ptStyle : 'off'}"><div class="face-head"><span class="tape">${esc(eq.name)}</span><span class="side">${side.toLowerCase()}</span></div><div class="hdf">${cells}</div></div>`
   }
+  const numSeg = () => `<div class="seg" role="group" aria-label="Numbers"><button type="button" data-num="pairs" aria-pressed="${st.numbering === 'pairs'}">Pairs</button><button type="button" data-num="pigtails" aria-pressed="${st.numbering === 'pigtails'}">Pigtails</button></div>`
   function equipBar(name, neighbours) {
     return `<div class="bar"><div class="crumbs"><button data-go="tree">Sites</button><span class="sep">›</span><button>${bdi(SITE)}</button><span class="sep">›</span><button>${bdi(CORE)}</button><span class="sep">›</span><button>${neighbours.rack}</button><span class="sep">›</span><button class="nb" title="Previous in this rack: ${neighbours.prev}" aria-label="Previous in this rack">‹ ${neighbours.prev}</button><span class="here">${esc(name)}</span><button class="nb" title="Next in this rack: ${neighbours.next}" aria-label="Next in this rack">${neighbours.next} ›</button></div>
       <span class="spacer"></span>
-      ${neighbours.sides ? `<div class="seg" role="group" aria-label="Side"><button type="button" data-side="Front" aria-pressed="${st.hdfSide === 'Front'}">Front</button><button type="button" data-side="Rear" aria-pressed="${st.hdfSide === 'Rear'}">Rear</button></div>` : ''}
+      ${neighbours.sides ? `<div class="seg" role="group" aria-label="Side"><button type="button" data-side="Front" aria-pressed="${st.hdfSide === 'Front'}">Front</button><button type="button" data-side="Rear" aria-pressed="${st.hdfSide === 'Rear'}">Rear</button></div>${numSeg()}` : ''}
       <button type="button" class="btn">Open in inventory</button>
       <div class="menu-wrap"><button type="button" class="btn" id="more" aria-haspopup="menu" aria-expanded="${st.menu}" aria-label="More actions">⋯</button>${st.menu ? `<div class="menu" role="menu"><button role="menuitem">Print sheet</button><button role="menuitem">Duplicate…</button><button role="menuitem">Show on map</button><button role="menuitem" class="danger">Delete…</button></div>` : ''}</div></div>`
   }
@@ -508,8 +531,8 @@
       const a = nr[ni + i], b = fr[fi + i]
       let problem = ''
       if (!a || !b) problem = 'past the last position'
-      else if (a.s || madeIds.has(a.id)) problem = `${a.label} rear is already cabled`
-      else if (b.s || madeIds.has(b.id)) problem = `${b.label} rear is already cabled`
+      else if (a.s || madeIds.has(a.id)) problem = `${jackName(a)} rear is already cabled`
+      else if (b.s || madeIds.has(b.id)) problem = `${jackName(b)} rear is already cabled`
       out.push({ n: i + 1, a, b, problem })
     }
     return out
@@ -530,14 +553,14 @@
     const nearJ = nearHdf.jacks.find((j) => j.id === st.nearSel)
     const farEq = far()
     let status
-    if (st.mode === 'one') status = nearJ && nextFar ? `Next: <b>${nearJ.label} rear</b> → <b>${esc(farEq.name)} · ${nextFar.split(':')[1]} rear</b>` : 'Click a free jack on the left.'
-    else if (!st.farStart) status = `From <b>${nearJ ? nearJ.label + ' rear' : '—'}</b>, ${st.count} jacks. <b>Click the far start on the right.</b>`
+    if (st.mode === 'one') status = nearJ && nextFar ? `Next: <b>${jackName(nearJ)} rear</b> → <b>${esc(farEq.name)} · ${nextFar.split(':')[1]} rear</b>` : 'Click a free jack on the left.'
+    else if (!st.farStart) status = `From <b>${nearJ ? jackName(nearJ) + ' rear' : '—'}</b>, ${st.count} jacks. <b>Click the far start on the right.</b>`
     else status = `<b>${ok} pair${ok === 1 ? '' : 's'}</b> ready${bad ? `, <span style="color:var(--danger)">${bad} can’t be made</span>` : ''} · the pairs are numbered on both faces`
     const canConnect = st.mode === 'range' ? ok > 0 && (bad === 0 || st.skip) : !!(nearJ && nextFar)
     const connectLabel = st.mode === 'range' ? (ps.length ? `Connect ${ok}` : 'Connect') : 'Connect'
-    const pairList = ps.length ? `<ol>${ps.map((p) => `<li class="${p.problem ? 'bad' : ''}"><span class="no">${p.n}</span><span>${p.a ? p.a.label : '—'} → ${p.b ? p.b.label : '—'}${p.problem ? `<em>${esc(p.problem)}</em>` : ''}</span></li>`).join('')}</ol>` : `<div class="empty">${st.mode === 'range' ? 'Pick the far start to see the pairs.' : 'One at a time: each click on the right makes a cable.'}</div>`
+    const pairList = ps.length ? `<ol>${ps.map((p) => `<li class="${p.problem ? 'bad' : ''}"><span class="no">${p.n}</span><span>${p.a ? jackName(p.a) : '—'} → ${p.b ? jackName(p.b) : '—'}${p.problem ? `<em>${esc(p.problem)}</em>` : ''}</span></li>`).join('')}</ol>` : `<div class="empty">${st.mode === 'range' ? 'Pick the far start to see the pairs.' : 'One at a time: each click on the right makes a cable.'}</div>`
     const madeList = st.made.length ? `<ul>${st.made.slice().reverse().map((m, i) => `<li><span class="no" style="color:var(--made)">✓</span><span>${m.a} → ${esc(m.far)} · ${m.b}</span></li>`).join('')}</ul>` : `<div class="empty">Nothing yet. Each cable is also in Changes, with its own Undo.</div>`
-    $('#main').innerHTML = `<div class="bar"><div class="crumbs"><span class="here">Patching</span><span class="sub">in plan <bdi>הרחבת ליבה</bdi> · each cable is saved to the plan at once</span></div><span class="spacer"></span><button type="button" class="btn quiet" data-go="hdf">← Back to HDF-02</button></div>
+    $('#main').innerHTML = `<div class="bar"><div class="crumbs"><span class="here">Patching</span><span class="sub">in plan <bdi>הרחבת ליבה</bdi> · each cable is saved to the plan at once</span></div><span class="spacer"></span>${numSeg()}<button type="button" class="btn quiet" data-go="hdf">← Back to HDF-02</button></div>
     <div class="patch">
       <section class="pane" aria-label="From">
         <div class="pane-head"><span class="dir">From</span><span class="name">HDF-02</span><span class="where">${path([SITE, CORE, 'BB01'])}</span><div class="seg" role="group" aria-label="Near side"><button type="button" aria-pressed="false">Front</button><button type="button" aria-pressed="true">Rear</button></div></div>
@@ -590,6 +613,7 @@
 
   // ---------- render + events ----------
   function render() {
+    document.documentElement.style.setProperty('--jack', st.jackSize + 'px')
     renderFrame()
     if (st.screen === 'tree') renderTree()
     else if (st.screen === 'hdf') renderHdf()
@@ -613,6 +637,8 @@
     const t = e.target.closest('button, input, select, summary')
     if (!t) { if (st.menu) { st.menu = false; render() } return }
     if (t.dataset.screen) return go(t.dataset.screen)
+    if (t.dataset.jsize) { st.jackSize = +t.dataset.jsize; return render() }
+    if (t.dataset.num) { st.numbering = t.dataset.num; try { localStorage.setItem('demo-hdf-numbering', st.numbering) } catch {} return render() }
     if (t.id === 'rows32') { st.farRows = st.farRows === 12 ? 32 : 12; st.farStart = null; return render() }
     if (t.dataset.go) return go(t.dataset.go)
     if (t.dataset.view) return go(t.dataset.view === 'Conceptual' ? 'tree' : 'hdf')
