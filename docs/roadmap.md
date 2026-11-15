@@ -21,7 +21,7 @@ Finished milestones (M1–M5c, M5b steps 11–13, P1, P2) and their designs, rec
 - **Conceptual:** the legend behind a Key button; a node's details in the dock, which narrows the tree.
 
 **Parts, in order** (each designed in detail, built, reviewed and deployed on its own):
-1. **Compact faceplates and the patching page.** The owner checks the compact HDF on their real HDFs before part 2.
+1. **Compact faceplates and the patching page:** built 2026-11-15 ([plan](plans/2026-11-15-workbench-part-1.md); what runs is in [status.md](status.md)). The owner checks the compact HDF on their real HDFs before part 2.
 2. **The equipment page** (switch, panel, HDF) with its bar and "⋯" menu, and the port in the dock.
 3. **The frame and the one dock** (header, rail, dock tabs), applied to Conceptual and Physical.
 4. **Inventory and the rack elevation**, as density passes (rows, toolbar, the rack's overflow in a plan).
