@@ -140,10 +140,10 @@ export default function FaceView({
         : face.face.blocks.flatMap((b) => b.positions)),
   ].find((c) => c.selected)?.endpointId
   // The one tab stop travels with the focus; before any focus, the selected
-  // endpoint, else the first.
+  // endpoint, else the first one drawn (an HDF draws its highest row on top).
   const activeId = cells.some((c) => c.id === focusId)
     ? focusId
-    : (selected ?? cells[0]?.id)
+    : (selected ?? moveFocus(cells, '', 'Home'))
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (!KEYS.has(event.key)) return
@@ -380,7 +380,7 @@ export default function FaceView({
                 ))}
                 {Array.from(
                   { length: face.face.rows },
-                  (_, i) => i + 1,
+                  (_, i) => face.face.rows - i,
                 ).flatMap((row) => [
                   <span key={`row-${row}`} className="hdf-row">
                     {row}

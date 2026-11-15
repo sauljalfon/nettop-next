@@ -106,16 +106,25 @@ describe('PB-03 arrow keys follow the visual layout', () => {
       expect(move('1B', 1, 'ArrowLeft')).toBe(id('1A', 3))
     })
 
-    it('Down goes from the first row of positions to the second, then to the next block row', () => {
-      expect(move('1A', 3, 'ArrowDown')).toBe(id('1A', 6))
-      expect(move('1A', 6, 'ArrowDown')).toBe(id('2A', 3))
-      expect(move('2A', 3, 'ArrowUp')).toBe(id('1A', 6))
-      expect(move('4D', 6, 'ArrowDown')).toBeUndefined()
+    it('Down goes from the first row of positions to the second, then to the block row below', () => {
+      expect(move('2A', 3, 'ArrowDown')).toBe(id('2A', 6))
+      expect(move('2A', 6, 'ArrowDown')).toBe(id('1A', 3))
+      expect(move('1A', 3, 'ArrowUp')).toBe(id('2A', 6))
+      expect(move('1D', 6, 'ArrowDown')).toBeUndefined()
     })
 
-    it('Home and End are the first and the last position of the grid', () => {
-      expect(move('3C', 5, 'Home')).toBe(id('1A', 1))
-      expect(move('3C', 5, 'End')).toBe(id('4D', 6))
+    it('draws the highest HDF row at the top: ArrowUp from row 1 goes to row 2', () => {
+      expect(move('1A', 1, 'ArrowUp')).toBe(id('2A', 4))
+      expect(move('1B', 2, 'ArrowUp')).toBe(id('2B', 5))
+      expect(move('4A', 1, 'ArrowUp')).toBeUndefined()
+    })
+
+    it('Home is the first jack of the highest row', () => {
+      expect(move('3C', 5, 'Home')).toBe(id('4A', 1))
+    })
+
+    it('End is the last jack of row 1', () => {
+      expect(move('3C', 5, 'End')).toBe(id('1D', 6))
     })
 
     it('skips positions that have no endpoint', () => {

@@ -200,6 +200,29 @@ for (const size of [
   })
 }
 
+test('PT-08 both HDFs fit their panes at 32px', async ({ page, request }) => {
+  await page.setViewportSize({ width: 1536, height: 864 })
+  await hdfToHdf(page, request)
+  await page.screenshot({
+    path: 'test-results/workbench-1b/patching-hdf-range.png',
+  })
+  for (const name of ['From', 'To']) {
+    const fit = await patching(page)
+      .getByRole('region', { name })
+      .evaluate((pane) => {
+        const hdf = pane.querySelector<HTMLElement>('.hdf-grid')!
+        const bodies = [...pane.querySelectorAll<HTMLElement>('*')].filter(
+          (e) => e.contains(hdf) && e.scrollWidth > 0,
+        )
+        return {
+          hdf: !!hdf,
+          wide: bodies.filter((e) => e.scrollWidth > e.clientWidth + 1).length,
+        }
+      })
+    expect(fit, name).toEqual({ hdf: true, wide: 0 })
+  }
+})
+
 test('PT-03 each face scrolls in its own pane and the page does not', async ({
   page,
   request,

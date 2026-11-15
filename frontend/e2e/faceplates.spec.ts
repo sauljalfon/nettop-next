@@ -309,19 +309,20 @@ test('PB-03 on an HDF the arrows cross blocks, and the whole grid is one tab sto
   const stops = page.locator('[data-testid="face-endpoint"][tabindex="0"]')
   await expect(stops).toHaveCount(1)
   await stops.focus()
-  expect(await focused(page)).toBe('hdf-01:sp-1A:1:f')
+  // The first jack drawn: the top-left of the highest row.
+  expect(await focused(page)).toBe('hdf-01:sp-4A:1:f')
   const press = async (key: string, expected: string) => {
     await page.keyboard.press(key)
     expect(await focused(page)).toBe(expected)
   }
-  await press('ArrowRight', 'hdf-01:sp-1A:2:f')
-  await press('ArrowRight', 'hdf-01:sp-1A:3:f')
-  await press('ArrowRight', 'hdf-01:sp-1B:1:f') // into the next block
-  await press('ArrowDown', 'hdf-01:sp-1B:4:f')
-  await press('ArrowDown', 'hdf-01:sp-2B:1:f') // into the next block row
-  await press('ArrowUp', 'hdf-01:sp-1B:4:f')
-  await press('End', 'hdf-01:sp-4D:6:f')
-  await press('Home', 'hdf-01:sp-1A:1:f')
+  await press('ArrowRight', 'hdf-01:sp-4A:2:f')
+  await press('ArrowRight', 'hdf-01:sp-4A:3:f')
+  await press('ArrowRight', 'hdf-01:sp-4B:1:f') // into the next block
+  await press('ArrowDown', 'hdf-01:sp-4B:4:f')
+  await press('ArrowDown', 'hdf-01:sp-3B:1:f') // into the block row below
+  await press('ArrowUp', 'hdf-01:sp-4B:4:f')
+  await press('End', 'hdf-01:sp-1D:6:f')
+  await press('Home', 'hdf-01:sp-4A:1:f')
   // After selecting, the tab stop is the selected endpoint.
   await page
     .getByRole('group', { name: 'Side' })

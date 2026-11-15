@@ -49,13 +49,15 @@ export function navCells(
         : [],
     )
   const column = { A: 0, B: 1, C: 2, D: 3 } as const
+  const { rows } = face.face
+  // The highest row is drawn at the top, so the drawn row index counts down from it.
   return face.face.blocks.flatMap((block) =>
     block.positions.flatMap((cell) =>
       cell.endpointId
         ? [
             {
               id: cell.endpointId,
-              row: (block.row - 1) * 2 + Math.floor((cell.position - 1) / 3),
+              row: (rows - block.row) * 2 + Math.floor((cell.position - 1) / 3),
               col: column[block.column] * 3 + ((cell.position - 1) % 3),
             },
           ]

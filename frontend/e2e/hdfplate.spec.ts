@@ -124,7 +124,7 @@ test('PB-04 the HDF is one steel chassis: letters above, row numbers at the left
   )
 })
 
-test('PB-05 jacks are 28×30 on a switch and a panel and 22×22 on an HDF, numbers at least 11px', async ({
+test('PB-05 jacks are 28×30 on a switch and a panel and 32×32 on an HDF, numbers at least 11px', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1536, height: 864 })
@@ -147,9 +147,51 @@ test('PB-05 jacks are 28×30 on a switch and a panel and 22×22 on an HDF, numbe
     'hdf-01',
   )
   const jack = await box(page, 'hdf-01:sp-3C:5:f')
-  expect(Math.abs(jack.width - 22)).toBeLessThanOrEqual(1)
-  expect(Math.abs(jack.height - 22)).toBeLessThanOrEqual(1)
-  expect(await fontOf('hdf-01:sp-3C:5:f')).toBeGreaterThanOrEqual(11)
+  expect(Math.abs(jack.width - 32)).toBeLessThanOrEqual(1)
+  expect(Math.abs(jack.height - 32)).toBeLessThanOrEqual(1)
+  expect(await fontOf('hdf-01:sp-3C:5:f')).toBe(13)
+})
+
+test('PB-06 every HDF draws its highest row at the top', async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 1536, height: 864 })
+  await openEquipment(
+    page,
+    'Main Campus',
+    'North Sub-main',
+    'Rack SM01',
+    'hdf-01',
+  )
+  const rows = await page.locator('.hdf-row').allTextContents()
+  expect(rows.length).toBeGreaterThan(1)
+  expect(rows[rows.length - 1]).toBe('1')
+  expect(rows[0]).toBe(String(rows.length))
+  const b1 = (await page
+    .locator('[data-testid="face-block"][data-block="1A"]')
+    .boundingBox())!
+  const b2 = (await page
+    .locator('[data-testid="face-block"][data-block="2A"]')
+    .boundingBox())!
+  expect(b1.y).toBeGreaterThan(b2.y)
+  await page.screenshot({
+    path: 'test-results/workbench-1b/hdf-01.png',
+  })
+
+  const id = await planWith32RowHdf(request)
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
+  await page
+    .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
+    .click()
+  await expectMark(page, 'data-face-positions', '768')
+  await expect(page.locator('.hdf-row').first()).toHaveText('32')
+  expect(await page.locator('.hdf-scroll').evaluate((e) => e.scrollTop)).toBe(0)
+  await page.screenshot({
+    path: 'test-results/workbench-1b/hdf-32-rows.png',
+  })
 })
 
 test('PB-05b a 32-row HDF scrolls inside its face and keeps its letters and row numbers in view', async ({
@@ -192,9 +234,9 @@ test('PB-05b a 32-row HDF scrolls inside its face and keeps its letters and row 
       return r.bottom > area.top + 24 && r.top < area.bottom
     }
     return {
-      first: shown(1),
+      first: shown(32),
       later: rows.some(
-        (e) => Number(e.textContent) >= 10 && shown(Number(e.textContent)),
+        (e) => Number(e.textContent) <= 22 && shown(Number(e.textContent)),
       ),
       pageScroll: document.scrollingElement!.scrollTop,
     }

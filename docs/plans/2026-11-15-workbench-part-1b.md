@@ -76,4 +76,6 @@
 - [ ] **Step 2:** `docs/status.md` ("The workbench, part 1" gains part 1b: the 32px jacks, the row order, Pairs | Pigtails; the Now / Next box), `docs/ui-spec.md` (the HDF face), the roadmap's part 1b marked built.
 - [ ] **Step 3:** Opus reviews; the owner says when to commit, merge, push and deploy (no migration), then checks the HDFs on their real data before part 2.
 
-**Not in this part:** the HDF print sheet keeps its own layout; whether it also draws the highest row on top is a question for the owner.
+### Task 2b: The printed sheet follows (owner, 2026-11-15)
+
+The owner answered that the printed HDF sheet also puts the highest row on top. After Task 2, the HDF print sheet (Print sheet on the HDF page) lists or draws its rows from the highest down to row 1, the same rule as the face; cables, labels and what the sheet says about each position are unchanged. A failing test first (the sheet's first row is the highest), then the change, then the sheet's existing specs.

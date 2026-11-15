@@ -71,7 +71,7 @@
   --t-2xl: 26px;
   --t-min: 11px; /* jack numbers only */
 
-  --jack-hdf: 22px; /* an HDF jack, square */
+  --jack-hdf: 32px; /* an HDF jack, square */
   --jack-w: 28px; /* a switch or panel jack */
   --jack-h: 30px;
   --jack-gap: 2px;
