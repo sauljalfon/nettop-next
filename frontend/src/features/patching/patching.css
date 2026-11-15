@@ -97,6 +97,8 @@
   gap: 14px;
   min-height: 0;
   padding: 14px 18px;
+  /* The faces scroll here, so a tall HDF never spills over the footer's Connect and Done. */
+  overflow: auto;
 }
 @media (max-width: 900px) {
   .patching-cols {

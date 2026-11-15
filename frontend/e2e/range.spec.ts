@@ -170,6 +170,52 @@ test('BK-02 an HDF range continues from 1D/6 to 2A/1', async ({
   ])
 })
 
+test('BK-02 HDF to HDF on a 1920×1080 screen at 125%: the faceplates never cover Connect, Undo last or Done', async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 1536, height: 864 })
+  const id = await newPlan(request, unique('Range'))
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.getByRole('button', { name: 'Rear', exact: true }).click()
+  await page.locator('[data-endpoint-id="hdf-01:sp-2B:1:r"]').click()
+  await page.getByRole('button', { name: 'Connect a range…' }).click()
+  await useRange(page, 6)
+  await chooseFar(
+    page,
+    {
+      site: 'Main Campus',
+      node: 'Main Distribution',
+      rack: 'Rack Core 01',
+      equipment: 'HDF-02',
+    },
+    'Rear',
+  )
+  await farJack(page, 'hdf-02:sp-1C:1:r').click()
+  await expect(pairs(page)).toHaveCount(6)
+  // Each button is what the pointer reaches at its centre, not a faceplate drawn over it.
+  for (const name of [/^Connect 6$/, /^Undo last$/, /^Done$/]) {
+    const button = box(page).getByRole('button', { name })
+    await expect(button).toBeVisible()
+    const on = await button.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const top = document.elementFromPoint(
+        r.left + r.width / 2,
+        r.top + r.height / 2,
+      )
+      return !!top && el.contains(top)
+    })
+    expect(on, `${name} is covered`).toBe(true)
+  }
+  await shot(page, 'hdf-1536')
+  await box(page).getByRole('button', { name: 'Connect 6' }).click()
+  await madeCount(page, 6)
+  expect((await getPlan(request, id)).links).toHaveLength(6)
+})
+
 test('BK-02 the server refuses a cable between two endpoints of one piece of equipment, in names', async ({
   request,
 }) => {
