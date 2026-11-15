@@ -1,6 +1,6 @@
 # The workbench, part 1: compact faceplates and the patching page — Implementation Plan
 
-> **For agentic workers:** this project's process is [way-of-work.md](../way-of-work.md): Sonnet implements one task per prompt, test first, and never commits; Opus reviews each task before the next. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** this project's process is [way-of-work.md](../way-of-work.md): a Sonnet subagent started by Opus implements one task at a time, test first, and never commits; Opus reviews each task before the next. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** jacks drawn at the compact sizes of D43 on every face (equipment page and patching), switch port groups on one line with uplinks marked ↑, and the patching screen turned into a full page whose Connect, Undo last and Done are always reachable.
 

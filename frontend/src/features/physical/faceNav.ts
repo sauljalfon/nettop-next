@@ -1,5 +1,5 @@
 import type { Face } from './equipmentModel'
-import { layoutPlate, unitOffsets } from './faces'
+import { FACE_COLUMNS, layoutPlate, unitOffsets } from './faces'
 
 export interface NavCell {
   id: string
@@ -13,11 +13,14 @@ export interface NavCell {
  * three positions wide per block and two high, so arrows cross blocks. Cells
  * with no endpoint are left out.
  */
-export function navCells(face: Face): NavCell[] {
+export function navCells(
+  face: Face,
+  columns: number = FACE_COLUMNS,
+): NavCell[] {
   if (face.kind === 'switch')
     // Banks lie left to right with a gap, then wrap to the next row; every row
     // of banks is two rows of jacks (odd above even).
-    return layoutPlate(face.banks).flatMap((row, r) => {
+    return layoutPlate(face.banks, columns).flatMap((row, r) => {
       const offsets = unitOffsets(row)
       return row.flatMap((unit, u) =>
         unit.cells.flatMap((cell, n) =>

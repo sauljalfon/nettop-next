@@ -170,8 +170,20 @@ test('PB-01 EDGE-17’s faceplate puts ports 1,3,5… on top and 2,4,6… below,
       'data-row',
       row,
     )
-  await expect(endpoint(page, 'edge-17:p1').locator('.link-dot')).toHaveCount(1)
-  await expect(endpoint(page, 'edge-17:p4').locator('.link-dot')).toHaveCount(0)
+  await expect(endpoint(page, 'edge-17:p1')).toHaveAttribute(
+    'data-state',
+    'cabled',
+  )
+  await expect(endpoint(page, 'edge-17:p4')).toHaveAttribute(
+    'data-state',
+    'free',
+  )
+  await expect(
+    endpoint(page, 'edge-17:p1').locator('.uplink-arrow'),
+  ).toHaveCount(1)
+  await expect(
+    endpoint(page, 'edge-17:p4').locator('.uplink-arrow'),
+  ).toHaveCount(0)
   await expect(endpoint(page, 'edge-17:p3')).toHaveAttribute(
     'title',
     'port 3 · cable-a09 → PANEL-A 3 front',

@@ -7,8 +7,8 @@ How a piece of work goes from an idea to the server. It is the routine used for 
 | Who | Does |
 | --- | --- |
 | **Owner** | Decides what is built and how it should look and behave; approves every design; says when to commit, merge, push and deploy; runs the server. |
-| **Opus** (the main Claude session) | Reads the docs and code, asks the questions that matter, proposes the design, writes the plan and the prompts, reviews every result (reads the diff, reruns the checks, looks at the screenshots, probes edge cases), makes small review fixes itself, keeps the docs true, commits and pushes when the owner asks. |
-| **Sonnet** (a separate Claude session) | Implements one prompt at a time, test-first, and reports. Never commits. |
+| **Opus** (the main Claude session) | Reads the docs and code, asks the questions that matter, proposes the design, writes the plan, starts the implementer subagent with each task's prompt, reviews every result (reads the diff, reruns the checks, looks at the screenshots, probes edge cases), makes small review fixes itself, keeps the docs true, commits and pushes when the owner asks. |
+| **Implementer** (a Sonnet subagent that Opus starts from its own session, since 2026-11-15) | Implements one task per prompt, test-first, and reports back to Opus. Never commits. The owner does not copy prompts into a separate session. |
 
 Infrastructure (the cluster in [infrastructure.md](infrastructure.md)) works differently: the owner writes and runs everything by hand, and Claude explains, outlines, reviews and helps debug from pasted output.
 
@@ -21,8 +21,8 @@ Infrastructure (the cluster in [infrastructure.md](infrastructure.md)) works dif
    - Otherwise Opus writes a **short design in chat**: what the user will see, the rules, how it is built, how it is tested, and any decision the owner must make (with a recommendation). Questions are asked one at a time and in plain words, not code names.
    - Nothing is implemented before the owner says yes.
 4. **Record the design.** The approved design (with the date and the owner's answers) goes into the item's roadmap entry; a new lasting rule goes into decisions.md.
-5. **Plan** (only for work of more than one prompt): `docs/plans/YYYY-MM-DD-<name>.md` with the tasks in order, each with its files, interfaces, the failing test first, the code, and the checks. Small items go straight to a prompt.
-6. **Prompt Sonnet**, one task or one part at a time (backend and frontend are separate prompts when both change). Every prompt has:
+5. **Plan** (only for work of more than one task): `docs/plans/YYYY-MM-DD-<name>.md` with the tasks in order, each with its files, interfaces, the failing test first, the code, and the checks. Small items go straight to a subagent.
+6. **Start the implementer subagent** (model Sonnet), one task or one part at a time (backend and frontend are separate subagents when both change); Opus waits for its report before the next task. Every subagent's prompt has:
    - what to read first (AGENTS.md, CLAUDE.md, the roadmap entry or plan, the files to change);
    - the approved design, with exact names, messages and IDs;
    - the order: tests first, see them fail, then the code;
@@ -30,7 +30,7 @@ Infrastructure (the cluster in [infrastructure.md](infrastructure.md)) works dif
    - "if the design cannot work as written, stop and report the exact problem; do not invent another behaviour";
    - the commands to verify (below) and screenshots to look at;
    - the report: the red runs, the results, `git diff --stat` and the diff, what the screenshots show, and anything done differently and why.
-7. **Review.** Opus reads the whole diff, reruns the tests, looks at the screenshots, and tries the inputs a user is likely to hit (empty data, long or Hebrew names, swaps, refetches, stale drafts). The result is either **approved**, or a **fix prompt** that names each problem, its cause and the fix. Small polish (a CSS value, a comment) Opus fixes itself and says so.
+7. **Review.** Opus reads the whole diff, reruns the tests, looks at the screenshots, and tries the inputs a user is likely to hit (empty data, long or Hebrew names, swaps, refetches, stale drafts). The result is either **approved**, or a **fix**: Opus sends the same subagent (or a new one) a message that names each problem, its cause and the fix. Small polish (a CSS value, a comment) Opus fixes itself and says so.
 8. **Docs, in the same change:** see "Keeping the docs true" below.
 9. **Commit** when the owner says so: one commit per item (or per part when parts are reviewed separately), a message that says what the user gets, and the co-author lines. Only the item's files are staged; unrelated files are left alone.
 10. **Merge, push, deploy** when the owner says so: work happens on a branch, `main` is fast-forwarded to it, both are pushed, and the server is updated as in [infra/compose/README.md](../infra/compose/README.md) ("Update to a new version": backup first). Opus tells the owner whether the update has a migration.

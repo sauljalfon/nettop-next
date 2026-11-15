@@ -256,7 +256,7 @@ test('VP-03b HDF-01 with the inspector open: the whole grid inside the face card
   )
 })
 
-test('VP-03b without a drawer the HDF grid fills its card, and every jack number is at least 11px', async ({
+test('VP-03b without a drawer the compact HDF grid fits its card, and every jack number is at least 11px', async ({
   page,
 }) => {
   await openEquipmentPage(page, 'North Sub-main', 'Rack SM01', 'hdf-01')
@@ -276,7 +276,7 @@ test('VP-03b without a drawer the HDF grid fills its card, and every jack number
       min: Math.min(...sizes),
     }
   })
-  expect(m.ratio).toBeGreaterThanOrEqual(0.9)
+  expect(m.ratio).toBeLessThanOrEqual(1)
   expect(m.min).toBeGreaterThanOrEqual(11)
 })
 

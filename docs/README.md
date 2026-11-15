@@ -17,7 +17,7 @@ One question, one document (see [way-of-work.md](way-of-work.md)). Where the pro
 | [status.md](status.md) | Where are we, what runs (by area), known limits, what is next |
 | [roadmap.md](roadmap.md) | What is still to be built, in order, with approved designs and open questions |
 | [decisions.md](decisions.md) | What was decided and why (locked 1–11, D15 onwards, the D01–D14 background) |
-| [way-of-work.md](way-of-work.md) | Roles, the cycle for one item, prompts, review, docs to update |
+| [way-of-work.md](way-of-work.md) | Roles, the cycle for one item, implementer subagents, review, docs to update |
 | [architecture.md](architecture.md) | The domain, pathfinding rules, plans and persistence boundaries |
 | [ui-spec.md](ui-spec.md) | How the screens behave |
 | [acceptance-example.md](acceptance-example.md) | The fictional test inventory, cables and expected routes |

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Read first
 
-`AGENTS.md` holds the binding project rules (domain invariants, test-first, no auto-commits). Start at `docs/README.md`. **Where the project is and what to work on is only in `docs/status.md`** (its Now / Next box); `docs/roadmap.md` holds the approved design of the current item; `docs/decisions.md` holds the locked decisions (never reopen them without the owner) and every later decision; `docs/way-of-work.md` is the process (design and approval, plan, Sonnet prompts, review, commit, deploy) and the list of docs each finished item updates. `docs/history/` is reference only. Work one step at a time and stop for review after each.
+`AGENTS.md` holds the binding project rules (domain invariants, test-first, no auto-commits). Start at `docs/README.md`. **Where the project is and what to work on is only in `docs/status.md`** (its Now / Next box); `docs/roadmap.md` holds the approved design of the current item; `docs/decisions.md` holds the locked decisions (never reopen them without the owner) and every later decision; `docs/way-of-work.md` is the process (design and approval, plan, implementer subagents, review, commit, deploy) and the list of docs each finished item updates. `docs/history/` is reference only. Work one step at a time and stop for review after each.
 
 ## Commands
 

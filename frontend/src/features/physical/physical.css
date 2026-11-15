@@ -985,64 +985,51 @@
 }
 .plate-ports {
   display: grid;
-  grid-auto-columns: 44px;
+  grid-auto-columns: var(--jack-w);
   grid-auto-flow: column;
-  grid-template-rows: repeat(2, 50px);
-  gap: 6px;
+  grid-template-rows: repeat(2, var(--jack-h));
+  gap: var(--jack-gap);
 }
 .plate-strip {
   display: grid;
-  grid-template-columns: repeat(12, 44px);
-  gap: 6px;
+  grid-template-columns: repeat(12, var(--jack-w));
+  gap: var(--jack-gap);
 }
 .face-cell.jack {
   position: relative;
   display: grid;
   place-items: end center;
-  width: 44px;
-  height: 50px;
-  padding-bottom: 4px;
-  font-size: var(--t-xs);
-}
-.face-cell.jack::before {
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  width: 16px;
-  height: 6px;
-  content: '';
-  background: var(--steel-port);
-  border-radius: 1px;
-  transform: translateX(-50%);
-}
-.face-cell.jack.fill-cabled::before,
-.face-cell.jack.fill-route::before {
-  background: color-mix(in srgb, var(--paper) 63%, transparent);
+  box-sizing: border-box;
+  width: var(--jack-w);
+  height: var(--jack-h);
+  padding: 0 0 3px;
+  font-family: var(--mono);
+  font-size: var(--t-min);
+  line-height: 14px;
 }
 .face-cell.jack.hdf-jack {
-  width: 100%;
-  min-width: 34px;
-  height: 38px;
-  padding-bottom: 3px;
-  font-size: var(--t-min);
+  place-items: center;
+  width: var(--jack-hdf);
+  height: var(--jack-hdf);
+  padding: 0;
 }
-.face-cell.jack.hdf-jack::before {
-  width: 12px;
-  height: 5px;
+.face-cell.jack.hdf-jack.fill-cabled,
+.face-cell.jack.hdf-jack.fill-route {
+  color: var(--paper);
 }
-.link-dot {
+.face-cell.jack.hdf-jack .jack-number {
+  padding: 0 2px;
+}
+/* A jack whose port reaches an AGG or BB: a small arrow in its top corner. */
+.uplink-arrow {
   position: absolute;
-  top: 14px;
-  right: 5px;
-  width: 6px;
-  height: 6px;
-  background: var(--paper);
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--steel);
-}
-.face-cell.jack.hdf-jack .link-dot {
-  top: 11px;
-  right: 4px;
+  top: 0;
+  right: 2px;
+  font-size: var(--t-min);
+  font-weight: 700;
+  line-height: 11px;
+  color: var(--paper);
+  pointer-events: none;
 }
 /* Selected: a 2px paper ring set off by 2px of steel (ink would vanish on the plate). */
 .faceplate .face-cell.is-selected {
@@ -1164,7 +1151,7 @@
 .faceplate[data-kind='hdf'] {
   display: block;
   padding: 10px 16px 16px;
-  overflow: hidden; /* the grid inside scrolls, not the plate around it */
+  overflow: visible; /* the grid inside scrolls; sticky letters follow .hdf-scroll */
 }
 .faceplate[data-kind='hdf'] .plate-head {
   margin-bottom: 10px;
@@ -1193,10 +1180,10 @@
 }
 .hdf-grid {
   display: grid;
-  grid-template-columns: 26px repeat(4, minmax(128px, 1fr));
-  gap: 8px 10px;
+  grid-template-columns: 22px repeat(4, max-content);
+  gap: 5px 6px;
   align-items: start;
-  width: 100%;
+  width: max-content;
 }
 .hdf-col,
 .hdf-row {
@@ -1205,32 +1192,48 @@
   font-weight: 500;
   color: var(--steel-ink-strong);
   text-align: center;
+  background: var(--steel);
+}
+.hdf-col {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.hdf-corner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  background: var(--steel);
 }
 .hdf-row {
+  position: sticky;
+  left: 0;
+  z-index: 2;
   align-self: center;
   text-align: right;
+}
+/* Bare (inside the patching page): the parent scrolls, not the face. */
+.hdf-scroll.bare {
+  max-height: none;
+  overflow: visible;
 }
 .hdf-module {
   display: grid;
   gap: 3px;
-  padding: 4px 6px 6px;
+  padding: 3px;
   background: var(--steel-2);
   border: 1px solid var(--steel-line);
   border-radius: 3px;
 }
 .hdf-module[data-on-route='true'] {
-  padding: 3px 5px 5px;
+  padding: 2px;
   border: 2px solid var(--route);
-}
-.hdf-module code {
-  font-family: var(--mono);
-  font-size: var(--t-min);
-  color: var(--steel-ink-soft);
 }
 .hdf-positions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(34px, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(3, var(--jack-hdf));
+  gap: var(--jack-gap);
 }
 
 /* Port detail card: the connection drawn top to bottom */
@@ -1357,6 +1360,13 @@
   min-width: 100%;
   overflow-wrap: anywhere;
 }
+/* The last bank of a row (the uplinks, two columns wide) keeps its caption on
+   one line, reaching left over the space above the bank before it. */
+.plate-bank:last-child:not(:first-child) .bank-caption {
+  display: flex;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
 
 /* Port state (locked 6: data only, never a trace): a pattern over the fill. */
 /* The number keeps a solid pill in the cell's own colour, so the hatch shows around it, not behind it. */
@@ -1392,26 +1402,12 @@
   );
 }
 
-/* A jack whose port reaches an AGG or BB: an ink dot in the corner with a paper ring,
-   drawn over the fill so it shows with the network colour, the route fill and the ring. */
-.face-cell[data-uplink='true']::after,
-.face-legend i.uplink-mark {
-  box-sizing: border-box;
-  width: 9px;
-  height: 9px;
-  background: var(--ink);
-  border: 2px solid var(--paper);
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--ink);
-}
-.face-cell[data-uplink='true']::after {
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  content: '';
-}
-.face-legend i.uplink-mark {
-  border-width: 2px;
+/* The legend's uplink mark: the same arrow. */
+.face-legend i.uplink-mark::before {
+  content: '↑';
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* The face with the uplinks summary above it. */

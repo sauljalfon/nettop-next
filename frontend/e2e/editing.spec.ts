@@ -486,7 +486,7 @@ test('ED-14 Escape closes each inline confirm and form, and focus returns to the
 test('a wide HDF face scrolls sideways, with a visible scrollbar, when the page is narrow', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 900, height: 900 })
+  await page.setViewportSize({ width: 600, height: 900 })
   await page.goto('/')
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')

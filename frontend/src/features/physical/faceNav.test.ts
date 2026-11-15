@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { indexSnapshot } from '../map/snapshotIndex'
-import { physicalSnapshot, withFullHdf } from './testFixture'
+import { physicalSnapshot, withFullHdf, withGroupedSwitch } from './testFixture'
 import { hdfFace, panelFace, switchBank } from './faces'
 import { moveFocus, navCells } from './faceNav'
 
@@ -37,6 +37,38 @@ describe('PB-03 arrow keys follow the visual layout', () => {
       expect(from('1', 'ArrowUp')).toBeUndefined()
       expect(from('2', 'ArrowDown')).toBeUndefined()
       expect(from('23', 'ArrowRight')).toBeUndefined()
+    })
+
+    it('moves right from the last top jack of the first block to the first of the second', () => {
+      const big = navCells({
+        kind: 'switch',
+        ...switchBank(
+          indexSnapshot(
+            withGroupedSwitch(physicalSnapshot(), 'SW-L', 'rack-a03', 3, [
+              { count: 48, prefix: 'Gi1/0/' },
+              { count: 4, prefix: 'Te1/1/' },
+            ]),
+          ),
+          'SW-L',
+        ),
+      })
+      expect(moveFocus(big, 'SW-L:p23', 'ArrowRight')).toBe('SW-L:p25')
+    })
+
+    it('moves right from Gi1/0/47 to Te1/1/1 across the gap on one row', () => {
+      const big = navCells({
+        kind: 'switch',
+        ...switchBank(
+          indexSnapshot(
+            withGroupedSwitch(physicalSnapshot(), 'SW-L', 'rack-a03', 3, [
+              { count: 48, prefix: 'Gi1/0/' },
+              { count: 4, prefix: 'Te1/1/' },
+            ]),
+          ),
+          'SW-L',
+        ),
+      })
+      expect(moveFocus(big, 'SW-L:p47', 'ArrowRight')).toBe('SW-L:p49')
     })
 
     it('Home is the first port, End the last', () => {

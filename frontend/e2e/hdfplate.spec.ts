@@ -68,7 +68,6 @@ test('PB-04 the HDF is one steel chassis: letters above, row numbers at the left
   expect(a.y + a.height).toBeLessThanOrEqual(firstBox.y + 1) // letters above the modules
   expect(row1.x + row1.width).toBeLessThanOrEqual(firstBox.x + 1) // row numbers at the left
   await expect(page.locator('.hdf-col')).toHaveText(['A', 'B', 'C', 'D'])
-  await expect(first.locator('code')).toHaveText('1A')
   // A recessed module: darker than the chassis, and a teal border where the route is.
   await expect(first).toHaveCSS('background-color', 'rgb(42, 52, 64)')
   const route = page.locator('[data-testid="face-block"][data-block="3C"]')
@@ -83,12 +82,18 @@ test('PB-04 the HDF is one steel chassis: letters above, row numbers at the left
   expect(Math.abs(p2.y - p3.y)).toBeLessThan(1.5)
   expect(p4.y).toBeGreaterThan(p1.y + 10)
   expect(Math.abs(p4.x - p1.x)).toBeLessThan(1.5)
-  await expect(
-    endpoint(page, 'hdf-01:sp-3C:5:f').locator('.link-dot'),
-  ).toHaveCount(1)
-  await expect(
-    endpoint(page, 'hdf-01:sp-3C:4:f').locator('.link-dot'),
-  ).toHaveCount(0)
+  await expect(endpoint(page, 'hdf-01:sp-3C:5:f')).toHaveAttribute(
+    'data-state',
+    'route',
+  )
+  await expect(endpoint(page, 'hdf-01:sp-3C:2:f')).toHaveAttribute(
+    'data-state',
+    'cabled',
+  )
+  await expect(endpoint(page, 'hdf-01:sp-3C:4:f')).toHaveAttribute(
+    'data-state',
+    'free',
+  )
   // States: cabled in the network's color, route teal, free white; selected ring.
   await expect(endpoint(page, 'hdf-01:sp-3C:2:f')).toHaveCSS(
     'background-color',
@@ -118,29 +123,21 @@ test('PB-04 the HDF is one steel chassis: letters above, row numbers at the left
   )
 })
 
-test('PB-05 jacks are about 44 px on a switch and a panel and 34 px on an HDF, with readable numbers; a 32-row HDF scrolls inside its card', async ({
+test('PB-05 jacks are 28×30 on a switch and a panel and 22×22 on an HDF, numbers at least 11px', async ({
   page,
-  request,
 }) => {
+  await page.setViewportSize({ width: 1536, height: 864 })
+  const fontOf = (id: string) =>
+    endpoint(page, id).evaluate((e) => parseFloat(getComputedStyle(e).fontSize))
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'edge-17')
   const port = await box(page, 'edge-17:p1')
-  expect(Math.abs(port.width - 44)).toBeLessThanOrEqual(1.5)
-  expect(
-    Number(
-      await endpoint(page, 'edge-17:p1').evaluate((e) =>
-        parseFloat(getComputedStyle(e).fontSize),
-      ),
-    ),
-  ).toBeGreaterThanOrEqual(11)
-  // Twelve columns fit the face card without a scrollbar.
-  const fits = await page
-    .locator('.faceplate[data-kind="switch"]')
-    .evaluate((e) => e.scrollWidth <= e.clientWidth + 1)
-  expect(fits).toBe(true)
+  expect(Math.abs(port.width - 28)).toBeLessThanOrEqual(1)
+  expect(Math.abs(port.height - 30)).toBeLessThanOrEqual(1)
+  expect(await fontOf('edge-17:p1')).toBeGreaterThanOrEqual(11)
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'panel-a')
   expect(
-    Math.abs((await box(page, 'panel-a:1:f')).width - 44),
-  ).toBeLessThanOrEqual(1.5)
+    Math.abs((await box(page, 'panel-a:1:f')).width - 28),
+  ).toBeLessThanOrEqual(1)
   await openEquipment(
     page,
     'Main Campus',
@@ -149,16 +146,16 @@ test('PB-05 jacks are about 44 px on a switch and a panel and 34 px on an HDF, w
     'hdf-01',
   )
   const jack = await box(page, 'hdf-01:sp-3C:5:f')
-  expect(jack.width).toBeGreaterThanOrEqual(34 - 0.5) // the grid fills the card; never narrower than 34
-  expect(
-    Number(
-      await endpoint(page, 'hdf-01:sp-3C:5:f').evaluate((e) =>
-        parseFloat(getComputedStyle(e).fontSize),
-      ),
-    ),
-  ).toBeGreaterThanOrEqual(11)
+  expect(Math.abs(jack.width - 22)).toBeLessThanOrEqual(1)
+  expect(Math.abs(jack.height - 22)).toBeLessThanOrEqual(1)
+  expect(await fontOf('hdf-01:sp-3C:5:f')).toBeGreaterThanOrEqual(11)
+})
 
-  // A 32-row HDF scrolls inside the face card, not the page.
+test('PB-05b a 32-row HDF scrolls inside its face and keeps its letters and row numbers in view', async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 1536, height: 864 })
   const id = await planWith32RowHdf(request)
   await page.goto(`/?plan=${id}`)
   await fitted(page)
@@ -167,19 +164,52 @@ test('PB-05 jacks are about 44 px on a switch and a panel and 34 px on an HDF, w
     .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
     .click()
   await expectMark(page, 'data-face-positions', '768')
+  const scroller = page.locator('.hdf-scroll')
+  expect(
+    await scroller.evaluate((e) => e.scrollHeight > e.clientHeight + 1),
+  ).toBe(true)
+  await scroller.evaluate((e) => {
+    e.scrollTop = 600
+  })
+  await expect
+    .poll(() => scroller.evaluate((e) => e.scrollTop))
+    .toBeGreaterThan(500)
+  const area = (await scroller.boundingBox())!
+  const letter = (await page
+    .locator('.hdf-col', { hasText: 'A' })
+    .boundingBox())!
+  expect(letter.y).toBeGreaterThanOrEqual(area.y - 1)
+  expect(letter.y).toBeLessThan(area.y + 40)
+  const visible = await page.evaluate(() => {
+    const area = document.querySelector('.hdf-scroll')!.getBoundingClientRect()
+    const rows = [...document.querySelectorAll('.hdf-row')]
+    const shown = (n: number) => {
+      const r = rows
+        .find((e) => e.textContent === String(n))!
+        .getBoundingClientRect()
+      // Below the sticky letters (about 20px) and inside the scroller.
+      return r.bottom > area.top + 24 && r.top < area.bottom
+    }
+    return {
+      first: shown(1),
+      later: rows.some(
+        (e) => Number(e.textContent) >= 10 && shown(Number(e.textContent)),
+      ),
+      pageScroll: document.scrollingElement!.scrollTop,
+    }
+  })
+  expect(visible).toEqual({ first: false, later: true, pageScroll: 0 })
   const metrics = await page.evaluate(() => {
-    const scroller = document.querySelector('.hdf-scroll') as HTMLElement
+    const s = document.querySelector('.hdf-scroll') as HTMLElement
     const pageEl = document.querySelector('.equipment-page') as HTMLElement
     return {
-      inner: scroller.scrollHeight > scroller.clientHeight + 1,
-      overflowY: getComputedStyle(scroller).overflowY,
+      overflowY: getComputedStyle(s).overflowY,
       pageScrolls: pageEl.scrollHeight > pageEl.clientHeight + 1,
       windowScrolls:
         document.documentElement.scrollHeight > window.innerHeight + 1,
     }
   })
   expect(metrics).toEqual({
-    inner: true,
     overflowY: expect.stringMatching(/auto|scroll/),
     pageScrolls: false,
     windowScrolls: false,

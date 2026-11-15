@@ -1,4 +1,4 @@
-import { layoutPlate } from './faces'
+import { FACE_COLUMNS, layoutPlate } from './faces'
 import {
   useRef,
   useState,
@@ -91,6 +91,10 @@ interface Props {
   uplinkIds?: ReadonlySet<string>
   /** False hides the legend (the patching screen has its own). */
   legend?: boolean
+  /** Jack columns a row of banks holds; the patching page passes a narrower count. */
+  columns?: number
+  /** No face-card header or legend and no own HDF scroll: the parent scrolls. */
+  bare?: boolean
 }
 
 /**
@@ -121,9 +125,11 @@ export default function FaceView({
   decorate,
   uplinkIds,
   legend: showLegend = true,
+  columns = FACE_COLUMNS,
+  bare,
 }: Props) {
   const networkName = (id?: string) => networks.find((n) => n.id === id)?.name
-  const cells = navCells(face)
+  const cells = navCells(face, columns)
   const container = useRef<HTMLDivElement>(null)
   const [focusId, setFocusId] = useState<string>()
   const selected = [
@@ -207,7 +213,11 @@ export default function FaceView({
         {...extra}
       >
         {cell.portState ? <span className="jack-number">{text}</span> : text}
-        {cell.cabled && !mark?.tone && <i className="link-dot" />}
+        {uplink && (
+          <span className="uplink-arrow" aria-hidden="true">
+            ↑
+          </span>
+        )}
         {mark?.badge !== undefined && (
           <span className="pair-badge" aria-hidden="true">
             {mark.badge}
@@ -226,58 +236,63 @@ export default function FaceView({
   const legend = legendNetworks(face, networks)
 
   return (
-    <section className="face-card" aria-label={`${equipment.name} face`}>
-      <header className="face-head">
-        <div>
-          <h2>
-            <Name text={equipment.name} />
-            {proposed && (
-              <Chip
-                kind="proposed"
-                className="proposed-tag"
-                testId="proposed-tag"
-              >
-                Proposed
-              </Chip>
-            )}
-            {onOpenInventory && !printing && (
-              <button className="btn print-button" onClick={onOpenInventory}>
-                Open in inventory
-              </button>
-            )}
-            {onPrint && !printing && (
-              <button className="btn print-button" onClick={onPrint}>
-                Print sheet
-              </button>
-            )}
-          </h2>
-          <p>
-            {meta}
-            {place && place.length > 0 && (
-              <>
-                {meta && ' · '}
-                <PlacePath parts={place} />
-              </>
-            )}
-          </p>
-        </div>
-        {face.kind !== 'switch' && !printing && (
-          <div className="seg side-switch" role="group" aria-label="Side">
-            {(['front', 'rear'] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                aria-pressed={side === s}
-                className={side === s ? 'active' : ''}
-                onClick={() => onSide(s)}
-              >
-                {s === 'front' ? 'Front' : 'Rear'}
-              </button>
-            ))}
+    <section
+      className={bare ? 'face-card face-bare' : 'face-card'}
+      aria-label={`${equipment.name} face`}
+    >
+      {!bare && (
+        <header className="face-head">
+          <div>
+            <h2>
+              <Name text={equipment.name} />
+              {proposed && (
+                <Chip
+                  kind="proposed"
+                  className="proposed-tag"
+                  testId="proposed-tag"
+                >
+                  Proposed
+                </Chip>
+              )}
+              {onOpenInventory && !printing && (
+                <button className="btn print-button" onClick={onOpenInventory}>
+                  Open in inventory
+                </button>
+              )}
+              {onPrint && !printing && (
+                <button className="btn print-button" onClick={onPrint}>
+                  Print sheet
+                </button>
+              )}
+            </h2>
+            <p>
+              {meta}
+              {place && place.length > 0 && (
+                <>
+                  {meta && ' · '}
+                  <PlacePath parts={place} />
+                </>
+              )}
+            </p>
           </div>
-        )}
-      </header>
-      {editSlot}
+          {face.kind !== 'switch' && !printing && (
+            <div className="seg side-switch" role="group" aria-label="Side">
+              {(['front', 'rear'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={side === s}
+                  className={side === s ? 'active' : ''}
+                  onClick={() => onSide(s)}
+                >
+                  {s === 'front' ? 'Front' : 'Rear'}
+                </button>
+              ))}
+            </div>
+          )}
+        </header>
+      )}
+      {!bare && editSlot}
 
       <div ref={container} onKeyDown={onKeyDown}>
         {face.kind === 'switch' && (
@@ -290,7 +305,7 @@ export default function FaceView({
               name={equipment.name}
               meta={`${face.rows.reduce((n, r) => n + r.length, 0)} ports`}
             />
-            {layoutPlate(face.banks).map((row, r) => (
+            {layoutPlate(face.banks, columns).map((row, r) => (
               <div key={r} className="plate-bank-row" data-testid="bank-row">
                 {row.map((unit, u) => (
                   <div
@@ -355,9 +370,9 @@ export default function FaceView({
         {face.kind === 'hdf' && (
           <div className="faceplate" data-kind="hdf">
             <PlateHead name={equipment.name} meta={side ?? 'front'} />
-            <div className="hdf-scroll">
+            <div className={bare ? 'hdf-scroll bare' : 'hdf-scroll'}>
               <div className="hdf-grid">
-                <span />
+                <span className="hdf-corner" />
                 {['A', 'B', 'C', 'D'].map((c) => (
                   <span key={c} className="hdf-col">
                     {c}
@@ -378,9 +393,9 @@ export default function FaceView({
                         className="hdf-module"
                         data-testid="face-block"
                         data-block={b.label}
+                        title={b.label}
                         data-on-route={blockOnRoute(b)}
                       >
-                        <code>{b.label}</code>
                         <div className="hdf-positions">
                           {b.positions.map((p) =>
                             button(p, String(p.position), 'jack hdf-jack', {
@@ -398,7 +413,7 @@ export default function FaceView({
         )}
       </div>
 
-      {showLegend && (
+      {showLegend && !bare && (
         <footer className="face-legend legend" aria-label="Legend">
           <span>
             <i className="fill-free" /> free

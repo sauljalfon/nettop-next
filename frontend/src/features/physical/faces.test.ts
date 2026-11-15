@@ -3,7 +3,13 @@ import { agg03Route } from '../map/acceptanceFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import { physicalSnapshot, withFullHdf } from './testFixture'
 import { routeMarks } from './inventory'
-import { hdfFace, layoutPlate, panelFace, switchBank } from './faces'
+import {
+  hdfFace,
+  layoutPlate,
+  panelFace,
+  PATCHING_COLUMNS,
+  switchBank,
+} from './faces'
 import { withGroupedSwitch } from './testFixture'
 
 const s = withFullHdf(physicalSnapshot(), 'HDF-01', 4)
@@ -247,7 +253,10 @@ describe('PG-04 port banks: one per port group', () => {
 })
 
 describe('port banks lie side by side and wrap (step 11b fixup)', () => {
-  const plate = (groups: { count: number; prefix: string }[]) => {
+  const plate = (
+    groups: { count: number; prefix: string }[],
+    columns?: number,
+  ) => {
     const g = withGroupedSwitch(
       physicalSnapshot(),
       'SW-L',
@@ -255,7 +264,7 @@ describe('port banks lie side by side and wrap (step 11b fixup)', () => {
       3,
       groups,
     )
-    return layoutPlate(switchBank(indexSnapshot(g), 'SW-L').banks)
+    return layoutPlate(switchBank(indexSnapshot(g), 'SW-L').banks, columns)
   }
   const shape = (rows: ReturnType<typeof plate>) =>
     rows.map((r) => r.map((u) => `${u.cells.length}${u.caption ? '*' : ''}`))
@@ -269,11 +278,33 @@ describe('port banks lie side by side and wrap (step 11b fixup)', () => {
     expect(rows[0][1].cells[0].label).toBe('Te1/1/1')
   })
 
-  it('wraps what does not fit: 48 + 4 puts the second 24-port block and the uplinks on a second row', () => {
-    const rows = plate([
-      { count: 48, prefix: 'Gi1/0/' },
-      { count: 4, prefix: 'Te1/1/' },
+  const fortyEightPlusFour = [
+    { count: 48, prefix: 'Gi1/0/' },
+    { count: 4, prefix: 'Te1/1/' },
+  ]
+
+  it('puts 48 + 4 on one row at the default width', () => {
+    expect(shape(plate(fortyEightPlusFour))).toEqual([['24*', '24', '4*']])
+  })
+
+  it('wraps 48 + 4 at the patching width', () => {
+    expect(shape(plate(fortyEightPlusFour, PATCHING_COLUMNS))).toEqual([
+      ['24*'],
+      ['24'],
+      ['4*'],
     ])
+  })
+
+  it('keeps a switch without groups as one strip', () => {
+    const old = (columns?: number) =>
+      shape(layoutPlate(switchBank(index, 'EDGE-17').banks, columns))
+    expect(old()).toEqual([['24']])
+    expect(old(PATCHING_COLUMNS)).toEqual([['24']])
+  })
+
+  // Was written for the old 15-column face; the width is passed explicitly now.
+  it('wraps what does not fit: 48 + 4 at 15 columns puts the second 24-port block and the uplinks on a second row', () => {
+    const rows = plate(fortyEightPlusFour, 15)
     // The 48-port group is two blocks of 24 ports; only the first carries the caption.
     expect(shape(rows)).toEqual([['24*'], ['24', '4*']])
     expect(rows[1][0].cells[0].label).toBe('Gi1/0/25')

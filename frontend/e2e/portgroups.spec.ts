@@ -175,10 +175,11 @@ test('PG-04 the faceplate draws one bank per group with its caption; a switch wi
   await shot(page, 'faceplate-plain')
 })
 
-test('PG-04 banks that do not fit the face wrap onto the next row: 48 + 4', async ({
+test('PG-04 48 + 4 sits on one row with the uplinks to the right', async ({
   page,
   request,
 }) => {
+  await page.setViewportSize({ width: 1536, height: 864 })
   const { id, switchId } = await draftWithGroupedSwitch(request, {}, 48)
   await openSwitch(page, id, switchId)
   const banks = page.getByTestId('port-bank')
@@ -191,12 +192,13 @@ test('PG-04 banks that do not fit the face wrap onto the next row: 48 + 4', asyn
   const [one, two, up] = await Promise.all(
     [0, 1, 2].map((i) => banks.nth(i).boundingBox()),
   )
-  expect(two!.y).toBeGreaterThan(one!.y + one!.height - 2) // wrapped below the first block
+  expect(Math.abs(two!.y - one!.y)).toBeLessThan(2) // the second block beside the first
+  expect(two!.x).toBeGreaterThan(one!.x + one!.width)
   expect(up!.x).toBeGreaterThan(two!.x + two!.width + 8) // uplinks to the right of the second block
   const jack = async (i: number) =>
     (await banks.nth(i).getByTestId('face-endpoint').first().boundingBox())!
   expect(Math.abs((await jack(2)).y - (await jack(1)).y)).toBeLessThan(2)
-  await expect(page.getByTestId('bank-row')).toHaveCount(2)
+  await expect(page.getByTestId('bank-row')).toHaveCount(1)
   // The second block keeps counting (25…48); the uplinks start again at 1.
   await expect(banks.nth(1).getByTestId('face-endpoint').first()).toHaveText(
     '25',
@@ -209,17 +211,16 @@ test('PG-04 banks that do not fit the face wrap onto the next row: 48 + 4', asyn
   )
   await shot(page, 'faceplate-wrap')
 
-  // Keyboard follows what is seen: along the second row of banks across the gap,
-  // and down from the first block into the next row of banks.
+  // Keyboard follows what is seen: across the gap between blocks and to the uplinks.
   await page.locator(`[data-endpoint-id="${switchId}:p47"]`).focus()
   await page.keyboard.press('ArrowRight')
   await expect(
     page.locator(`[data-endpoint-id="${switchId}:p49"]`),
   ).toBeFocused()
-  await page.locator(`[data-endpoint-id="${switchId}:p24"]`).focus()
-  await page.keyboard.press('ArrowDown')
+  await page.locator(`[data-endpoint-id="${switchId}:p23"]`).focus()
+  await page.keyboard.press('ArrowRight')
   await expect(
-    page.locator(`[data-endpoint-id="${switchId}:p47"]`),
+    page.locator(`[data-endpoint-id="${switchId}:p25"]`),
   ).toBeFocused()
 })
 

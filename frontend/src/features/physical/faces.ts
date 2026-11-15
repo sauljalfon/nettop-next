@@ -111,7 +111,9 @@ export function switchBank(
 }
 
 /** Jack columns a face row holds (the face card's width) and the gap between banks, in columns. */
-export const FACE_COLUMNS = 15
+export const FACE_COLUMNS = 28
+/** The narrower width the patching screen lays a face out at. */
+export const PATCHING_COLUMNS = 14
 const BANK_GAP = 1
 /** A bank of more than this many ports is laid out as blocks of this many (12 columns, odd above even). */
 const BLOCK_PORTS = 24
@@ -137,7 +139,10 @@ export const unitColumns = (u: Pick<PlateUnit, 'cells'>) =>
  * into blocks of 24 (12 columns) so it can wrap too. A switch with one bank
  * (one group, or saved before groups) is one strip, as it always was.
  */
-export function layoutPlate(banks: readonly SwitchBankGroup[]): PlateUnit[][] {
+export function layoutPlate(
+  banks: readonly SwitchBankGroup[],
+  columns: number = FACE_COLUMNS,
+): PlateUnit[][] {
   if (banks.length === 1)
     return [
       [
@@ -165,7 +170,7 @@ export function layoutPlate(banks: readonly SwitchBankGroup[]): PlateUnit[][] {
   for (const unit of units) {
     const width = unitColumns(unit)
     const row = rows.at(-1)
-    if (row && used + BANK_GAP + width <= FACE_COLUMNS) {
+    if (row && used + BANK_GAP + width <= columns) {
       row.push(unit)
       used += BANK_GAP + width
     } else {
