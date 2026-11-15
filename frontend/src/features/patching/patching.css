@@ -1,50 +1,44 @@
-/* The patching screen: a large panel over the page, the near faceplate on the
-   left and the far one on the right. Paper panels, the jack language of Physical,
-   and a cable made here drawn as a proposed object (dashed). Tokens only. */
-.patching-scrim {
+/* The patching page: it covers the window. A 44px bar, two panes that scroll on
+   their own and the pairs column, and one 52px action bar that nothing covers.
+   Paper, the jack language of Physical, tokens only. */
+.patching {
   position: fixed;
   inset: 0;
   z-index: 90;
   display: grid;
-  place-items: center;
-  padding: 16px;
-  background: var(--scrim);
-}
-.patching {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  width: min(1320px, 100%);
-  max-height: 100%;
-  overflow: auto;
-  background: var(--floor);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-drawer);
-  box-shadow: var(--shadow-drawer);
+  grid-template-rows: 44px minmax(0, 1fr) 52px;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper);
 }
 .patching:focus {
   outline: none;
 }
-.patching-head {
+.patching-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 14px 18px;
-  background: var(--paper);
+  min-width: 0;
+  padding: 0 14px;
   border-bottom: 1px solid var(--rule);
 }
-.patching-head h2 {
+.patching-bar h2 {
   font-size: var(--t-lg);
+  white-space: nowrap;
 }
-.patching-head p {
-  margin-top: 3px;
+.patching-sub {
+  min-width: 0;
+  overflow: hidden;
   font-size: var(--t-sm);
   color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .patching-close {
   margin-left: auto;
-  padding: 2px 9px;
+  padding: 0 9px;
   font-size: var(--t-xl);
-  line-height: 1.2;
+  line-height: 1.4;
   color: var(--ink-soft);
   background: none;
   border: 0;
@@ -53,26 +47,6 @@
 .patching-close:hover {
   color: var(--ink);
   background: var(--paper-sunk);
-}
-.patching-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 16px;
-  padding: 10px 18px;
-  font-size: var(--t-sm);
-  background: var(--paper-sunk);
-  border-bottom: 1px solid var(--rule);
-}
-.patching-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-}
-.patching-count input {
-  width: 64px;
-  font-variant-numeric: tabular-nums;
 }
 .patching kbd {
   padding: 1px 5px;
@@ -88,85 +62,142 @@
 }
 .patching .eyebrow {
   font-size: var(--t-xs);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--ink-soft);
 }
-.patching-cols {
+.patching-main {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 270px;
   min-height: 0;
-  padding: 14px 18px;
-  /* The faces scroll here, so a tall HDF never spills over the footer's Connect and Done. */
-  overflow: auto;
 }
-@media (max-width: 900px) {
-  .patching-cols {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.patching-main[data-strip='closed'] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 36px;
 }
-.patching-col {
+.patching-pane {
   display: grid;
-  align-content: start;
-  gap: 12px;
+  grid-template-rows: 40px minmax(0, 1fr);
   min-width: 0;
-  padding: 14px;
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
+  min-height: 0;
+  border-right: 1px solid var(--rule);
 }
-.patching-col .face-card {
-  max-width: none;
+.patching-pane.with-picker {
+  grid-template-rows: 40px auto minmax(0, 1fr);
 }
 .patching-col-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 12px;
+  background: var(--paper-sunk);
+  border-bottom: 1px solid var(--rule);
 }
 .patching-col-head strong {
   font-size: var(--t-md);
   font-weight: 600;
+  white-space: nowrap;
 }
-.patching-foot {
+.patching-col-head .where {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.patching-col-head .free {
+  white-space: nowrap;
+}
+.patching-col-head .side-switch {
+  margin-left: auto;
+}
+.patching-picker {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.patching-picker:empty {
+  display: none;
+}
+/* The one scroll of a pane: a tall HDF scrolls here, never over the action bar. */
+.patching-body {
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+  background: var(--floor);
+}
+.patching-body .face-card {
+  max-width: none;
+}
+
+/* The pairs column: Pairs over Made here, collapsible to a 36px strip. */
+.patching-strip {
   display: grid;
-  gap: 12px;
-  padding: 12px 18px 16px;
+  grid-template-rows: auto auto minmax(0, 1fr) auto minmax(0, 0.8fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background: var(--paper);
-  border-top: 1px solid var(--rule);
 }
-.patching-next {
+.patching-strip h3,
+.patching-strip h4 {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  padding: 9px 12px;
+  gap: 8px;
+  padding: 8px 12px;
   font-size: var(--t-sm);
-  background: var(--paper-sunk);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-}
-.patching-next b {
   font-weight: 600;
 }
-.patching-pairs {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 4px 16px;
-  max-height: 160px;
+.patching-strip h3 {
+  border-bottom: 1px solid var(--rule);
+}
+.patching-strip h4 {
+  border-bottom: 1px solid var(--rule-soft);
+}
+.patching-toggle {
+  margin-left: auto;
+  padding: 0 7px;
+  color: var(--ink-soft);
+  background: none;
+  border: 0;
+  border-radius: var(--r-control);
+}
+.patching-toggle:hover {
+  color: var(--ink);
+  background: var(--paper-sunk);
+}
+.patching-main[data-strip='closed'] .patching-strip h3 {
+  align-items: center;
+  padding: 10px 6px;
+  writing-mode: vertical-rl;
+  border: 0;
+}
+.patching-main[data-strip='closed'] .patching-toggle {
+  order: -1;
+  margin: 0 0 8px;
+}
+.patching-strip .empty {
+  padding: 8px 12px;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+.patching-pairs,
+.patching-made-list {
+  min-height: 0;
   margin: 0;
-  padding: 0;
+  padding: 4px 0;
   overflow: auto;
   font-size: var(--t-xs);
   font-variant-numeric: tabular-nums;
   list-style: none;
 }
-.patching-pairs li {
+.patching-pairs li,
+.patching-made-list li {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 18px minmax(0, 1fr);
   gap: 0 6px;
+  padding: 3px 12px;
 }
-.patching-pairs li.ok > span:first-child {
+.patching-pairs li.ok > span:first-child,
+.patching-made-list li > span:first-child {
   font-weight: 700;
   color: var(--route);
 }
@@ -178,11 +209,34 @@
   grid-column: 2;
   font-style: normal;
 }
-.patching-row {
+.patching-made {
+  display: contents;
+}
+
+/* The action bar: Mode, Count, Skip, the status line, then Undo last, Done and
+   the primary Connect at the right. */
+.patching-actions {
+  position: relative;
+  z-index: 5;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 8px 14px;
+  min-width: 0;
+  padding: 0 14px;
+  font-size: var(--t-sm);
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+.patching-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.patching-count input {
+  width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 .patching-skip {
   display: inline-flex;
@@ -190,125 +244,61 @@
   gap: 6px;
   font-size: var(--t-xs);
 }
-
-/* Made here: rows like the Changes drawer's, each a proposed cable (dashed). */
-.patching-made {
+.patching-status {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1;
   align-items: center;
-  gap: 8px;
-  font-size: var(--t-sm);
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.patching-made .eyebrow {
-  margin-right: auto;
-  font-size: var(--t-sm);
+.patching-status b {
   font-weight: 600;
   color: var(--ink);
 }
-.patching-made-list {
-  display: grid;
-  flex-basis: 100%;
-  gap: 4px;
-  order: 3;
-  min-width: 0;
-}
-.patching-made-list > span:not(.quiet) {
-  padding: 6px 10px;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  background: var(--proposed-soft);
-  border: 1.5px dashed var(--proposed);
-  border-radius: var(--r-control);
-}
-.patching-made-list .quiet {
-  padding: 6px 0;
-  border-top: 1px solid var(--rule-soft);
-}
-.patching-made-list .more {
-  color: var(--ink-soft);
-  background: none;
-  border: 0;
-}
-.patching-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-}
-.patching-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.patching-legend i {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--r-hw);
-}
-.patching-legend .sw-free {
-  background: var(--jack-free);
-}
-.patching-legend .sw-next {
-  background: var(--steel);
-  box-shadow:
-    0 0 0 1px var(--steel),
-    0 0 0 3px var(--ink);
-  border-color: transparent;
-}
-.patching-legend .sw-preview {
-  background: var(--proposed-soft);
-  border: 1px solid var(--proposed);
-}
-.patching-legend .sw-blocked {
-  background: var(--paper);
-  border: 2px solid var(--danger);
-}
-.patching-legend .sw-made {
-  background: var(--proposed-soft);
-  border: 1.5px dashed var(--proposed);
-}
 
-/* Jack tones on the faceplates (FaceView's `decorate`): a free jack is white, a
-   pair or a cable made here is proposed (dashed), one that cannot be made has a
-   danger border, and the next one carries the selected ring. */
+/* Jack tones on the faceplates (FaceView's `decorate`): a pair is amber with its
+   number, one that cannot be made has a red ring, a cable made here a teal ring
+   and the next one a dashed paper outline. */
 .face-cell.tone-preview {
-  color: var(--ink);
-  background: var(--proposed-soft);
-  border: 1px solid var(--proposed);
+  color: var(--amber-ink);
+  background: var(--amber-halo);
+  border: 1px solid var(--amber);
 }
 .face-cell.tone-blocked {
   color: var(--danger);
   background: var(--paper);
-  border: 2px solid var(--danger);
+  border: 0;
+  box-shadow: inset 0 0 0 2px var(--danger);
 }
 .face-cell.tone-made {
-  color: var(--proposed);
-  background: var(--proposed-soft);
-  border: 1.5px dashed var(--proposed);
+  color: var(--ink);
+  background: var(--paper);
+  border: 0;
+  box-shadow: inset 0 0 0 3px var(--route);
 }
 .face-cell.tone-next {
-  box-shadow:
-    0 0 0 2px var(--steel),
-    0 0 0 4px var(--paper);
+  outline: 2px dashed var(--paper);
+  outline-offset: 1px;
 }
 .face-cell .pair-badge {
   position: absolute;
-  top: -7px;
+  top: -6px;
   right: -6px;
-  z-index: 1;
-  min-width: 15px;
-  height: 15px;
+  z-index: 2;
+  min-width: 14px;
+  height: 14px;
   padding: 0 3px;
   font-family: var(--mono);
   font-size: var(--t-min);
-  line-height: 15px;
+  line-height: 14px;
   color: var(--paper);
   text-align: center;
   background: var(--ink);
-  border-radius: 8px;
+  border-radius: 7px;
 }
 .face-cell.tone-blocked .pair-badge {
   background: var(--danger);
@@ -319,7 +309,7 @@
 }
 .patching .face-cell.tone-made:disabled,
 .patching .face-cell.tone-blocked:disabled {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 /* The popover at a free jack in Physical. */
@@ -382,23 +372,4 @@
   font-size: var(--t-xs);
   font-weight: 500;
   color: var(--ink-soft);
-}
-
-/* Two faceplates side by side: slightly smaller jacks, so 12 columns fit a
-   half-width card on a laptop screen (1280 px) without scrolling. */
-.patching .plate-ports {
-  grid-auto-columns: 34px;
-  grid-template-rows: repeat(2, 40px);
-}
-.patching .plate-strip {
-  grid-template-columns: repeat(12, 34px);
-}
-.patching .face-cell.jack:not(.hdf-jack) {
-  width: 34px;
-  height: 40px;
-  font-size: var(--t-min);
-}
-.patching .face-cell.jack:not(.hdf-jack) .link-dot {
-  top: 11px;
-  right: 4px;
 }

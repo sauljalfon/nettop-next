@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
 import { fitted, openRackInPhysical } from './helpers'
+import { planWith32RowHdf } from './plan-api'
 
 const root = (page: Page) => page.locator('.physical-explorer')
 const mark = (page: Page, name: string) =>
@@ -215,28 +216,6 @@ test('PB-05b a 32-row HDF scrolls inside its face and keeps its letters and row 
     windowScrolls: false,
   })
 })
-
-async function planWith32RowHdf(request: APIRequestContext) {
-  const created = await request.post('/api/plans', {
-    data: { name: 'Big HDF', expectedBaseRevision: 'acceptance-1' },
-  })
-  const id = (await created.json()).id as string
-  const added = await request.post(`/api/plans/${id}/commands`, {
-    data: {
-      type: 'add_hdf',
-      expectedRevision: '1',
-      hdf: {
-        name: 'HDF-BIG',
-        rackId: 'rack-sm01',
-        unit: 7,
-        height: 3,
-        rows: 32,
-      },
-    },
-  })
-  expect(added.status()).toBe(200)
-  return id
-}
 
 test('PD-01 the HDF-01 3C/5 rear card draws the connection top to bottom, and each box opens its place', async ({
   page,

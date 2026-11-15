@@ -105,3 +105,26 @@ export async function addSwitch(
   return plan.equipment.find((e: { name: string }) => e.name === name)
     .id as string
 }
+
+/** A draft with HDF-BIG (32 rows) in Rack SM01. */
+export async function planWith32RowHdf(request: APIRequestContext) {
+  const created = await request.post('/api/plans', {
+    data: { name: 'Big HDF', expectedBaseRevision: 'acceptance-1' },
+  })
+  const id = (await created.json()).id as string
+  const added = await request.post(`/api/plans/${id}/commands`, {
+    data: {
+      type: 'add_hdf',
+      expectedRevision: '1',
+      hdf: {
+        name: 'HDF-BIG',
+        rackId: 'rack-sm01',
+        unit: 7,
+        height: 3,
+        rows: 32,
+      },
+    },
+  })
+  expect(added.status()).toBe(200)
+  return id
+}

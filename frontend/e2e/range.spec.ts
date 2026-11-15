@@ -5,6 +5,7 @@ import {
   chooseFar,
   farJack,
   madeCount,
+  openPatching,
   pairs,
   patching,
   useRange,
@@ -26,17 +27,12 @@ async function openEdge19(
   request: Parameters<typeof newPlan>[0],
   port: number,
 ) {
-  const id = await newPlan(request, unique('Range'))
-  const edge = await addSwitch(request, id, 'rack-a03', 'EDGE-19', 3, 24)
-  await page.goto(`/?plan=${id}`)
-  await fitted(page)
-  await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator(`.rack-block[data-equipment-id="${edge}"]`).click()
-  await page.locator(`[data-endpoint-id="${edge}:p${port}"]`).click()
-  await expectMark(page, 'data-selected-endpoint', `${edge}:p${port}`)
-  await page.getByRole('button', { name: 'Connect a range…' }).click()
-  await expect(box(page)).toBeVisible()
-  return { id, edge }
+  const { id, equipmentId } = await openPatching(page, request, {
+    equipment: 'EDGE-19',
+    endpoint: String(port),
+    mode: 'range',
+  })
+  return { id, edge: equipmentId }
 }
 
 const BUILDING_A = {

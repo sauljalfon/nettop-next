@@ -15,10 +15,12 @@ export default function PatchingHost({
   snapshot,
   index,
   edit,
+  planName,
 }: {
   snapshot: Snapshot
   index: SnapshotIndex
   edit: PlanEdit | undefined
+  planName?: string
 }) {
   const request = useSyncExternalStore(
     patchingSession.subscribe,
@@ -47,6 +49,7 @@ export default function PatchingHost({
       colors={colors}
       edit={edit}
       request={request}
+      planName={planName}
       onClose={patchingSession.close}
     />
   )

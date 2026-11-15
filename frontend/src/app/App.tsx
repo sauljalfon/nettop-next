@@ -1095,7 +1095,12 @@ function Workspace({
   )
   return (
     <main className="workspace-canvas">
-      <PatchingHost snapshot={snapshot} index={index} edit={edit} />
+      <PatchingHost
+        snapshot={snapshot}
+        index={index}
+        edit={edit}
+        planName={plan?.name}
+      />
       {view === 'conceptual' ? (
         <ConceptualMap
           snapshot={snapshot}

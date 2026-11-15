@@ -12,6 +12,7 @@ import { hasSide } from '../../shared/ports'
 import type { Plan, Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import { endpointTooltip, faceFor } from '../physical/equipmentModel'
+import { PATCHING_COLUMNS } from '../physical/faces'
 import FaceView, { type JackMark } from '../physical/FaceView'
 import '../physical/physical.css'
 import { EditError } from '../planning/ConfirmShell'
@@ -69,6 +70,7 @@ export default function PatchingScreen({
   colors,
   edit,
   request,
+  planName,
   onClose,
 }: {
   snapshot: Snapshot
@@ -76,6 +78,8 @@ export default function PatchingScreen({
   colors: ReadonlyMap<string, string>
   edit: PlanEdit | undefined
   request: PatchRequest
+  /** The draft's name, shown in the top bar. */
+  planName?: string
   onClose: () => void
 }) {
   const live = useLastEdit(edit)
@@ -133,6 +137,7 @@ export default function PatchingScreen({
   )
   const [farStart, setFarStart] = useState<string>()
   const [skip, setSkip] = useState(false)
+  const [strip, setStrip] = useState(true)
   const farEquipment = far ? index.equipment.get(far.equipmentId) : undefined
 
   const chooseFar = (equipmentId: string, side?: Side) => {
@@ -342,151 +347,131 @@ export default function PatchingScreen({
     }
   }
 
-  const recentMade = made.slice(-6)
+  const sideSwitch = (
+    face: { kind: string },
+    side: Side | undefined,
+    onSide: (s: Side) => void,
+  ) =>
+    face.kind !== 'switch' && (
+      <div className="seg side-switch" role="group" aria-label="Side">
+        {(['front', 'rear'] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            aria-pressed={side === s}
+            onClick={() => onSide(s)}
+          >
+            {s === 'front' ? 'Front' : 'Rear'}
+          </button>
+        ))}
+      </div>
+    )
+
+  const connectDisabled =
+    mode === 'one'
+      ? action.pending || !live || !nearSel || !farNext
+      : !live || action.pending || makeable === 0 || (blocked > 0 && !skip)
+  const connectLabel =
+    mode === 'one' || pairs.length === 0 ? 'Connect' : `Connect ${makeable}`
   return createPortal(
     <div
-      className="patching-scrim"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      ref={panel}
+      className="patching"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Patching"
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+      data-testid="patching"
     >
-      <div
-        ref={panel}
-        className="patching"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Patching"
-        tabIndex={-1}
-        onKeyDown={onKeyDown}
-        data-testid="patching"
-      >
-        <header className="patching-head">
-          <div>
-            <h2>Patching</h2>
-            <p>
-              Click a free jack on the left, then one on the right. Each cable
-              is saved to the plan at once.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="patching-close"
-            aria-label="Close patching"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </header>
-
-        <div className="patching-toolbar">
-          <div className="seg patching-mode" role="group" aria-label="Mode">
-            {(
-              [
-                ['one', 'One at a time'],
-                ['range', 'Range'],
-              ] as const
-            ).map(([m, label]) => (
-              <button
-                key={m}
-                type="button"
-                aria-pressed={mode === m}
-                onClick={() => {
-                  setMode(m)
-                  setFarStart(undefined)
-                  setSkip(false)
-                  action.clear()
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {mode === 'range' ? (
+      <header className="patching-bar">
+        <h2>Patching</h2>
+        <span className="patching-sub">
+          {planName && (
             <>
-              <label className="patching-count">
-                Count
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  aria-label="Count"
-                  value={countText}
-                  onChange={(e) => {
-                    setCountText(e.target.value)
-                    action.clear()
-                  }}
-                />
-              </label>
-              <span className="quiet">
-                {countOk
-                  ? farStart
-                    ? 'The pairs are numbered on both faceplates.'
-                    : 'Shift-click the last jack on the left to set the count, then click the far start.'
-                  : `Count must be between 1 and ${MAX_RANGE}.`}
-              </span>
+              in plan <Name text={planName} />
+              {' · '}
             </>
-          ) : (
-            <span className="quiet">
-              After each cable both sides move to their next free jack.{' '}
-              <kbd>Enter</kbd> makes the next one.
-            </span>
           )}
-        </div>
+          each cable is saved to the plan at once
+        </span>
+        <button
+          type="button"
+          className="patching-close"
+          aria-label="Close patching"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </header>
 
-        <div className="patching-cols">
-          <section className="patching-col" aria-label="From">
-            <div className="patching-col-head">
-              <span className="eyebrow">From</span>
-              <strong>
-                <Name text={nearEquipment.name} />
-              </strong>
-              <span className="quiet">
-                <PlacePath
-                  parts={index.locationParts.get(nearEquipment.id) ?? []}
-                />
-              </span>
-            </div>
+      <div className="patching-main" data-strip={strip ? 'open' : 'closed'}>
+        <section className="patching-pane" aria-label="From">
+          <div className="patching-col-head">
+            <span className="eyebrow">From</span>
+            <strong>
+              <Name text={nearEquipment.name} />
+            </strong>
+            <span className="quiet where">
+              <PlacePath
+                parts={index.locationParts.get(nearEquipment.id) ?? []}
+              />
+            </span>
+            {sideSwitch(nearFace, nearSide, (s) => {
+              setNearSide(s)
+              setNearSel(nextFree(snapshot, nearEquipmentId, s, taken))
+              setFarStart(undefined)
+            })}
+          </div>
+          <div className="patching-body">
             <FaceView
               equipment={nearEquipment}
               face={nearFace}
               side={nearSide}
-              meta={
-                nearSel ? (
-                  <>Selected: {named(nearSel)}</>
-                ) : (
-                  'No free jack selected'
-                )
-              }
+              meta=""
               networks={snapshot.networks}
               colors={colors}
               tooltip={(cell, ordinal) =>
                 endpointTooltip(index, nearEquipment, cell, ordinal, nearSide)
               }
               onSelect={(id, event) => pickNear(id, !!event?.shiftKey)}
-              onSide={(s) => {
-                setNearSide(s)
-                setNearSel(nextFree(snapshot, nearEquipmentId, s, taken))
-                setFarStart(undefined)
-              }}
+              onSide={() => undefined}
               decorate={nearMark}
               legend={false}
+              bare
+              columns={PATCHING_COLUMNS}
             />
-          </section>
-          <section className="patching-col" aria-label="To">
-            <div className="patching-col-head">
-              <span className="eyebrow">To</span>
-              <strong>
-                {farEquipment ? (
-                  <Name text={farEquipment.name} />
-                ) : (
-                  'Choose the far end'
-                )}
-              </strong>
-              {farEquipment && (
-                <span className="quiet">
-                  <PlacePath
-                    parts={index.locationParts.get(farEquipment.id) ?? []}
-                  />
-                </span>
+          </div>
+        </section>
+        <section className="patching-pane with-picker" aria-label="To">
+          <div className="patching-col-head">
+            <span className="eyebrow">To</span>
+            <strong>
+              {farEquipment ? (
+                <Name text={farEquipment.name} />
+              ) : (
+                'Choose the far end'
               )}
-            </div>
+            </strong>
+            {farEquipment && (
+              <span className="quiet where">
+                <PlacePath
+                  parts={index.locationParts.get(farEquipment.id) ?? []}
+                />
+              </span>
+            )}
+            {farEquipment && (
+              <span className="quiet free">
+                {freeCount(index, farEquipment.id)} free
+              </span>
+            )}
+            {farFace &&
+              farEquipment &&
+              sideSwitch(farFace, far?.side, (s) =>
+                chooseFar(farEquipment.id, s),
+              )}
+          </div>
+          <div className="patching-picker">
             <LocationPicker
               tree={tree}
               equipmentId={far?.equipmentId}
@@ -494,79 +479,49 @@ export default function PatchingScreen({
               freeOf={(id) => freeCount(index, id)}
               onChange={(id) => chooseFar(id)}
             />
+          </div>
+          <div className="patching-body">
             {farEquipment && farFace ? (
               <FaceView
                 equipment={farEquipment}
                 face={farFace}
                 side={far?.side}
-                meta={`${freeCount(index, farEquipment.id)} free`}
+                meta=""
                 networks={snapshot.networks}
                 colors={colors}
                 tooltip={(cell, ordinal) =>
                   endpointTooltip(index, farEquipment, cell, ordinal, far?.side)
                 }
                 onSelect={(id) => pickFar(id)}
-                onSide={(s) => chooseFar(farEquipment.id, s)}
+                onSide={() => undefined}
                 decorate={farMark}
                 legend={false}
+                bare
+                columns={PATCHING_COLUMNS}
               />
             ) : (
               <p className="quiet">Choose the far equipment above.</p>
             )}
-          </section>
-        </div>
-
-        <footer className="patching-foot">
-          <div className="patching-legend" aria-hidden="true">
-            <span>
-              <i className="sw-free" /> free
-            </span>
-            <span>
-              <i className="sw-next" /> next
-            </span>
-            <span>
-              <i className="sw-preview" /> pair
-            </span>
-            <span>
-              <i className="sw-blocked" /> can’t be made
-            </span>
-            <span>
-              <i className="sw-made" /> made here
-            </span>
           </div>
-          {mode === 'one' ? (
-            <div className="patching-next" data-testid="patching-next">
-              {nearSel && farNext ? (
-                <>
-                  <span>Next:</span>
-                  <b>{named(nearSel)}</b>
-                  <span aria-hidden="true">→</span>
-                  <b>{named(farNext)}</b>
-                  <button
-                    type="button"
-                    className="btn primary lg"
-                    disabled={action.pending || !live}
-                    onClick={() => void connectOne(nearSel, farNext)}
-                  >
-                    Connect
-                  </button>
-                </>
-              ) : !nearSel ? (
-                <span>
-                  No free jack left on this side of{' '}
-                  <Name text={nearEquipment.name} />.
-                </span>
-              ) : (
-                <span>
-                  No free jack left on{' '}
-                  {farEquipment ? farEquipment.name : 'the far end'}
-                  {far?.side ? ` · ${far.side}` : ''}: choose other equipment.
-                </span>
-              )}
-            </div>
-          ) : (
+        </section>
+
+        <aside className="patching-strip" aria-label="Pairs and made here">
+          <h3>
+            {strip ? 'Pairs and made here' : 'Pairs'}
+            <button
+              type="button"
+              className="patching-toggle"
+              aria-label={strip ? 'Collapse' : 'Expand'}
+              aria-expanded={strip}
+              onClick={() => setStrip(!strip)}
+            >
+              {strip ? '›' : '‹'}
+            </button>
+          </h3>
+          {strip && (
             <>
-              {pairs.length > 0 && (
+              <h4>Pairs{pairs.length > 0 && ` (${pairs.length})`}</h4>
+              {pairs.length > 0 ? (
                 <ol className="patching-pairs" data-testid="range-pairs">
                   {pairs.map((p) => (
                     <li
@@ -583,83 +538,157 @@ export default function PatchingScreen({
                     </li>
                   ))}
                 </ol>
+              ) : (
+                <p className="empty">
+                  {mode === 'range'
+                    ? 'Click the far start on the right to see the pairs.'
+                    : 'One at a time: each click on the right makes a cable.'}
+                </p>
               )}
-              <div className="patching-row">
-                {blocked > 0 && (
-                  <label className="patching-skip">
-                    <input
-                      type="checkbox"
-                      checked={skip}
-                      onChange={(e) => setSkip(e.target.checked)}
-                    />
-                    Skip the {blocked} pair{blocked === 1 ? '' : 's'} that can’t
-                    be made
-                  </label>
+              <div className="patching-made" data-testid="patching-made">
+                <h4>Made here ({made.length})</h4>
+                {made.length === 0 ? (
+                  <p className="empty">
+                    Nothing yet. Each cable is also listed in Changes, with its
+                    own Undo.
+                  </p>
+                ) : (
+                  <ul className="patching-made-list">
+                    {made
+                      .slice()
+                      .reverse()
+                      .map((m) => (
+                        <li key={m.linkId || `${m.near}-${m.far}`}>
+                          <span aria-hidden="true">✓</span>
+                          <span>
+                            {named(m.near)} → {named(m.far)}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
                 )}
-                <button
-                  type="button"
-                  className="btn primary lg"
-                  disabled={
-                    !live ||
-                    action.pending ||
-                    makeable === 0 ||
-                    (blocked > 0 && !skip)
-                  }
-                  onClick={() => void connectRange()}
-                >
-                  {pairs.length === 0 ? 'Connect' : `Connect ${makeable}`}
-                </button>
-                <span className="quiet">
-                  {pairs.length ? (
-                    <>
-                      From {named(nearSel ?? '')}, {pairs.length} pair
-                      {pairs.length === 1 ? '' : 's'}.
-                    </>
-                  ) : (
-                    'Click the far start on the right to see the pairs.'
-                  )}
-                </span>
               </div>
             </>
           )}
-          <EditError message={action.error} />
-          <div className="patching-made" data-testid="patching-made">
-            <span className="eyebrow">Made here ({made.length})</span>
-            <div className="patching-made-list">
-              {made.length === 0 ? (
-                <span className="quiet">
-                  Nothing yet. Each cable is also listed in Changes, with its
-                  own Undo.
-                </span>
-              ) : (
-                <>
-                  {made.length > recentMade.length && (
-                    <span className="more">
-                      +{made.length - recentMade.length} earlier
-                    </span>
-                  )}
-                  {recentMade.map((m) => (
-                    <span key={m.linkId || `${m.near}-${m.far}`}>
-                      {named(m.near)} → {named(m.far)}
-                    </span>
-                  ))}
-                </>
-              )}
-            </div>
-            <button
-              type="button"
-              className="btn lg"
-              disabled={!made.at(-1)?.linkId || action.pending || !live}
-              onClick={() => void undoLast()}
-            >
-              Undo last
-            </button>
-            <button type="button" className="btn lg" onClick={onClose}>
-              Done
-            </button>
-          </div>
-        </footer>
+        </aside>
       </div>
+
+      <footer className="patching-actions">
+        <div className="seg patching-mode" role="group" aria-label="Mode">
+          {(
+            [
+              ['one', 'One at a time'],
+              ['range', 'Range'],
+            ] as const
+          ).map(([m, label]) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={mode === m}
+              onClick={() => {
+                setMode(m)
+                setFarStart(undefined)
+                setSkip(false)
+                action.clear()
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {mode === 'range' && (
+          <label className="patching-count">
+            Count
+            <input
+              type="text"
+              inputMode="numeric"
+              aria-label="Count"
+              value={countText}
+              onChange={(e) => {
+                setCountText(e.target.value)
+                action.clear()
+              }}
+            />
+          </label>
+        )}
+        {mode === 'range' && blocked > 0 && (
+          <label className="patching-skip">
+            <input
+              type="checkbox"
+              checked={skip}
+              onChange={(e) => setSkip(e.target.checked)}
+            />
+            Skip the {blocked} pair{blocked === 1 ? '' : 's'} that can’t be made
+          </label>
+        )}
+        {action.error ? (
+          <div className="patching-status">
+            <EditError message={action.error} />
+          </div>
+        ) : mode === 'one' ? (
+          <div
+            className="patching-status"
+            data-testid="patching-next"
+            title="After each cable both sides move to their next free jack. Enter makes the next one."
+          >
+            {nearSel && farNext ? (
+              <>
+                <span>Next:</span>
+                <b>{named(nearSel)}</b>
+                <span aria-hidden="true">→</span>
+                <b>{named(farNext)}</b>
+              </>
+            ) : !nearSel ? (
+              <span>
+                No free jack left on this side of{' '}
+                <Name text={nearEquipment.name} />.
+              </span>
+            ) : (
+              <span>
+                No free jack left on{' '}
+                {farEquipment ? farEquipment.name : 'the far end'}
+                {far?.side ? ` · ${far.side}` : ''}: choose other equipment.
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="patching-status">
+            {!countOk ? (
+              `Count must be between 1 and ${MAX_RANGE}.`
+            ) : pairs.length ? (
+              <>
+                From {named(nearSel ?? '')}, {pairs.length} pair
+                {pairs.length === 1 ? '' : 's'}.
+              </>
+            ) : farStart ? null : (
+              'Shift-click the last jack on the left to set the count, then click the far start.'
+            )}
+          </div>
+        )}
+        <button
+          type="button"
+          className="btn"
+          disabled={!made.at(-1)?.linkId || action.pending || !live}
+          onClick={() => void undoLast()}
+        >
+          Undo last
+        </button>
+        <button type="button" className="btn" onClick={onClose}>
+          Done
+        </button>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={connectDisabled}
+          onClick={() =>
+            mode === 'one'
+              ? nearSel && farNext && void connectOne(nearSel, farNext)
+              : void connectRange()
+          }
+        >
+          {connectLabel}
+        </button>
+      </footer>
     </div>,
     document.body,
   )
