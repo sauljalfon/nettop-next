@@ -141,8 +141,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The place gives way before the name does. */
 .patching-far .where {
-  flex: 0 1 auto;
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -425,4 +429,23 @@
   font-size: var(--t-xs);
   font-weight: 500;
   color: var(--ink-soft);
+}
+
+/* The Done question: above the bar's right end, over the faceplates' edge. */
+.patching-done-confirm {
+  position: absolute;
+  right: 14px;
+  bottom: calc(100% + 8px);
+  z-index: 6;
+  width: min(380px, calc(100vw - 28px));
+  box-shadow: var(--shadow-pop);
+}
+.patching-done-confirm p {
+  margin: 0;
+}
+.patching-done-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }

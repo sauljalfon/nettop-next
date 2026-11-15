@@ -235,3 +235,71 @@ test('BK-02 the server refuses a cable between two endpoints of one piece of equ
     'command 2 (add_cable): EDGE-19 · Port 2 and EDGE-19 · Port 3 are on the same equipment',
   )
 })
+
+/** Range of 6 on EDGE-19 → PANEL-A front 4, waiting as a preview. */
+async function sixWaiting(page: Page, request: Parameters<typeof newPlan>[0]) {
+  const { id } = await openEdge19(page, request, 1)
+  await useRange(page, 6)
+  await chooseFar(page, { ...BUILDING_A, equipment: 'PANEL-A' }, 'Front')
+  await farJack(page, 'panel-a:4:f').click()
+  await expect(pairs(page)).toHaveCount(6)
+  return id
+}
+const done = (page: Page) => box(page).getByRole('button', { name: 'Done' })
+const pairsDialog = (page: Page) =>
+  page.getByRole('dialog', { name: 'Pairs not connected' })
+
+test('BK-07 Done with pairs waiting asks; Close without connecting saves nothing', async ({
+  page,
+  request,
+}) => {
+  const id = await sixWaiting(page, request)
+  await done(page).click()
+  const dialog = pairsDialog(page)
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText('6 pairs are not connected yet.')
+  await expect(dialog).toContainText(
+    'The numbered pairs are a preview. Nothing is saved until you connect them.',
+  )
+  await shot(page, 'done-asks')
+  await dialog.getByRole('button', { name: 'Close without connecting' }).click()
+  await expect(box(page)).toHaveCount(0)
+  expect((await getPlan(request, id)).links).toHaveLength(0)
+})
+
+test('BK-08 Connect 6 and close makes the cables and closes', async ({
+  page,
+  request,
+}) => {
+  const id = await sixWaiting(page, request)
+  await done(page).click()
+  await pairsDialog(page)
+    .getByRole('button', { name: 'Connect 6 and close' })
+    .click()
+  await expect(box(page)).toHaveCount(0)
+  expect((await getPlan(request, id)).links).toHaveLength(6)
+})
+
+test('BK-08 Escape closes only the confirm; Done with no pairs closes at once; one pair reads singular', async ({
+  page,
+  request,
+}) => {
+  const { id } = await openEdge19(page, request, 1)
+  await useRange(page, 1)
+  await chooseFar(page, { ...BUILDING_A, equipment: 'PANEL-A' }, 'Front')
+  await farJack(page, 'panel-a:4:f').click()
+  await expect(pairs(page)).toHaveCount(1)
+  await done(page).click()
+  await expect(pairsDialog(page)).toContainText('1 pair is not connected yet.')
+  await page.keyboard.press('Escape')
+  await expect(pairsDialog(page)).toHaveCount(0)
+  await expect(box(page)).toBeVisible()
+  await expect(done(page)).toBeFocused()
+  expect((await getPlan(request, id)).links).toHaveLength(0)
+  // Nothing waiting: Done closes at once.
+  await box(page).getByLabel('Count').fill('1')
+  await box(page).getByRole('button', { name: 'Connect 1' }).click()
+  await madeCount(page, 1)
+  await done(page).click()
+  await expect(box(page)).toHaveCount(0)
+})

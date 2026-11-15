@@ -326,3 +326,7 @@ export function pairMarks(pairs: readonly RangePair[]): {
   }
   return { near, far }
 }
+
+/** The first line of the Done confirm: how many previewed pairs are not saved. */
+export const pairsWaitingText = (n: number) =>
+  `${n} pair${n === 1 ? ' is' : 's are'} not connected yet.`

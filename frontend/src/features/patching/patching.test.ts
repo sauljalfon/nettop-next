@@ -15,6 +15,7 @@ import {
   locationTree,
   nextFree,
   pairMarks,
+  pairsWaitingText,
   startPlace,
   type SiteBranch,
 } from './patching'
@@ -419,5 +420,12 @@ describe('RI-12 patching never offers a rack item as a far end', () => {
     expect(
       findRack(itemTree, place('rack-a03'))?.equipment.map((e) => e.name),
     ).toEqual(['EDGE-17', 'PANEL-A', 'UPS-A03'])
+  })
+})
+
+describe('pairsWaitingText', () => {
+  it('reads singular and plural', () => {
+    expect(pairsWaitingText(1)).toBe('1 pair is not connected yet.')
+    expect(pairsWaitingText(6)).toBe('6 pairs are not connected yet.')
   })
 })

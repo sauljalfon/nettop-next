@@ -31,11 +31,14 @@ import {
   locationTree,
   nextFree,
   pairMarks,
+  pairsWaitingText,
   type FarTarget,
   type Side,
 } from './patching'
 import { patchingSession, type PatchRequest } from './patchingSession'
+import '../planning/editing.css'
 import './patching.css'
+import { useInlineDialog } from '../planning/useInlineDialog'
 import Name from '../../shared/ui/Name'
 import Pieces from '../../shared/ui/Pieces'
 import type { TextPiece } from '../../shared/textPieces'
@@ -137,6 +140,7 @@ export default function PatchingScreen({
   )
   const [farStart, setFarStart] = useState<string>()
   const [skip, setSkip] = useState(false)
+  const [asking, setAsking] = useState(false)
   const [strip, setStrip] = useState(true)
   const farEquipment = far ? index.equipment.get(far.equipmentId) : undefined
   // The far end is one button in the To head; the picker is a popover under it,
@@ -220,13 +224,13 @@ export default function PatchingScreen({
     panel.current?.focus()
   }
 
-  const connectRange = async () => {
-    if (!live || action.pending) return
+  const connectRange = async (): Promise<boolean> => {
+    if (!live || action.pending) return false
     const ok = pairs.filter((p) => !p.problem && p.near && p.far)
     const saved = await action.run(() =>
       live({ type: 'batch', batch: { commands: rangeCommands(pairs) } }),
     )
-    if (!saved) return
+    if (!saved) return false
     const entries = ok.map((p) => ({
       linkId: linkBetween(saved, p.near!.id, p.far!.id),
       near: p.near!.id,
@@ -243,6 +247,7 @@ export default function PatchingScreen({
       )
     setFarStart(undefined)
     setSkip(false)
+    return true
   }
 
   const undoLast = async () => {
@@ -398,6 +403,8 @@ export default function PatchingScreen({
     mode === 'one'
       ? action.pending || !live || !nearSel || !farNext
       : !live || action.pending || makeable === 0 || (blocked > 0 && !skip)
+  /** Pairs previewed and ready: Done asks before they are lost. */
+  const waiting = mode === 'range' && !connectDisabled
   const connectLabel =
     mode === 'one' || pairs.length === 0 ? 'Connect' : `Connect ${makeable}`
   return createPortal(
@@ -722,9 +729,26 @@ export default function PatchingScreen({
         >
           Undo last
         </button>
-        <button type="button" className="btn" onClick={onClose}>
+        <button
+          type="button"
+          className="btn"
+          data-opener="patching-done"
+          onClick={() => (waiting ? setAsking(true) : onClose())}
+        >
           Done
         </button>
+        {asking && waiting && (
+          <DoneConfirm
+            waiting={makeable}
+            pending={action.pending}
+            onStay={() => setAsking(false)}
+            onClose={onClose}
+            onConnect={async () => {
+              if (await connectRange()) onClose()
+              else setAsking(false)
+            }}
+          />
+        )}
         <button
           type="button"
           className="btn primary"
@@ -740,5 +764,49 @@ export default function PatchingScreen({
       </footer>
     </div>,
     document.body,
+  )
+}
+
+/** Done with pairs still only a preview: asks before they are lost. */
+function DoneConfirm({
+  waiting,
+  pending,
+  onStay,
+  onClose,
+  onConnect,
+}: {
+  waiting: number
+  pending: boolean
+  onStay: () => void
+  onClose: () => void
+  onConnect: () => void
+}) {
+  const dialog = useInlineDialog<HTMLDivElement>(onStay, 'patching-done')
+  return (
+    <div
+      {...dialog}
+      className="inline-confirm patching-done-confirm"
+      role="dialog"
+      aria-label="Pairs not connected"
+    >
+      <p>{pairsWaitingText(waiting)}</p>
+      <p>
+        The numbered pairs are a preview. Nothing is saved until you connect
+        them.
+      </p>
+      <div className="patching-done-buttons">
+        <button type="button" className="btn" onClick={onClose}>
+          Close without connecting
+        </button>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={pending}
+          onClick={onConnect}
+        >
+          Connect {waiting} and close
+        </button>
+      </div>
+    </div>
   )
 }

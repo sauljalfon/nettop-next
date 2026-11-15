@@ -370,10 +370,33 @@ for (const size of [
       }
     })
     expect(m.truncated).toBe(true)
-    expect(m.nameCut).toBe(true)
+    // The place gives way first; at 1280 the name itself is cut too, from its end.
+    if (size.width === 1280) expect(m.nameCut).toBe(true)
     expect(m.nameDirection).toBe('rtl')
     expect(m.sideRight).toBeLessThanOrEqual(m.paneRight)
     expect(m.buttonRight).toBeLessThanOrEqual(m.sideLeft + 1)
     if (size.width === 1536) await fs_shot(page, 'far-hebrew')
   })
 }
+
+test('PT-05b at 1280×720 the far place shrinks before the far name', async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await openPatching(page, request, {
+    equipment: 'edge-17',
+    endpoint: 'edge-17:p4',
+    mode: 'range',
+  })
+  await chooseFar(page, {
+    site: 'Main Campus',
+    node: 'Building A',
+    rack: 'Rack A03',
+    equipment: 'PANEL-A',
+  })
+  await expect(changeFar(page)).toContainText('PANEL-A')
+  const name = changeFar(page).locator('strong bdi')
+  const cut = await name.evaluate((e) => e.scrollWidth > e.clientWidth)
+  expect(cut).toBe(false)
+})
