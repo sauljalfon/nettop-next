@@ -27,6 +27,14 @@ Finished milestones (M1–M5c, M5b steps 11–13, P1, P2) and their designs, rec
 3. **The frame and the one dock** (header, rail, dock tabs), applied to Conceptual and Physical.
 4. **Inventory and the rack elevation**, as density passes (rows, toolbar, the rack's overflow in a plan).
 
+## Switch models (next after the workbench; not designed yet)
+
+**Why.** The owner (2026-11-16), from a photo of the Add switch form: adding a switch takes too many steps, and most switches are the same few models. The place is already filled in from where they are; the slow part is the ports: today "+ Add port group" turns the count into a "Port {n}" group and an empty one, and every group's count, names, type, connector and speed are typed for every switch.
+
+**Owner's answers (2026-11-16).** Too many steps and the same switches every time; the models live **in the database**, in a table the owner can add to, edit and delete from the app. Do it after the workbench (parts 2–4), before 2b.
+
+**Proposed, to confirm with a demo first (D30):** a model is a name and its port groups (count, name pattern, type, connector, speed), perhaps a height and manufacturer; a `switch_models` table (a migration) with a small API, library data that is never topology, never in a plan or a trace. A "Switch models" screen opened from the library (list, add, edit, delete), "New from a switch…" (and Save as model in the equipment page's ⋯ menu), and **Model** first in the Add switch form with Custom… for the rest, its fields labelled. Recommended: editing a model never changes switches already added from it (a switch copies the model's ports when it is added).
+
 ## 1. The network hierarchy (the conceptual view's new purpose)
 
 The conceptual map's overview was "only a worse version than Physical"; the owner gave the view a purpose instead: **the network hierarchy**, from the cables. Phase 1 (top to bottom, with Focus beside it) was approved on 2026-10-25 (D39) and is merged. On the realistic campus the owner then chose **one conceptual view**: a left-to-right tree where Show on map lands, with no separate Focus view. Approved 2026-10-28 from [the demo](history/demos/conceptual-demo.html); the lasting rules are D39 and D40 in [decisions.md](decisions.md).
@@ -90,7 +98,7 @@ The three-server cluster (k3s, CloudNativePG, Garage) is designed in [infrastruc
 
 - The Changes drawer lists no line for `update_details` entries (details edited in a plan); only renames get one.
 - Editing cable, site, node and rack details in the UI (the direct-fix API already supports them).
-- Saved switch models; bulk port rename; renaming a port in a plan.
+- Bulk port rename; renaming a port in a plan.
 - **Other-network dots on closed node cards** in the tree: a node that also holds switches of another network shows it without being opened (today only an open card's "+ N on Network B" line does).
 - A **stack** mark on a cable between two AGGs, set by the user, so the hierarchy can draw stacks (D39: the data alone cannot tell a stack from a peer link).
 - A spreadsheet import, through the same draft and record path, only if the real network turns out much larger than a few thousand cables (decided 2026-10-10: entry by hand with the bulk tools).
