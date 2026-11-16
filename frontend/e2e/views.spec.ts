@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures'
 import {
+  expectNear,
   fitted,
   openRackInPhysical,
   hierarchyState,
@@ -18,8 +19,7 @@ const expectMark = (page: Page, name: string, value: string) =>
   expect.poll(() => mark(page, name)).toBe(value)
 const endpoint = (page: Page, id: string) =>
   page.locator(`[data-testid="face-endpoint"][data-endpoint-id="${id}"]`)
-const external = (page: Page) => page.getByTestId('external-cable')
-const internal = (page: Page) => page.getByTestId('internal-peer')
+const peers = (page: Page) => page.getByTestId('peer-actions')
 const side = (page: Page) => page.getByRole('group', { name: 'Side' })
 const select = (page: Page) =>
   page.getByRole('combobox', { name: 'Show network' })
@@ -131,28 +131,26 @@ for (const w of WALKS)
     await expect(
       page.locator(`[data-testid="face-block"][data-block="${w.block}"]`),
     ).toHaveAttribute('data-on-route', 'true')
-    await expect(external(page)).toContainText(w.cableRear)
-    await expect(external(page)).toContainText(w.farRear)
-    await expect(external(page)).toContainText('rear')
-    await internal(page)
-      .getByRole('button', { name: 'Switch to front' })
-      .click()
+    await expectNear(page, 'left', w.cableRear)
+    await expectNear(page, 'left', w.farRear)
+    await expectNear(page, 'left', 'rear')
+    await peers(page).getByRole('button', { name: 'Switch to front' }).click()
     await expectMark(page, 'data-selected-endpoint', w.front)
     await expectMark(page, 'data-side', 'front')
-    await expect(external(page)).toContainText(w.cableFront)
-    await expect(external(page)).toContainText('HDF-02')
+    await expectNear(page, 'left', w.cableFront)
+    await expectNear(page, 'left', 'HDF-02')
 
     // c. Go to peer: HDF-02's front, whose rear carries the cable to the destination.
-    await external(page).getByRole('button', { name: 'Go to peer' }).click()
+    await peers(page).getByRole('button', { name: 'Go to peer' }).click()
     await expectMark(page, 'data-selected-endpoint', w.peer)
     await expectMark(page, 'data-side', 'front')
     await expect(root(page)).toHaveAttribute(
       'data-location',
       /equipment:hdf-02\//,
     )
-    await expect(internal(page)).toContainText(w.cablePeerRear)
-    await expect(internal(page)).toContainText(w.dest)
-    await expect(internal(page)).toContainText('Port 1')
+    await expectNear(page, 'right', w.cablePeerRear)
+    await expectNear(page, 'right', w.dest)
+    await expectNear(page, 'right', 'Port 1')
     await page.getByRole('button', { name: 'Back', exact: true }).click()
     await expectMark(page, 'data-selected-endpoint', w.front)
     await expectMark(page, 'data-side', 'front')
@@ -213,16 +211,16 @@ test('PHY-11 the same walkthrough with Network B and AGG-12: 3C/2 is selected, a
     'data-state',
     'cabled',
   )
-  await expect(external(page)).toContainText('cable-b02')
-  await expect(external(page)).toContainText('PANEL-DR')
-  await internal(page).getByRole('button', { name: 'Switch to front' }).click()
+  await expectNear(page, 'left', 'cable-b02')
+  await expectNear(page, 'left', 'PANEL-DR')
+  await peers(page).getByRole('button', { name: 'Switch to front' }).click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:2:f')
-  await expect(external(page)).toContainText('cable-b03')
-  await expect(external(page)).toContainText('HDF-02')
-  await external(page).getByRole('button', { name: 'Go to peer' }).click()
+  await expectNear(page, 'left', 'cable-b03')
+  await expectNear(page, 'left', 'HDF-02')
+  await peers(page).getByRole('button', { name: 'Go to peer' }).click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-02:sp-2B:6:f')
-  await expect(internal(page)).toContainText('cable-b04')
-  await expect(internal(page)).toContainText('AGG-12')
+  await expectNear(page, 'right', 'cable-b04')
+  await expectNear(page, 'right', 'AGG-12')
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:2:f')
 

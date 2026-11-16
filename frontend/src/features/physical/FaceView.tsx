@@ -91,6 +91,12 @@ interface Props {
   decorate?: (endpointId: string) => JackMark | undefined
   /** Jacks whose port reaches an AGG or BB (the uplinks summary); marked purple. */
   uplinkIds?: ReadonlySet<string>
+  /**
+   * Connects to: the jacks to light. When given, those jacks are marked and every
+   * other jack is dimmed (a tone from `decorate` replaces a jack's fill and cannot
+   * dim the rest, so this is its own prop). Absent: nothing is dimmed.
+   */
+  lit?: ReadonlySet<string>
   /** False hides the legend (the patching screen has its own). */
   legend?: boolean
   /** Jack columns a row of banks holds; the patching page passes a narrower count. */
@@ -128,6 +134,7 @@ export default function FaceView({
   editSlot,
   decorate,
   uplinkIds,
+  lit,
   legend: showLegend = true,
   columns = FACE_COLUMNS,
   bare,
@@ -207,6 +214,11 @@ export default function FaceView({
         data-selected={look.selected}
         data-network={cell.networkId ?? ''}
         data-tone={mark?.tone}
+        data-lit={
+          lit
+            ? String(!!cell.endpointId && lit.has(cell.endpointId))
+            : undefined
+        }
         data-uplink={uplink ? 'true' : undefined}
         aria-description={uplink ? 'reaches an AGG or BB' : undefined}
         data-port-state={cell.portState}
@@ -314,7 +326,11 @@ export default function FaceView({
       )}
       {!bare && !headless && editSlot}
 
-      <div ref={container} onKeyDown={onKeyDown}>
+      <div
+        ref={container}
+        onKeyDown={onKeyDown}
+        data-picking={lit ? 'true' : undefined}
+      >
         {face.kind === 'switch' && (
           <div
             className="faceplate"

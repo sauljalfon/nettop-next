@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import ConnectPopover from '../patching/ConnectPopover'
 import type { Snapshot } from '../../shared/types'
 import Pieces from '../../shared/ui/Pieces'
@@ -9,10 +9,11 @@ import type { SnapshotIndex } from '../map/snapshotIndex'
 import EndpointEdit from '../planning/EndpointEdit'
 import type { PlanEdit } from '../planning/editing'
 import PortDetails from '../details/PortDetails'
-import { followPort } from '../paths/follow'
+import PathBar from '../paths/PathBar'
 import UplinksSummary from '../paths/UplinksSummary'
 import { useUplinks } from '../paths/useUplinks'
-import { buildSheet } from '../paths/sheet'
+import ConnectsTo from './ConnectsToCard'
+import { connectsTo } from './connectsTo'
 import EndpointDetail from './EndpointDetail'
 import {
   cellLook,
@@ -24,6 +25,7 @@ import {
   type Face,
 } from './equipmentModel'
 import FaceView from './FaceView'
+import { useHdfNumbering } from './hdfNumbering'
 import type { PhysicalLocation } from './location'
 import type { RouteMarks } from './inventory'
 
@@ -101,16 +103,23 @@ export default function EquipmentPage({
         : [],
     [index, snapshot.networks, location.endpointId, marks],
   )
-  // A switch port shows the path it leads to; panel and HDF positions keep the chain.
-  const walkSheet = useMemo(() => {
-    const id = location.endpointId
-    const owner = id
-      ? index.equipment.get(index.owner.get(id) ?? '')
-      : undefined
-    return id && owner?.kind === 'switch'
-      ? buildSheet(index, snapshot.networks, followPort(index, id))
-      : undefined
-  }, [index, snapshot.networks, location.endpointId])
+  // In a plan, what is installed: the path draws anything else dashed.
+  const installed = useMemo(
+    () =>
+      snapshot.context === 'planned'
+        ? { equipment: installedIds, links: installedLinkIds }
+        : undefined,
+    [snapshot.context, installedIds, installedLinkIds],
+  )
+  const numbering = useHdfNumbering()
+  // Connects to: the far equipment whose jacks are lit; a view state of this
+  // equipment only, so a choice made on another one is ignored.
+  const [pick, setPick] = useState<{ from: string; far: string }>()
+  if (pick && pick.from !== equipment?.id) setPick(undefined)
+  const far = useMemo(
+    () => (equipment ? connectsTo(index, equipment.id) : []),
+    [index, equipment],
+  )
   // Closing the panel puts focus back on the jack that was selected (or the face).
   const returnFocus = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -187,108 +196,116 @@ export default function EquipmentPage({
       : face.kind === 'panel'
         ? face.face.positions
         : face.face.blocks.flatMap((b) => b.positions)
+  const chosen =
+    pick?.from === equipment.id
+      ? far.find((f) => f.equipmentId === pick.far)
+      : undefined
+  const faceIds = new Set(faceCells.map((c) => c.endpointId))
+  const lit = chosen
+    ? new Set(chosen.endpointIds.filter((id) => faceIds.has(id)))
+    : undefined
+  const otherSide =
+    chosen && lit && side && lit.size < chosen.endpointIds.length
+      ? `${chosen.endpointIds.length - lit.size} on the ${side === 'front' ? 'rear' : 'front'}`
+      : undefined
+  const isSwitch = face.kind === 'switch'
+  const links = (under: boolean) => (
+    <ConnectsTo
+      far={far}
+      chosen={chosen?.equipmentId}
+      onChoose={(id) =>
+        setPick(id ? { from: equipment.id, far: id } : undefined)
+      }
+      colors={colors}
+      networkNames={index.networkNames}
+      hint={otherSide}
+      under={under}
+      fixedHeight={under && linksUnderTall}
+    />
+  )
+  // A switch has it under the face; an HDF or a panel beside it, or under it
+  // while the port panel takes the place beside.
+  const linksBeside = !isSwitch && !detail
+  // Under an HDF's or a panel's face (a port is selected): the face's scroll box
+  // gives up this height so the page itself never scrolls.
+  const linksUnderTall = !isSwitch && !!detail
+  const linksHeight = 33 + 30 * Math.min(Math.max(far.length, 1), 4) + 2
   const free = faceCells.filter((c) => cellLook(c).fill === 'free').length
   return (
-    <div className="equipment-page">
-      <div
-        className={`equipment-layout no-strip ${detail ? 'has-detail' : 'no-detail'}`}
-      >
-        <div className="equipment-main">
-          <p className="equipment-details" data-testid="equipment-details">
-            {meta}
-            {free > 0 && ` · ${free} free`}
-            {(index.locationParts.get(equipment.id)?.length ?? 0) > 0 && (
-              <>
-                {' · '}
-                <PlacePath parts={index.locationParts.get(equipment.id)!} />
-              </>
-            )}
-          </p>
-          <FaceView
-            uplinkIds={uplinkIds}
-            equipment={equipment}
-            face={face}
-            side={side}
-            meta={meta}
-            headless
-            networks={snapshot.networks}
-            colors={colors}
-            tooltip={(cell, ordinal) =>
-              endpointTooltip(index, equipment, cell, ordinal, side)
-            }
-            onSelect={(id, event) => {
-              onSelectEndpoint(id)
-              setPopover(
-                edit && event && !index.cabled.has(id)
-                  ? {
-                      endpointId: id,
-                      anchor: event.currentTarget.getBoundingClientRect(),
-                    }
-                  : undefined,
-              )
-            }}
-            onSide={onSide}
-          />
-          {equipment.kind === 'switch' && (
-            <UplinksSummary
+    <div
+      className={`equipment-area${detail ? ' has-path' : ''}${linksUnderTall ? ' links-under' : ''}`}
+      style={
+        linksUnderTall
+          ? ({ '--links-h': `${linksHeight}px` } as CSSProperties)
+          : undefined
+      }
+    >
+      <div className="equipment-page">
+        <div
+          className={`equipment-layout no-strip ${detail ? 'has-detail' : 'no-detail'}${linksBeside ? ' has-links' : ''}`}
+        >
+          <div className="equipment-main">
+            <p className="equipment-details" data-testid="equipment-details">
+              {meta}
+              {free > 0 && ` · ${free} free`}
+              {(index.locationParts.get(equipment.id)?.length ?? 0) > 0 && (
+                <>
+                  {' · '}
+                  <PlacePath parts={index.locationParts.get(equipment.id)!} />
+                </>
+              )}
+            </p>
+            <FaceView
+              uplinkIds={uplinkIds}
+              lit={lit}
               equipment={equipment}
-              state={uplinks}
-              selectedEndpointId={location.endpointId}
-              onSelect={onSelectEndpoint}
+              face={face}
+              side={side}
+              meta={meta}
+              headless
+              networks={snapshot.networks}
+              colors={colors}
+              tooltip={(cell, ordinal) =>
+                endpointTooltip(index, equipment, cell, ordinal, side)
+              }
+              onSelect={(id, event) => {
+                onSelectEndpoint(id)
+                setPopover(
+                  edit && event && !index.cabled.has(id)
+                    ? {
+                        endpointId: id,
+                        anchor: event.currentTarget.getBoundingClientRect(),
+                      }
+                    : undefined,
+                )
+              }}
+              onSide={onSide}
+            />
+            {equipment.kind === 'switch' && (
+              <UplinksSummary
+                equipment={equipment}
+                state={uplinks}
+                selectedEndpointId={location.endpointId}
+                onSelect={onSelectEndpoint}
+              />
+            )}
+            {!linksBeside && links(true)}
+          </div>
+          {linksBeside && links(false)}
+          {popover && edit && (
+            <ConnectPopover
+              key={popover.endpointId}
+              index={index}
+              endpointId={popover.endpointId}
+              anchor={popover.anchor}
+              onClose={() => setPopover(undefined)}
             />
           )}
-        </div>
-        {popover && edit && (
-          <ConnectPopover
-            key={popover.endpointId}
-            index={index}
-            endpointId={popover.endpointId}
-            anchor={popover.anchor}
-            onClose={() => setPopover(undefined)}
-          />
-        )}
-        <EndpointDetail
-          onClose={closePort}
-          actions={
-            detail &&
-            snapshot.context !== 'installed' && (
-              <EndpointEdit
-                key={detail.endpointId}
-                snapshot={snapshot}
-                index={index}
-                endpointId={detail.endpointId}
-                installedLinkIds={installedLinkIds}
-                edit={edit}
-              />
-            )
-          }
-          model={detail}
-          chain={chain}
-          walkSheet={walkSheet}
-          routeName={routeName}
-          networkColor={
-            detail?.networkId ? colors.get(detail.networkId) : undefined
-          }
-          onGoToPeer={onGoToPeer}
-          onSwitch={onSelectEndpoint}
-          onFind={onFind}
-          onShowOnMap={() => onShowOnMap(equipment.id)}
-        >
-          {detail && (
-            <>
-              <PortDetails
-                key={`details:${detail.endpointId}`}
-                snapshot={snapshot}
-                index={index}
-                endpointId={detail.endpointId}
-                proposed={
-                  snapshot.context === 'planned' &&
-                  !installedIds.has(equipment.id)
-                }
-                edit={edit}
-                onFixed={onFixed}
-              />
-              {snapshot.context === 'installed' && (
+          <EndpointDetail
+            onClose={closePort}
+            actions={
+              detail &&
+              snapshot.context !== 'installed' && (
                 <EndpointEdit
                   key={detail.endpointId}
                   snapshot={snapshot}
@@ -297,11 +314,59 @@ export default function EquipmentPage({
                   installedLinkIds={installedLinkIds}
                   edit={edit}
                 />
-              )}
-            </>
-          )}
-        </EndpointDetail>
+              )
+            }
+            model={detail}
+            chain={chain}
+            routeName={routeName}
+            networkColor={
+              detail?.networkId ? colors.get(detail.networkId) : undefined
+            }
+            onGoToPeer={onGoToPeer}
+            onSwitch={onSelectEndpoint}
+            onFind={onFind}
+            onShowOnMap={() => onShowOnMap(equipment.id)}
+          >
+            {detail && (
+              <>
+                <PortDetails
+                  key={`details:${detail.endpointId}`}
+                  snapshot={snapshot}
+                  index={index}
+                  endpointId={detail.endpointId}
+                  proposed={
+                    snapshot.context === 'planned' &&
+                    !installedIds.has(equipment.id)
+                  }
+                  edit={edit}
+                  onFixed={onFixed}
+                />
+                {snapshot.context === 'installed' && (
+                  <EndpointEdit
+                    key={detail.endpointId}
+                    snapshot={snapshot}
+                    index={index}
+                    endpointId={detail.endpointId}
+                    installedLinkIds={installedLinkIds}
+                    edit={edit}
+                  />
+                )}
+              </>
+            )}
+          </EndpointDetail>
+        </div>
       </div>
+      {detail && (
+        <PathBar
+          index={index}
+          endpointId={detail.endpointId}
+          installed={installed}
+          colors={colors}
+          numbering={numbering}
+          onOpen={onGoToPeer}
+          onClose={closePort}
+        />
+      )}
     </div>
   )
 }

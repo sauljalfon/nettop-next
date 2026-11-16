@@ -169,14 +169,16 @@
   color: var(--ink);
 }
 .equipment-layout.no-strip {
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: fit-content(900px) 340px;
+  justify-content: start;
 }
 .equipment-layout.no-strip.no-detail {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: fit-content(900px);
 }
-@container (max-width: 1130px) {
+/* 900 (face) + 18 (gap) + 340 (port panel): below this the panel goes under the face. */
+@container (max-width: 1258px) {
   .equipment-layout.no-strip {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: fit-content(900px);
   }
   .equipment-layout.no-strip > .endpoint-detail {
     grid-column: 1;
@@ -640,6 +642,18 @@
 }
 
 /* Equipment page */
+/* The page's area: the page above (it scrolls inside itself), the path bar as its last row. */
+.equipment-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.equipment-area > .equipment-page {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
 .equipment-page {
   display: flex;
   align-items: flex-start;
@@ -1258,13 +1272,17 @@
 }
 .hdf-scroll {
   max-height: calc(
-    100vh - 424px
-  ); /* the page above the grid: top bar, card head, plate head, legend */
+    100vh - 315px
+  ); /* the window minus the header, bar, details line, plate head above the grid and the plate, legend and page padding below */
   min-height: 160px;
   overflow: auto;
   scrollbar-color: var(--steel-ink-soft) var(--steel-2);
 }
 /* Always-visible scrollbars: C–D are reached by scrolling when the area is narrow. */
+/* With the path bar shown the page above is shorter by its height. */
+.equipment-area.has-path .hdf-scroll {
+  max-height: calc(100vh - 315px - var(--pathbar-h));
+}
 .hdf-scroll::-webkit-scrollbar {
   width: 12px;
   height: 12px;
@@ -1353,14 +1371,10 @@
   gap: 4px;
   margin-top: 8px;
 }
-.chain {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+.peer-actions {
+  display: grid;
+  gap: 8px;
   margin-top: 14px;
-}
-.chain-group {
-  display: contents;
 }
 .chain-box {
   padding: 7px 10px;
@@ -1406,33 +1420,6 @@
 .chain-box button:hover strong {
   text-decoration: underline;
 }
-.chain-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 26px;
-  padding-left: 18px;
-}
-/* A cable line is in its network's colour; a bridge is a dashed rule. */
-.chain-line {
-  align-self: stretch;
-  border-left: 2px solid var(--net, var(--rule-strong));
-}
-.chain-link[data-link='bridge'] .chain-line {
-  border-left: 2px dashed var(--rule);
-}
-.chain-link small {
-  font-family: var(--mono);
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-}
-.chain-link[data-on-route='true'] .chain-line {
-  border-left-color: var(--route);
-}
-.chain-link[data-on-route='true'] small {
-  color: var(--route);
-}
-
 /* One bank per port group (step 11b): banks lie side by side with a caption
    above each, and wrap onto the next row when the face is not wide enough. A
    switch with one bank keeps the compact plate it always had. */
@@ -1517,6 +1504,19 @@
   min-width: 0;
   max-width: 900px;
 }
+/* The face sets the column's width; the lines under and over it only fill it. */
+.equipment-main > .equipment-details,
+.equipment-main .face-legend {
+  width: 0;
+  min-width: 100%;
+}
+.equipment-main:has(.uplinks) {
+  min-width: min(640px, 100cqw);
+}
+.equipment-main > .uplinks {
+  width: 0;
+  min-width: 100%;
+}
 .equipment-main .uplinks {
   margin-bottom: 0;
 }
@@ -1546,4 +1546,154 @@
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+/* The trace results sit above the path bar, never over it. */
+.workspace-canvas:has(.pathbar) .map-results {
+  bottom: calc(var(--pathbar-h) + 17px);
+}
+
+/* Connects to: one 30px line per far equipment; a click lights its jacks. */
+.connects-to {
+  width: 300px;
+  max-width: 100%;
+  align-self: start;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  max-height: calc(100vh - 250px);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.equipment-area.has-path .connects-to {
+  max-height: calc(100vh - 250px - var(--pathbar-h));
+}
+.connects-to.under {
+  max-height: 330px;
+}
+.connects-to.under.fixed-height {
+  max-height: var(--links-h);
+}
+.equipment-area.has-path.links-under .hdf-scroll {
+  max-height: calc(100vh - 315px - var(--pathbar-h) - var(--links-h) - 12px);
+}
+.connects-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--paper-sunk);
+  border-bottom: 1px solid var(--rule);
+}
+.connects-head b {
+  font-weight: 600;
+}
+.connects-head span {
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+}
+.connects-head button {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+  text-decoration: underline;
+}
+.connects-hint {
+  margin: 0;
+  padding: 4px 10px;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.connects-hint:empty {
+  display: none;
+}
+.connects-body {
+  min-height: 0;
+  overflow: auto;
+}
+.connects-empty {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--ink-soft);
+  font-size: var(--t-sm);
+}
+.connects-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-top: 1px solid var(--rule-soft);
+  background: var(--paper);
+  text-align: left;
+}
+.connects-line:first-child {
+  border-top: 0;
+}
+.connects-line:hover {
+  background: var(--paper-sunk);
+}
+.connects-line[aria-pressed='true'] {
+  background: var(--amber-soft);
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+.connects-dots {
+  display: flex;
+  gap: 2px;
+}
+.connects-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.connects-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.connects-rack {
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+.connects-count {
+  min-width: 22px;
+  font-family: var(--mono);
+  font-weight: 600;
+  text-align: right;
+}
+.connects-meter {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--rule-strong);
+}
+/* The lit jacks of a chosen line; the rest step back. */
+[data-picking='true'] .face-cell[data-lit='false'] {
+  opacity: 0.28;
+}
+[data-picking='true'] .face-cell[data-lit='true']:not(:focus-visible) {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+}
+/* Beside an HDF's or a panel's face when nothing else needs the place. */
+.equipment-layout.no-strip.no-detail.has-links {
+  grid-template-columns: fit-content(900px) 300px;
+}
+/* An HDF or panel face is at most about 600px wide: face + gap + card. */
+@container (max-width: 940px) {
+  .equipment-layout.no-strip.no-detail.has-links {
+    grid-template-columns: fit-content(900px);
+  }
 }

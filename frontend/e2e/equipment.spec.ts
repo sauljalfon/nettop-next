@@ -1,5 +1,11 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, openRackInPhysical, expandResults } from './helpers'
+import {
+  expandResults,
+  expectNear,
+  expectNearPlace,
+  fitted,
+  openRackInPhysical,
+} from './helpers'
 
 // The explorer writes its state on its root; these specs assert that model.
 const root = (page: Page) => page.locator('.physical-explorer')
@@ -11,8 +17,7 @@ const expectMark = (page: Page, name: string, value: string) =>
 const endpoint = (page: Page, id: string) =>
   page.locator(`[data-testid="face-endpoint"][data-endpoint-id="${id}"]`)
 const detail = (page: Page) => page.getByTestId('endpoint-detail')
-const external = (page: Page) => page.getByTestId('external-cable')
-const internal = (page: Page) => page.getByTestId('internal-peer')
+const peers = (page: Page) => page.getByTestId('peer-actions')
 const sideControl = (page: Page) => page.getByRole('group', { name: 'Side' })
 
 const HDF01_3C5_REAR = 'hdf-01:sp-3C:5:r'
@@ -128,22 +133,20 @@ test('F06 HDF-01 3C/5 rear: its cable and peer, then the same position on the fr
   await expect(detail(page)).toContainText('rear')
   await expect(detail(page)).toContainText('Network A')
   await expect(detail(page)).toContainText('9,10') // the fiber pair, as secondary text
-  await expect(external(page)).toContainText('cable-a02')
-  await expect(external(page)).toContainText('PANEL-A')
-  await expect(external(page)).toContainText(
-    'Main Campus › Building A › Rack A03',
-  )
-  await expect(internal(page)).toContainText('front')
+  await expectNear(page, 'left', 'cable-a02')
+  await expectNear(page, 'left', 'PANEL-A')
+  await expectNearPlace(page, 'left', 'Main Campus › Building A › Rack A03')
+  await expectNear(page, 'right', 'front')
 
   // Switching keeps the position, selects its other side, and adds no history.
   const depth = await mark(page, 'data-history-depth')
-  await internal(page).getByRole('button', { name: 'Switch to front' }).click()
+  await peers(page).getByRole('button', { name: 'Switch to front' }).click()
   await expectMark(page, 'data-selected-endpoint', HDF01_3C5_FRONT)
   await expectMark(page, 'data-side', 'front')
   await expectMark(page, 'data-history-depth', depth)
-  await expect(external(page)).toContainText('cable-a03')
-  await expect(external(page)).toContainText('HDF-02')
-  await expect(internal(page)).toContainText('cable-a02')
+  await expectNear(page, 'left', 'cable-a03')
+  await expectNear(page, 'left', 'HDF-02')
+  await expectNear(page, 'right', 'cable-a02')
   await expect(
     sideControl(page).getByRole('button', { name: 'Front' }),
   ).toHaveAttribute('aria-pressed', 'true')
@@ -155,15 +158,17 @@ test('F07 HDF-02 2B/3 front: A03 to HDF-01, and the rear goes to AGG-03 port 1',
   await openHdf02(page)
   await endpoint(page, HDF02_2B3_FRONT).click()
   await expectMark(page, 'data-selected-endpoint', HDF02_2B3_FRONT)
-  await expect(external(page)).toContainText('cable-a03')
-  await expect(external(page)).toContainText('HDF-01')
-  await internal(page).getByRole('button', { name: 'Switch to rear' }).click()
+  await expectNear(page, 'left', 'cable-a03')
+  await expectNear(page, 'left', 'HDF-01')
+  await peers(page).getByRole('button', { name: 'Switch to rear' }).click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-02:sp-2B:3:r')
   await expectMark(page, 'data-side', 'rear')
-  await expect(external(page)).toContainText('cable-a04')
-  await expect(external(page)).toContainText('AGG-03')
-  await expect(external(page)).toContainText('Port 1')
-  await expect(external(page)).toContainText(
+  await expectNear(page, 'left', 'cable-a04')
+  await expectNear(page, 'left', 'AGG-03')
+  await expectNear(page, 'left', 'Port 1')
+  await expectNearPlace(
+    page,
+    'left',
     'Main Campus › Main Distribution › Rack Core 01',
   )
 })
@@ -177,7 +182,7 @@ test('F08 Go to peer opens the far equipment with its endpoint; Back restores th
   await expectMark(page, 'data-selected-endpoint', HDF01_3C5_FRONT)
   const depth = Number(await mark(page, 'data-history-depth'))
 
-  await external(page).getByRole('button', { name: 'Go to peer' }).click()
+  await peers(page).getByRole('button', { name: 'Go to peer' }).click()
   await expect(root(page)).toHaveAttribute(
     'data-location',
     /equipment:hdf-02\/endpoint:hdf-02:sp-2B:3:f\/front$/,
@@ -282,17 +287,16 @@ test('F10 a switch shows its port bank in rows of 12, with cabled and free ports
   )
   await port(1).click()
   await expectMark(page, 'data-selected-endpoint', 'edge-17:p1')
-  // A switch port shows its walk sheet: the cable, PANEL-A in Rack A03, and on.
-  const walk = detail(page).getByTestId('walk-sheet')
-  await expect(walk.getByTestId('walk-cable').first()).toHaveAttribute(
-    'data-link',
-    'cable-a01',
-  )
-  await expect(walk.getByTestId('walk-row').nth(1)).toContainText('PANEL-A')
-  await expect(walk.getByTestId('walk-place').first()).toContainText('Rack A03')
+  // A switch port's path is the Path bar's: the cable, PANEL-A in Rack A03, and on.
+  await expectNear(page, 'right', 'cable-a01', 'PANEL-A')
+  await expectNearPlace(page, 'right', 'Main Campus › Building A › Rack A03')
   await expect(detail(page).getByTestId('chain')).toHaveCount(0)
+  await expect(detail(page).getByTestId('walk-sheet')).toHaveCount(0)
   await port(4).click()
-  await expect(walk.getByTestId('walk-end')).toHaveAttribute('data-end', 'none') // a free port has no cable
+  // A free port has no cable.
+  await expect(page.getByRole('region', { name: 'Path' })).toContainText(
+    'No cable on this jack',
+  )
 })
 
 test('F10 a standard panel shows positions 1..N on the chosen side, and switching keeps the position', async ({
@@ -305,12 +309,12 @@ test('F10 a standard panel shows positions 1..N on the chosen side, and switchin
   await expect(front(1)).toHaveAttribute('data-state', 'cabled')
   await expect(front(4)).toHaveAttribute('data-state', 'free')
   await front(1).click()
-  await expect(external(page)).toContainText('cable-a01')
-  await expect(external(page)).toContainText('EDGE-17')
-  await internal(page).getByRole('button', { name: 'Switch to rear' }).click()
+  await expectNear(page, 'left', 'cable-a01')
+  await expectNear(page, 'left', 'EDGE-17')
+  await peers(page).getByRole('button', { name: 'Switch to rear' }).click()
   await expectMark(page, 'data-selected-endpoint', 'panel-a:1:r')
-  await expect(external(page)).toContainText('cable-a02')
-  await expect(external(page)).toContainText('HDF-01')
+  await expectNear(page, 'left', 'cable-a02')
+  await expectNear(page, 'left', 'HDF-01')
   // The position number is the identity: position 1 on the rear face.
   await expect(endpoint(page, 'panel-a:1:r')).toHaveAttribute(
     'data-selected',
