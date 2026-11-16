@@ -1677,7 +1677,7 @@
   left: 0;
   bottom: 0;
   height: 2px;
-  background: var(--ink-faint);
+  background: var(--rule-strong);
 }
 /* The lit jacks of a chosen line; the rest step back. */
 [data-picking='true'] .face-cell[data-lit='false'] {
