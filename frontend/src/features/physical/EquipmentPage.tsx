@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import ConnectPopover from '../patching/ConnectPopover'
 import type { Snapshot } from '../../shared/types'
 import Pieces from '../../shared/ui/Pieces'
@@ -12,6 +12,8 @@ import PortDetails from '../details/PortDetails'
 import PathBar from '../paths/PathBar'
 import UplinksSummary from '../paths/UplinksSummary'
 import { useUplinks } from '../paths/useUplinks'
+import ConnectsTo from './ConnectsToCard'
+import { connectsTo } from './connectsTo'
 import EndpointDetail from './EndpointDetail'
 import {
   cellLook,
@@ -110,6 +112,14 @@ export default function EquipmentPage({
     [snapshot.context, installedIds, installedLinkIds],
   )
   const numbering = useHdfNumbering()
+  // Connects to: the far equipment whose jacks are lit; a view state of this
+  // equipment only, so a choice made on another one is ignored.
+  const [pick, setPick] = useState<{ from: string; far: string }>()
+  if (pick && pick.from !== equipment?.id) setPick(undefined)
+  const far = useMemo(
+    () => (equipment ? connectsTo(index, equipment.id) : []),
+    [index, equipment],
+  )
   // Closing the panel puts focus back on the jack that was selected (or the face).
   const returnFocus = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -186,12 +196,53 @@ export default function EquipmentPage({
       : face.kind === 'panel'
         ? face.face.positions
         : face.face.blocks.flatMap((b) => b.positions)
+  const chosen =
+    pick?.from === equipment.id
+      ? far.find((f) => f.equipmentId === pick.far)
+      : undefined
+  const faceIds = new Set(faceCells.map((c) => c.endpointId))
+  const lit = chosen
+    ? new Set(chosen.endpointIds.filter((id) => faceIds.has(id)))
+    : undefined
+  const otherSide =
+    chosen && lit && side && lit.size < chosen.endpointIds.length
+      ? `${chosen.endpointIds.length - lit.size} on the ${side === 'front' ? 'rear' : 'front'}`
+      : undefined
+  const isSwitch = face.kind === 'switch'
+  const links = (under: boolean) => (
+    <ConnectsTo
+      far={far}
+      chosen={chosen?.equipmentId}
+      onChoose={(id) =>
+        setPick(id ? { from: equipment.id, far: id } : undefined)
+      }
+      colors={colors}
+      networkNames={index.networkNames}
+      hint={otherSide}
+      under={under}
+      fixedHeight={under && linksUnderTall}
+    />
+  )
+  // A switch has it under the face; an HDF or a panel beside it, or under it
+  // while the port panel takes the place beside.
+  const linksBeside = !isSwitch && !detail
+  // Under an HDF's or a panel's face (a port is selected): the face's scroll box
+  // gives up this height so the page itself never scrolls.
+  const linksUnderTall = !isSwitch && !!detail
+  const linksHeight = 33 + 30 * Math.min(Math.max(far.length, 1), 4) + 2
   const free = faceCells.filter((c) => cellLook(c).fill === 'free').length
   return (
-    <div className={`equipment-area${detail ? ' has-path' : ''}`}>
+    <div
+      className={`equipment-area${detail ? ' has-path' : ''}${linksUnderTall ? ' links-under' : ''}`}
+      style={
+        linksUnderTall
+          ? ({ '--links-h': `${linksHeight}px` } as CSSProperties)
+          : undefined
+      }
+    >
       <div className="equipment-page">
         <div
-          className={`equipment-layout no-strip ${detail ? 'has-detail' : 'no-detail'}`}
+          className={`equipment-layout no-strip ${detail ? 'has-detail' : 'no-detail'}${linksBeside ? ' has-links' : ''}`}
         >
           <div className="equipment-main">
             <p className="equipment-details" data-testid="equipment-details">
@@ -206,6 +257,7 @@ export default function EquipmentPage({
             </p>
             <FaceView
               uplinkIds={uplinkIds}
+              lit={lit}
               equipment={equipment}
               face={face}
               side={side}
@@ -237,7 +289,9 @@ export default function EquipmentPage({
                 onSelect={onSelectEndpoint}
               />
             )}
+            {!linksBeside && links(true)}
           </div>
+          {linksBeside && links(false)}
           {popover && edit && (
             <ConnectPopover
               key={popover.endpointId}

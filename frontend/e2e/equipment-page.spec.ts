@@ -662,3 +662,174 @@ test('EP-18c a tall HDF keeps its legend and frame above the bar and the page st
   expect(scroll.page).toBeLessThanOrEqual(1)
   await page.screenshot({ path: 'test-results/path/hdf-32-path.png' })
 })
+
+// Workbench part 2b, task 3: Connects to.
+const connects = (page: Page) =>
+  page.getByRole('region', { name: 'Connects to' })
+const lines = (page: Page) => connects(page).getByTestId('connects-line')
+
+test('EP-19 Connects to lists the far equipment', async ({ page }) => {
+  await openEdge17(page)
+  await expect(connects(page)).toBeVisible()
+  await expect(lines(page)).toHaveCount(1)
+  await expect(lines(page).first()).toContainText('PANEL-A')
+  await expect(lines(page).first()).toContainText('Rack A03')
+  await expect(lines(page).first().getByTestId('connects-count')).toHaveText(
+    '3',
+  )
+  await expect(connects(page)).toContainText('1 place · 3 cables')
+  await expect(
+    connects(page).getByRole('button', { name: 'Show all' }),
+  ).toHaveCount(0)
+  const box = (await connects(page).boundingBox())!
+  expect(box.width).toBeLessThanOrEqual(300)
+  const head = (await connects(page)
+    .getByTestId('connects-head')
+    .boundingBox())!
+  const body = await connects(page)
+    .getByTestId('connects-body')
+    .evaluate((el) => el.scrollHeight)
+  expect(Math.abs(box.height - (head.height + body))).toBeLessThanOrEqual(4)
+  await page.screenshot({ path: 'test-results/connects/edge-17.png' })
+  await openHdf01(page)
+  await expect(lines(page)).toHaveCount(3)
+  expect(
+    await lines(page).evaluateAll((els) =>
+      els.map((e) => e.getAttribute('data-far')),
+    ),
+  ).toEqual(['hdf-02', 'panel-a', 'panel-dr'])
+  await expect(connects(page)).toContainText('3 places · 8 cables')
+})
+
+test('EP-20 a line lights its jacks', async ({ page }) => {
+  await openHdf01(page)
+  await expect(page.locator('[data-picking]')).toHaveCount(0)
+  const toHdf2 = lines(page).filter({ hasText: 'HDF-02' })
+  await page.screenshot({ path: 'test-results/connects/hdf-01.png' })
+  await toHdf2.click()
+  await expect(toHdf2).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('[data-picking="true"]')).toHaveCount(1)
+  await expect(
+    page.locator('[data-testid="face-endpoint"][data-lit="true"]'),
+  ).toHaveCount(4)
+  expect(
+    await page
+      .locator('[data-testid="face-endpoint"][data-lit="false"]')
+      .count(),
+  ).toBeGreaterThan(0)
+  await expect(jack(page, 'hdf-01:sp-3C:5:f')).toHaveAttribute(
+    'data-lit',
+    'true',
+  )
+  await expect(jack(page, 'hdf-01:sp-3C:5:f')).toHaveCSS('opacity', '1')
+  await expect(jack(page, 'hdf-01:sp-4A:1:f')).toHaveAttribute(
+    'data-lit',
+    'false',
+  )
+  await expect(jack(page, 'hdf-01:sp-4A:1:f')).not.toHaveCSS('opacity', '1')
+  await page.screenshot({ path: 'test-results/connects/hdf-01-line.png' })
+  // Selecting a jack still works while a line is chosen.
+  await jack(page, 'hdf-01:sp-3C:5:f').click()
+  await expect(panel(page)).toBeVisible()
+  await expect(jack(page, 'hdf-01:sp-3C:5:f')).toHaveAttribute(
+    'data-selected',
+    'true',
+  )
+  await expect(toHdf2).toHaveAttribute('aria-pressed', 'true')
+  await page.screenshot({ path: 'test-results/connects/hdf-01-jack.png' })
+  // Choosing the line again clears.
+  await toHdf2.click()
+  await expect(toHdf2).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.locator('[data-picking]')).toHaveCount(0)
+  // Show all clears too.
+  await toHdf2.click()
+  await connects(page).getByRole('button', { name: 'Show all' }).click()
+  await expect(page.locator('[data-picking]')).toHaveCount(0)
+  await expect(
+    connects(page).getByRole('button', { name: 'Show all' }),
+  ).toHaveCount(0)
+  // A line on the other side: nothing lit here, the head says where they are.
+  await lines(page).filter({ hasText: 'PANEL-A' }).click()
+  await expect(
+    page.locator('[data-testid="face-endpoint"][data-lit="true"]'),
+  ).toHaveCount(0)
+  await expect(connects(page).getByTestId('connects-hint')).toHaveText(
+    '3 on the rear',
+  )
+  // The choice is a view state: it clears when the equipment changes.
+  await page.getByRole('button', { name: 'Rear', exact: true }).click()
+  await expect(
+    page.locator('[data-testid="face-endpoint"][data-lit="true"]'),
+  ).toHaveCount(3)
+  await page.getByRole('button', { name: 'Front', exact: true }).click()
+  await toHdf2.click()
+  await expect(page.locator('[data-picking="true"]')).toHaveCount(1)
+  await jack(page, 'hdf-01:sp-3C:5:f').click()
+  await pathBar(page)
+    .getByRole('button', { name: /^Open HDF-02/ })
+    .click()
+  await expect(root(page)).toHaveAttribute('data-location', /equipment:hdf-02/)
+  await expect(page.locator('[data-picking]')).toHaveCount(0)
+  // And coming back does not bring the choice back.
+  await pathBar(page)
+    .getByRole('button', { name: /^Open HDF-01/ })
+    .click()
+  await expect(root(page)).toHaveAttribute('data-location', /equipment:hdf-01/)
+  await expect(page.locator('[data-picking]')).toHaveCount(0)
+})
+
+test('EP-21 it sits beside an HDF’s face and under a switch’s', async ({
+  page,
+}) => {
+  await openHdf01(page)
+  let face = (await faceCard(page, 'HDF-01').boundingBox())!
+  let card = (await connects(page).boundingBox())!
+  expect(card.x).toBeGreaterThanOrEqual(face.x + face.width)
+  expect(card.y).toBeLessThan(face.y + face.height)
+  // With a jack selected the port panel keeps the place beside the face.
+  await jack(page, 'hdf-01:sp-3C:5:f').click()
+  const port = (await panel(page).boundingBox())!
+  face = (await faceCard(page, 'HDF-01').boundingBox())!
+  expect(port.x).toBeGreaterThanOrEqual(face.x + face.width)
+  card = (await connects(page).boundingBox())!
+  expect(
+    card.x < port.x ||
+      card.y >= port.y + port.height ||
+      card.y >= face.y + face.height,
+  ).toBe(true)
+  expect(
+    card.x + card.width <= port.x ||
+      card.y >= port.y + port.height ||
+      card.x >= port.x + port.width,
+  ).toBe(true)
+  await page.screenshot({ path: 'test-results/connects/hdf-01-jack-1536.png' })
+  await openEdge17(page)
+  face = (await faceCard(page, 'EDGE-17').boundingBox())!
+  card = (await connects(page).boundingBox())!
+  expect(card.y).toBeGreaterThanOrEqual(face.y + face.height)
+  await expect(page.locator('.uplinks')).toBeVisible()
+  const up = (await page.locator('.uplinks').boundingBox())!
+  expect(card.y).toBeGreaterThanOrEqual(up.y + up.height - 1)
+  // Absent on a rack item.
+  await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'ups-a03')
+  await expect(connects(page)).toHaveCount(0)
+  // 1280×720: nothing sideways.
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await openHdf01(page)
+  await expect(connects(page)).toBeVisible()
+  face = (await faceCard(page, 'HDF-01').boundingBox())!
+  card = (await connects(page).boundingBox())!
+  expect(card.x).toBeGreaterThanOrEqual(face.x + face.width)
+  const sideways = await page.evaluate(() => {
+    const el = document.querySelector('.equipment-page')!
+    return {
+      page: el.scrollWidth - el.clientWidth,
+      doc:
+        document.scrollingElement!.scrollWidth -
+        document.scrollingElement!.clientWidth,
+    }
+  })
+  expect(sideways.page).toBeLessThanOrEqual(1)
+  expect(sideways.doc).toBeLessThanOrEqual(0)
+  await page.screenshot({ path: 'test-results/connects/hdf-01-1280.png' })
+})

@@ -1552,3 +1552,148 @@
 .workspace-canvas:has(.pathbar) .map-results {
   bottom: calc(var(--pathbar-h) + 17px);
 }
+
+/* Connects to: one 30px line per far equipment; a click lights its jacks. */
+.connects-to {
+  width: 300px;
+  max-width: 100%;
+  align-self: start;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  max-height: calc(100vh - 250px);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.equipment-area.has-path .connects-to {
+  max-height: calc(100vh - 250px - var(--pathbar-h));
+}
+.connects-to.under {
+  max-height: 330px;
+}
+.connects-to.under.fixed-height {
+  max-height: var(--links-h);
+}
+.equipment-area.has-path.links-under .hdf-scroll {
+  max-height: calc(100vh - 315px - var(--pathbar-h) - var(--links-h) - 12px);
+}
+.connects-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--paper-sunk);
+  border-bottom: 1px solid var(--rule);
+}
+.connects-head b {
+  font-weight: 600;
+}
+.connects-head span {
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+}
+.connects-head button {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+  text-decoration: underline;
+}
+.connects-hint {
+  margin: 0;
+  padding: 4px 10px;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.connects-hint:empty {
+  display: none;
+}
+.connects-body {
+  min-height: 0;
+  overflow: auto;
+}
+.connects-empty {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--ink-soft);
+  font-size: var(--t-sm);
+}
+.connects-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-top: 1px solid var(--rule-soft);
+  background: var(--paper);
+  text-align: left;
+}
+.connects-line:first-child {
+  border-top: 0;
+}
+.connects-line:hover {
+  background: var(--paper-sunk);
+}
+.connects-line[aria-pressed='true'] {
+  background: var(--amber-soft);
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+.connects-dots {
+  display: flex;
+  gap: 2px;
+}
+.connects-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.connects-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.connects-rack {
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+.connects-count {
+  min-width: 22px;
+  font-family: var(--mono);
+  font-weight: 600;
+  text-align: right;
+}
+.connects-meter {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--ink-faint);
+}
+/* The lit jacks of a chosen line; the rest step back. */
+[data-picking='true'] .face-cell[data-lit='false'] {
+  opacity: 0.28;
+}
+[data-picking='true'] .face-cell[data-lit='true']:not(:focus-visible) {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+}
+/* Beside an HDF's or a panel's face when nothing else needs the place. */
+.equipment-layout.no-strip.no-detail.has-links {
+  grid-template-columns: fit-content(900px) 300px;
+}
+/* An HDF or panel face is at most about 600px wide: face + gap + card. */
+@container (max-width: 940px) {
+  .equipment-layout.no-strip.no-detail.has-links {
+    grid-template-columns: fit-content(900px);
+  }
+}
