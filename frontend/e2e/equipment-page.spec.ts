@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './fixtures'
 import { fitted, openRackInPhysical } from './helpers'
-import { command, newPlan } from './plan-api'
+import { command, newPlan, planWith32RowHdf } from './plan-api'
 
 // Workbench part 2, task 1: the equipment page's bar, details line and ⋯ menu.
 test.use({ viewport: { width: 1536, height: 864 } })
@@ -208,20 +208,19 @@ test('EP-05 the face is right under the details line', async ({ page }) => {
 const panel = (page: Page) => page.getByTestId('endpoint-detail')
 const jack = (page: Page, id: string) =>
   page.locator(`[data-testid="face-endpoint"][data-endpoint-id="${id}"]`)
-// The face area's column: the cards inside it are capped at 900px, the column is not.
-const mainWidth = (page: Page) =>
-  page
-    .locator('.equipment-layout')
-    .evaluate((el) =>
-      parseFloat(getComputedStyle(el).gridTemplateColumns.split(' ')[0]),
-    )
+const faceCard = (page: Page, name: string) =>
+  page.getByRole('region', { name: `${name} face` })
+const cardOrigin = async (page: Page) => {
+  const b = (await page.locator('.face-card').boundingBox())!
+  return { x: b.x, y: b.y }
+}
 
 test('EP-06 the port panel opens only for a selected jack', async ({
   page,
 }) => {
   await openHdf01(page)
   await expect(panel(page)).toHaveCount(0)
-  const wide = await mainWidth(page)
+  const before = await cardOrigin(page)
   await page.screenshot({
     path: 'test-results/workbench-2/hdf-01-nothing-selected.png',
   })
@@ -230,18 +229,17 @@ test('EP-06 the port panel opens only for a selected jack', async ({
   await free.click()
   await expect(panel(page)).toBeVisible()
   await expect(free).toHaveAttribute('data-selected', 'true')
-  expect(await mainWidth(page)).toBeLessThan(wide - 200)
-  // Beside the face, not over it.
-  const face = (await page.locator('.equipment-main').boundingBox())!
-  expect(await mainWidth(page)).toBeLessThanOrEqual(wide - 300)
+  // Beside the face, not over it, and the face does not move.
+  const face = (await page.locator('.face-card').boundingBox())!
   const side = (await panel(page).boundingBox())!
   expect(side.x).toBeGreaterThanOrEqual(face.x + face.width - 1)
+  expect(await cardOrigin(page)).toEqual(before)
 
   const close = panel(page).getByRole('button', { name: 'Close port' })
   await close.click()
   await expect(panel(page)).toHaveCount(0)
   await expect(page.locator('[data-selected="true"]')).toHaveCount(0)
-  await expect.poll(() => mainWidth(page)).toBeGreaterThan(wide - 2)
+  await expect.poll(() => cardOrigin(page)).toEqual(before)
 
   // Escape from inside the panel does the same, and focus goes to the jack.
   await free.click()
@@ -250,7 +248,7 @@ test('EP-06 the port panel opens only for a selected jack', async ({
   await page.keyboard.press('Escape')
   await expect(panel(page)).toHaveCount(0)
   await expect(page.locator('[data-selected="true"]')).toHaveCount(0)
-  await expect.poll(() => mainWidth(page)).toBeGreaterThan(wide - 2)
+  await expect.poll(() => cardOrigin(page)).toEqual(before)
   await expect(free).toBeFocused()
 
   // Back still works after closing.
@@ -362,4 +360,68 @@ test('EP-09 a rack item’s page has the same bar and details line', async ({
   await page.keyboard.press('Escape')
   await expect(confirm).toHaveCount(0)
   await expect(more(page)).toBeFocused()
+})
+
+test('EP-10 the port panel sits next to the face', async ({ page }) => {
+  await openHdf01(page)
+  await jack(page, 'hdf-01:sp-1D:1:f').click()
+  await expect(panel(page)).toBeVisible()
+  const card = (await faceCard(page, 'HDF-01').boundingBox())!
+  const side = (await panel(page).boundingBox())!
+  expect(side.x - (card.x + card.width)).toBeLessThan(40)
+  expect(side.x).toBeGreaterThanOrEqual(card.x + card.width - 1)
+  expect(side.x + side.width).toBeLessThanOrEqual(1536)
+  const grid = (await page.locator('.hdf-grid').boundingBox())!
+  expect(Math.abs(card.width - grid.width)).toBeLessThan(80) // card and plate padding
+  const plate = (await page
+    .locator('.faceplate[data-kind="hdf"]')
+    .boundingBox())!
+  const blockD = (await page
+    .locator('[data-testid="face-block"][data-block$="D"]')
+    .last()
+    .boundingBox())!
+  expect(plate.x + plate.width - (blockD.x + blockD.width)).toBeLessThan(24)
+  await page.screenshot({ path: 'test-results/space/hdf-01-1536.png' })
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  await expect(panel(page)).toBeVisible()
+  await page.screenshot({ path: 'test-results/space/hdf-01-1920.png' })
+})
+
+test('EP-11 a tall HDF uses the window’s height', async ({ page, request }) => {
+  const id = await planWith32RowHdf(request)
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
+  await page
+    .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
+    .click()
+  await expect(root(page)).toHaveAttribute('data-physical-level', 'equipment')
+  const card = (await faceCard(page, 'HDF-BIG').boundingBox())!
+  const gap = 864 - (card.y + card.height)
+  expect(gap).toBeGreaterThanOrEqual(0)
+  expect(gap).toBeLessThanOrEqual(40)
+  const rows = await page.evaluate(() => {
+    const area = document.querySelector('.hdf-scroll')!.getBoundingClientRect()
+    return [...document.querySelectorAll('.hdf-row')].filter((e) => {
+      const r = e.getBoundingClientRect()
+      return r.top >= area.top && r.bottom <= area.bottom
+    }).length
+  })
+  expect(rows).toBeGreaterThanOrEqual(7)
+  const scroll = await page.evaluate(() => ({
+    top: document.scrollingElement!.scrollTop,
+    over:
+      document.scrollingElement!.scrollHeight -
+      document.scrollingElement!.clientHeight,
+  }))
+  expect(scroll.top).toBe(0)
+  expect(scroll.over).toBeLessThanOrEqual(0)
+  await page.screenshot({ path: 'test-results/space/hdf-32-1536.png' })
+})
+
+test('EP-12 a switch page with a port selected', async ({ page }) => {
+  await openEdge17(page)
+  await page.locator('[data-testid="face-endpoint"]').first().click()
+  await expect(panel(page)).toBeVisible()
+  await page.screenshot({ path: 'test-results/space/edge-17-1536.png' })
 })

@@ -169,14 +169,16 @@
   color: var(--ink);
 }
 .equipment-layout.no-strip {
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: fit-content(900px) 340px;
+  justify-content: start;
 }
 .equipment-layout.no-strip.no-detail {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: fit-content(900px);
 }
-@container (max-width: 1130px) {
+/* 900 (face) + 18 (gap) + 340 (port panel): below this the panel goes under the face. */
+@container (max-width: 1258px) {
   .equipment-layout.no-strip {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: fit-content(900px);
   }
   .equipment-layout.no-strip > .endpoint-detail {
     grid-column: 1;
@@ -1258,8 +1260,8 @@
 }
 .hdf-scroll {
   max-height: calc(
-    100vh - 424px
-  ); /* the page above the grid: top bar, card head, plate head, legend */
+    100vh - 315px
+  ); /* the window minus the header, bar, details line, plate head above the grid and the plate, legend and page padding below */
   min-height: 160px;
   overflow: auto;
   scrollbar-color: var(--steel-ink-soft) var(--steel-2);
@@ -1516,6 +1518,19 @@
   gap: 12px;
   min-width: 0;
   max-width: 900px;
+}
+/* The face sets the column's width; the lines under and over it only fill it. */
+.equipment-main > .equipment-details,
+.equipment-main .face-legend {
+  width: 0;
+  min-width: 100%;
+}
+.equipment-main:has(.uplinks) {
+  min-width: min(640px, 100cqw);
+}
+.equipment-main > .uplinks {
+  width: 0;
+  min-width: 100%;
 }
 .equipment-main .uplinks {
   margin-bottom: 0;
