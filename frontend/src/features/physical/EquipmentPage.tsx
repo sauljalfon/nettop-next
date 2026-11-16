@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ConnectPopover from '../patching/ConnectPopover'
 import type { Snapshot } from '../../shared/types'
 import Chip from '../../shared/ui/Chip'
@@ -47,6 +47,7 @@ export default function EquipmentPage({
   colors,
   onOpenEquipment,
   onSelectEndpoint,
+  onClearEndpoint,
   onSide,
   onGoToPeer,
   onFind,
@@ -77,6 +78,8 @@ export default function EquipmentPage({
   colors: ReadonlyMap<string, string>
   onOpenEquipment: (equipmentId: string) => void
   onSelectEndpoint: (endpointId: string) => void
+  /** Clears the selected endpoint: the port panel closes. */
+  onClearEndpoint: () => void
   onSide: (side: 'front' | 'rear') => void
   onGoToPeer: (endpointId: string) => void
   onFind: (endpointId: string) => void
@@ -120,6 +123,28 @@ export default function EquipmentPage({
       ? buildSheet(index, snapshot.networks, followPort(index, id))
       : undefined
   }, [index, snapshot.networks, location.endpointId])
+  // Closing the panel puts focus back on the jack that was selected (or the face).
+  const returnFocus = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (location.endpointId || returnFocus.current === undefined) return
+    const id = returnFocus.current
+    returnFocus.current = undefined
+    const root = document.querySelector('.equipment-main')
+    const target =
+      (id &&
+        root?.querySelector<HTMLElement>(
+          `[data-endpoint-id="${CSS.escape(id)}"]`,
+        )) ||
+      root?.querySelector<HTMLElement>(
+        '[data-testid="face-endpoint"][tabindex="0"]',
+      )
+    target?.focus()
+  }, [location.endpointId])
+  const closePort = () => {
+    returnFocus.current = location.endpointId ?? ''
+    setPopover(undefined)
+    onClearEndpoint()
+  }
   if (!equipment) return null
   if (!face) {
     const proposed =
@@ -220,7 +245,9 @@ export default function EquipmentPage({
   const free = faceCells.filter((c) => cellLook(c).fill === 'free').length
   return (
     <div className="equipment-page">
-      <div className="equipment-layout no-strip">
+      <div
+        className={`equipment-layout no-strip ${detail ? 'has-detail' : 'no-detail'}`}
+      >
         <div className="equipment-main">
           <p className="equipment-details" data-testid="equipment-details">
             {meta}
@@ -276,6 +303,20 @@ export default function EquipmentPage({
           />
         )}
         <EndpointDetail
+          onClose={closePort}
+          actions={
+            detail &&
+            snapshot.context !== 'installed' && (
+              <EndpointEdit
+                key={detail.endpointId}
+                snapshot={snapshot}
+                index={index}
+                endpointId={detail.endpointId}
+                installedLinkIds={installedLinkIds}
+                edit={edit}
+              />
+            )
+          }
           model={detail}
           chain={chain}
           walkSheet={walkSheet}
@@ -302,14 +343,16 @@ export default function EquipmentPage({
                 edit={edit}
                 onFixed={onFixed}
               />
-              <EndpointEdit
-                key={detail.endpointId}
-                snapshot={snapshot}
-                index={index}
-                endpointId={detail.endpointId}
-                installedLinkIds={installedLinkIds}
-                edit={edit}
-              />
+              {snapshot.context === 'installed' && (
+                <EndpointEdit
+                  key={detail.endpointId}
+                  snapshot={snapshot}
+                  index={index}
+                  endpointId={detail.endpointId}
+                  installedLinkIds={installedLinkIds}
+                  edit={edit}
+                />
+              )}
             </>
           )}
         </EndpointDetail>

@@ -204,3 +204,106 @@ test('EP-05 the face is right under the details line', async ({ page }) => {
     .boundingBox())!
   expect(faceBox.y - (barBox.y + barBox.height)).toBeLessThan(60)
 })
+
+const panel = (page: Page) => page.getByTestId('endpoint-detail')
+const jack = (page: Page, id: string) =>
+  page.locator(`[data-testid="face-endpoint"][data-endpoint-id="${id}"]`)
+// The face area's column: the cards inside it are capped at 900px, the column is not.
+const mainWidth = (page: Page) =>
+  page
+    .locator('.equipment-layout')
+    .evaluate((el) =>
+      parseFloat(getComputedStyle(el).gridTemplateColumns.split(' ')[0]),
+    )
+
+test('EP-06 the port panel opens only for a selected jack', async ({
+  page,
+}) => {
+  await openHdf01(page)
+  await expect(panel(page)).toHaveCount(0)
+  const wide = await mainWidth(page)
+  await page.screenshot({
+    path: 'test-results/workbench-2/hdf-01-nothing-selected.png',
+  })
+
+  const free = jack(page, 'hdf-01:sp-1D:1:f')
+  await free.click()
+  await expect(panel(page)).toBeVisible()
+  await expect(free).toHaveAttribute('data-selected', 'true')
+  expect(await mainWidth(page)).toBeLessThan(wide - 200)
+  // Beside the face, not over it.
+  const face = (await page.locator('.equipment-main').boundingBox())!
+  expect(await mainWidth(page)).toBeLessThanOrEqual(wide - 300)
+  const side = (await panel(page).boundingBox())!
+  expect(side.x).toBeGreaterThanOrEqual(face.x + face.width - 1)
+
+  const close = panel(page).getByRole('button', { name: 'Close port' })
+  await close.click()
+  await expect(panel(page)).toHaveCount(0)
+  await expect(page.locator('[data-selected="true"]')).toHaveCount(0)
+  await expect.poll(() => mainWidth(page)).toBeGreaterThan(wide - 2)
+
+  // Escape from inside the panel does the same, and focus goes to the jack.
+  await free.click()
+  await expect(panel(page)).toBeVisible()
+  await panel(page).getByRole('button', { name: 'Show on map' }).focus()
+  await page.keyboard.press('Escape')
+  await expect(panel(page)).toHaveCount(0)
+  await expect(page.locator('[data-selected="true"]')).toHaveCount(0)
+  await expect.poll(() => mainWidth(page)).toBeGreaterThan(wide - 2)
+  await expect(free).toBeFocused()
+
+  // Back still works after closing.
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await expect(root(page)).toHaveAttribute('data-physical-level', /./)
+})
+
+test('EP-07 the port actions come first', async ({ page, request }) => {
+  const id = await newPlan(request, 'EP-07 actions')
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  await openHdf01(page)
+
+  await jack(page, 'hdf-01:sp-1D:1:f').click()
+  await expect(panel(page)).toBeVisible()
+  // The connect popover may open at a free jack; the panel's own buttons count.
+  const connect = panel(page).getByRole('button', { name: 'Connect…' })
+  const range = panel(page).getByRole('button', { name: 'Connect a range…' })
+  const label = panel(page).locator('.detail-head')
+  const cableSection = panel(page).locator('.chain')
+  const y = async (l: ReturnType<Page['locator']>) => (await l.boundingBox())!.y
+  expect(await y(connect)).toBeLessThan(await y(label))
+  expect(await y(range)).toBeLessThan(await y(label))
+  expect(await y(range)).toBeLessThan(await y(cableSection))
+
+  await page.keyboard.press('Escape')
+  await jack(page, 'hdf-01:sp-3C:5:f').click()
+  const disconnect = panel(page).getByRole('button', { name: /^Disconnect/ })
+  await expect(disconnect).toBeVisible()
+  expect(await y(disconnect)).toBeLessThan(await y(label))
+  expect(await y(disconnect)).toBeLessThan(await y(cableSection))
+  await page.screenshot({
+    path: 'test-results/workbench-2/hdf-01-cabled-in-plan.png',
+  })
+})
+
+test('EP-08 a switch uplinks are under its face', async ({ page }) => {
+  await openEdge17(page)
+  const uplinks = page.getByTestId('uplinks')
+  await expect(page.getByTestId('uplink-line').first()).toBeVisible()
+  const face = (await page
+    .getByRole('region', { name: 'EDGE-17 face' })
+    .boundingBox())!
+  expect((await uplinks.boundingBox())!.y).toBeGreaterThanOrEqual(
+    face.y + face.height - 1,
+  )
+  await expect(panel(page)).toHaveCount(0)
+  const row = page.getByTestId('uplink-line').first()
+  const endpoint = await row.getAttribute('data-endpoint')
+  await row.click()
+  await expect(panel(page)).toBeVisible()
+  await expect(jack(page, endpoint!)).toHaveAttribute('data-selected', 'true')
+  await page.screenshot({
+    path: 'test-results/workbench-2/edge-17-port-selected.png',
+  })
+})

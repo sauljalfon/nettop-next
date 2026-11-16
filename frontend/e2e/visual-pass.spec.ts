@@ -226,9 +226,15 @@ test('VP-03b EDGE-17 with the inspector open: all 24 ports inside the face card,
     .locator('.faceplate')
     .evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(plate).toBeLessThanOrEqual(1)
-  expect(overlaps(card, await boxOf(page.getByTestId('endpoint-detail')))).toBe(
-    false,
-  )
+  // The port panel exists only for a selected jack: select one, then check it.
+  await page.locator('[data-testid="face-endpoint"]').first().click()
+  await expect(page.getByTestId('endpoint-detail')).toBeVisible()
+  expect(
+    overlaps(
+      await boxOf(page.locator('.face-card')),
+      await boxOf(page.getByTestId('endpoint-detail')),
+    ),
+  ).toBe(false)
 })
 
 test('VP-03b HDF-01 with the inspector open: the whole grid inside the face card, no sideways scroll, detail below', async ({
@@ -253,9 +259,15 @@ test('VP-03b HDF-01 with the inspector open: the whole grid inside the face card
     .locator('.hdf-scroll')
     .evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(scroller).toBeLessThanOrEqual(1)
-  expect(overlaps(card, await boxOf(page.getByTestId('endpoint-detail')))).toBe(
-    false,
-  )
+  // The port panel exists only for a selected jack: select one, then check it.
+  await page.locator('[data-testid="face-endpoint"]').first().click()
+  await expect(page.getByTestId('endpoint-detail')).toBeVisible()
+  expect(
+    overlaps(
+      await boxOf(page.locator('.face-card')),
+      await boxOf(page.getByTestId('endpoint-detail')),
+    ),
+  ).toBe(false)
 })
 
 test('VP-03b without a drawer the compact HDF grid fits its card, and every jack number is at least 11px', async ({

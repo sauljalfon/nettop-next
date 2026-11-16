@@ -275,6 +275,8 @@ export default function PhysicalExplorer({
   // Selecting an endpoint, or its other side, replaces the location: no history entry.
   const selectEndpoint = (endpointId: string) =>
     session.replace(openLocation(index, { endpointId }))
+  const clearEndpoint = () =>
+    session.replace({ ...location, endpointId: undefined })
   const setSide = (side: 'front' | 'rear') => {
     if (location.side === side) return
     const other = location.endpointId
@@ -527,6 +529,7 @@ export default function PhysicalExplorer({
             colors={colors}
             onOpenEquipment={openEquipment}
             onSelectEndpoint={selectEndpoint}
+            onClearEndpoint={clearEndpoint}
             onSide={setSide}
             onGoToPeer={(endpointId) => {
               go({ endpointId })

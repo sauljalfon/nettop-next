@@ -171,6 +171,9 @@
 .equipment-layout.no-strip {
   grid-template-columns: minmax(0, 1fr) 300px;
 }
+.equipment-layout.no-strip.no-detail {
+  grid-template-columns: minmax(0, 1fr);
+}
 @container (max-width: 1130px) {
   .equipment-layout.no-strip {
     grid-template-columns: minmax(0, 1fr);

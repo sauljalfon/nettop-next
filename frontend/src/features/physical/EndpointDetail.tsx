@@ -1,4 +1,4 @@
-import { Crosshair, GitFork } from 'lucide-react'
+import { Crosshair, GitFork, X } from 'lucide-react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { Sheet } from '../paths/sheet'
 import WalkSheet from '../paths/WalkSheet'
@@ -25,9 +25,15 @@ export default function EndpointDetail({
   onSwitch,
   onFind,
   onShowOnMap,
+  actions,
+  onClose,
   children,
 }: {
-  /** Plan editing for the selected endpoint (Connect / Disconnect), below the chain. */
+  /** Plan editing for the selected endpoint (Connect / Disconnect), at the top of the panel. */
+  actions?: ReactNode
+  /** Clears the selection: the panel closes. */
+  onClose: () => void
+  /** The rest below the chain (details, the installed hint). */
   children?: ReactNode
   model?: DetailModel
   chain: ChainItem[]
@@ -41,18 +47,20 @@ export default function EndpointDetail({
   onFind: (endpointId: string) => void
   onShowOnMap: () => void
 }) {
-  if (!model)
-    return (
-      <aside className="endpoint-detail endpoint" data-testid="endpoint-detail">
-        <p className="phys-label">Endpoint</p>
-        <p className="phys-muted">
-          Select a port or position to see its cable and its peer.
-        </p>
-      </aside>
-    )
+  if (!model) return null
   const self = chain.find((i) => i.kind === 'box' && i.role === 'self')
   return (
-    <aside className="endpoint-detail endpoint" data-testid="endpoint-detail">
+    <aside
+      className="endpoint-detail endpoint"
+      data-testid="endpoint-detail"
+      aria-label="Port"
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape' || event.defaultPrevented) return
+        event.preventDefault()
+        onClose()
+      }}
+    >
+      {actions}
       <header className="detail-head">
         <div>
           <h3 className="detail-label">
@@ -79,6 +87,14 @@ export default function EndpointDetail({
             onClick={onShowOnMap}
           >
             <Crosshair size={14} />
+          </button>
+          <button
+            className="btn quiet detail-icon"
+            aria-label="Close port"
+            title="Close port"
+            onClick={onClose}
+          >
+            <X size={14} />
           </button>
         </div>
       </header>
