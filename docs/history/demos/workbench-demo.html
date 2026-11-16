@@ -64,7 +64,43 @@
   .rail button:hover { background: var(--paper-sunk); color: var(--ink); }
   .rail button[aria-pressed='true'] { background: var(--ink); color: #fff; }
   .rail svg { width: 18px; height: 18px; }
-  .main { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--paper); }
+  .main { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--paper); }
+
+  /* The path of the selected jack: one line of hardware along the bottom of the page.
+     Each equipment is a small steel plate with the jacks the path uses; cables are drawn in the network's colour;
+     plates in one rack share a band, so the eye sees where the path leaves a rack. */
+  .pathbar { border-top: 1px solid var(--rule); background: var(--paper); min-width: 0; }
+  .pathbar-head { display: flex; align-items: baseline; gap: 10px; padding: 7px 12px 0 16px; }
+  .pathbar-head b { font-weight: 600; } .pathbar-head .sub { color: var(--ink-soft); }
+  .pathbar-head button { margin-left: auto; border: 0; background: none; color: var(--ink-soft); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 4px; }
+  .pathbar-head button:hover { background: var(--paper-sunk); color: var(--ink); }
+  .pathline { --plate: 84px; --jack-y: 47px; display: flex; align-items: stretch; padding: 4px 16px 12px; overflow-x: auto; }
+  .pcell { display: grid; grid-template-rows: 18px var(--plate); flex: none; }
+  .pcell.band { background: var(--paper-sunk); }
+  .pcell.band.first { border-radius: 8px 0 0 8px; } .pcell.band.last { border-radius: 0 8px 8px 0; } .pcell.band.first.last { border-radius: 8px; }
+  .pcell .rack { padding: 2px 8px 0; font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+  .pcell.node { padding: 0 5px 6px; }
+  .pn { display: grid; grid-template-rows: 20px 28px 13px; gap: 6px 0; row-gap: 5px; align-content: start; width: 100%; min-width: 138px; height: var(--plate); padding: 8px 9px; border: 0; border-radius: 5px; background: var(--steel); color: var(--steel-ink); text-align: left; }
+  button.pn:hover { background: var(--steel-2); }
+  .pn.here { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
+  .pn-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+  .pn-top .tape { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pn-top .kind { font: 11px/1 var(--mono); color: var(--steel-ink); }
+  .pn-top .kind.top { color: #fff; background: var(--route); border-radius: 3px; padding: 2px 5px; font-family: var(--sans); font-weight: 600; }
+  .pn-jacks { display: flex; align-items: center; }
+  .pn-jacks .pj { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 2px; background: #fff; color: var(--tape-ink); font: 500 11px/1 var(--mono); }
+  .pn-jacks .pj.a { background: var(--net-a); color: #fff; } .pn-jacks .pj.b { background: var(--net-b); color: #fff; }
+  .pn-jacks .pj.sel { outline: 2px solid #fff; outline-offset: 1px; }
+  .pn-jacks .bridge { flex: 1; height: 0; border-top: 2px dotted var(--steel-ink); margin: 0 4px; }
+  .pn-jacks .gap { flex: 1; }
+  .pn-caps { display: flex; justify-content: space-between; gap: 10px; font: 11px/1 var(--mono); color: var(--steel-ink-strong); white-space: nowrap; }
+  .pcell.link { position: relative; width: 66px; }
+  .pcell.link::after { content: ''; position: absolute; left: 0; right: 0; top: calc(18px + var(--jack-y)); height: 3px; margin-top: -1.5px; background: var(--net-a); }
+  .pcell.link.b::after { background: var(--net-b); }
+  .pcell.link .id { position: absolute; left: 50%; top: calc(18px + var(--jack-y) - 24px); transform: translateX(-50%); padding: 1px 5px; border: 1px solid var(--rule); border-radius: 3px; background: var(--paper); font: 11px/1.3 var(--mono); color: var(--ink-soft); white-space: nowrap; }
+  .pcell.link.none::after { background: none; border-top: 2px dashed var(--rule); height: 0; }
+  .pcell.stub { grid-template-rows: 18px var(--plate); padding: 0 4px; }
+  .pcell.stub span { align-self: start; margin-top: calc(var(--jack-y) - 9px); font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
 
   /* The dock: one panel, tabs, narrows the work. */
   .dock { width: 380px; min-height: 0; display: grid; grid-template-rows: 40px minmax(0, 1fr); border-left: 1px solid var(--rule); background: var(--paper); }
@@ -110,6 +146,41 @@
 
   .scroll { min-height: 0; overflow: auto; }
   .equip { padding: 14px 16px 24px; display: grid; gap: 12px; align-content: start; }
+  /* The equipment page uses the width: the face, and beside it what is connected to it. */
+  .equip.wide { height: 100%; grid-template-rows: auto minmax(0, 1fr); }
+  .equip-cols { display: flex; gap: 16px; min-height: 0; align-items: stretch; }
+  .equip-cols .face-col { flex: none; min-height: 0; overflow: auto; display: grid; gap: 10px; align-content: start; max-width: 100%; }
+  .cables { flex: 1 1 320px; min-width: 300px; max-width: 760px; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); overflow: hidden; }
+  .cables.under { max-width: 980px; flex: none; }
+  .cables-head { display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 12px; background: var(--paper-sunk); border-bottom: 1px solid var(--rule); }
+  .cables-head b { font-weight: 600; } .cables-head span { color: var(--ink-soft); }
+  .cables-head input { margin-left: auto; height: 28px; width: 190px; border: 1px solid var(--rule); border-radius: 5px; padding: 0 8px; background: var(--paper); }
+  .cables-body { overflow: auto; min-height: 0; }
+  .cables table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cables th { position: sticky; top: 0; background: var(--paper); text-align: left; font-weight: 600; font-size: 12px; color: var(--ink-soft); padding: 6px 12px; border-bottom: 1px solid var(--rule); }
+  .cables td { padding: 5px 12px; border-top: 1px solid var(--rule-soft); white-space: nowrap; }
+  .cables tr[data-jack-row] { cursor: pointer; }
+  .cables tr[data-jack-row]:hover td { background: var(--paper-sunk); }
+  .cables tr[data-on='true'] td { background: var(--amber-soft); }
+  .links { flex: none; width: 300px; align-self: start; max-height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); overflow: hidden; }
+  .links.under { width: 300px; }
+  .links-head { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; background: var(--paper-sunk); border-bottom: 1px solid var(--rule); }
+  .links-head b { font-weight: 600; } .links-head span { color: var(--ink-soft); font-size: 12px; }
+  .links-head button { margin-left: auto; border: 0; background: none; color: var(--ink-soft); text-decoration: underline; padding: 0; font-size: 12px; }
+  .links-body { overflow: auto; min-height: 0; }
+  .link-row { position: relative; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 10px; border: 0; border-top: 1px solid var(--rule-soft); background: var(--paper); text-align: left; }
+  .link-row:first-child { border-top: 0; }
+  .link-row:hover { background: var(--paper-sunk); }
+  .link-row[aria-pressed='true'] { background: var(--amber-soft); box-shadow: inset 3px 0 0 var(--amber); }
+  .link-row .dots { display: flex; gap: 2px; } .link-row .dots i { width: 8px; height: 8px; border-radius: 2px; }
+  .link-row .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .link-row .w { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
+  .link-row .c { font-family: var(--mono); font-weight: 600; min-width: 22px; text-align: right; }
+  .link-row .meter { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--ink-faint); }
+  .face.picking .jack:not([data-hit='true']) { opacity: 0.28; }
+  .face.picking .jack[data-hit='true'] { outline: 2px solid var(--amber); outline-offset: 1px; }
+  .cables .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; }
+  .cables .where { color: var(--ink-soft); }
   .meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-soft); }
   .meta b { color: var(--ink); font-weight: 600; }
   .key { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-soft); font-size: 12px; }
@@ -333,7 +404,7 @@
   // ---------- frame ----------
   const SCREENS = [
     ['tree', 'Conceptual + dock', 'Click a node card: the details open in the dock and the tree narrows. Key shows the legend.'],
-    ['hdf', 'HDF page', 'The highest row is at the top on every HDF; each row keeps its cables. HDF jacks are 32px squares. Pairs | Pigtails next to Front / Rear is each person\'s own choice, remembered in this browser, and Patching follows it. Click a free jack: its details open in the dock.'],
+    ['hdf', 'HDF page', 'Click a jack: its whole path is drawn along the bottom, end to end, as the hardware it passes. Beside the face: what this HDF connects to, one line per far equipment with its cable count. Click a line to light those jacks on the face; click it again for all. The highest row is at the top on every HDF; each row keeps its cables. HDF jacks are 32px squares. Pairs | Pigtails next to Front / Rear is each person\'s own choice, remembered in this browser, and Patching follows it. Click a free jack: its details open in the dock.'],
     ['switch', 'Switch 48 + 4', '48 copper ports and the 4 SFP+ uplink ports fit on one line, each group with its caption. ↑ marks the ports that reach an AGG; click a row under the face to select that port.'],
     ['patching', 'Patching', 'Range: the start on the left is chosen. Click a free jack on the right, then Connect. Try Done before connecting.'],
   ]
@@ -454,7 +525,7 @@
         ? (st.ptStyle === 'wide' ? `${2 * j.pos - 1}·${2 * j.pos}` : `<span class="pt"><span>${2 * j.pos - 1}</span><span>${2 * j.pos}</span></span>`)
         : j.pos
     const full = j.pos ? `${title} · pigtails ${2 * j.pos - 1},${2 * j.pos}` : title
-    return `<button type="button" class="jack" data-jack="${j.id}" data-s="${s}" data-sel="${!!opts.sel}" data-next="${!!opts.next}" aria-label="${esc(full)}" title="${esc(full)}" ${j.s && opts.lockCabled ? 'aria-disabled="true"' : ''}>${text}${j.up ? '<span class="up" aria-hidden="true">↑</span>' : ''}${badge}</button>`
+    return `<button type="button" class="jack" data-jack="${j.id}" data-s="${s}" data-sel="${!!opts.sel}" data-next="${!!opts.next}" data-hit="${!!opts.hit}" aria-label="${esc(full)}" title="${esc(full)}" ${j.s && opts.lockCabled ? 'aria-disabled="true"' : ''}>${text}${j.up ? '<span class="up" aria-hidden="true">↑</span>' : ''}${badge}</button>`
   }
   function hdfFace(eq, side, decorate) {
     let cells = `<span></span>${COLS.map((c) => `<span class="colh">${c}</span>`).join('')}`
@@ -466,9 +537,88 @@
         cells += `<div class="block" title="${r}${c}">${js.map((j) => jackHtml(j, decorate(j))).join('')}</div>`
       }
     }
-    return `<div class="face" data-pt="${st.numbering === 'pigtails' ? st.ptStyle : 'off'}"><div class="face-head"><span class="tape">${esc(eq.name)}</span><span class="side">${side.toLowerCase()}</span></div><div class="hdf">${cells}</div></div>`
+    return `<div class="face${st.farSel && st.screen === 'hdf' ? ' picking' : ''}" data-pt="${st.numbering === 'pigtails' ? st.ptStyle : 'off'}"><div class="face-head"><span class="tape">${esc(eq.name)}</span><span class="side">${side.toLowerCase()}</span></div><div class="hdf">${cells}</div></div>`
   }
   const numSeg = () => `<div class="seg" role="group" aria-label="Numbers"><button type="button" data-num="pairs" aria-pressed="${st.numbering === 'pairs'}">Pairs</button><button type="button" data-num="pigtails" aria-pressed="${st.numbering === 'pigtails'}">Pigtails</button></div>`
+  // What each cabled jack reaches (made up for the demo, steady between renders).
+  const FAR = [['HDF-02 BB05', 'BB05'], ['HDF-01 BB03', 'BB03'], ['PANEL-B12-01', 'R12-1'], ['HDF-04 BB05', 'BB05'], ['PANEL-B07-02', 'R07-1']]
+  const farOf = (j, i) => {
+    const [eq, rack] = FAR[(j.row ?? j.n ?? 0) % FAR.length]
+    const pos = j.pos ? `${((j.row * 7) % 12) + 1}${COLS[(i + j.row) % 4]}/${j.pos}` : String((j.n % 24) + 1)
+    return { eq, rack, pos, cable: `c-${String(1000 + i * 3 + (j.row ?? 0)).slice(-4)}` }
+  }
+  /** What this equipment connects to: one line per far equipment, most cables first. A click lights those jacks. */
+  function farMap(items) { const m = new Map(); items.forEach((j, i) => { if (j.s) m.set(j.id, farOf(j, i)) }); return m }
+  function connectsTo(items, under) {
+    const by = new Map()
+    for (const [id, f] of farMap(items)) { const g = by.get(f.eq) ?? { eq: f.eq, rack: f.rack, n: 0, nets: new Set() }; g.n++; g.nets.add(items.find((j) => j.id === id).s); by.set(f.eq, g) }
+    const groups = [...by.values()].sort((a, b) => b.n - a.n)
+    const total = groups.reduce((n, g) => n + g.n, 0), max = groups[0]?.n ?? 1
+    return `<section class="links${under ? ' under' : ''}" aria-label="Connects to"><div class="links-head"><b>Connects to</b><span>${groups.length} · ${total} cables</span>${st.farSel ? '<button type="button" id="far-clear">Show all</button>' : ''}</div>
+      <div class="links-body">${groups.map((g) => `<button type="button" class="link-row" data-far="${esc(g.eq)}" aria-pressed="${st.farSel === g.eq}" title="${esc(g.eq)} · ${g.rack} · ${[...g.nets].map((n) => NET[n]).join(', ')} · ${g.n} cables"><span class="dots">${[...g.nets].map((n) => `<i style="background:var(--net-${n})"></i>`).join('')}</span><span class="n">${esc(g.eq)}</span><span class="w">${g.rack}</span><span class="c">${g.n}</span><span class="meter" style="width:${Math.round((g.n / max) * 100)}%"></span></button>`).join('') || '<div class="sub" style="padding:8px 10px">No cables yet.</div>'}</div></section>`
+  }
+  /** The selected jack's whole path (made up for the demo; the app follows the real cables).
+      A node has one jack (a port) or two (a panel or HDF position: the side the cable arrives at, then the other). */
+  function pathOf(j) {
+    const isHdf = j.id.startsWith('bb01')
+    const net = j.s || 'a'
+    const J = (text, cap, sel) => ({ text, cap, sel })
+    const N = (kind, name, rack, jacks, o = {}) => ({ kind, name, rack, jacks, ...o })
+    const L = (id) => ({ link: id, net })
+    const NONE = { none: true }
+    if (isHdf) {
+      const side = st.hdfSide.toLowerCase(), other = side === 'rear' ? 'front' : 'rear'
+      const here = (flip) => { const a = J(j.pos, `${jackName(j)} ${side}`, true), b = J(j.pos, other); return N('HDF', nearHdf.name, 'BB01', flip ? [b, a] : [a, b], { here: true }) }
+      if (!j.s) return [NONE, here(false), L(`c-${1200 + j.row * 7}`), N('Switch', 'SW-B12-03', 'R12-1', [J(j.row + 2, `Gi1/0/${j.row + 2}`)])]
+      const f = farOf(j, nearHdf.jacks.indexOf(j)), port = (j.row * 3 + j.pos) % 48 + 1
+      return [
+        N('Switch', 'SW-B12-03', 'R12-1', [J(port, `Gi1/0/${port}`)]), L(`c-${700 + j.row}`),
+        N('Panel', 'PANEL-B12-01', 'R12-1', [J(j.pos + j.row, 'front'), J(j.pos + j.row, 'rear')]), L(f.cable),
+        here(false), L(`c-${1300 + j.row}`),
+        N('HDF', 'HDF-02 BB05', 'BB05', [J(j.pos, `${jackName(j)} front`), J(j.pos, 'rear')]), L(`c-${880 + j.pos}`),
+        N(j.row % 2 ? 'AGG' : 'BB', j.row % 2 ? 'AGG-01' : 'BB-01', 'BB05', [J(j.pos + 6, `Port ${j.pos + 6}`)], { top: true }),
+      ]
+    }
+    const here = N('Switch', sw.name, 'R12-1', [J(j.label, j.name, true)], { here: true })
+    if (!j.s) return [here, NONE]
+    if (j.up) return [here, L('c-0412'), N('Panel', 'PANEL-B12-01', 'R12-1', [J(j.n - 24, 'front'), J(j.n - 24, 'rear')]), L('c-0655'), N('HDF', 'HDF-02 BB01', 'BB01', [J(1, '12A/1 rear'), J(1, 'front')]), L('c-1312'), N('HDF', 'HDF-02 BB05', 'BB05', [J(1, '12A/1 front'), J(1, 'rear')]), L('c-0881'), N('AGG', `AGG-0${j.n - 48}`, 'BB05', [J(12, 'Port 12')], { top: true })]
+    const f = farOf(j, sw.ports.indexOf(j)), n = f.pos.split('/').pop()
+    return [here, L(f.cable), N(f.eq.startsWith('HDF') ? 'HDF' : 'Panel', f.eq, f.rack, [J(n, `${f.pos} front`), J(n, 'rear')]), NONE]
+  }
+  function pathBar() {
+    if (st.screen !== 'hdf' && st.screen !== 'switch') return ''
+    const j = [...nearHdf.jacks, ...sw.ports].find((x) => x.id === st.selJack)
+    if (!j || (st.screen === 'hdf') !== j.id.startsWith('bb01')) return ''
+    const steps = pathOf(j), net = j.s || 'a'
+    const nodes = steps.filter((x) => x.jacks), cables = steps.filter((x) => x.link).length
+    const name = j.id.startsWith('bb01') ? `${jackName(j)} ${st.hdfSide.toLowerCase()}` : j.name
+    const rackAt = (i) => { for (let k = i; k >= 0; k--) if (steps[k].jacks) return steps[k].rack; return null }
+    const rackNext = (i) => { for (let k = i + 1; k < steps.length; k++) if (steps[k].jacks) return steps[k].rack; return null }
+    const first = nodes[0], last = nodes.at(-1)
+    const cells = steps.map((x, i) => {
+      if (x.none) return `<div class="pcell stub"><span></span><span>${i === 0 ? 'nothing connected ┄' : '┄ nothing connected'}</span></div>`
+      if (x.link) { const same = rackAt(i) === rackNext(i); return `<div class="pcell link ${x.net}${same ? ' band' : ''}"><span></span><span class="id">${x.link}</span></div>` }
+      const prevRack = i > 0 ? rackAt(i - 1) : null, nextRack = rackNext(i)
+      const isFirst = prevRack !== x.rack, isLast = nextRack !== x.rack
+      const one = x.jacks.length === 1, atStart = x === first
+      const jack = (q) => `<span class="pj ${j.s ? net : ''}${q.sel ? ' sel' : ''}">${q.text}</span>`
+      const jacks = one ? (atStart ? `<span class="gap"></span>${jack(x.jacks[0])}` : `${jack(x.jacks[0])}<span class="gap"></span>`) : `${jack(x.jacks[0])}<span class="bridge"></span>${jack(x.jacks[1])}`
+      const caps = one ? (atStart ? `<span></span><span>${x.jacks[0].cap}</span>` : `<span>${x.jacks[0].cap}</span><span></span>`) : `<span>${x.jacks[0].cap}</span><span>${x.jacks[1].cap}</span>`
+      const tag = x.here ? 'div' : 'button type="button"'
+      return `<div class="pcell node band${isFirst ? ' first' : ''}${isLast ? ' last' : ''}"><span class="rack">${isFirst ? `${bdi(SITE)} › ${x.rack}` : ''}</span><${tag} class="pn${x.here ? ' here' : ''}" ${x.here ? '' : `title="Open ${esc(x.name)} on this jack"`}><span class="pn-top"><span class="tape">${esc(x.name)}</span><span class="kind${x.top ? ' top' : ''}">${x.kind}</span></span><span class="pn-jacks">${jacks}</span><span class="pn-caps">${caps}</span></${x.here ? 'div' : 'button'}></div>`
+    }).join('')
+    const ends = first === last ? '' : ` · ${esc(first.name)} → ${esc(last.name)}`
+    return `<section class="pathbar" aria-label="Path"><div class="pathbar-head"><b>Path of ${esc(name)}</b><span class="sub">${cables ? `${cables} cable${cables === 1 ? '' : 's'}${ends}` : 'no cable on this jack'}</span><button type="button" id="path-close" aria-label="Close path">×</button></div><div class="pathline">${cells}</div></section>`
+  }
+  function cablesList(items, name, under) {
+    const q = (st.cableFilter || '').trim().toLowerCase()
+    const all = items.map((j, i) => ({ j, i })).filter(({ j }) => j.s).map(({ j, i }) => ({ j, f: farOf(j, i) }))
+    // The same order as the face: the highest row first.
+    all.sort((a, b) => (b.j.row ?? 0) - (a.j.row ?? 0))
+    const rows = all.filter(({ j, f }) => !q || `${name(j)} ${f.eq} ${f.rack} ${f.cable} ${NET[j.s]}`.toLowerCase().includes(q))
+    return `<section class="cables${under ? ' under' : ''}" aria-label="Cables"><div class="cables-head"><b>Cables</b><span>${rows.length === all.length ? all.length : `${rows.length} of ${all.length}`}</span><input id="cable-filter" type="search" placeholder="Filter: far end, cable…" value="${esc(st.cableFilter || '')}" aria-label="Filter cables"></div>
+      <div class="cables-body"><table><thead><tr><th>${under ? 'Port' : 'Position'}</th><th>Network</th><th>Far end</th><th>Where</th><th>Cable</th></tr></thead><tbody>${rows.map(({ j, f }) => `<tr data-jack-row="${j.id}" data-on="${st.selJack === j.id}"><td class="mono">${esc(name(j))}</td><td><i class="dot" style="background:var(--net-${j.s})"></i>${NET[j.s]}</td><td><b>${esc(f.eq)}</b> · <span class="mono">${f.pos}</span></td><td class="where">${bdi(SITE)} › ${bdi(CORE)} › ${f.rack}</td><td class="mono where">${f.cable}</td></tr>`).join('') || '<tr><td colspan="5" class="where">Nothing matches.</td></tr>'}</tbody></table></div></section>`
+  }
   function equipBar(name, neighbours) {
     return `<div class="bar"><div class="crumbs"><button data-go="tree">Sites</button><span class="sep">›</span><button>${bdi(SITE)}</button><span class="sep">›</span><button>${bdi(CORE)}</button><span class="sep">›</span><button>${neighbours.rack}</button><span class="sep">›</span><button class="nb" title="Previous in this rack: ${neighbours.prev}" aria-label="Previous in this rack">‹ ${neighbours.prev}</button><span class="here">${esc(name)}</span><button class="nb" title="Next in this rack: ${neighbours.next}" aria-label="Next in this rack">${neighbours.next} ›</button></div>
       <span class="spacer"></span>
@@ -480,22 +630,24 @@
     const eq = nearHdf
     const free = eq.jacks.filter((j) => !j.s).length
     $('#main').innerHTML = equipBar(eq.name, { rack: 'BB01', prev: 'HDF-01', next: 'HDF-03', sides: true }) +
-      `<div class="scroll"><div class="equip"><div class="meta"><span><b>HDF</b> · 12 rows × A–D · 288 positions</span><span>3U at U30</span><span>${free} free on the ${st.hdfSide.toLowerCase()}</span>${path([SITE, CORE, 'BB01'])}</div>
-      ${hdfFace(eq, st.hdfSide, (j) => ({ sel: st.selJack === j.id }))}
-      <div class="key"><span><i style="background:#fff"></i>free</span><span><i style="background:var(--net-a);border-color:var(--net-a)"></i>Network A</span><span><i style="background:var(--net-b);border-color:var(--net-b)"></i>Network B</span><span><i style="background:#fff;box-shadow:inset 0 0 0 2px var(--amber)"></i>proposed</span><span><i style="background:#fff;outline:2px solid var(--ink)"></i>selected</span></div></div></div>`
+      `<div class="scroll"><div class="equip wide"><div class="meta"><span><b>HDF</b> · 12 rows × A–D · 288 positions</span><span>3U at U30</span><span>${free} free on the ${st.hdfSide.toLowerCase()}</span>${path([SITE, CORE, 'BB01'])}</div>
+      <div class="equip-cols"><div class="face-col">${(() => { const fm = farMap(eq.jacks); return hdfFace(eq, st.hdfSide, (j) => ({ sel: st.selJack === j.id, hit: !!st.farSel && fm.get(j.id)?.eq === st.farSel })) })()}
+      <div class="key"><span><i style="background:#fff"></i>free</span><span><i style="background:var(--net-a);border-color:var(--net-a)"></i>Network A</span><span><i style="background:var(--net-b);border-color:var(--net-b)"></i>Network B</span><span><i style="background:#fff;box-shadow:inset 0 0 0 2px var(--amber)"></i>proposed</span><span><i style="background:#fff;outline:2px solid var(--ink)"></i>selected</span></div></div>${connectsTo(eq.jacks)}</div></div></div>` + pathBar()
   }
   function renderSwitch() {
+    const swFar = farMap(sw.ports)
     const bank = (g) => {
       const ps = sw.ports.filter((p) => p.g === g)
       const halves = g === 0 ? [ps.slice(0, 24), ps.slice(24)] : [ps]
-      return `<div class="bank"><span class="cap">${GROUPS[g].caption}</span><div class="ports">${halves.map((h) => h.map((p) => jackHtml(p, { sel: st.selJack === p.id })).join('')).join('<span class="gap"></span>')}</div></div>`
+      return `<div class="bank"><span class="cap">${GROUPS[g].caption}</span><div class="ports">${halves.map((h) => h.map((p) => jackHtml(p, { sel: st.selJack === p.id, hit: !!st.farSel && swFar.get(p.id)?.eq === st.farSel })).join('')).join('<span class="gap"></span>')}</div></div>`
     }
     const face = `<div class="banks">${bank(0)}${bank(1)}</div>`
     $('#main').innerHTML = equipBar(sw.name, { rack: 'R12-1', prev: 'PANEL-B12-02', next: 'SW-B12-04' }) +
       `<div class="scroll"><div class="equip"><div class="meta"><span><b>Switch</b> · 48 × 1G + 4 × 10G · 1U at U12</span><span>access · Network A</span><span>16 free</span>${path([SITE, 'בניין 12', 'R12-1'])}</div>
-      <div class="face"><div class="face-head"><span class="tape">${sw.name}</span><span class="side">52 ports</span></div>${face}</div>
+      <div class="face${st.farSel ? ' picking' : ''}"><div class="face-head"><span class="tape">${sw.name}</span><span class="side">52 ports</span></div>${face}</div>
       <div class="key"><span><i style="background:#fff"></i>free</span><span><i style="background:var(--net-a);border-color:var(--net-a)"></i>Network A</span><span><i style="background:var(--net-b);border-color:var(--net-b)"></i>Network B</span><span><i style="background:#fff;outline:2px solid var(--ink)"></i>selected</span><span><b style="color:var(--ink)">↑</b> uplink: reaches an AGG or BB</span></div>
-      <details class="strip" open><summary>Uplinks <span>2 of 52 ports reach an AGG or BB</span></summary><table><tr data-jack-row="sw:te1"><td class="mono">Te1/1/1</td><td><b>AGG-01 · Port 12</b> <span class="tag">AGG</span></td><td class="sub">4 cables · via PANEL-B12-01 › HDF-02 BB01 › HDF-02 BB05</td></tr><tr data-jack-row="sw:te2"><td class="mono">Te1/1/2</td><td><b>AGG-02 · Port 12</b> <span class="tag">AGG</span></td><td class="sub">4 cables · via PANEL-B12-01 › HDF-02 BB01 › HDF-02 BB05</td></tr></table></details></div></div>`
+      <details class="strip" open><summary>Uplinks <span>2 of 52 ports reach an AGG or BB</span></summary><table><tr data-jack-row="sw:te1"><td class="mono">Te1/1/1</td><td><b>AGG-01 · Port 12</b> <span class="tag">AGG</span></td><td class="sub">4 cables · via PANEL-B12-01 › HDF-02 BB01 › HDF-02 BB05</td></tr><tr data-jack-row="sw:te2"><td class="mono">Te1/1/2</td><td><b>AGG-02 · Port 12</b> <span class="tag">AGG</span></td><td class="sub">4 cables · via PANEL-B12-01 › HDF-02 BB01 › HDF-02 BB05</td></tr></table></details>
+      ${connectsTo(sw.ports, true)}</div></div>` + pathBar()
   }
   function portDetails() {
     const all = [...nearHdf.jacks, ...sw.ports]
@@ -515,7 +667,6 @@
       ? `<div class="chain"><div class="node none">no cable</div><div class="link">this side is free</div><div class="node here">${esc(label)}</div>${isHdf ? `<div class="link">bridge</div><div class="node">${esc(other)}</div><div class="link">cable C-${1200 + j.row * 7}</div><div class="node">SW-B12-03 · Port ${j.row + 2}</div>` : ''}</div>`
       : `<div class="chain"><div class="node">${esc(farEnd)}</div><div class="link">${j.up ? '4 cables · via HDF-02 BB05 › HDF-02 BB01 › PANEL-B12-01' : `cable C-${880 + (j.pos ?? j.n)}`}</div><div class="node here">${esc(label)}</div>${isHdf ? `<div class="link">bridge</div><div class="node">${esc(other)}</div><div class="link">cable C-${1300 + (j.row ?? 1)}</div><div class="node">HDF-02 BB05 · ${j.label} rear</div>` : ''}</div>`
     return `<div><h2>${esc(label)}</h2><div class="sub">${esc(eq)} · ${free ? 'free' : `cabled · ${NET[j.s]}`}</div></div>${actions}
-      <div class="section-label">Path</div>${chain}
       <div class="section-label">Details</div><dl class="kv"><dt>Type</dt><dd>${isHdf ? 'LC duplex' : j.g === 1 ? 'SFP+' : 'RJ45'}</dd><dt>Speed</dt><dd>${isHdf ? '—' : j.g === 1 ? '10G' : '1G'}</dd><dt>Description</dt><dd>—</dd></dl>`
   }
 
@@ -624,7 +775,7 @@
     $('#size').textContent = `This window: ${innerWidth} × ${innerHeight}`
   }
   function go(screen) {
-    st.screen = screen; st.menu = false; st.selJack = null; st.confirmDone = false; st.pickerOpen = false
+    st.screen = screen; st.farSel = null; st.menu = false; st.selJack = null; st.confirmDone = false; st.pickerOpen = false
     if (screen === 'patching') { st.dock = null; renderPatching.scrolled = false }
     else if (screen !== 'tree') st.dock = null
     try { history.replaceState(null, '', '#' + screen) } catch {}
@@ -636,6 +787,9 @@
     if (row) { st.selJack = row.dataset.jackRow; st.dock = true; st.dockTab = 'details'; return render() }
     const t = e.target.closest('button, input, select, summary')
     if (!t) { if (st.menu) { st.menu = false; render() } return }
+    if (t.dataset.far) { st.farSel = st.farSel === t.dataset.far ? null : t.dataset.far; return render() }
+    if (t.id === 'far-clear') { st.farSel = null; return render() }
+    if (t.id === 'path-close') { st.selJack = null; st.dock = null; return render() }
     if (t.dataset.screen) return go(t.dataset.screen)
     if (t.dataset.jsize) { st.jackSize = +t.dataset.jsize; return render() }
     if (t.dataset.num) { st.numbering = t.dataset.num; try { localStorage.setItem('demo-hdf-numbering', st.numbering) } catch {} return render() }
@@ -687,6 +841,7 @@
     if (e.target.id === 'far-eq') { st.farRows = Number(e.target.value); st.farStart = null; st.pickerOpen = false; render() }
   })
   document.addEventListener('input', (e) => {
+    if (e.target.id === 'cable-filter') { st.cableFilter = e.target.value; const pos = e.target.selectionStart; render(); const c = $('#cable-filter'); c.focus(); try { c.setSelectionRange(pos, pos) } catch {} return }
     if (e.target.id === 'count') {
       const v = e.target.value.trim()
       if (/^\d+$/.test(v) && +v >= 1 && +v <= 500) { st.count = +v; const pos = e.target.selectionStart; render(); const c = $('#count'); c.focus(); try { c.setSelectionRange(pos, pos) } catch {} }
