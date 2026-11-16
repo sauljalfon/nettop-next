@@ -54,7 +54,7 @@ test.beforeEach(async ({ page }) => {
   await fitted(page)
 })
 
-test('clicking equipment in the rack opens its page, with the equipment marked in the rack strip', async ({
+test('clicking equipment in the rack opens its page, named in the bar', async ({
   page,
 }) => {
   await openHdf01(page)
@@ -64,11 +64,6 @@ test('clicking equipment in the rack opens its page, with the equipment marked i
     /rack:rack-sm01\/equipment:hdf-01$/,
   )
   await expect(page.locator('aside.studio-drawer')).toHaveCount(0) // the inspector stays closed
-  const strip = page.getByTestId('rack-strip')
-  await expect(strip.locator('[data-equipment-id="hdf-01"]')).toHaveAttribute(
-    'data-selected',
-    'true',
-  )
   await expect(
     page
       .getByRole('navigation', { name: 'Breadcrumbs' })
@@ -76,7 +71,7 @@ test('clicking equipment in the rack opens its page, with the equipment marked i
   ).toHaveText('HDF-01')
 })
 
-test('a block in a node preview opens the equipment page, and the rack strip navigates to other equipment', async ({
+test('a block in a node preview opens the equipment page, and ‹ › in the bar navigate to the neighbours', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
@@ -98,11 +93,8 @@ test('a block in a node preview opens the equipment page, and the rack strip nav
     'data-location',
     /rack:rack-core-01\/equipment:agg-03$/,
   )
-  // Clicking another equipment in the strip navigates (and Back returns).
-  await page
-    .getByTestId('rack-strip')
-    .locator('[data-equipment-id="hdf-02"]')
-    .click()
+  // Clicking the neighbour in the bar navigates (and Back returns).
+  await page.getByRole('button', { name: 'Next in this rack' }).click()
   await expect(root(page)).toHaveAttribute('data-location', /equipment:hdf-02$/)
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expect(root(page)).toHaveAttribute('data-location', /equipment:agg-03$/)

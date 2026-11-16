@@ -53,6 +53,132 @@
   font-weight: 600;
   color: var(--ink);
 }
+/* The equipment page's one-line bar: it never wraps; long names truncate at their end. */
+.equipment-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.equipment-bar .phys-back {
+  flex: none;
+}
+.equipment-bar .crumbs {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* What gives way first: the places above, then the neighbours, last this page's name. */
+.equipment-bar .crumb-link {
+  flex: 0 6 auto;
+  min-width: 2ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.equipment-bar .crumb-sep {
+  flex: none;
+}
+.equipment-bar .crumb-link.neighbour {
+  flex-shrink: 3;
+  max-width: 14em;
+}
+.crumb-here {
+  display: inline-flex;
+  flex: 0 1 auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 2ch;
+}
+.crumb-here-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* Cut in its own direction, so a Hebrew name keeps its start. */
+.crumb-here-name bdi {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crumb-here .proposed-tag {
+  flex: none;
+}
+.equipment-bar-controls {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  align-items: center;
+}
+.equipment-bar-controls .btn {
+  height: 28px;
+  white-space: nowrap;
+}
+.more-menu {
+  position: relative;
+}
+.more-button {
+  padding: 0 8px;
+}
+.more-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: var(--shadow-pop);
+}
+.more-list button {
+  padding: 7px 10px;
+  font-size: var(--t-sm);
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+}
+.more-list button:hover,
+.more-list button:focus-visible {
+  background: var(--paper-sunk);
+}
+.more-list button.danger {
+  color: var(--danger);
+}
+.bar-boxes:empty {
+  display: none;
+}
+.bar-boxes {
+  margin-top: 8px;
+}
+/* The details line under the bar: kind, size, role, free count, place. */
+.equipment-details {
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+}
+.equipment-details b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.equipment-layout.no-strip {
+  grid-template-columns: minmax(0, 1fr) 300px;
+}
+@container (max-width: 1130px) {
+  .equipment-layout.no-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .equipment-layout.no-strip > .endpoint-detail {
+    grid-column: 1;
+  }
+}
 .scope-note {
   margin-top: 4px;
   font-size: var(--t-sm);

@@ -100,9 +100,16 @@ test('Explore search shows at most 50 of each, with a "refine the search" note',
 
 /** Downloads a sheet and returns its name and bytes. */
 async function printSheet(page: Page) {
+  // A rack has the button; an equipment page has it in the ⋯ menu.
+  const more = page.getByRole('button', { name: 'More actions' })
+  if (await more.count()) await more.click()
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Print sheet' }).click(),
+    page
+      .getByRole((await more.count()) ? 'menuitem' : 'button', {
+        name: 'Print sheet',
+      })
+      .click(),
   ])
   const path = await download.path()
   return { name: download.suggestedFilename(), bytes: await readFile(path!) }

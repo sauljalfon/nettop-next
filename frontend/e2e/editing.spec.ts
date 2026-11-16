@@ -107,7 +107,8 @@ test('ED-08 deleting proposed equipment says its addition is dropped; the equipm
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await block(page, 'edge-17').click()
   await expectMark(page, 'data-physical-level', 'equipment')
-  await page.getByRole('button', { name: 'Delete EDGE-17…' }).click()
+  await page.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Delete…' }).click()
   await expect(confirm(page, 'Confirm delete')).toContainText(
     'its 24 ports and 3 cables',
   )

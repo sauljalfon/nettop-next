@@ -97,6 +97,8 @@ interface Props {
   columns?: number
   /** No face-card header or legend and no own HDF scroll: the parent scrolls. */
   bare?: boolean
+  /** No face-card header and no buttons (the page's bar and details line say it); the legend stays. */
+  headless?: boolean
 }
 
 /**
@@ -129,6 +131,7 @@ export default function FaceView({
   legend: showLegend = true,
   columns = FACE_COLUMNS,
   bare,
+  headless,
 }: Props) {
   const numbering = useHdfNumbering()
   const networkName = (id?: string) => networks.find((n) => n.id === id)?.name
@@ -254,7 +257,7 @@ export default function FaceView({
       className={bare ? 'face-card face-bare' : 'face-card'}
       aria-label={`${equipment.name} face`}
     >
-      {!bare && (
+      {!bare && !headless && (
         <header className="face-head">
           <div>
             <h2>
@@ -309,7 +312,7 @@ export default function FaceView({
           </div>
         </header>
       )}
-      {!bare && editSlot}
+      {!bare && !headless && editSlot}
 
       <div ref={container} onKeyDown={onKeyDown}>
         {face.kind === 'switch' && (

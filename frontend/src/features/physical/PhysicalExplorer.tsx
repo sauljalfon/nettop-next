@@ -27,13 +27,17 @@ import { buildInventory, routeMarks } from './inventory'
 import NodeLevel from './NodeLevel'
 import EquipmentPage from './EquipmentPage'
 import RackElevation from './RackElevation'
+import EquipmentBar from './EquipmentBar'
+import type { MenuItem } from './MoreMenu'
+import DeleteEquipment from '../planning/DeleteEquipment'
+import DuplicateEquipment from '../planning/DuplicateEquipment'
 import { hasPorts } from '../../shared/equipment'
 import { faceMarks, pageFace } from './equipmentModel'
 import PrintSheet from './PrintSheet'
 import RouteTrail from './RouteTrail'
 import { currentStep, trailSteps } from './trail'
 import { switchSide } from './detail'
-import { rackElevation } from './elevation'
+import { rackElevation, rackNeighbours } from './elevation'
 import { physicalSession, type PhysicalSession } from './physicalSession'
 import { resolveLocation } from './location'
 import SiteCanvas from './SiteCanvas'
@@ -209,6 +213,55 @@ export default function PhysicalExplorer({
     [onPage, index, equipment, location.side, location.endpointId, marks],
   )
   const faceMark = face ? faceMarks(face) : undefined
+  const neighbours = useMemo(
+    () =>
+      onPage
+        ? rackNeighbours(inv, location.rackId ?? '', location.equipmentId!)
+        : {},
+    [onPage, inv, location.rackId, location.equipmentId],
+  )
+  const neighbour = (id?: string) =>
+    id && index.equipment.get(id)
+      ? { id, name: index.equipment.get(id)!.name }
+      : undefined
+  // The ⋯ menu's Duplicate… and Delete… open their box under the bar.
+  const [ask, setAsk] = useState<{ kind: 'duplicate' | 'delete'; n: number }>()
+  useEffect(() => setAsk(undefined), [location.equipmentId])
+  const menuKey = `more:${location.equipmentId ?? ''}`
+  const menuItems: MenuItem[] = !equipment
+    ? []
+    : [
+        ...(face
+          ? [{ label: 'Print sheet', onSelect: () => setSheet('equipment') }]
+          : []),
+        ...(edit && face
+          ? [
+              {
+                label: 'Duplicate…',
+                onSelect: () =>
+                  setAsk((a) => ({ kind: 'duplicate', n: (a?.n ?? 0) + 1 })),
+              },
+            ]
+          : []),
+        ...(face
+          ? [
+              {
+                label: 'Show on map',
+                onSelect: () => onShowOnMap(equipment.id),
+              },
+            ]
+          : []),
+        ...(edit && face
+          ? [
+              {
+                label: 'Delete…',
+                danger: true,
+                onSelect: () =>
+                  setAsk((a) => ({ kind: 'delete', n: (a?.n ?? 0) + 1 })),
+              },
+            ]
+          : []),
+      ]
   // The workspace's selected equipment follows the page (also after Back).
   useEffect(() => {
     if (onPage && location.equipmentId !== selectedEquipmentId)
@@ -287,38 +340,97 @@ export default function PhysicalExplorer({
       }
     >
       <div className="physical-top">
-        <div className="physical-nav">
-          <button
-            className="btn phys-back"
-            disabled={history.back.length === 0}
-            onClick={session.back}
-          >
-            <ArrowLeft size={13} aria-hidden />
-            Back
-          </button>
-          <nav aria-label="Breadcrumbs" className="crumbs">
-            {crumbs.map((c, i) => (
-              <Fragment key={`${c.location.level}:${c.label}`}>
-                {i > 0 && <PlaceSep className="crumb-sep" />}
-                {i === crumbs.length - 1 ? (
-                  <strong aria-current="page">
-                    {i === 0 ? c.label : <Name text={c.label} />}
-                  </strong>
-                ) : (
-                  <button
-                    className="crumb-link"
-                    onClick={() => session.navigate(c.location)}
-                  >
-                    {i === 0 ? c.label : <Name text={c.label} />}
-                  </button>
-                )}
-              </Fragment>
-            ))}
-          </nav>
-        </div>
-        <p className="scope-note" data-testid="scope-note">
-          {scopeNote(snapshot.networks, selectedNetwork)}
-        </p>
+        {onPage && equipment ? (
+          <>
+            <EquipmentBar
+              crumbs={crumbs}
+              canBack={history.back.length > 0}
+              onBack={session.back}
+              onNavigate={(l) => session.navigate(l)}
+              previous={neighbour(neighbours.previous)}
+              next={neighbour(neighbours.next)}
+              onOpen={openEquipment}
+              proposed={
+                snapshot.context === 'planned' &&
+                !installedIds.has(equipment.id)
+              }
+              side={
+                face && face.kind !== 'switch'
+                  ? (location.side ?? 'front')
+                  : undefined
+              }
+              onSide={setSide}
+              numbering={face?.kind === 'hdf'}
+              onOpenInventory={
+                face ? () => onOpenInInventory(equipment.name) : undefined
+              }
+              menuItems={menuItems}
+              menuOpenerKey={menuKey}
+            />
+            <div className="bar-boxes">
+              {edit && face && ask?.kind === 'duplicate' && (
+                <DuplicateEquipment
+                  snapshot={snapshot}
+                  index={index}
+                  equipmentId={equipment.id}
+                  edit={edit}
+                  where="page"
+                  startOpen={ask.n}
+                  opener={menuKey}
+                  onClosed={() => setAsk(undefined)}
+                />
+              )}
+              {edit && face && ask?.kind === 'delete' && (
+                <DeleteEquipment
+                  snapshot={snapshot}
+                  index={index}
+                  equipmentId={equipment.id}
+                  proposed={!installedIds.has(equipment.id)}
+                  edit={edit}
+                  where="page"
+                  startOpen={ask.n}
+                  opener={menuKey}
+                  onClosed={() => setAsk(undefined)}
+                />
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="physical-nav">
+              <button
+                className="btn phys-back"
+                disabled={history.back.length === 0}
+                onClick={session.back}
+              >
+                <ArrowLeft size={13} aria-hidden />
+                Back
+              </button>
+              <nav aria-label="Breadcrumbs" className="crumbs">
+                {crumbs.map((c, i) => (
+                  <Fragment key={`${c.location.level}:${c.label}`}>
+                    {i > 0 && <PlaceSep className="crumb-sep" />}
+                    {i === crumbs.length - 1 ? (
+                      <strong aria-current="page">
+                        {i === 0 ? c.label : <Name text={c.label} />}
+                      </strong>
+                    ) : (
+                      <button
+                        className="crumb-link"
+                        onClick={() => session.navigate(c.location)}
+                      >
+                        {i === 0 ? c.label : <Name text={c.label} />}
+                      </button>
+                    )}
+                  </Fragment>
+                ))}
+              </nav>
+            </div>
+            <p className="scope-note" data-testid="scope-note">
+              {scopeNote(snapshot.networks, selectedNetwork)}
+            </p>
+          </>
+        )}
         {trail.length > 0 && (
           <RouteTrail
             title={trailTitle}
@@ -423,8 +535,6 @@ export default function PhysicalExplorer({
             }}
             onFind={onFindFromEndpoint}
             onShowOnMap={onShowOnMap}
-            onOpenInInventory={onOpenInInventory}
-            onPrint={() => setSheet('equipment')}
             marks={marks}
             edit={edit}
             onFixed={onFixed}

@@ -48,6 +48,8 @@ const faceWidth = (page: Page) =>
     .evaluate((el) => el.getBoundingClientRect().width)
 
 test('VP-02 a switch page keeps clear of the inspector', async ({ page }) => {
+  // Without the rack strip the face is at its widest (900px) on a wide screen; at 1280 the inspector narrows it.
+  await page.setViewportSize({ width: 1280, height: 720 })
   await openEdge17(page)
   const wide = await faceWidth(page)
 

@@ -85,3 +85,21 @@ export function rackElevation(
   }
   return rows
 }
+
+/**
+ * The equipment drawn just above (`previous`, the next higher unit) and just
+ * below (`next`) one equipment in its rack. Rack items count; so does proposed
+ * equipment when the inventory is a plan's.
+ */
+export function rackNeighbours(
+  inv: Inventory,
+  rackId: string,
+  equipmentId: string,
+): { previous?: string; next?: string } {
+  const ids = rackElevation(inv, rackId).flatMap((r) =>
+    r.kind === 'equipment' ? [r.equipmentId] : [],
+  )
+  const at = ids.indexOf(equipmentId)
+  if (at < 0) return {}
+  return { previous: ids[at - 1], next: ids[at + 1] }
+}

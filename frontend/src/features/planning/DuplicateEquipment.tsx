@@ -1,5 +1,5 @@
 import { Copy } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import LocationPicker from '../patching/LocationPicker'
@@ -34,35 +34,52 @@ export default function DuplicateEquipment({
   equipmentId,
   edit,
   where,
+  startOpen,
+  opener,
+  onClosed,
 }: {
   snapshot: Snapshot
   index: SnapshotIndex
   equipmentId: string
   edit: PlanEdit
   where: 'inspector' | 'page'
+  /** A request to open the box at once (the page's ⋯ menu); a new number asks again. */
+  startOpen?: number
+  /** The ⋯ menu opens this: no button of its own, and focus returns to the element marked with this key. */
+  opener?: string
+  /** Called when the box closes (the page's ⋯ menu forgets its request). */
+  onClosed?: () => void
 }) {
-  const [open, setOpen] = useState(false)
-  const key = `duplicate:${where}:${equipmentId}`
+  const [open, setOpen] = useState(startOpen !== undefined)
+  useEffect(() => {
+    if (startOpen !== undefined) setOpen(true)
+  }, [startOpen])
+  const key = opener ?? `duplicate:${where}:${equipmentId}`
   if (index.equipment.get(equipmentId)?.kind === 'rack_item') return null
   return (
     <div className="delete-equipment" data-testid={`duplicate-${where}`}>
-      <button
-        type="button"
-        className="btn"
-        data-opener={key}
-        aria-label={`Duplicate ${index.equipment.get(equipmentId)?.name ?? ''}…`}
-        onClick={() => setOpen(true)}
-      >
-        <Copy size={14} aria-hidden />
-        Duplicate…
-      </button>
+      {!opener && (
+        <button
+          type="button"
+          className="btn"
+          data-opener={key}
+          aria-label={`Duplicate ${index.equipment.get(equipmentId)?.name ?? ''}…`}
+          onClick={() => setOpen(true)}
+        >
+          <Copy size={14} aria-hidden />
+          Duplicate…
+        </button>
+      )}
       {open && (
         <DuplicateBox
           snapshot={snapshot}
           equipmentId={equipmentId}
           edit={edit}
           openerKey={key}
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            setOpen(false)
+            onClosed?.()
+          }}
         />
       )}
     </div>

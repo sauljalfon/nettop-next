@@ -280,7 +280,8 @@ test('PG-05 Duplicate keeps the groups and their port types, and never a serial 
     },
   })
   await openSwitch(page, id, switchId)
-  await page.getByRole('button', { name: 'Duplicate SW-G…' }).click()
+  await page.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Duplicate…' }).click()
   const dup = box(page, 'Duplicate')
   await expect(dup.getByTestId('copy-preview').locator('li')).toHaveCount(1)
   await dup.getByRole('button', { name: 'Duplicate 1' }).click()

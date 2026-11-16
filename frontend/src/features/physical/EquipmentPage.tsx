@@ -9,7 +9,6 @@ import { editMode } from '../details/model'
 import EquipmentDetails from '../details/EquipmentDetails'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import DeleteEquipment from '../planning/DeleteEquipment'
-import DuplicateEquipment from '../planning/DuplicateEquipment'
 import EndpointEdit from '../planning/EndpointEdit'
 import type { PlanEdit } from '../planning/editing'
 import PortDetails from '../details/PortDetails'
@@ -20,6 +19,7 @@ import { buildSheet } from '../paths/sheet'
 import EndpointDetail from './EndpointDetail'
 import type { ElevationRow } from './elevation'
 import {
+  cellLook,
   connectionChain,
   detailModel,
   endpointTooltip,
@@ -51,8 +51,6 @@ export default function EquipmentPage({
   onGoToPeer,
   onFind,
   onShowOnMap,
-  onPrint,
-  onOpenInInventory,
   marks,
   routeName,
   edit,
@@ -83,9 +81,6 @@ export default function EquipmentPage({
   onGoToPeer: (endpointId: string) => void
   onFind: (endpointId: string) => void
   onShowOnMap: (equipmentId: string) => void
-  onPrint: () => void
-  /** Open the Inventory's Ports list with only this equipment. */
-  onOpenInInventory: (equipmentName: string) => void
   /** The selected route's marks and its destination's name. */
   marks: RouteMarks
   routeName?: string
@@ -216,33 +211,34 @@ export default function EquipmentPage({
     side,
     networks: snapshot.networks,
   })
+  const faceCells =
+    face.kind === 'switch'
+      ? face.rows.flat()
+      : face.kind === 'panel'
+        ? face.face.positions
+        : face.face.blocks.flatMap((b) => b.positions)
+  const free = faceCells.filter((c) => cellLook(c).fill === 'free').length
   return (
     <div className="equipment-page">
-      <div className="equipment-layout">
-        <RackStrip
-          inv={inv}
-          rackId={location.rackId ?? ''}
-          name={index.racks.get(location.rackId ?? '')?.name ?? ''}
-          rows={rackRows}
-          colors={colors}
-          onOpen={onOpenEquipment}
-        />
+      <div className="equipment-layout no-strip">
         <div className="equipment-main">
-          {equipment.kind === 'switch' && (
-            <UplinksSummary
-              equipment={equipment}
-              state={uplinks}
-              selectedEndpointId={location.endpointId}
-              onSelect={onSelectEndpoint}
-            />
-          )}
+          <p className="equipment-details" data-testid="equipment-details">
+            {meta}
+            {free > 0 && ` · ${free} free`}
+            {(index.locationParts.get(equipment.id)?.length ?? 0) > 0 && (
+              <>
+                {' · '}
+                <PlacePath parts={index.locationParts.get(equipment.id)!} />
+              </>
+            )}
+          </p>
           <FaceView
             uplinkIds={uplinkIds}
             equipment={equipment}
             face={face}
             side={side}
             meta={meta}
-            place={index.locationParts.get(equipment.id)}
+            headless
             networks={snapshot.networks}
             colors={colors}
             tooltip={(cell, ordinal) =>
@@ -260,33 +256,15 @@ export default function EquipmentPage({
               )
             }}
             onSide={onSide}
-            onPrint={onPrint}
-            onOpenInventory={() => onOpenInInventory(equipment.name)}
-            proposed={
-              snapshot.context === 'planned' && !installedIds.has(equipment.id)
-            }
-            editSlot={
-              edit && (
-                <>
-                  <DuplicateEquipment
-                    snapshot={snapshot}
-                    index={index}
-                    equipmentId={equipment.id}
-                    edit={edit}
-                    where="page"
-                  />
-                  <DeleteEquipment
-                    snapshot={snapshot}
-                    index={index}
-                    equipmentId={equipment.id}
-                    proposed={!installedIds.has(equipment.id)}
-                    edit={edit}
-                    where="page"
-                  />
-                </>
-              )
-            }
           />
+          {equipment.kind === 'switch' && (
+            <UplinksSummary
+              equipment={equipment}
+              state={uplinks}
+              selectedEndpointId={location.endpointId}
+              onSelect={onSelectEndpoint}
+            />
+          )}
         </div>
         {popover && edit && (
           <ConnectPopover

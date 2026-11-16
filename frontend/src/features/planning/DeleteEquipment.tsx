@@ -19,6 +19,8 @@ export default function DeleteEquipment({
   edit,
   where,
   startOpen,
+  opener,
+  onClosed,
 }: {
   snapshot: Snapshot
   index: SnapshotIndex
@@ -28,24 +30,30 @@ export default function DeleteEquipment({
   where: 'inspector' | 'page'
   /** A request to open the confirm at once (the Inventory's Delete…); a new number asks again. */
   startOpen?: number
+  /** The equipment page's ⋯ menu opens this: no button of its own, and focus returns to the element marked with this key. */
+  opener?: string
+  /** Called when the confirm closes (the page's ⋯ menu forgets its request). */
+  onClosed?: () => void
 }) {
   const [asking, setAsking] = useState(startOpen !== undefined)
   useEffect(() => {
     if (startOpen !== undefined) setAsking(true)
   }, [startOpen])
-  const key = `delete:${where}:${equipmentId}`
+  const key = opener ?? `delete:${where}:${equipmentId}`
   return (
     <div className="delete-equipment" data-testid={`delete-equipment-${where}`}>
-      <button
-        type="button"
-        className="btn danger-outline"
-        data-opener={key}
-        aria-label={`Delete ${index.equipment.get(equipmentId)?.name ?? ''}…`}
-        onClick={() => setAsking(true)}
-      >
-        <Trash2 size={14} aria-hidden />
-        Delete…
-      </button>
+      {!opener && (
+        <button
+          type="button"
+          className="btn danger-outline"
+          data-opener={key}
+          aria-label={`Delete ${index.equipment.get(equipmentId)?.name ?? ''}…`}
+          onClick={() => setAsking(true)}
+        >
+          <Trash2 size={14} aria-hidden />
+          Delete…
+        </button>
+      )}
       {asking && (
         <DeleteEquipmentConfirm
           snapshot={snapshot}
@@ -54,7 +62,10 @@ export default function DeleteEquipment({
           proposed={proposed}
           edit={edit}
           openerKey={key}
-          onClose={() => setAsking(false)}
+          onClose={() => {
+            setAsking(false)
+            onClosed?.()
+          }}
         />
       )}
     </div>

@@ -107,7 +107,8 @@ test('P2-3 rename equipment the plan adds: the name saves in the plan, shows on 
   const sw = await addSwitch(request, id, 'rack-a03', 'REN-1', 3, 4)
   await page.goto(`/?plan=${id}`)
   await fitted(page)
-  const title = () => page.locator('.face-head h2')
+  const title = () =>
+    page.locator('[data-testid="equipment-bar"] [aria-current="page"]')
   const changes = page.getByRole('complementary', { name: 'Changes & plans' })
   const edit = async () => {
     await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
