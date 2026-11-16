@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ConnectPopover from '../patching/ConnectPopover'
 import type { Snapshot } from '../../shared/types'
-import Chip from '../../shared/ui/Chip'
-import Name from '../../shared/ui/Name'
 import Pieces from '../../shared/ui/Pieces'
 import PlacePath from '../../shared/ui/PlacePath'
 import { editMode } from '../details/model'
 import EquipmentDetails from '../details/EquipmentDetails'
 import type { SnapshotIndex } from '../map/snapshotIndex'
-import DeleteEquipment from '../planning/DeleteEquipment'
 import EndpointEdit from '../planning/EndpointEdit'
 import type { PlanEdit } from '../planning/editing'
 import PortDetails from '../details/PortDetails'
@@ -17,7 +14,6 @@ import UplinksSummary from '../paths/UplinksSummary'
 import { useUplinks } from '../paths/useUplinks'
 import { buildSheet } from '../paths/sheet'
 import EndpointDetail from './EndpointDetail'
-import type { ElevationRow } from './elevation'
 import {
   cellLook,
   connectionChain,
@@ -28,10 +24,8 @@ import {
   type Face,
 } from './equipmentModel'
 import FaceView from './FaceView'
-import type { Inventory } from './inventory'
 import type { PhysicalLocation } from './location'
 import type { RouteMarks } from './inventory'
-import RackStrip from './RackStrip'
 
 /**
  * The equipment page: its rack on the left (this equipment marked), the face in
@@ -40,12 +34,9 @@ import RackStrip from './RackStrip'
 export default function EquipmentPage({
   snapshot,
   index,
-  inv,
   location,
   face,
-  rackRows,
   colors,
-  onOpenEquipment,
   onSelectEndpoint,
   onClearEndpoint,
   onSide,
@@ -70,13 +61,10 @@ export default function EquipmentPage({
   planId?: string
   snapshot: Snapshot
   index: SnapshotIndex
-  inv: Inventory
   location: PhysicalLocation
   /** Absent for a rack item: it has no ports, so no face. */
   face?: Face
-  rackRows: ElevationRow[]
   colors: ReadonlyMap<string, string>
-  onOpenEquipment: (equipmentId: string) => void
   onSelectEndpoint: (endpointId: string) => void
   /** Clears the selected endpoint: the port panel closes. */
   onClearEndpoint: () => void
@@ -151,74 +139,31 @@ export default function EquipmentPage({
       snapshot.context === 'planned' && !installedIds.has(equipment.id)
     return (
       <div className="equipment-page">
-        <div className="equipment-layout">
-          <RackStrip
-            inv={inv}
-            rackId={location.rackId ?? ''}
-            name={index.racks.get(location.rackId ?? '')?.name ?? ''}
-            rows={rackRows}
-            colors={colors}
-            onOpen={onOpenEquipment}
-          />
+        <div className="equipment-layout no-strip no-detail">
           <div className="equipment-main">
-            <section
-              className="face-card rack-item-card"
-              aria-label={`${equipment.name} rack item`}
-              data-item-type={equipment.itemType}
-            >
-              <header className="face-head">
-                <div>
-                  <h2>
-                    <Name text={equipment.name} />
-                    {proposed && (
-                      <Chip
-                        kind="proposed"
-                        className="proposed-tag"
-                        testId="proposed-tag"
-                      >
-                        Proposed
-                      </Chip>
-                    )}
-                  </h2>
-                  <p>
-                    <Pieces pieces={equipmentSubtitle(equipment)} />
-                    {(index.locationParts.get(equipment.id)?.length ?? 0) >
-                      0 && (
-                      <>
-                        {' · '}
-                        <PlacePath
-                          parts={index.locationParts.get(equipment.id)!}
-                        />
-                      </>
-                    )}
-                  </p>
-                </div>
-              </header>
-              <p className="muted" data-testid="no-ports">
-                No ports
-              </p>
-              {edit && (
-                <DeleteEquipment
-                  snapshot={snapshot}
-                  index={index}
-                  equipmentId={equipment.id}
-                  proposed={!installedIds.has(equipment.id)}
-                  edit={edit}
-                  where="page"
-                />
+            <p className="equipment-details" data-testid="equipment-details">
+              <Pieces pieces={equipmentSubtitle(equipment)} />
+              {(index.locationParts.get(equipment.id)?.length ?? 0) > 0 && (
+                <>
+                  {' · '}
+                  <PlacePath parts={index.locationParts.get(equipment.id)!} />
+                </>
               )}
-              <EquipmentDetails
-                key={equipment.id}
-                equipment={equipment}
-                mode={editMode(
-                  snapshot.context === 'installed' ? 'installed' : 'planned',
-                  proposed,
-                  !!edit,
-                )}
-                edit={edit}
-                onFixed={onFixed}
-              />
-            </section>
+            </p>
+            <p className="muted" data-testid="no-ports">
+              No ports
+            </p>
+            <EquipmentDetails
+              key={equipment.id}
+              equipment={equipment}
+              mode={editMode(
+                snapshot.context === 'installed' ? 'installed' : 'planned',
+                proposed,
+                !!edit,
+              )}
+              edit={edit}
+              onFixed={onFixed}
+            />
           </div>
         </div>
       </div>

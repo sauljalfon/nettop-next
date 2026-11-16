@@ -51,10 +51,13 @@ test('RI-14 in a plan, Duplicate is not offered for a rack item', async ({
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await page.locator('.rack-block[data-equipment-id="ups-a03"]').click()
   await expect(level(page)).toHaveAttribute('data-physical-level', 'equipment')
+  await page.getByRole('button', { name: 'More actions' }).click()
   await expect(
-    page.getByRole('button', { name: 'Delete UPS-A03…' }).first(),
+    page.getByRole('menu').getByRole('menuitem', { name: 'Delete…' }),
   ).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Duplicate/ })).toHaveCount(0)
+  await expect(page.getByRole('menuitem', { name: /^Duplicate/ })).toHaveCount(
+    0,
+  )
 })
 
 test('RI-14 the Inventory’s Type column and pill list the rack items', async ({

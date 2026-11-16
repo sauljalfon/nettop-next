@@ -85,7 +85,8 @@ test('RI-13 a rack item is dragged in from the library, moved, recorded, and del
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await block(page, added.id).click()
-  await page.getByRole('button', { name: 'Delete UPS-RI13…' }).first().click()
+  await page.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Delete…' }).click()
   await expect(
     page.getByText('Removes UPS-RI13. It has no ports or cables.'),
   ).toBeVisible()

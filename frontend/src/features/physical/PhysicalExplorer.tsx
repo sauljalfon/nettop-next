@@ -251,7 +251,7 @@ export default function PhysicalExplorer({
               },
             ]
           : []),
-        ...(edit && face
+        ...(edit
           ? [
               {
                 label: 'Delete…',
@@ -382,7 +382,7 @@ export default function PhysicalExplorer({
                   onClosed={() => setAsk(undefined)}
                 />
               )}
-              {edit && face && ask?.kind === 'delete' && (
+              {edit && ask?.kind === 'delete' && (
                 <DeleteEquipment
                   snapshot={snapshot}
                   index={index}
@@ -522,12 +522,9 @@ export default function PhysicalExplorer({
           <EquipmentPage
             snapshot={snapshot}
             index={index}
-            inv={inv}
             location={location}
             face={face}
-            rackRows={rackRows}
             colors={colors}
-            onOpenEquipment={openEquipment}
             onSelectEndpoint={selectEndpoint}
             onClearEndpoint={clearEndpoint}
             onSide={setSide}

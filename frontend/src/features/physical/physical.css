@@ -654,41 +654,6 @@
 .studio.drawer-right .equipment-page {
   padding-right: var(--clear-of-right-drawer);
 }
-.rack-strip {
-  width: 150px;
-}
-.strip-rack {
-  position: relative;
-  margin-top: 6px;
-  background: var(--steel);
-  border-radius: 6px;
-}
-.strip-block {
-  position: absolute;
-  right: 5px;
-  left: 5px;
-  display: flex;
-  align-items: center;
-  padding: 0 5px;
-  overflow: hidden;
-  /* A small tape: the name at the strip's size; too small to read at 11 px, so the title has it. */
-  font-size: var(--t-min);
-  line-height: 10px;
-  color: var(--tape-ink);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: var(--tape);
-  border: 0;
-  border-left: 4px solid var(--steel-hover);
-  border-radius: var(--r-hw);
-}
-.strip-block[data-on-route='true'] {
-  outline: 2px solid var(--route);
-}
-.strip-block[data-selected='true'] {
-  outline: 2px solid var(--paper);
-  outline-offset: 1px;
-}
 /* The page: rack strip, face, endpoint detail. Beside each other when there is room,
    the detail below the face when there is not (D34): measured on the page's content width. */
 .equipment-page {

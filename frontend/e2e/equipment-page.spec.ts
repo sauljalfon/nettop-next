@@ -307,3 +307,59 @@ test('EP-08 a switch uplinks are under its face', async ({ page }) => {
     path: 'test-results/workbench-2/edge-17-port-selected.png',
   })
 })
+
+const openUps = (page: Page) =>
+  openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'ups-a03')
+
+test('EP-09 a rack item’s page has the same bar and details line', async ({
+  page,
+  request,
+}) => {
+  await openUps(page)
+  await expect(bar(page)).toBeVisible()
+  await expect(
+    bar(page).getByRole('navigation', { name: 'Breadcrumbs' }),
+  ).toBeVisible()
+  // Last in Rack A03: a previous, no next.
+  await expect(
+    bar(page).getByRole('button', { name: 'Previous in this rack' }),
+  ).toHaveText(/EDGE-17/)
+  await expect(page.getByRole('group', { name: 'Side' })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Numbers' })).toHaveCount(0)
+  const details = page.locator('p[data-testid="equipment-details"]')
+  await expect(details).toContainText('UPS')
+  await expect(details).toContainText('2U')
+  await expect(details).toContainText('Building A')
+  await expect(details).toContainText('Rack A03')
+  await expect(page.getByTestId('no-ports').first()).toHaveText('No ports')
+  await expect(page.locator('.equipment-page')).toContainText('Type')
+  await expect(page.getByTestId('rack-strip')).toHaveCount(0)
+  await expect(page.locator('.face-head')).toHaveCount(0)
+  // Installed: nothing to put in the menu.
+  await expect(more(page)).toHaveCount(0)
+  await expect(
+    page.locator('.equipment-page').getByRole('button', { name: /^Delete/ }),
+  ).toHaveCount(0)
+  await page.screenshot({
+    path: 'test-results/workbench-2/rack-item-installed.png',
+  })
+
+  const id = await newPlan(request, 'EP-09 rack item')
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  await openUps(page)
+  await expect(
+    page.locator('.equipment-page').getByRole('button', { name: /^Delete/ }),
+  ).toHaveCount(0)
+  await more(page).click()
+  await expect(menu(page).getByRole('menuitem')).toHaveText(['Delete…'])
+  await page.screenshot({
+    path: 'test-results/workbench-2/rack-item-plan-menu.png',
+  })
+  await menu(page).getByRole('menuitem', { name: 'Delete…' }).click()
+  const confirm = page.getByRole('group', { name: 'Confirm delete' })
+  await expect(confirm).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(confirm).toHaveCount(0)
+  await expect(more(page)).toBeFocused()
+})
