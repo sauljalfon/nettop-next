@@ -130,62 +130,67 @@ async function openEquipment(
 const openEdge17 = (page: Page) =>
   openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'edge-17')
 
-test('WS-02 a selected switch port shows its walk sheet instead of the chain', async ({
+const pathBar = (page: Page) => page.getByRole('region', { name: 'Path' })
+const plates = (page: Page) => pathBar(page).getByTestId('path-plate')
+
+test('WS-02 a selected switch port’s path is in the Path bar, not the panel', async ({
   page,
 }) => {
   await openEdge17(page)
   await endpoint(page, 'edge-17:p1').click()
-  await expect(detail(page).getByText('Path', { exact: true })).toBeVisible()
-  const walk = detail(page).getByTestId('walk-sheet')
-  await expect(walk.getByTestId('walk-row')).toHaveCount(5)
-  await expect(walk.getByTestId('walk-end')).toHaveText(
-    'Ends at AGG-03 · Port 1, an AGG.',
-  )
+  await expect(pathBar(page).getByRole('heading')).toContainText('Port 1')
+  await expect(plates(page)).toHaveCount(5)
+  await expect(pathBar(page)).toContainText('4 cables')
+  // It ends at AGG-03, Port 1, an AGG.
+  const end = plates(page).last()
+  await expect(end).toContainText('AGG-03')
+  await expect(end).toContainText('Port 1')
+  await expect(end).toHaveAttribute('data-destination', 'aggregation')
+  await expect(end).toContainText('AGG')
   await expect(detail(page).getByTestId('chain')).toHaveCount(0)
-  // The header and the Physical-only buttons stay; no Server button here.
+  await expect(detail(page).getByTestId('walk-sheet')).toHaveCount(0)
+  // The header and the Physical-only buttons stay.
   await expect(detail(page)).toContainText('Port 1')
   await expect(
     detail(page).getByRole('button', { name: 'Find AGG / BB from here' }),
   ).toBeVisible()
-  await expect(
-    walk.getByRole('button', { name: /^Show in Physical/ }),
-  ).toHaveCount(0)
 })
 
-test('WS-02 a port with no cable says so and shows only its own row', async ({
+test('WS-02 a port with no cable says so and shows only its own plate', async ({
   page,
 }) => {
   await openEdge17(page)
   await endpoint(page, 'edge-17:p4').click()
-  const walk = detail(page).getByTestId('walk-sheet')
-  await expect(walk.getByTestId('walk-row')).toHaveCount(1)
-  await expect(walk.getByTestId('walk-end')).toHaveAttribute('data-end', 'none')
-  await expect(walk.getByTestId('walk-end')).toHaveText(
-    'No cable is connected to this port.',
-  )
+  await expect(plates(page)).toHaveCount(1)
+  await expect(pathBar(page)).toContainText('No cable on this jack')
+  await expect(pathBar(page).getByTestId('path-gap')).toHaveCount(1)
 })
 
-test('WS-02 a row opens that endpoint; the switch’s own row stays on its port', async ({
+test('WS-02 a plate opens that equipment’s jack; the switch’s own plate stays on its port', async ({
   page,
 }) => {
   await openEdge17(page)
   await endpoint(page, 'edge-17:p1').click()
-  const walk = detail(page).getByTestId('walk-sheet')
 
-  await walk.getByTestId('walk-row').first().click()
-  await expectMark(page, 'data-physical-level', 'equipment')
+  // The selected plate is not a button.
+  await expect(plates(page).first().getByRole('button')).toHaveCount(0)
   await expectMark(page, 'data-selected-endpoint', 'edge-17:p1')
 
-  await walk.getByTestId('walk-row').filter({ hasText: 'HDF-01' }).click()
+  await pathBar(page)
+    .getByRole('button', { name: /^Open HDF-01/ })
+    .click()
   await expectMark(page, 'data-physical-level', 'equipment')
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:r')
   await expectMark(page, 'data-side', 'rear')
 })
 
-test('WS-02 a panel or HDF position keeps the chain', async ({ page }) => {
+test('WS-02 a panel or HDF position shows its path and no chain', async ({
+  page,
+}) => {
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'panel-a')
   await endpoint(page, 'panel-a:1:f').click()
-  await expect(detail(page).getByTestId('chain')).toBeVisible()
+  await expect(pathBar(page)).toBeVisible()
+  await expect(detail(page).getByTestId('chain')).toHaveCount(0)
   await expect(detail(page).getByTestId('walk-sheet')).toHaveCount(0)
 })
 
@@ -229,14 +234,15 @@ test('WS-03 EDGE-17’s page lists its uplinks, AGG first; a line selects its po
     'reaches an AGG or BB',
   )
 
-  // A click selects the port; the side panel shows its walk sheet.
+  // A click selects the port; the Path bar shows where it ends.
   await lines(page).nth(1).click()
   await expectMark(page, 'data-selected-endpoint', 'edge-17:p2')
   await expect(lines(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
   await expect(lines(page).nth(0)).toHaveAttribute('aria-pressed', 'false')
-  await expect(detail(page).getByTestId('walk-end')).toHaveText(
-    'Ends at AGG-08 · Port 1, an AGG.',
-  )
+  const end = pathBar(page).getByTestId('path-plate').last()
+  await expect(end).toContainText('AGG-08')
+  await expect(end).toContainText('Port 1')
+  await expect(end).toHaveAttribute('data-destination', 'aggregation')
   // The uplink mark stays together with the selected ring.
   await expect(endpoint(page, 'edge-17:p2')).toHaveAttribute(
     'data-uplink',

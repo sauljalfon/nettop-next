@@ -1,0 +1,242 @@
+/* The path of the selected jack: one line of hardware along the bottom of the equipment page.
+   Look: docs/history/demos/workbench-demo.html (.pathbar). */
+.pathbar {
+  --plate: 84px;
+  --jack-y: 47px;
+  flex: none;
+  height: var(--pathbar-h);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+.pathbar-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 12px 0 16px;
+  min-width: 0;
+}
+.pathbar-head h3 {
+  font-size: var(--t-md);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pathbar-head .sub {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+}
+.pathbar-head .path-close {
+  margin-left: auto;
+  align-self: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+.pathline {
+  display: flex;
+  align-items: flex-start; /* the rack bands hug their plates */
+  flex: 1;
+  min-height: 0;
+  padding: 4px 16px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.pcell {
+  display: grid;
+  grid-template-rows: 18px var(--plate);
+  flex: none;
+}
+.pcell.band {
+  background: var(--paper-sunk);
+}
+.pcell.band.first {
+  border-radius: 8px 0 0 8px;
+}
+.pcell.band.last {
+  border-radius: 0 8px 8px 0;
+}
+.pcell.band.first.last {
+  border-radius: 8px;
+}
+.pcell .rack {
+  width: 0;
+  min-width: 100%;
+  padding: 2px 8px 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  font-size: var(--t-min);
+  color: var(--ink-soft);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pcell .rack .place-path {
+  display: inline;
+}
+.pcell.node {
+  padding: 0 5px 6px;
+}
+/* A rack's first plate: its place may run on above the cable and plates of the same band. */
+.pcell.node.first:not(.last) .rack {
+  overflow: visible;
+}
+.pcell.node.first.last .rack {
+  width: auto;
+  max-width: 260px;
+}
+.pn {
+  display: grid;
+  grid-template-rows: 20px 28px 13px;
+  row-gap: 5px;
+  align-content: start;
+  width: 100%;
+  min-width: 138px;
+  height: var(--plate);
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--steel);
+  color: var(--steel-ink);
+  text-align: left;
+}
+button.pn {
+  cursor: pointer;
+}
+button.pn:hover {
+  background: var(--steel-2);
+}
+.pn.proposed {
+  outline: 2px dashed var(--proposed-on-steel);
+  outline-offset: -2px;
+}
+.pn.here {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--ink);
+}
+.pn-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.pn-top .tape {
+  min-width: 0;
+  max-width: 130px;
+  font-size: var(--t-xs);
+  line-height: 20px;
+}
+.pn-top .tape bdi {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pn-top .kind {
+  flex: none;
+  font: var(--t-min) / 1 var(--mono);
+  color: var(--steel-ink);
+}
+.pn-top .kind.top {
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: var(--route);
+  color: var(--paper);
+  font-family: var(--sans);
+  font-weight: 600;
+}
+.pn-jacks {
+  display: flex;
+  align-items: center;
+}
+.pn-jacks .pj {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-hw);
+  background: var(--paper);
+  color: var(--tape-ink);
+  font: 500 var(--t-min) / 1 var(--mono);
+}
+.pn-jacks .pj.lit {
+  background: var(--net);
+  color: var(--paper);
+}
+.pn-jacks .pj.sel {
+  outline: 2px solid var(--paper);
+  outline-offset: 1px;
+}
+.pn-jacks .bridge {
+  flex: 1;
+  height: 0;
+  margin: 0 4px;
+  border-top: 2px dotted var(--steel-ink);
+}
+.pn-jacks .gap {
+  flex: 1;
+}
+.pn-caps {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font: var(--t-min) / 1 var(--mono);
+  color: var(--steel-ink-strong);
+  white-space: nowrap;
+}
+.pcell.link {
+  position: relative;
+  min-width: 66px;
+  padding: 0 6px;
+  justify-items: center;
+}
+.pcell.link .cable-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(18px + var(--jack-y));
+  height: 0;
+  margin-top: -1.5px;
+  border-top: 3px solid var(--net);
+}
+.pcell.link[data-proposed='true'] .cable-line {
+  border-top: 3px dashed var(--proposed);
+}
+.pcell.link .cable-id {
+  position: relative;
+  grid-row: 2;
+  align-self: start;
+  margin-top: calc(var(--jack-y) - 24px);
+  max-width: 160px;
+  overflow: hidden;
+  padding: 1px 5px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper);
+  font: var(--t-min) / 1.3 var(--mono);
+  color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcell.link[data-proposed='true'] .cable-id {
+  border-style: dashed;
+  border-color: var(--proposed);
+  color: var(--proposed);
+}
+.pcell.stub {
+  padding: 0 4px;
+}
+.pcell.stub span:last-child {
+  align-self: start;
+  margin-top: calc(var(--jack-y) - 9px);
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}

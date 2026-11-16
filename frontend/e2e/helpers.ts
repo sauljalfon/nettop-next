@@ -221,3 +221,56 @@ export async function expandResults(page: Page) {
   const expand = panel.getByRole('button', { name: 'Expand results' })
   if (await expand.count()) await expand.click()
 }
+
+/**
+ * What the Path bar draws next to the selected plate. `left` is the cable and
+ * the equipment on the selected jack's side (its far end); `right` is the
+ * selected plate itself (both jacks of a panel or HDF position), then the
+ * cable and equipment on the other side. `places` are the plates' places
+ * (their tooltip, site first).
+ */
+export const pathNear = (page: Page, side: 'left' | 'right') =>
+  page.getByTestId('path-line').evaluate((line, which) => {
+    const cells = [...line.children]
+    const at = cells.findIndex((c) => c.querySelector('[data-here="true"]'))
+    const picked =
+      which === 'left'
+        ? cells.slice(Math.max(0, at - 2), at)
+        : cells.slice(at, at + 3)
+    return {
+      text: picked.map((c) => c.textContent ?? '').join(' | '),
+      places: picked
+        .map(
+          (c) =>
+            c
+              .querySelector('[data-testid="path-plate"]')
+              ?.getAttribute('title') ?? '',
+        )
+        .filter(Boolean),
+    }
+  }, side)
+
+/** The Path bar shows all of these next to the selected plate, on that side. */
+export async function expectNear(
+  page: Page,
+  side: 'left' | 'right',
+  ...parts: string[]
+) {
+  for (const part of parts)
+    await expect
+      .poll(async () => (await pathNear(page, side)).text, {
+        message: `${side} of the selected plate`,
+      })
+      .toContain(part)
+}
+
+/** The Path bar's plate next to the selected one has this place (site › node › rack). */
+export async function expectNearPlace(
+  page: Page,
+  side: 'left' | 'right',
+  place: string,
+) {
+  await expect
+    .poll(async () => (await pathNear(page, side)).places)
+    .toContain(place)
+}

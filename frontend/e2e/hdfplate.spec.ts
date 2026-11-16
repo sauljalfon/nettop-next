@@ -1,5 +1,10 @@
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
-import { fitted, openRackInPhysical } from './helpers'
+import {
+  expectNear,
+  expectNearPlace,
+  fitted,
+  openRackInPhysical,
+} from './helpers'
 import { planWith32RowHdf } from './plan-api'
 
 const root = (page: Page) => page.locator('.physical-explorer')
@@ -12,8 +17,13 @@ const endpoint = (page: Page, id: string) =>
 const block = (page: Page, id: string) =>
   page.locator(`.rack-block[data-equipment-id="${id}"]`)
 const detail = (page: Page) => page.getByTestId('endpoint-detail')
-const chain = (page: Page) =>
-  page.locator('[data-testid="chain"] [data-testid^="chain-"]')
+const peers = (page: Page) => page.getByTestId('peer-actions')
+const pathBar = (page: Page) => page.getByRole('region', { name: 'Path' })
+const plates = (page: Page) => pathBar(page).getByTestId('path-plate')
+const plateNames = (page: Page) =>
+  plates(page).evaluateAll((els) =>
+    els.map((e) => e.querySelector('.pn-top bdi')?.textContent),
+  )
 const side = (page: Page) => page.getByRole('group', { name: 'Side' })
 const box = async (page: Page, id: string) =>
   (await endpoint(page, id).boundingBox())!
@@ -35,12 +45,6 @@ async function traceAgg03(page: Page) {
   await expect(page.getByTestId('route-row')).toHaveCount(3)
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
-/** Role of each item of the chain: a box's role, or a connector's kind. */
-const roles = (page: Page) =>
-  chain(page).evaluateAll((els) =>
-    els.map((e) => e.getAttribute('data-role') ?? e.getAttribute('data-link')),
-  )
-
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await fitted(page)
@@ -338,74 +342,66 @@ test('PD-01 the HDF-01 3C/5 rear card draws the connection top to bottom, and ea
     detail(page).getByRole('button', { name: 'Show on map' }),
   ).toHaveAttribute('title', /map/)
 
-  // The chain, top to bottom.
-  await expect(chain(page)).toHaveCount(7)
-  expect(await roles(page)).toEqual([
-    'far',
-    'cable',
-    'self',
-    'bridge',
-    'other',
-    'cable',
-    'otherFar',
+  // The path, left to right in the Path bar: the panel's side first, this position in the middle.
+  expect(await plateNames(page)).toEqual([
+    'EDGE-17',
+    'PANEL-A',
+    'HDF-01',
+    'HDF-02',
+    'AGG-03',
   ])
-  const want: string[][] = [
-    ['PANEL-A', '1', 'rear', 'Main Campus › Building A › Rack A03'],
-    ['cable-a02'],
-    ['3C / 5 rear'],
-    ['bridge'],
-    ['3C / 5 front'],
-    ['cable-a03'],
-    ['HDF-02', '2B/3 front', 'Main Campus › Main Distribution › Rack Core 01'],
-  ]
-  for (const [i, parts] of want.entries())
-    for (const part of parts)
-      await expect(chain(page).nth(i)).toContainText(part)
-  // The route runs through every hop of it.
-  for (let i = 0; i < 7; i++)
-    await expect(chain(page).nth(i)).toHaveAttribute('data-on-route', 'true')
-  // The cables are solid lines, the bridge is dashed; this endpoint is the highlighted box.
-  await expect(chain(page).nth(1).locator('.chain-line')).toHaveCSS(
-    'border-left-style',
-    'solid',
+  await expect(pathBar(page).getByTestId('path-cable')).toHaveCount(4)
+  await expectNear(page, 'left', 'PANEL-A', '1', 'rear', 'cable-a02')
+  await expectNearPlace(page, 'left', 'Main Campus › Building A › Rack A03')
+  await expectNear(page, 'right', '3C/5 rear', 'front', 'cable-a03', 'HDF-02')
+  await expectNear(page, 'right', '2B/3', 'front')
+  await expectNearPlace(
+    page,
+    'right',
+    'Main Campus › Main Distribution › Rack Core 01',
   )
-  await expect(chain(page).nth(3).locator('.chain-line')).toHaveCSS(
-    'border-left-style',
-    'dashed',
+  // The cables are solid lines, the bridge is dotted; this position is the ringed plate.
+  await expect(
+    pathBar(page).getByTestId('path-cable').nth(1).locator('.cable-line'),
+  ).toHaveCSS('border-top-style', 'solid')
+  await expect(plates(page).nth(2).locator('.bridge')).toHaveCSS(
+    'border-top-style',
+    'dotted',
   )
-  await expect(chain(page).nth(2)).toHaveAttribute('data-self', 'true')
+  await expect(plates(page).nth(2)).toHaveAttribute('data-here', 'true')
 
   const depth = Number(await mark(page, 'data-history-depth'))
   // The far end opens that place (a step in the history), and Back returns.
-  await chain(page).nth(0).getByRole('button').click()
+  await pathBar(page)
+    .getByRole('button', { name: /^Open PANEL-A/ })
+    .click()
   await expectMark(page, 'data-selected-endpoint', 'panel-a:1:r')
   await expectMark(page, 'data-history-depth', String(depth + 1))
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:r')
-  // The other side switches (no history entry), and the chain is that side's.
-  await chain(page).nth(4).getByRole('button').click()
+  // The other side switches (no history entry), and the path is that side's.
+  await peers(page)
+    .getByRole('button', { name: /^Switch to front/ })
+    .click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:f')
   await expectMark(page, 'data-history-depth', String(depth))
-  expect(await roles(page)).toEqual([
-    'far',
-    'cable',
-    'self',
-    'bridge',
-    'other',
-    'cable',
-    'otherFar',
-  ])
-  await expect(chain(page).nth(0)).toContainText('HDF-02')
-  await chain(page).nth(4).getByRole('button').click() // back to the rear
+  await expectNear(page, 'left', 'HDF-02', 'cable-a03')
+  await peers(page)
+    .getByRole('button', { name: /^Switch to rear/ })
+    .click() // back to the rear
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:r')
-  // The last box goes there.
-  await chain(page).nth(6).getByRole('button').click()
+  // The plate on the other side goes there.
+  await pathBar(page)
+    .getByRole('button', { name: /^Open HDF-02/ })
+    .click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-02:sp-2B:3:f')
   await expectMark(page, 'data-selected-equipment', 'hdf-02')
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:r')
-  // The selected endpoint itself is not a link.
-  await expect(chain(page).nth(2).getByRole('button')).toHaveCount(0)
+  // The selected plate itself is not a link.
+  await expect(plates(page).nth(2).getByRole('button')).toHaveCount(0)
+  // The panel keeps no chain.
+  await expect(detail(page).getByTestId('chain')).toHaveCount(0)
 })
 
 test('PD-02 a switch port is port → cable → far end; a side with no cable is a dashed "no cable" box', async ({
@@ -417,28 +413,29 @@ test('PD-02 a switch port is port → cable → far end; a side with no cable is
   await expect(detail(page)).toContainText('EDGE-17')
   await expect(detail(page)).toContainText('Network A')
   await expect(detail(page)).not.toContainText('Fiber pair')
-  // A switch port shows its walk sheet, not the chain.
-  const walk = detail(page).getByTestId('walk-sheet')
+  // A switch port's path is the Path bar's, not a chain or a walk sheet in the panel.
   await expect(detail(page).getByTestId('chain')).toHaveCount(0)
-  await expect(walk.getByTestId('walk-row').nth(1)).toContainText('PANEL-A')
-  await expect(walk.getByTestId('walk-cable').first()).toHaveAttribute(
-    'data-link',
-    'cable-a01',
-  )
-  await walk.getByTestId('walk-row').nth(1).click() // opens PANEL-A's front
+  await expect(detail(page).getByTestId('walk-sheet')).toHaveCount(0)
+  await expectNear(page, 'right', 'cable-a01', 'PANEL-A')
+  await pathBar(page)
+    .getByRole('button', { name: /^Open PANEL-A/ })
+    .click() // opens PANEL-A's front
   await expectMark(page, 'data-selected-endpoint', 'panel-a:1:f')
 
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await endpoint(page, 'edge-17:p4').click()
-  await expect(walk.getByTestId('walk-end')).toHaveAttribute('data-end', 'none')
-  await expect(walk.getByTestId('walk-row')).toHaveCount(1)
+  await expect(pathBar(page)).toContainText('No cable on this jack')
+  await expect(plates(page)).toHaveCount(1)
 
   // A free position: no cable on either side, the bridge between them.
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'panel-a')
   await endpoint(page, 'panel-a:10:f').click()
-  expect(await roles(page)).toEqual(['none', 'self', 'bridge', 'other', 'none'])
-  await expect(chain(page).nth(3)).toContainText('10 rear')
-  await chain(page).nth(3).getByRole('button').click()
+  await expect(pathBar(page).getByTestId('path-gap')).toHaveCount(2)
+  await expect(plates(page)).toHaveCount(1)
+  await expect(plates(page).first()).toContainText('rear')
+  await peers(page)
+    .getByRole('button', { name: /^Switch to rear/ })
+    .click()
   await expectMark(page, 'data-selected-endpoint', 'panel-a:10:r')
   await expectMark(page, 'data-side', 'rear')
 })

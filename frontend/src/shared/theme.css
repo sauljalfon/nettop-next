@@ -75,6 +75,7 @@
   --jack-w: 28px; /* a switch or panel jack */
   --jack-h: 30px;
   --jack-gap: 2px;
+  --pathbar-h: 154px; /* the path of the selected jack, along the bottom of an equipment page */
 
   --r-drawer: 10px;
   --r-control: 6px;

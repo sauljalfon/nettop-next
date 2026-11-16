@@ -268,7 +268,7 @@ test('EP-07 the port actions come first', async ({ page, request }) => {
   const connect = panel(page).getByRole('button', { name: 'Connect…' })
   const range = panel(page).getByRole('button', { name: 'Connect a range…' })
   const label = panel(page).locator('.detail-head')
-  const cableSection = panel(page).locator('.chain')
+  const cableSection = panel(page).getByTestId('peer-actions')
   const y = async (l: ReturnType<Page['locator']>) => (await l.boundingBox())!.y
   expect(await y(connect)).toBeLessThan(await y(label))
   expect(await y(range)).toBeLessThan(await y(label))
@@ -424,4 +424,241 @@ test('EP-12 a switch page with a port selected', async ({ page }) => {
   await page.locator('[data-testid="face-endpoint"]').first().click()
   await expect(panel(page)).toBeVisible()
   await page.screenshot({ path: 'test-results/space/edge-17-1536.png' })
+})
+
+// Workbench part 2b, task 2: the selected jack's path along the bottom of the page.
+const pathBar = (page: Page) => page.getByRole('region', { name: 'Path' })
+const plates = (page: Page) => pathBar(page).getByTestId('path-plate')
+const plateNames = (page: Page) =>
+  plates(page).evaluateAll((els) =>
+    els.map((e) => e.querySelector('.pn-top bdi')?.textContent),
+  )
+const documentScrolls = (page: Page) =>
+  page.evaluate(() => {
+    const el = document.scrollingElement!
+    return {
+      top: el.scrollTop,
+      over: el.scrollHeight - el.clientHeight,
+      left: el.scrollLeft,
+      wide: el.scrollWidth - el.clientWidth,
+    }
+  })
+
+test('EP-13 a selected jack’s path is drawn along the bottom', async ({
+  page,
+}) => {
+  await openEdge17(page)
+  await expect(pathBar(page)).toHaveCount(0)
+  const before = await cardOrigin(page)
+
+  await jack(page, 'edge-17:p1').click()
+  await expect(pathBar(page)).toBeVisible()
+  await expect(
+    pathBar(page).getByRole('heading', { name: /^Path of/ }),
+  ).toContainText('Port 1')
+  expect(await plateNames(page)).toEqual([
+    'EDGE-17',
+    'PANEL-A',
+    'HDF-01',
+    'HDF-02',
+    'AGG-03',
+  ])
+  // One line: the plates share a y.
+  const ys = await plates(page).evaluateAll((els) =>
+    els.map((e) => Math.round(e.getBoundingClientRect().y)),
+  )
+  expect(new Set(ys).size).toBe(1)
+  await expect(pathBar(page)).toContainText('4 cables')
+  await expect(pathBar(page).getByTestId('path-summary')).toHaveText(
+    /4 cables · EDGE-17 → AGG-03/,
+  )
+  await expect(plates(page).last()).toContainText('AGG')
+  await expect(pathBar(page).getByTestId('path-cable')).toHaveCount(4)
+  // The bar is the last row: its bottom is the window's bottom.
+  const bar = (await pathBar(page).boundingBox())!
+  expect(Math.abs(bar.y + bar.height - 864)).toBeLessThanOrEqual(2)
+  // The face does not move, and the page does not scroll.
+  expect(await cardOrigin(page)).toEqual(before)
+  expect(await documentScrolls(page)).toEqual({
+    top: 0,
+    over: 0,
+    left: 0,
+    wide: 0,
+  })
+  await page.screenshot({ path: 'test-results/path/edge-17-port-1.png' })
+  // The port panel no longer draws the chain or the walk sheet.
+  await expect(panel(page).getByTestId('chain')).toHaveCount(0)
+  await expect(panel(page).getByTestId('walk-sheet')).toHaveCount(0)
+})
+
+test('EP-14 from an HDF position the path runs both ways', async ({ page }) => {
+  await openHdf01(page)
+  await jack(page, 'hdf-01:sp-3C:5:f').click()
+  await expect(pathBar(page)).toBeVisible()
+  const names = await plateNames(page)
+  const here = await plates(page).evaluateAll((els) =>
+    els.findIndex((e) => e.getAttribute('data-here') === 'true'),
+  )
+  expect(names[here]).toBe('HDF-01')
+  expect(here).toBeGreaterThan(0)
+  expect(here).toBeLessThan(names.length - 1)
+  // The selected plate is the only one that is not a button.
+  await expect(
+    pathBar(page).getByTestId('path-plate').nth(here),
+  ).toHaveJSProperty('tagName', 'DIV')
+  await expect(
+    pathBar(page).getByRole('button', { name: /^Open / }),
+  ).toHaveCount(names.length - 1)
+  await page.screenshot({ path: 'test-results/path/hdf-01-3c5.png' })
+})
+
+test('EP-15 a free jack says so', async ({ page }) => {
+  await openEdge17(page)
+  await jack(page, 'edge-17:p4').click()
+  await expect(pathBar(page)).toContainText('No cable on this jack')
+  await expect(pathBar(page)).toContainText('nothing connected')
+  await expect(plates(page)).toHaveCount(1)
+  await page.screenshot({ path: 'test-results/path/free-jack.png' })
+})
+
+test('EP-16 a plate opens that equipment on that jack', async ({ page }) => {
+  await openEdge17(page)
+  await jack(page, 'edge-17:p1').click()
+  await pathBar(page)
+    .getByRole('button', { name: /^Open HDF-02/ })
+    .click()
+  await expect(root(page)).toHaveAttribute('data-location', /equipment:hdf-02/)
+  await expect
+    .poll(() => root(page).getAttribute('data-selected-endpoint'))
+    .toBe('hdf-02:sp-2B:3:f')
+  await expect(jack(page, 'hdf-02:sp-2B:3:f')).toHaveAttribute(
+    'data-selected',
+    'true',
+  )
+  // Its own path shows, with HDF-02 as the selected plate.
+  await expect(pathBar(page)).toBeVisible()
+  await expect(
+    pathBar(page).locator('[data-testid="path-plate"][data-here="true"]'),
+  ).toContainText('HDF-02')
+})
+
+test('EP-17 Close path clears the selection', async ({ page }) => {
+  await openEdge17(page)
+  await jack(page, 'edge-17:p1').click()
+  await expect(pathBar(page)).toBeVisible()
+  await pathBar(page).getByRole('button', { name: 'Close path' }).click()
+  await expect(pathBar(page)).toHaveCount(0)
+  await expect(panel(page)).toHaveCount(0)
+  await expect(page.locator('[data-selected="true"]')).toHaveCount(0)
+  await expect(jack(page, 'edge-17:p1')).toBeFocused()
+})
+
+test('EP-18 at 1280×720 a long path scrolls inside the bar', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await openEdge17(page)
+  await jack(page, 'edge-17:p1').click()
+  await expect(pathBar(page)).toBeVisible()
+  expect(await documentScrolls(page)).toEqual({
+    top: 0,
+    over: 0,
+    left: 0,
+    wide: 0,
+  })
+  const line = pathBar(page).getByTestId('path-line')
+  // Either all of it fits, or the line scrolls on its own; the page never does.
+  const m = await line.evaluate((el) => ({
+    scrolls: el.scrollWidth > el.clientWidth,
+    overflowX: getComputedStyle(el).overflowX,
+  }))
+  expect(m.overflowX).toMatch(/auto|scroll/)
+  const here = (await pathBar(page)
+    .locator('[data-testid="path-plate"][data-here="true"]')
+    .boundingBox())!
+  expect(here.x).toBeGreaterThanOrEqual(0)
+  expect(here.x + here.width).toBeLessThanOrEqual(1280)
+  const bar = (await pathBar(page).boundingBox())!
+  expect(bar.y + bar.height).toBeLessThanOrEqual(720 + 2)
+  await page.screenshot({ path: 'test-results/path/edge-17-1280.png' })
+})
+
+test('EP-18a a plan’s proposed cable is dashed in the path', async ({
+  page,
+  request,
+}) => {
+  const id = await newPlan(request, 'EP-19 path')
+  await command(request, id, {
+    type: 'add_cable',
+    cable: { a: 'edge-17:p4', b: 'panel-a:10:f' },
+  })
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  await openEdge17(page)
+  await jack(page, 'edge-17:p4').click()
+  await expect(pathBar(page)).toContainText('1 cable')
+  const cable = pathBar(page).getByTestId('path-cable')
+  await expect(cable).toHaveAttribute('data-proposed', 'true')
+  await expect(cable.locator('.cable-line')).toHaveCSS(
+    'border-top-style',
+    'dashed',
+  )
+  await page.screenshot({ path: 'test-results/path/plan-proposed.png' })
+})
+
+test('EP-18b with Pigtails an HDF jack in the path is named by its fibers', async ({
+  page,
+}) => {
+  await openHdf01(page)
+  await page
+    .getByRole('group', { name: 'Numbers' })
+    .getByRole('button', { name: 'Pigtails' })
+    .click()
+  await jack(page, 'hdf-01:sp-3C:5:f').click()
+  await expect(pathBar(page)).toContainText('3C/9,10')
+  await expect(
+    pathBar(page).getByRole('heading', { name: /^Path of/ }),
+  ).toContainText('3C/9,10')
+  await page.screenshot({ path: 'test-results/path/hdf-pigtails.png' })
+})
+
+test('EP-18c a tall HDF keeps its legend and frame above the bar and the page still', async ({
+  page,
+  request,
+}) => {
+  const id = await planWith32RowHdf(request)
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
+  await page
+    .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
+    .click()
+  await expect(root(page)).toHaveAttribute('data-physical-level', 'equipment')
+  const before = await cardOrigin(page)
+  await page
+    .locator('.hdf-scroll [data-testid="face-endpoint"]')
+    .first()
+    .click()
+  await expect(pathBar(page)).toBeVisible()
+  await expect.poll(() => cardOrigin(page)).toEqual(before)
+  const bar = (await pathBar(page).boundingBox())!
+  const card = (await faceCard(page, 'HDF-BIG').boundingBox())!
+  expect(card.y + card.height).toBeLessThanOrEqual(bar.y + 1)
+  const legend = page.locator('.equipment-main .face-legend')
+  if (await legend.count()) {
+    const l = (await legend.boundingBox())!
+    expect(l.y + l.height).toBeLessThanOrEqual(bar.y + 1)
+  }
+  const scroll = await page.evaluate(() => {
+    const el = document.querySelector('.equipment-page')!
+    return {
+      page: el.scrollHeight - el.clientHeight,
+      doc:
+        document.scrollingElement!.scrollHeight -
+        document.scrollingElement!.clientHeight,
+    }
+  })
+  expect(scroll.doc).toBeLessThanOrEqual(0)
+  expect(scroll.page).toBeLessThanOrEqual(1)
+  await page.screenshot({ path: 'test-results/path/hdf-32-path.png' })
 })
