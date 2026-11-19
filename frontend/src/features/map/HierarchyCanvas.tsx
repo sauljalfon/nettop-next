@@ -52,6 +52,7 @@ import { hierarchyLayout, selectionBoxes } from './hierarchyLayout'
 import FrameCard from './FrameCard'
 import HierarchyNodeCard from './HierarchyNodeCard'
 import HierarchyPanel from './HierarchyPanel'
+import { dockSession } from '../frame/dock'
 import { shouldClearOnEscape } from './keys'
 import { ClearHighlight } from './MapControls'
 import { mapSession, type MapSession } from './mapSession'
@@ -220,6 +221,7 @@ function Canvas({
     session.subscribe,
     session.onlyProblems,
   )
+  const keyShown = useSyncExternalStore(session.subscribe, session.keyShown)
   const routeViewOn = useSyncExternalStore(session.subscribe, session.routeView)
   const active = routeViewOn && !!routeSheet
   useEffect(() => {
@@ -487,22 +489,11 @@ function Canvas({
       const where = visibleArea(surface.current)
       if (cancelled || !where || pannedFor.get(session) === selection) return
       pannedFor.set(session, selection)
-      // The hierarchy drawer is over the canvas too.
-      const drawer = surface.current
-        ?.querySelector('.hierarchy-drawer')
-        ?.getBoundingClientRect()
-      const covers = {
-        ...where.covers,
-        right: Math.max(
-          where.covers.right,
-          drawer ? where.box.right - drawer.left : 0,
-        ),
-      }
       const view = panToShowFirstFit(
         boxes.map((b) => ({ x: b.x, y: b.y, width: b.w, height: b.h })),
         flow.getViewport(),
         { width: where.box.width, height: where.box.height },
-        covers,
+        where.covers,
       )
       if (view)
         void flow
@@ -516,10 +507,16 @@ function Canvas({
 
   const actions = useMemo(
     () => ({
-      onCard: (key: string) =>
-        networkId !== undefined &&
-        session.select({ kind: 'card', networkId, key }),
-      onEquipment: (id: string) => session.select({ kind: 'equipment', id }),
+      // A click on the tree opens the Node tab, whichever tab the dock was on.
+      onCard: (key: string) => {
+        if (networkId === undefined) return
+        session.select({ kind: 'card', networkId, key })
+        dockSession.showDetails('Node')
+      },
+      onEquipment: (id: string) => {
+        session.select({ kind: 'equipment', id })
+        dockSession.showDetails('Node')
+      },
       onClose: (key: string) => {
         session.toggleNode(key)
         const now = session.selection()
@@ -535,8 +532,10 @@ function Canvas({
       onFind: onFindDevice,
       onShowEquipment: onShowInPhysical,
       onShowNode: (nodeId: string) => onShowPlace({ nodeId }),
-      onSelectEquipment: (id: string) =>
-        session.select({ kind: 'equipment', id }),
+      onSelectEquipment: (id: string) => {
+        session.select({ kind: 'equipment', id })
+        dockSession.showDetails('Node')
+      },
       onTraceJack: onTraceJack ?? (() => undefined),
     }),
     [
@@ -613,6 +612,8 @@ function Canvas({
                 onlyProblems={onlyProblems}
                 onOnlyProblems={session.setOnlyProblems}
                 nothing={onlyProblems && layout?.frames.size === 0}
+                keyShown={keyShown}
+                onKey={session.setKeyShown}
               />
             )}
             <Panel position="top-right" className="map-tools">

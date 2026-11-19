@@ -20,6 +20,35 @@
   border-bottom: 1px solid var(--rule);
   min-width: 0;
 }
+.dock-tablist-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.dock-tablist-wrap::before,
+.dock-tablist-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+}
+.dock-tablist-wrap::before {
+  left: 0;
+  background: linear-gradient(to right, var(--paper), transparent);
+}
+.dock-tablist-wrap::after {
+  right: 0;
+  background: linear-gradient(to left, var(--paper), transparent);
+}
+.dock-tablist-wrap:has([data-more-before='true'])::before,
+.dock-tablist-wrap:has([data-more-after='true'])::after {
+  opacity: 1;
+}
 .dock-tablist {
   display: flex;
   align-items: stretch;
@@ -97,4 +126,8 @@
     width: min(380px, 100vw);
     z-index: 70;
   }
+}
+/* The details tab's body has its own heads and paddings. */
+.dock-body.dock-details {
+  padding: 0;
 }

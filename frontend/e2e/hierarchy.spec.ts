@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from './fixtures'
-import { fitted, hierarchyState, settledViewport, viewport } from './helpers'
+import {
+  fitted,
+  hierarchyState,
+  settledViewport,
+  showNodeDetails,
+  viewport,
+} from './helpers'
 
 // HI-09. The hierarchy of one network, from the acceptance fixture and the
 // Expansion draft; nothing on it is saved, so no spec needs to clean up.
@@ -79,6 +85,7 @@ test('HI-09 Network A: the Backbone over three AGGs, Building A under AGG-03 + A
     await expect(card(page, id)).toContainText('no BB')
   await expect(card(page, 'bb-01')).not.toContainText('no BB')
   // Nothing on it can be dragged, and the legend says what the lines are.
+  await page.getByRole('button', { name: 'Key', exact: true }).click()
   await expect(panel(page)).toContainText('peers')
   await expect(panel(page)).toContainText('proposed')
 })
@@ -191,7 +198,7 @@ test('HI-09 the drawer of Building A: EDGE-17 reaches AGG-03, AGG-08 and BB-01, 
   await row.click()
 
   // ✕ closes the drawer and clears the amber.
-  await drawer(page).getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: 'Close Node details' }).click()
   await expect(drawer(page)).toHaveCount(0)
   await expect(card(page, BUILDING_A)).toHaveAttribute('data-hot', 'false')
   await expect(card(page, 'agg-03')).toHaveAttribute('data-hot', 'false')
@@ -215,7 +222,7 @@ test('HI-09 from the drawer: Inspector, Find AGG / BB, and Show in Physical', as
   let detail = await open()
   await detail.getByRole('button', { name: 'Inspector' }).click()
   await expect(page.locator('.inspector-header h2')).toHaveText('EDGE-17')
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
+  await showNodeDetails(page) // the Node tab is beside the Inspector now
 
   await detail.getByRole('button', { name: 'Find AGG / BB' }).click()
   await expect(
@@ -225,6 +232,7 @@ test('HI-09 from the drawer: Inspector, Find AGG / BB, and Show in Physical', as
   await expect(card(page, BUILDING_A)).toHaveAttribute('data-on-route', 'true')
 
   // Show in Physical (the node).
+  await showNodeDetails(page)
   await drawer(page).getByRole('button', { name: 'Show in Physical' }).click()
   await expect(page.locator('.physical-explorer')).toBeVisible()
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()

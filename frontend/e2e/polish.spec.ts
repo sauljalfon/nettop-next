@@ -68,6 +68,8 @@ test('POL-32 a trace that fails with every drawer closed shows its error on the 
   await selectEquipment(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
+  // The drawer is the dock's Node tab now: a click on the tree opens it again.
+  await page.locator('[data-card-switch="edge-17"] .hcard-switch-name').click()
   await page.route('**/api/traces*', (route) =>
     route.fulfill({
       status: 500,

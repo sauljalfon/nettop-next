@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures'
 import type { Plan } from '../src/shared/types'
-import { fitted, selectEquipment } from './helpers'
+import { fitted, selectEquipment, showNodeDetails } from './helpers'
 
 // Minimal handling only: an HDF must never present as an active device. Real HDF
 // UI arrives with M4.
@@ -34,6 +34,7 @@ test('a proposed HDF renders as passive equipment, not an active switch', async 
   // Selected on the tree (D40): a passive with the HDF role and no network, never an active switch.
   await selectEquipment(page, 'HDF-DISPLAY')
   expect(hdf).toBeTruthy()
+  await showNodeDetails(page)
   const card = page.getByTestId('hierarchy-drawer')
   await expect(card).toBeVisible()
   await expect(card.locator('.chip', { hasText: 'HDF' })).toBeVisible()

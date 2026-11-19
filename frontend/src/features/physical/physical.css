@@ -163,20 +163,8 @@
   color: var(--ink);
 }
 .equipment-layout.no-strip {
-  grid-template-columns: fit-content(900px) 340px;
-  justify-content: start;
-}
-.equipment-layout.no-strip.no-detail {
   grid-template-columns: fit-content(900px);
-}
-/* 900 (face) + 18 (gap) + 340 (port panel): below this the panel goes under the face. */
-@container (max-width: 1258px) {
-  .equipment-layout.no-strip {
-    grid-template-columns: fit-content(900px);
-  }
-  .equipment-layout.no-strip > .endpoint-detail {
-    grid-column: 1;
-  }
+  justify-content: start;
 }
 .scope-note {
   margin-top: 4px;
@@ -622,8 +610,7 @@
   padding: 14px 25px 25px 100px;
   overflow: auto;
 }
-/* The page: rack strip, face, endpoint detail. Beside each other when there is room,
-   the detail below the face when there is not (D34): measured on the page's content width. */
+/* The page: rack strip and face. The selected jack's panel is the dock's Port tab, not a column here. */
 .equipment-page {
   container-type: inline-size;
 }
@@ -634,17 +621,9 @@
   align-items: start;
   width: 100%;
 }
-.equipment-layout > .endpoint-detail {
-  position: sticky;
-  top: 0;
-}
 @container (max-width: 1130px) {
   .equipment-layout {
     grid-template-columns: 150px minmax(0, 1fr);
-  }
-  .equipment-layout > .endpoint-detail {
-    position: static;
-    grid-column: 2;
   }
 }
 .face-card {
@@ -713,11 +692,9 @@
     0 0 0 2px var(--paper),
     0 0 0 3px var(--ink);
 }
+/* The Port tab's body, drawn into the dock (which has its own edge). */
 .endpoint-detail {
-  padding: 14px 16px;
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
+  padding: 14px 16px 20px;
 }
 .detail-label {
   margin-top: 4px;
@@ -1650,4 +1627,11 @@
   .equipment-layout.no-strip.no-detail.has-links {
     grid-template-columns: fit-content(900px);
   }
+}
+
+/* In the dock the port's plan actions start at the body's top padding. */
+.endpoint-detail > .endpoint-edit:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }

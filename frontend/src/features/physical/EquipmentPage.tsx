@@ -14,6 +14,7 @@ import UplinksSummary from '../paths/UplinksSummary'
 import { useUplinks } from '../paths/useUplinks'
 import ConnectsTo from './ConnectsToCard'
 import { connectsTo } from './connectsTo'
+import { dockSession } from '../frame/dock'
 import EndpointDetail from './EndpointDetail'
 import {
   cellLook,
@@ -137,6 +138,15 @@ export default function EquipmentPage({
       )
     target?.focus()
   }, [location.endpointId])
+  // A click on a jack in this page opens the Port tab, whichever tab the dock was on.
+  const selectJack = (id: string) => {
+    onSelectEndpoint(id)
+    dockSession.showDetails('Port')
+  }
+  const goToJack = (id: string) => {
+    onGoToPeer(id)
+    dockSession.showDetails('Port')
+  }
   const closePort = () => {
     returnFocus.current = location.endpointId ?? ''
     setPopover(undefined)
@@ -242,7 +252,7 @@ export default function EquipmentPage({
     >
       <div className="equipment-page">
         <div
-          className={`equipment-layout no-strip ${detail ? 'has-detail' : 'no-detail'}${linksBeside ? ' has-links' : ''}`}
+          className={`equipment-layout no-strip no-detail${linksBeside ? ' has-links' : ''}`}
         >
           <div className="equipment-main">
             <p className="equipment-details" data-testid="equipment-details">
@@ -269,7 +279,7 @@ export default function EquipmentPage({
                 endpointTooltip(index, equipment, cell, ordinal, side)
               }
               onSelect={(id, event) => {
-                onSelectEndpoint(id)
+                selectJack(id)
                 setPopover(
                   edit && event && !index.cabled.has(id)
                     ? {
@@ -286,7 +296,7 @@ export default function EquipmentPage({
                 equipment={equipment}
                 state={uplinks}
                 selectedEndpointId={location.endpointId}
-                onSelect={onSelectEndpoint}
+                onSelect={selectJack}
               />
             )}
             {!linksBeside && links(true)}
@@ -322,8 +332,8 @@ export default function EquipmentPage({
             networkColor={
               detail?.networkId ? colors.get(detail.networkId) : undefined
             }
-            onGoToPeer={onGoToPeer}
-            onSwitch={onSelectEndpoint}
+            onGoToPeer={goToJack}
+            onSwitch={selectJack}
             onFind={onFind}
             onShowOnMap={() => onShowOnMap(equipment.id)}
           >
@@ -363,7 +373,7 @@ export default function EquipmentPage({
           installed={installed}
           colors={colors}
           numbering={numbering}
-          onOpen={onGoToPeer}
+          onOpen={goToJack}
           onClose={closePort}
         />
       )}

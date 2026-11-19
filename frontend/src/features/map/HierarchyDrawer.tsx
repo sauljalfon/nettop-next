@@ -1,4 +1,7 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { useDetailsTab } from '../frame/useDetailsTab'
+import { DockDetailsSlot } from '../frame/DockView'
 import Chip from '../../shared/ui/Chip'
 import Name from '../../shared/ui/Name'
 import PlacePath from '../../shared/ui/PlacePath'
@@ -198,7 +201,6 @@ function Head({
   chip,
   proposed,
   children,
-  onClose,
 }: {
   dot: string
   title: ReactNode
@@ -206,7 +208,6 @@ function Head({
   /** The plan adds it. */
   proposed?: boolean
   children: ReactNode
-  onClose: () => void
 }) {
   return (
     <header className="hd-head">
@@ -215,14 +216,6 @@ function Head({
         <h2>{title}</h2>
         <Chip kind="role">{chip}</Chip>
         {proposed && <Chip kind="proposed">Proposed</Chip>}
-        <button
-          type="button"
-          className="btn quiet hd-close"
-          aria-label="Close details"
-          onClick={onClose}
-        >
-          ✕
-        </button>
       </div>
       <p className="hd-place">{children}</p>
     </header>
@@ -259,7 +252,6 @@ function NodeBody({
         dot={color}
         title={nodeName ? <Name text={nodeName} /> : 'Not in a node'}
         chip="Node"
-        onClose={actions.onClose}
       >
         {siteName && (
           <>
@@ -533,7 +525,6 @@ function EquipmentBody({
           'Equipment'
         }
         proposed={isProposed(id)}
-        onClose={actions.onClose}
       >
         <PlacePath
           parts={[
@@ -685,19 +676,18 @@ export default function HierarchyDrawer({
   actions: DrawerActions
 }) {
   const key = selection.kind === 'card' ? selection.key : selection.id
-  const dialog = useInlineDialog<HTMLElement>(actions.onClose, key)
+  const dialog = useInlineDialog<HTMLDivElement>(actions.onClose, key)
   const [open, setOpen] = useState<{ card: string; id: string }>()
   const openSwitch = open?.card === key ? open.id : undefined
   const h =
     selection.kind === 'card' ? hierarchies.get(selection.networkId) : undefined
   const card = h && selection.kind === 'card' ? cardByKey(h, key) : undefined
-  return (
-    <aside
-      {...dialog}
-      className="drawer hierarchy-drawer"
-      data-testid="hierarchy-drawer"
-      aria-label="Hierarchy details"
-    >
+  const slot = useContext(DockDetailsSlot)
+  // The details tab belongs to this selection; the dock's × and Esc call the close the ✕ had.
+  useDetailsTab('Node', true, actions.onClose, key)
+  if (!slot) return null
+  return createPortal(
+    <div {...dialog} className="hd-panel" data-testid="hierarchy-drawer">
       {selection.kind === 'card' ? (
         h &&
         card?.kind === 'node' && (
@@ -727,6 +717,7 @@ export default function HierarchyDrawer({
           actions={actions}
         />
       )}
-    </aside>
+    </div>,
+    slot,
   )
 }

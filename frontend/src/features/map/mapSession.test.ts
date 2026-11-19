@@ -222,6 +222,18 @@ describe('HI-07 the hierarchy in the session', () => {
     expect(calls).toBe(2)
   })
 
+  it('remembers whether the Key is shown, hidden at first, and notifies on a change only', () => {
+    const session = createMapSession()
+    expect(session.keyShown()).toBe(false)
+    let calls = 0
+    session.subscribe(() => calls++)
+    session.setKeyShown(true)
+    session.setKeyShown(true)
+    expect(session.keyShown()).toBe(true)
+    session.setKeyShown(false)
+    expect(calls).toBe(2)
+  })
+
   it('records the hierarchy’s viewport, which needs a fit until one is recorded', () => {
     const session = createMapSession()
     expect(session.hierarchyViewport()).toBeUndefined()

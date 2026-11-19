@@ -51,6 +51,8 @@ export default function HierarchyPanel({
   onlyProblems,
   onOnlyProblems,
   nothing,
+  keyShown,
+  onKey,
 }: {
   networkName: string
   counts?: NetworkHierarchy['counts']
@@ -58,6 +60,9 @@ export default function HierarchyPanel({
   onOnlyProblems: (on: boolean) => void
   /** Only problems is on and nothing is left to draw. */
   nothing?: boolean
+  /** The legend is shown (closed by default; session-only). */
+  keyShown: boolean
+  onKey: (on: boolean) => void
 }) {
   return (
     <Panel position="top-left" className="hierarchy-panel">
@@ -74,28 +79,38 @@ export default function HierarchyPanel({
         Only nodes with problems
       </label>
       {nothing && <p className="hierarchy-meta">No problems here</p>}
-      <div className="hierarchy-legend">
-        <div className="hierarchy-legend-row">
-          <Swatch className="legend-uplink" />a top to the AGGs of a frame, and
-          a frame to its nodes, from real cables through any panels
+      <button
+        type="button"
+        className="btn quiet hierarchy-key"
+        aria-expanded={keyShown}
+        onClick={() => onKey(!keyShown)}
+      >
+        {keyShown ? 'Hide key' : 'Key'}
+      </button>
+      {keyShown && (
+        <div className="hierarchy-legend">
+          <div className="hierarchy-legend-row">
+            <Swatch className="legend-uplink" />a top to the AGGs of a frame,
+            and a frame to its nodes, from real cables through any panels
+          </div>
+          <div className="hierarchy-legend-row">
+            <Swatch className="legend-peer" width={3} />
+            the two AGGs of a frame are peers
+          </div>
+          <div className="hierarchy-legend-row">
+            <Swatch className="legend-proposed" dash="6 4" width={2} />
+            proposed in this plan
+          </div>
+          <div className="hierarchy-legend-row">
+            <span className="hcard-warn">no BB</span>
+            an AGG with no cable to a BB
+          </div>
+          <div className="hierarchy-legend-row">
+            <span className="hcard-badge">2↑ 1</span>
+            switches with two uplinks
+          </div>
         </div>
-        <div className="hierarchy-legend-row">
-          <Swatch className="legend-peer" width={3} />
-          the two AGGs of a frame are peers
-        </div>
-        <div className="hierarchy-legend-row">
-          <Swatch className="legend-proposed" dash="6 4" width={2} />
-          proposed in this plan
-        </div>
-        <div className="hierarchy-legend-row">
-          <span className="hcard-warn">no BB</span>
-          an AGG with no cable to a BB
-        </div>
-        <div className="hierarchy-legend-row">
-          <span className="hcard-badge">2↑ 1</span>
-          switches with two uplinks
-        </div>
-      </div>
+      )}
     </Panel>
   )
 }

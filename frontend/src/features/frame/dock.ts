@@ -38,6 +38,25 @@ export function detailsShown(s: DockState, label: 'Node' | 'Port'): DockState {
   return { ...s, open: true, tab: 'details', details: label }
 }
 
+/**
+ * A selection exists that did not come from a click in the view (Explore, Show on map, a
+ * deep link): the details tab is there, but the dock stays on the tab it is on; closed, it
+ * opens on the details.
+ */
+export function detailsAvailable(
+  s: DockState,
+  label: 'Node' | 'Port',
+): DockState {
+  if (!s.open) return detailsShown(s, label)
+  if (s.details === label) return s
+  if (s.tab === 'details' && s.details) {
+    // The other view's details gave way to this one's: back to the tab before them.
+    const gone = detailsGone(s)
+    return gone.open ? { ...gone, details: label } : detailsShown(s, label)
+  }
+  return { ...s, details: label }
+}
+
 /** The selection is gone: the details tab leaves; on it, the dock goes to the last other tab, else closes. */
 export function detailsGone(s: DockState): DockState {
   const { details: _gone, ...rest } = s
@@ -113,6 +132,8 @@ type Listener = () => void
 function createDockSession() {
   let state: DockState = initialDock
   let planned = false
+  /** What the feature that shows the details does for the × and Esc (clear its selection). */
+  let detailsCloser: (() => void) | undefined
   const listeners = new Set<Listener>()
   const set = (next: DockState) => {
     if (next === state) return
@@ -133,7 +154,19 @@ function createDockSession() {
     open: (tab: DockTab) => set(openTab(state, guard(tab))),
     close: () => set(close(state)),
     showDetails: (label: 'Node' | 'Port') => set(detailsShown(state, label)),
+    /** Selected from elsewhere: the tab exists, the dock keeps its tab (opens on it when closed). */
+    availableDetails: (label: 'Node' | 'Port') =>
+      set(detailsAvailable(state, label)),
     hideDetails: () => set(detailsGone(state)),
+    /** The feature that shows the details registers its close (the tree's clear, the page's close port); pass undefined to drop it. */
+    setDetailsCloser(fn: (() => void) | undefined) {
+      detailsCloser = fn
+    },
+    /** The × (or Esc) on the details tab: the feature's own close; with none registered, the tab just goes. */
+    closeDetails() {
+      if (detailsCloser) detailsCloser()
+      else set(detailsGone(state))
+    },
     setPlanned(next: boolean) {
       planned = next
       set(forContext(state, next))
@@ -141,6 +174,7 @@ function createDockSession() {
     /** For tests. */
     reset() {
       planned = false
+      detailsCloser = undefined
       set(initialDock)
     },
   }

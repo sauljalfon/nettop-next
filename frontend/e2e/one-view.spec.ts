@@ -6,6 +6,7 @@ import {
   selectEdge17,
   selectEquipment,
   settledViewport,
+  showNodeDetails,
   viewport,
 } from './helpers'
 
@@ -158,7 +159,7 @@ test('OV-09 a passive chip opens the route view on that jack, a device chip sele
   page,
 }) => {
   await selectEquipment(page, 'EDGE-17')
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
+  await showNodeDetails(page)
   const way = drawer(page).getByTestId('hd-way')
   await expect(way.locator('[data-way-row]')).toHaveCount(3)
   await way
@@ -175,6 +176,7 @@ test('OV-09 a passive chip opens the route view on that jack, a device chip sele
     'data-route-view',
     'false',
   )
+  await showNodeDetails(page) // the route started in the Trace tab
   await way.getByRole('button', { name: 'AGG-03', exact: true }).first().click()
   await expect(card(page, 'agg-03')).toHaveAttribute('data-selected', 'true')
   await expect(drawer(page).locator('h2')).toHaveText('AGG-03')
@@ -254,6 +256,7 @@ test('OV-07 a card the plan adds is Proposed on the tree; back in Installed the 
 }) => {
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await selectEquipment(page, 'EDGE-18')
+  await showNodeDetails(page)
   await expect(drawer(page).locator('h2')).toHaveText('EDGE-18')
   await expect(
     drawer(page).locator('.chip', { hasText: 'Proposed' }),

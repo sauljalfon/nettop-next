@@ -1293,6 +1293,9 @@ function Workspace({
   )
 }
 
+/** Explore's search text while the details tab has the dock, session-only. */
+const exploreSearch = { text: '' }
+
 function Explorer({
   snapshot,
   index,
@@ -1323,7 +1326,19 @@ function Explorer({
   onOpenPlace: (target: { siteId?: string; nodeId?: string }) => void
   canEdit: boolean
 }) {
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(exploreSearch.text)
+  // When the details tab (Port, Node) takes the dock the text waits for its return;
+  // any other way out of Explore forgets it.
+  const typed = useRef(search)
+  typed.current = search
+  useEffect(
+    () => () => {
+      const now = dockSession.get()
+      exploreSearch.text =
+        now.open && now.tab === 'details' ? typed.current : ''
+    },
+    [],
+  )
   // The lists follow the typing about 150 ms behind it.
   const settled = useDebounced(search)
   const hits = useMemo(

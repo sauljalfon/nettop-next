@@ -48,6 +48,9 @@ export interface MapSession {
   /** Only nodes with problems are drawn. */
   onlyProblems(): boolean
   setOnlyProblems(on: boolean): void
+  /** The tree's legend (the Key button on its panel) is shown; hidden at first. */
+  keyShown(): boolean
+  setKeyShown(on: boolean): void
   /** Node cards that are open (listing their equipment). Replaced on every change. */
   openNodes(): ReadonlySet<string>
   toggleNode(id: string): void
@@ -84,6 +87,7 @@ export function createMapSession(): MapSession {
   let hierarchyViewport: Viewport | undefined
   let networks: readonly string[] = []
   let onlyProblems = false
+  let keyShown = false
   let openNodes: ReadonlySet<string> = new Set()
   let selection: Selection | undefined
   const listeners = new Set<() => void>()
@@ -125,6 +129,12 @@ export function createMapSession(): MapSession {
     setOnlyProblems(on) {
       if (on === onlyProblems) return
       onlyProblems = on
+      notify()
+    },
+    keyShown: () => keyShown,
+    setKeyShown(on) {
+      if (on === keyShown) return
+      keyShown = on
       notify()
     },
     openNodes: () => openNodes,

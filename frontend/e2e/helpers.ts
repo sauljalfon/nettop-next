@@ -278,3 +278,8 @@ export async function expectNearPlace(
     .poll(async () => (await pathNear(page, side)).places)
     .toContain(place)
 }
+
+/** The details tab (Node) in the dock: a selection made from Explore or Show on map leaves the dock on its tab. */
+export async function showNodeDetails(page: Page) {
+  await page.getByRole('tab', { name: 'Node' }).click()
+}

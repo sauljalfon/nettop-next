@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, settledViewport } from './helpers'
+import { fitted, settledViewport, showNodeDetails } from './helpers'
 
 // HI-13. A direct fix while the hierarchy is open: the drawer stays on the same
 // card, the new name is drawn isolated and cut with an ellipsis, nothing moves.
@@ -48,6 +48,7 @@ test('HI-13 a long Hebrew name from a direct fix, while the drawer is open: isol
     await expect(form).toHaveCount(0)
 
     // The card, the drawer and the key are the same; the name is new.
+    await showNodeDetails(page) // the Inspector has the dock; the Node tab is beside it
     await expect(card(page, BUILDING_A)).toContainText(HEBREW)
     await expect(drawer(page).getByRole('heading', { level: 2 })).toContainText(
       HEBREW,

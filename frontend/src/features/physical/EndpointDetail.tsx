@@ -1,5 +1,8 @@
-import { Crosshair, GitFork, X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Crosshair, GitFork } from 'lucide-react'
+import { useContext, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { useDetailsTab } from '../frame/useDetailsTab'
+import { DockDetailsSlot } from '../frame/DockView'
 import type { ChainItem, DetailModel } from './equipmentModel'
 import Name from '../../shared/ui/Name'
 import PlacePath from '../../shared/ui/PlacePath'
@@ -40,7 +43,10 @@ export default function EndpointDetail({
   onFind: (endpointId: string) => void
   onShowOnMap: () => void
 }) {
-  if (!model) return null
+  const slot = useContext(DockDetailsSlot)
+  // The details tab belongs to the selected jack; the dock's × and Esc do what "Close port" did.
+  useDetailsTab('Port', !!model, onClose, model?.endpointId)
+  if (!model || !slot) return null
   const boxes = chain.filter(
     (i): i is Extract<ChainItem, { kind: 'box' }> => i.kind === 'box',
   )
@@ -48,10 +54,11 @@ export default function EndpointDetail({
   // The path bar draws the connection; the panel keeps the two ways to move.
   const far = boxes.find((i) => i.role === 'far' && i.action)
   const other = boxes.find((i) => i.role === 'other' && i.action)
-  return (
-    <aside
+  return createPortal(
+    <div
       className="endpoint-detail endpoint"
       data-testid="endpoint-detail"
+      role="group"
       aria-label="Port"
       onKeyDown={(event) => {
         if (event.key !== 'Escape' || event.defaultPrevented) return
@@ -86,14 +93,6 @@ export default function EndpointDetail({
             onClick={onShowOnMap}
           >
             <Crosshair size={14} />
-          </button>
-          <button
-            className="btn quiet detail-icon"
-            aria-label="Close port"
-            title="Close port"
-            onClick={onClose}
-          >
-            <X size={14} />
           </button>
         </div>
       </header>
@@ -130,7 +129,8 @@ export default function EndpointDetail({
         </div>
       )}
       {children}
-    </aside>
+    </div>,
+    slot,
   )
 }
 

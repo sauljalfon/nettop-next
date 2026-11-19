@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   close,
+  detailsAvailable,
   detailsGone,
   detailsShown,
   dockSession,
@@ -92,6 +93,29 @@ describe('dock transitions', () => {
   })
 })
 
+describe('detailsAvailable', () => {
+  it('opens a closed dock on the details, and keeps another open tab', () => {
+    expect(detailsAvailable(initialDock, 'Node')).toMatchObject({
+      open: true,
+      tab: 'details',
+      details: 'Node',
+    })
+    // One view's details giving way to another's returns to the tab before them.
+    const port = detailsShown(openTab(initialDock, 'inspector'), 'Port')
+    expect(detailsAvailable(port, 'Node')).toMatchObject({
+      open: true,
+      tab: 'inspector',
+      details: 'Node',
+    })
+    const explore = openTab(initialDock, 'explore')
+    expect(detailsAvailable(explore, 'Port')).toMatchObject({
+      open: true,
+      tab: 'explore',
+      details: 'Port',
+    })
+  })
+})
+
 describe('dockSession', () => {
   it('notifies, and sends Add to Changes outside a plan', () => {
     dockSession.reset()
@@ -108,5 +132,24 @@ describe('dockSession', () => {
     expect(dockSession.get().open).toBe(false)
     expect(calls).toBeGreaterThan(3)
     off()
+  })
+
+  it('closeDetails calls the feature’s close; with none, the tab just goes', () => {
+    dockSession.reset()
+    dockSession.rail('explore')
+    dockSession.showDetails('Node')
+    dockSession.closeDetails()
+    expect(dockSession.get()).toMatchObject({ open: true, tab: 'explore' })
+    expect(dockSession.get().details).toBeUndefined()
+    let closed = 0
+    dockSession.showDetails('Port')
+    dockSession.setDetailsCloser(() => {
+      closed++
+      dockSession.hideDetails()
+    })
+    dockSession.closeDetails()
+    expect(closed).toBe(1)
+    expect(dockSession.get().tab).toBe('explore')
+    dockSession.reset()
   })
 })

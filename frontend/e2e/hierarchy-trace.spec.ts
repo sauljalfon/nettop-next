@@ -33,7 +33,11 @@ async function findFromEdge17(page: Page) {
   await drawer(page).locator('[data-switch-id="edge-17"]').click()
   await drawer(page).getByRole('button', { name: 'Find AGG / BB' }).click()
   await expect(rows(page)).toHaveCount(3)
-  await drawer(page).getByRole('button', { name: 'Close' }).click()
+  // The drawer was the dock's Node tab; the dock's × closes it (and whatever tab the trace opened).
+  await page
+    .locator('.dock')
+    .getByRole('button', { name: /^Close / })
+    .click()
 }
 
 test('HI-10 the route lights its cards and lines in place; choosing another route moves nothing', async ({

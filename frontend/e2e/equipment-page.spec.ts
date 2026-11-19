@@ -235,7 +235,7 @@ test('EP-06 the port panel opens only for a selected jack', async ({
   expect(side.x).toBeGreaterThanOrEqual(face.x + face.width - 1)
   expect(await cardOrigin(page)).toEqual(before)
 
-  const close = panel(page).getByRole('button', { name: 'Close port' })
+  const close = page.getByRole('button', { name: 'Close Port details' })
   await close.click()
   await expect(panel(page)).toHaveCount(0)
   await expect(page.locator('[data-selected="true"]')).toHaveCount(0)
@@ -362,13 +362,21 @@ test('EP-09 a rack item’s page has the same bar and details line', async ({
   await expect(more(page)).toBeFocused()
 })
 
-test('EP-10 the port panel sits next to the face', async ({ page }) => {
+test('EP-10 the port panel opens in the dock, right of the face', async ({
+  page,
+}) => {
   await openHdf01(page)
   await jack(page, 'hdf-01:sp-1D:1:f').click()
   await expect(panel(page)).toBeVisible()
   const card = (await faceCard(page, 'HDF-01').boundingBox())!
   const side = (await panel(page).boundingBox())!
-  expect(side.x - (card.x + card.width)).toBeLessThan(40)
+  const dockBox = (await page.locator('.dock:not([hidden])').boundingBox())!
+  expect(side.x).toBeGreaterThanOrEqual(dockBox.x - 1)
+  expect(side.x + side.width).toBeLessThanOrEqual(dockBox.x + dockBox.width + 1)
+  expect(side.y).toBeGreaterThanOrEqual(dockBox.y - 1)
+  expect(side.y + side.height).toBeLessThanOrEqual(
+    dockBox.y + dockBox.height + 1,
+  )
   expect(side.x).toBeGreaterThanOrEqual(card.x + card.width - 1)
   expect(side.x + side.width).toBeLessThanOrEqual(1536)
   const grid = (await page.locator('.hdf-grid').boundingBox())!
