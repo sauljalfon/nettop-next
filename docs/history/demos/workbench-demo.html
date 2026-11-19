@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Net-Top Workbench</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -103,14 +104,37 @@
   .pcell.stub span { align-self: start; margin-top: calc(var(--jack-y) - 9px); font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
 
   /* The dock: one panel, tabs, narrows the work. */
-  .dock { width: 380px; min-height: 0; display: grid; grid-template-rows: 40px minmax(0, 1fr); border-left: 1px solid var(--rule); background: var(--paper); }
-  .dock-tabs { display: flex; align-items: stretch; gap: 2px; padding: 0 6px 0 10px; border-bottom: 1px solid var(--rule); }
-  .dock-tabs button.tab { border: 0; background: transparent; padding: 0 9px; color: var(--ink-soft); border-bottom: 2px solid transparent; }
+  .dock { width: 380px; min-width: 0; min-height: 0; display: grid; grid-template-rows: 40px minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); border-left: 1px solid var(--rule); background: var(--paper); overflow: hidden; }
+  .dock-tabs { display: flex; align-items: stretch; gap: 0; padding: 0 4px 0 6px; border-bottom: 1px solid var(--rule); min-width: 0; }
+  .dock-tabs button.tab { border: 0; background: transparent; padding: 0 7px; white-space: nowrap; color: var(--ink-soft); border-bottom: 2px solid transparent; }
   .dock-tabs button.tab[aria-selected='true'] { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
   .dock-tabs .x { margin-left: auto; align-self: center; width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: var(--ink-soft); font-size: 18px; line-height: 1; }
   .dock-tabs .x:hover { background: var(--paper-sunk); }
-  .dock-body { min-height: 0; overflow: auto; padding: 14px 16px 20px; display: grid; align-content: start; gap: 14px; }
+  .dock-body { min-height: 0; min-width: 0; overflow: auto; padding: 14px 16px 20px; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 14px; }
   .dock h2 { font-size: 16px; margin: 0; font-weight: 600; }
+  .dock-head { display: grid; gap: 2px; }
+  .dock-note { padding: 8px 10px; border-radius: 6px; background: var(--paper-sunk); color: var(--ink-soft); font-size: 12px; }
+  .field { display: grid; gap: 4px; } .field span { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+  .field select, .field input { height: 30px; border: 1px solid var(--rule); border-radius: 6px; padding: 0 8px; background: var(--paper); }
+  .dlist { display: grid; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .dlist > * { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; padding: 7px 10px; border: 0; border-top: 1px solid var(--rule-soft); background: var(--paper); text-align: left; }
+  .dlist > :first-child { border-top: 0; }
+  .dlist > button:hover { background: var(--paper-sunk); }
+  .dlist > [aria-pressed='true'] { background: var(--route-soft); box-shadow: inset 3px 0 0 var(--route); }
+  .dlist .s { grid-column: 1 / -1; color: var(--ink-soft); font-size: 12px; }
+  .dlist .r { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
+  .group-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+  .lib { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .lib button { display: grid; gap: 1px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); text-align: left; }
+  .lib button:hover { border-color: #b6c1cc; background: var(--paper-sunk); }
+  .lib button span { color: var(--ink-soft); font-size: 12px; }
+  .tree-list { display: grid; gap: 1px; font-size: 13px; }
+  .tree-list button { display: flex; gap: 8px; align-items: center; height: 28px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; text-align: left; }
+  .tree-list button:hover { background: var(--paper-sunk); }
+  .tree-list button .n { margin-left: auto; color: var(--ink-soft); font-size: 12px; }
+  .tree-list .l2 { padding-left: 22px; } .tree-list .l3 { padding-left: 36px; }
+  .rail .sep { width: 24px; height: 1px; background: var(--rule); margin: 4px 0; }
+  .rail button:disabled { opacity: .4; cursor: not-allowed; }
   .sub { color: var(--ink-soft); }
   .path { color: var(--ink-soft); display: inline-flex; flex-wrap: wrap; gap: 0 5px; }
   .path span + span::before { content: '›'; margin-right: 5px; color: var(--ink-faint); }
@@ -307,7 +331,70 @@
   .confirm .row-actions { justify-content: flex-end; }
   .toolbar-note { padding: 6px 14px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); background: var(--paper); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
+  /* The trace page: the whole width for one trace. Results on the left, the chosen route (or all of them) on the right. */
+  .tp { min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); background: var(--paper); }
+  .tp-list { min-height: 0; overflow: auto; padding: 12px; display: grid; align-content: start; gap: 10px; border-right: 1px solid var(--rule); }
+  .tp-body { min-height: 0; overflow: auto; padding: 16px 20px 28px; display: grid; align-content: start; gap: 16px; }
+  .tp-title { display: grid; gap: 2px; }
+  .tp-title h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .tp-summary { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-soft); }
+  .tp-summary b { color: var(--ink); font-weight: 600; }
+  .dlist > .mm { box-shadow: inset 3px 0 0 var(--net-b); }
+  .dlist > .mm[aria-pressed='true'] { background: #f3ecfa; box-shadow: inset 3px 0 0 var(--net-b); }
+  .pathline.wrap { flex-wrap: wrap; row-gap: 14px; overflow: visible; padding: 0; }
+  .nframe { flex: none; display: grid; grid-template-rows: 20px auto; padding: 0 6px 6px; border: 1.5px dashed #b6c1cc; border-radius: 10px; }
+  .nframe .nlabel { padding: 3px 6px 0; font-size: 12px; font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
+  .nrow { display: flex; align-items: stretch; }
+  /* A cable between two frames: its line drops by the frame's label and border, to meet the jacks. */
+  .pathline.framed > .pcell.link::after { top: calc(21.5px + 18px + var(--jack-y)); }
+  .pathline.framed > .pcell.link .id { top: calc(21.5px + 18px + var(--jack-y) - 24px); }
+  .pn.shared { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--amber); }
+  .pn.here.shared { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
+  .callout { padding: 8px 12px; border-radius: 6px; background: var(--amber-soft); border: 1px solid #ecd49a; color: var(--amber-ink); }
+  .callout.b { background: #f3ecfa; border-color: #d9c4ee; color: #3d1f5c; }
+  .tp-route { display: grid; gap: 6px; padding: 10px 12px 12px; border: 1px solid var(--rule); border-radius: 8px; }
+  .tp-route[aria-current='true'] { border-color: var(--route); box-shadow: 0 0 0 2px var(--route-soft); }
+  .tp-canvas-wrap { position: relative; min-width: 0; min-height: 0; }
+  .tp-canvas { overflow: auto; padding: 44px 14px 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); cursor: grab; }
+  .tp-canvas.dragging { cursor: grabbing; user-select: none; }
+  .tp-zoomed { width: max-content; display: grid; gap: 16px; }
+  .tp-zoomed .pathline { flex-wrap: nowrap; overflow: visible; padding: 0; }
+  .tp-pic-route { display: grid; gap: 4px; }
+  .tp-pic-route .lbl { display: flex; align-items: center; gap: 10px; min-height: 26px; }
+  .tp-pic-route .lbl .btn { height: 24px; padding: 0 8px; }
+  .tp-zoom { position: absolute; top: 8px; right: 8px; z-index: 3; display: flex; align-items: center; background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; box-shadow: 0 4px 14px -8px #1c2b3a60; }
+  .tp-zoom button { height: 28px; min-width: 30px; padding: 0 8px; border: 0; border-left: 1px solid var(--rule); background: var(--paper); white-space: nowrap; }
+  .tp-zoom button:first-child { border-left: 0; }
+  .tp-zoom button:hover { background: var(--paper-sunk); }
+  .tp-zoom button[aria-pressed='true'] { background: var(--ink); color: #fff; }
+  .tp-zoom span { min-width: 50px; text-align: center; font: 12px var(--mono); color: var(--ink-soft); border-left: 1px solid var(--rule); line-height: 28px; }
+  .tp-pic-title { position: absolute; top: 12px; left: 16px; z-index: 3; font-weight: 600; font-size: 15px; }
+  .tp.pic { grid-template-columns: minmax(0, 1fr); }
+  .tp.pic .tp-body { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .tp.pic .tp-canvas-wrap { flex: 1; }
+  .tp.pic .tp-canvas { height: 100%; border: 0; border-radius: 0; background: var(--floor); padding: 52px 24px 24px; }
+  .pathline.framed .pn { min-width: 116px; }
+  .pathline.framed .pcell.link { width: 50px; }
+  .tp-route-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  .tp-route-head .btn { margin-left: auto; height: 26px; }
+  .walk { border: 1px solid var(--rule); border-radius: 6px; overflow: auto; }
+  .walk table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .walk th { text-align: left; font-weight: 600; font-size: 12px; color: var(--ink-soft); padding: 6px 10px; background: var(--paper-sunk); border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  .walk td { padding: 6px 10px; border-top: 1px solid var(--rule-soft); white-space: nowrap; vertical-align: middle; }
+  .walk tr.cable td { color: var(--ink-soft); font-size: 12px; padding-block: 3px; background: var(--paper); }
+  .walk tr.cable td:first-child { border-left: 3px solid var(--net-a); }
+  .walk tr.cable.b td:first-child { border-left-color: var(--net-b); }
+  .walk .no { color: var(--ink-soft); font-family: var(--mono); width: 28px; }
+  .walk .btn { height: 24px; padding: 0 8px; }
+  .outcomes { display: grid; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .outcomes summary { padding: 7px 10px; background: var(--paper-sunk); cursor: pointer; font-weight: 600; font-size: 12px; color: var(--ink-soft); }
+  .outcomes div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 5px 10px; border-top: 1px solid var(--rule-soft); font-size: 12px; }
+  .outcomes div span:last-child { color: var(--ink-soft); }
+
   @media (max-width: 760px) {
+    .tp { display: block; overflow: auto; }
+    .tp-list, .tp-body { overflow: visible; }
+    .tp-list { border-right: 0; border-bottom: 1px solid var(--rule); }
     .dock { position: fixed; inset: 0 0 0 auto; width: min(380px, 100vw); z-index: 50; }
     .patch { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; overflow: auto; }
     .pane { min-height: 360px; }
@@ -403,9 +490,10 @@
 
   // ---------- frame ----------
   const SCREENS = [
-    ['tree', 'Conceptual + dock', 'Click a node card: the details open in the dock and the tree narrows. Key shows the legend.'],
+    ['tree', 'Conceptual + dock', 'Part 3, the frame: one dock on the right for everything (Node, Inspector, Trace, Explore, Add, Changes), one tab at a time; the page narrows beside it instead of being covered. Click a node card, then the rail icons on the left. Installed | Plan in the header: in a plan the header is amber and the plan’s name is always shown. Trace: run it and choose a route, the tree beside stays visible.'],
     ['hdf', 'HDF page', 'Click a jack: its whole path is drawn along the bottom, end to end, as the hardware it passes. Beside the face: what this HDF connects to, one line per far equipment with its cable count. Click a line to light those jacks on the face; click it again for all. The highest row is at the top on every HDF; each row keeps its cables. HDF jacks are 32px squares. Pairs | Pigtails next to Front / Rear is each person\'s own choice, remembered in this browser, and Patching follows it. Click a free jack: its details open in the dock.'],
     ['switch', 'Switch 48 + 4', '48 copper ports and the 4 SFP+ uplink ports fit on one line, each group with its caption. ↑ marks the ports that reach an AGG; click a row under the face to select that port.'],
+    ['trace', 'Trace page', 'The deep dive: one trace on the whole page. Open it from the dock\'s Trace tab (Open full page ⤢) or from a jack\'s path (Full page). Left: every result, AGG first, then BB and the mismatches, and what happened on each searched port. Right: the chosen route drawn end to end as hardware, each node in a dashed frame so you see where it leaves a building, then its walk step by step with Open on each step. Export PNG or PDF from the bar. Zoom on the drawing with − + Fit, or ⌘/Ctrl + wheel (a pinch on a trackpad); drag to move it; ⛶ Picture only shows only the drawing on the whole page (Esc returns). All routes stacks them: equipment every route passes is outlined in amber. ← Back returns where you were. It replaces the old Route view over the map; choosing a route in the dock still lights it in place.'],
     ['patching', 'Patching', 'Range: the start on the left is chosen. Click a free jack on the right, then Connect. Try Done before connecting.'],
   ]
   function renderFrame() {
@@ -413,7 +501,7 @@
       (st.screen === 'patching' ? `<button type="button" id="rows32" aria-pressed="${st.farRows === 32}">Far HDF: ${st.farRows === 32 ? '32 rows' : '12 rows'}</button>` : '') +
 ''
     $('#hint').textContent = SCREENS.find((s) => s[0] === st.screen)[2]
-    const view = st.screen === 'tree' ? 'Conceptual' : 'Physical'
+    const view = st.screen === 'tree' ? 'Conceptual' : st.screen === 'trace' ? '' : 'Physical'
     $('#views').innerHTML = ['Conceptual', 'Physical', 'Inventory'].map((v) => `<button type="button" data-view="${v}" aria-pressed="${v === view}">${v}</button>`).join('')
     $('#app').classList.toggle('in-plan', st.plan)
     $('#ctx-installed').setAttribute('aria-pressed', !st.plan)
@@ -425,29 +513,114 @@
       Trace: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 8 11 16M16.5 8 13 16"/>',
       Inspect: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
     }
-    const map = { Explore: 'explore', Trace: 'trace', Inspect: 'inspector' }
-    $('#rail').innerHTML = Object.entries(icons).map(([n, d]) => `<button type="button" title="${n}" aria-label="${n}" data-rail="${n}" aria-pressed="${st.dock && st.dockTab === map[n]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">${d}</svg></button>`).join('')
+    const map = { Add: 'add', Explore: 'explore', Trace: 'trace', Inspect: 'inspector' }
+    $('#rail').innerHTML = Object.entries(icons).map(([n, d]) => {
+      const off = n === 'Add' && !st.plan
+      return `<button type="button" title="${off ? 'Add: open a plan first' : n}" aria-label="${n}" data-rail="${n}" ${off ? 'disabled' : ''} aria-pressed="${(!!st.dock && st.dockTab === map[n]) || (n === 'Trace' && st.screen === 'trace')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">${d}</svg></button>`
+    }).join('')
+    $('#changes').hidden = false
+    $('#changes-n').hidden = !st.plan
   }
 
   // ---------- dock ----------
+  // One dock on the right, one tab open at a time. It narrows the page beside it (never covers it).
+  // The first tab follows what is selected: the node on the tree, the port on an equipment page.
+  const ROUTES = [
+    { to: 'AGG-01', port: 'Port 7', role: 'AGG', from: 'Te1/1/1', cables: 4, via: 'PANEL-B12-01 › HDF-02 BB01 › HDF-02 BB05' },
+    { to: 'AGG-02', port: 'Port 7', role: 'AGG', from: 'Te1/1/2', cables: 4, via: 'PANEL-B12-01 › HDF-02 BB01 › HDF-02 BB05' },
+    { to: 'BB-01', port: 'Port 7', role: 'BB', from: 'Gi1/0/38', cables: 4, via: 'PANEL-B12-01 › HDF-02 BB01 › HDF-02 BB05' },
+  ]
+  // The trace page also lists the mismatches: a destination on another network, never a route.
+  const ALL_ROUTES = [...ROUTES, { to: 'AGG-12', port: 'Port 3', role: 'AGG', from: 'Gi1/0/33', cables: 3, via: 'PANEL-B12-01 › HDF-02 BB01', mismatch: true }]
+  const NODE_OF = { 'R12-1': 'בניין 12', BB01: CORE, BB05: CORE }
+  /** A route's steps, in the same shape as a jack's path (made up for the demo; the app walks the real cables). */
+  function routeSteps(r) {
+    const J = (text, cap, sel) => ({ text, cap, sel })
+    const N = (kind, name, rack, jacks, o = {}) => ({ kind, name, rack, jacks, ...o })
+    const net = r.mismatch ? 'b' : 'a'
+    const L = (id) => ({ link: id, net })
+    const up = r.from.startsWith('Te'), n = up ? +r.from.slice(-1) : +r.from.split('/').pop()
+    const pp = up ? 24 + n : n - 24, pos = up ? n : 4, at = up ? `12A/${n}` : r.mismatch ? '7B/3' : '11C/4'
+    const start = N('Switch', 'SW-B12-03', 'R12-1', [J(up ? n : n, r.from, true)], { here: true })
+    const panel = N('Panel', 'PANEL-B12-01', 'R12-1', [J(pp, 'front'), J(pp, 'rear')])
+    const near = N('HDF', 'HDF-02 BB01', 'BB01', [J(pos, `${at} rear`), J(pos, 'front')])
+    if (r.mismatch) return [start, L('c-0433'), panel, L('c-0671'), near, L('c-1907'), N('AGG', r.to, 'BB01', [J(3, r.port)], { top: true })]
+    return [start, L(`c-04${10 + n}`), panel, L(`c-06${50 + n}`), near, L(`c-13${10 + n}`),
+      N('HDF', 'HDF-02 BB05', 'BB05', [J(pos, `${at} front`), J(pos, 'rear')]), L(`c-08${80 + n}`),
+      N(r.role, r.to, 'BB05', [J(7, r.port)], { top: true })]
+  }
   function renderDock() {
     const dock = $('#dock')
     dock.hidden = !st.dock
     if (!st.dock) return
-    const tabs = [['details', st.screen === 'tree' ? 'Node' : 'Port'], ['inspector', 'Inspector'], ['trace', 'Trace'], ['explore', 'Explore'], ['changes', 'Changes']]
-    let body = ''
-    if (st.dockTab === 'details' && st.screen === 'tree') body = nodeDetails()
-    else if (st.dockTab === 'details') body = portDetails()
-    else if (st.dockTab === 'changes') body = changesBody()
-    else if (st.dockTab === 'inspector') body = `<h2>SW-B12-03</h2><div class="row-actions"><span class="tag">Access</span><span class="tag">Network A</span></div>${path([SITE, 'בניין 12', 'R12-1'])}<div class="row-actions"><button class="btn primary" data-go="switch">Open in Physical</button><button class="btn">Find AGG / BB</button></div><div class="sub">The inspector shares this dock with the node, port, trace and changes. Only one is open at a time, and the page beside it narrows instead of being covered.</div>`
-    else if (st.dockTab === 'trace') body = `<h2>Find AGG / BB</h2><label class="sub">Start<br><select style="width:100%;height:30px;border:1px solid var(--rule);border-radius:6px"><option>SW-B12-03 · all ports</option></select></label><div><button class="btn primary">Find AGG / BB</button></div><div class="sub">Follows real cables and panel bridges only.</div>`
-    else body = `<h2>Explore</h2><input placeholder="Find equipment, port or cable" style="height:30px;border:1px solid var(--rule);border-radius:6px;padding:0 8px"><div class="sub">${path([SITE])}</div><div class="sub" style="padding-left:12px">${bdi(CORE)} · ${bdi('בניין 12')} · ${bdi('בניין 14')} · ${bdi('מחסן')}</div>`
-    dock.innerHTML = `<div class="dock-tabs" role="tablist">${tabs.map(([k, t]) => `<button type="button" class="tab" role="tab" data-tab="${k}" aria-selected="${st.dockTab === k}">${t}</button>`).join('')}<button type="button" class="x" aria-label="Close panel" data-close-dock>×</button></div><div class="dock-body">${body}</div>`
+    if (st.dockTab === 'add' && !st.plan) st.dockTab = 'changes'
+    const first = st.screen === 'tree' ? 'Node' : 'Port'
+    const tabs = [['details', first], ['inspector', 'Inspector'], ['trace', 'Trace'], ['explore', 'Explore'], ...(st.plan ? [['add', 'Add']] : []), ['changes', 'Changes']]
+    const body = {
+      details: () => (st.screen === 'tree' ? nodeDetails() : portDetails()),
+      inspector: inspectorBody, trace: traceBody, explore: exploreBody, add: addBody, changes: changesBody,
+    }[st.dockTab]()
+    dock.innerHTML = `<div class="dock-tabs" role="tablist" aria-label="Dock">${tabs.map(([k, t]) => `<button type="button" class="tab" role="tab" data-tab="${k}" aria-selected="${st.dockTab === k}">${t}</button>`).join('')}<button type="button" class="x" aria-label="Close panel" data-close-dock>×</button></div><div class="dock-body">${body}</div>`
+  }
+  function inspectorBody() {
+    const ports = sw.ports.slice(0, 6).concat(sw.ports.slice(48, 50))
+    return `<div class="dock-head"><h2>SW-B12-03</h2><div class="sub">${path([SITE, 'בניין 12', 'R12-1'])} · U14</div></div>
+      <div class="row-actions"><span class="tag">Switch</span><span class="tag">access</span><span class="tag">Network A</span><span class="tag">52 ports · 18 free</span></div>
+      <div class="row-actions"><button class="btn primary" data-go="switch">Open in Physical</button><button class="btn" data-tab="trace">Find AGG / BB</button><button class="btn quiet">Show on map</button></div>
+      <div class="group-label"><span>Ports</span><span>2 uplinks</span></div>
+      <div class="dlist">${ports.map((p) => `<button type="button" data-insp-port="${p.id}"><span class="mono">${p.name}</span><span class="r">${p.up ? '↑ AGG-0' + (p.n - 48) : p.s ? 'PANEL-B12-01 · ' + p.n : 'free'}</span></button>`).join('')}<div class="s">… 44 more in Inventory</div></div>
+      <div class="group-label"><span>Details</span><button class="btn quiet" style="height:22px;padding:0 6px">Edit</button></div>
+      <dl class="kv"><dt>Model</dt><dd>C9200L-48T-4X</dd><dt>Serial</dt><dd class="mono">JAE24161ABC</dd><dt>Management IP</dt><dd class="mono">10.12.3.3</dd></dl>`
+  }
+  function traceBody() {
+    const res = st.traced
+      ? `<div class="group-label"><span>3 routes · AGG first</span><button class="btn quiet" style="height:22px;padding:0 6px" id="trace-clear">Clear trace</button></div>
+        <div class="dlist">${ROUTES.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${st.route === i}"><b>${r.to} · ${r.port}</b><span class="r">${r.role} · ${r.cables} cables</span><span class="s">from ${r.from} · via ${r.via}</span></button>`).join('')}</div>
+        <div class="dock-note">The chosen route lights on the page beside the dock, which stays visible: the tree's cards and lines, or the jacks on a face. On an equipment page its walk is the path along the bottom.</div>`
+      : ''
+    return `<div class="dock-head"><div style="display:flex;align-items:center;gap:8px"><h2>Trace</h2><button type="button" class="btn quiet" style="margin-left:auto;height:26px" data-go="trace" title="Open this trace on its own page">Open full page ⤢</button></div><div class="sub">Real cables and panel bridges only.</div></div>
+      <div class="seg" role="group" aria-label="Trace mode"><button type="button" aria-pressed="true">Find AGG / BB</button><button type="button" aria-pressed="false">Port to port</button></div>
+      <label class="field"><span>Start</span><select><option>SW-B12-03 · all ports</option></select></label>
+      <div><button class="btn primary" id="trace-run">Find AGG / BB</button></div>${res}`
+  }
+  function exploreBody() {
+    return `<div class="dock-head"><h2>Explore</h2></div>
+      <input placeholder="Find equipment, port or cable" style="height:30px;border:1px solid var(--rule);border-radius:6px;padding:0 8px">
+      <div class="tree-list">
+        <button>${bdi(SITE)}<span class="n">9 nodes</span></button>
+        <button class="l2">${bdi(CORE)}<span class="n">3 racks</span></button>
+        <button class="l3" data-go="hdf">BB01<span class="n">HDF-02 · PANEL…</span></button>
+        <button class="l2">${bdi('בניין 12')}<span class="n">2 racks</span></button>
+        <button class="l3" data-go="switch">R12-1<span class="n">8 switches</span></button>
+        <button class="l2">${bdi('בניין 14')}<span class="n">1 rack</span></button>
+        <button class="l2">${bdi('מחסן')}<span class="n">1 rack</span></button>
+      </div>`
+  }
+  function addBody() {
+    const here = st.screen === 'tree' ? [SITE] : st.screen === 'switch' ? [SITE, 'בניין 12', 'R12-1'] : [SITE, CORE, 'BB01']
+    return `<div class="dock-head"><h2>Add</h2><div class="sub">to ${path(here)} · in plan <bdi>הרחבת ליבה</bdi></div></div>
+      <div class="lib">
+        <button><b>Switch</b><span>access, AGG or BB</span></button><button><b>Patch panel</b><span>1–48 positions</span></button>
+        <button><b>HDF</b><span>1–32 rows</span></button><button><b>Rack item</b><span>UPS, shelf, PDU…</span></button>
+        <button><b>Rack</b><span>in a node</span></button><button><b>Node</b><span>in a site</span></button>
+      </div>
+      <div class="dock-note">The form opens here, under the list; the rack or face beside the dock stays in view, so the free units are visible while you choose one.</div>`
   }
   function changesBody() {
-    const lines = st.made.map((m) => `<div class="kv"><dt>Cable</dt><dd class="mono">${esc(m.a)} → ${esc(m.b)}</dd></div>`).join('')
-    return `<h2>Changes in <bdi>הרחבת ליבה</bdi></h2><div class="sub">${3 + st.made.length} changes</div>
-      <div class="kv"><dt>Added</dt><dd>SW-B12-04 · access switch · R12-1 U14</dd><dt>Added</dt><dd>${bdi('מחסן')} › R-M1</dd><dt>Moved</dt><dd>AGG-05 to BB03 U20</dd></div>${lines}
+    if (!st.plan) return `<div class="dock-head"><h2>Changes</h2><div class="sub">Installed is read-only.</div></div>
+      <div class="group-label"><span>Drafts</span></div>
+      <div class="dlist"><div><b><bdi>הרחבת ליבה</bdi></b><span class="r">${3 + st.made.length} changes</span><span class="s"><button class="btn" id="ctx-plan-2" style="margin-top:6px">Open in Plan</button></span></div></div>
+      <div><button class="btn">New draft</button></div>
+      <div class="group-label"><span>Recorded plans</span></div><div class="sub">Nothing recorded yet.</div>`
+    const lines = st.made.map((m) => `<div><span class="mono">${esc(m.a)} ↔ ${esc(m.b)}</span><button class="btn quiet" style="height:24px;padding:0 6px">Undo</button></div>`).join('')
+    return `<div class="dock-head"><h2>Changes in <bdi>הרחבת ליבה</bdi></h2><div class="sub">${3 + st.made.length} changes · revision 8</div></div>
+      <div class="group-label"><span>Equipment added</span><span>1</span></div>
+      <div class="dlist"><div><span>SW-B12-04 · access · R12-1 U14</span><button class="btn quiet" style="height:24px;padding:0 6px">Undo</button></div></div>
+      <div class="group-label"><span>Racks added</span><span>1</span></div>
+      <div class="dlist"><div><span>${bdi('מחסן')} › R-M1</span><button class="btn quiet" style="height:24px;padding:0 6px">Undo</button></div></div>
+      <div class="group-label"><span>Moved</span><span>1</span></div>
+      <div class="dlist"><div><span>AGG-05 → BB03 U20</span><button class="btn quiet" style="height:24px;padding:0 6px">Undo</button></div></div>
+      ${lines ? `<div class="group-label"><span>Cables connected</span><span>${st.made.length}</span></div><div class="dlist">${lines}</div>` : ''}
       <div><button class="btn primary">Record as installed…</button></div>`
   }
 
@@ -510,7 +683,7 @@
     const f = TREE.frames[fi], n = f.nodes[ni]
     const sws = Array.from({ length: Math.min(n[1], 8) }, (_, i) => `SW-${['B12', 'B14', 'MH', 'MA', 'MB', 'KT', 'GT', 'DH'][(fi * 3 + ni) % 8]}-0${i + 1}`)
     return `<div><h2>${bdi(n[0])}</h2><div class="sub">${path([SITE, n[0]])} · Network A · ${n[1]} switches</div></div>
-      <div class="row-actions"><button class="btn primary" data-go="hdf">Show in Physical</button><button class="btn">Find AGG / BB</button></div>
+      <div class="row-actions"><button class="btn primary" data-go="hdf">Show in Physical</button><button class="btn" data-tab="trace">Find AGG / BB</button></div>
       <div class="section-label">Switches and their uplinks</div>
       <div class="swlist">${sws.map((s, i) => `<button type="button" data-go="switch"><b>${s}</b><span class="tag">${i === 0 && n[2] ? '⚠ 1 uplink' : '2 uplinks'}</span><span class="up">→ ${f.aggs.join(' + ')}${f.up.length ? ' · via HDF-02 BB01' : ''}</span></button>`).join('')}</div>`
   }
@@ -589,9 +762,17 @@
     if (st.screen !== 'hdf' && st.screen !== 'switch') return ''
     const j = [...nearHdf.jacks, ...sw.ports].find((x) => x.id === st.selJack)
     if (!j || (st.screen === 'hdf') !== j.id.startsWith('bb01')) return ''
-    const steps = pathOf(j), net = j.s || 'a'
+    const steps = pathOf(j)
     const nodes = steps.filter((x) => x.jacks), cables = steps.filter((x) => x.link).length
     const name = j.id.startsWith('bb01') ? `${jackName(j)} ${st.hdfSide.toLowerCase()}` : j.name
+    const first = nodes[0], last = nodes.at(-1)
+    const ends = first === last ? '' : ` · ${esc(first.name)} → ${esc(last.name)}`
+    return `<section class="pathbar" aria-label="Path"><div class="pathbar-head"><b>Path of ${esc(name)}</b><span class="sub">${cables ? `${cables} cable${cables === 1 ? '' : 's'}${ends}` : 'no cable on this jack'}</span>${cables ? '<button type="button" class="btn quiet" data-go="trace" style="margin-left:auto;font-size:13px;height:24px;padding:0 8px" title="Trace this jack on its own page">Full page ⤢</button>' : ''}<button type="button" id="path-close" aria-label="Close path"${cables ? ' style="margin-left:0"' : ''}>×</button></div><div class="pathline">${drawPath(steps, j.s || 'a', !!j.s)}</div></section>`
+  }
+  /** One line of hardware: plates for equipment (one jack, or a position's two sides and its bridge), cables between them,
+      plates in one rack on one band. `shared` outlines the equipment every route passes (the trace page's All routes). */
+  function drawPath(steps, net, coloured, shared, framed) {
+    const nodes = steps.filter((x) => x.jacks)
     const rackAt = (i) => { for (let k = i; k >= 0; k--) if (steps[k].jacks) return steps[k].rack; return null }
     const rackNext = (i) => { for (let k = i + 1; k < steps.length; k++) if (steps[k].jacks) return steps[k].rack; return null }
     const first = nodes[0], last = nodes.at(-1)
@@ -601,15 +782,97 @@
       const prevRack = i > 0 ? rackAt(i - 1) : null, nextRack = rackNext(i)
       const isFirst = prevRack !== x.rack, isLast = nextRack !== x.rack
       const one = x.jacks.length === 1, atStart = x === first
-      const jack = (q) => `<span class="pj ${j.s ? net : ''}${q.sel ? ' sel' : ''}">${q.text}</span>`
+      const jack = (q) => `<span class="pj ${coloured ? net : ''}${q.sel ? ' sel' : ''}">${q.text}</span>`
       const jacks = one ? (atStart ? `<span class="gap"></span>${jack(x.jacks[0])}` : `${jack(x.jacks[0])}<span class="gap"></span>`) : `${jack(x.jacks[0])}<span class="bridge"></span>${jack(x.jacks[1])}`
       const caps = one ? (atStart ? `<span></span><span>${x.jacks[0].cap}</span>` : `<span>${x.jacks[0].cap}</span><span></span>`) : `<span>${x.jacks[0].cap}</span><span>${x.jacks[1].cap}</span>`
       const tag = x.here ? 'div' : 'button type="button"'
-      return `<div class="pcell node band${isFirst ? ' first' : ''}${isLast ? ' last' : ''}"><span class="rack">${isFirst ? `${bdi(SITE)} › ${x.rack}` : ''}</span><${tag} class="pn${x.here ? ' here' : ''}" ${x.here ? '' : `title="Open ${esc(x.name)} on this jack"`}><span class="pn-top"><span class="tape">${esc(x.name)}</span><span class="kind${x.top ? ' top' : ''}">${x.kind}</span></span><span class="pn-jacks">${jacks}</span><span class="pn-caps">${caps}</span></${x.here ? 'div' : 'button'}></div>`
-    }).join('')
-    const ends = first === last ? '' : ` · ${esc(first.name)} → ${esc(last.name)}`
-    return `<section class="pathbar" aria-label="Path"><div class="pathbar-head"><b>Path of ${esc(name)}</b><span class="sub">${cables ? `${cables} cable${cables === 1 ? '' : 's'}${ends}` : 'no cable on this jack'}</span><button type="button" id="path-close" aria-label="Close path">×</button></div><div class="pathline">${cells}</div></section>`
+      const sh = shared && shared.has(x.name)
+      return `<div class="pcell node band${isFirst ? ' first' : ''}${isLast ? ' last' : ''}"><span class="rack">${isFirst ? (framed ? x.rack : `${bdi(SITE)} › ${x.rack}`) : ''}</span><${tag} class="pn${x.here ? ' here' : ''}${sh ? ' shared' : ''}" ${x.here ? '' : `title="Open ${esc(x.name)} on this jack${sh ? ' · every route passes here' : ''}"`}><span class="pn-top"><span class="tape">${esc(x.name)}</span><span class="kind${x.top ? ' top' : ''}">${x.kind}</span></span><span class="pn-jacks">${jacks}</span><span class="pn-caps">${caps}</span></${x.here ? 'div' : 'button'}></div>`
+    })
+    if (!framed) return cells.join('')
+    // Framed (the trace page): each node's steps in one dashed frame named Site › Node; a cable between two nodes sits
+    // between the frames, so the eye sees where the route leaves a building.
+    const nodeOf = (rack) => rack && NODE_OF[rack]
+    let out = '', open = null
+    steps.forEach((x, i) => {
+      const n = x.jacks ? nodeOf(x.rack) : x.link && nodeOf(rackAt(i)) === nodeOf(rackNext(i)) ? nodeOf(rackAt(i)) : null
+      if (n !== open) { if (open) out += '</div></div>'; if (n) out += `<div class="nframe"><span class="nlabel">${bdi(SITE)} › ${bdi(n)}</span><div class="nrow">`; open = n }
+      out += cells[i]
+    })
+    if (open) out += '</div></div>'
+    return out
   }
+
+  // ---------- trace page ----------
+  // The deep dive: one trace on the whole page, no dock. Results on the left; the chosen route, or all of them, on the right.
+  function renderTracePage() {
+    const routes = ALL_ROUTES.filter((r) => !r.mismatch), mms = ALL_ROUTES.filter((r) => r.mismatch)
+    const item = (r) => { const i = ALL_ROUTES.indexOf(r); return `<button type="button" data-route="${i}" aria-pressed="${st.route === i}"${r.mismatch ? ' class="mm"' : ''}><b>${r.to} · ${r.port}</b><span class="r">${r.mismatch ? 'Network B' : r.role} · ${r.cables} cables</span><span class="s">from ${r.from} · via ${r.via}</span></button>` }
+    const group = (label, rs) => rs.length ? `<div class="group-label"><span>${label}</span><span>${rs.length}</span></div><div class="dlist">${rs.map(item).join('')}</div>` : ''
+    const list = `<div class="tp-summary"><span><b>3 routes</b> · 1 mismatch</span><span>from 3 of 52 ports</span></div>
+      ${group('AGG', routes.filter((r) => r.role === 'AGG'))}${group('BB', routes.filter((r) => r.role === 'BB'))}${group('Mismatch · another network', mms)}
+      <details class="outcomes"><summary>What each port found · 52 searched</summary>
+        <div><span class="mono">Te1/1/1</span><span>AGG-01</span></div><div><span class="mono">Te1/1/2</span><span>AGG-02</span></div>
+        <div><span class="mono">Gi1/0/38</span><span>BB-01</span></div><div><span class="mono">Gi1/0/33</span><span>mismatch · AGG-12, Network B</span></div>
+        <div><span>30 ports</span><span>no destination · end at a panel</span></div><div><span>18 ports</span><span>disconnected · no cable</span></div></details>`
+    // The drawing sits on a canvas you can zoom (+ − Fit, or ⌘/Ctrl + wheel, a pinch on a trackpad) and drag;
+    // Picture only hides everything else and gives the canvas the whole page.
+    const pic = !!st.tpPicture
+    const canvas = (title, inner) => `<div class="tp-canvas-wrap">${pic ? `<div class="tp-pic-title">${title}</div>` : ''}
+      <div class="tp-zoom" role="group" aria-label="Zoom"><button type="button" data-tz="out" aria-label="Zoom out" title="Zoom out">−</button><span id="tp-zl">100%</span><button type="button" data-tz="in" aria-label="Zoom in" title="Zoom in">+</button><button type="button" data-tz="fit" title="Fit the picture">Fit</button><button type="button" id="tp-pic" aria-pressed="${pic}" title="${pic ? 'Back to the full page (Esc)' : 'Only the picture, on the whole page'}">${pic ? 'Exit picture' : '⛶ Picture only'}</button></div>
+      <div class="tp-canvas" id="tp-canvas"><div class="tp-zoomed" id="tp-zoomed">${inner}</div></div></div>`
+    let body
+    if (st.tpView === 'all') {
+      const sets = routes.map((r) => new Set(routeSteps(r).filter((x) => x.jacks && !x.here && !x.top).map((x) => x.name)))
+      const shared = new Set([...sets[0]].filter((n) => sets.every((s) => s.has(n))))
+      const drawings = routes.map((r) => { const i = ALL_ROUTES.indexOf(r); return `<section class="tp-pic-route" aria-current="${st.route === i}"><div class="lbl"><b>${r.from} → ${r.to} · ${r.port}</b><span class="tag">${r.role}</span><span class="sub">${r.cables} cables</span>${pic ? '' : `<button type="button" class="btn quiet" data-route="${i}" data-tp-one>Open this route</button>`}</div><div class="pathline framed">${drawPath(routeSteps(r), 'a', true, shared, true)}</div></section>` }).join('')
+      body = (pic ? '' : `<div class="tp-title"><h2>All routes from SW-B12-03</h2><div class="sub">${routes.length} routes · each one end to end · the mismatch is left out</div></div>
+        ${shared.size ? `<div class="callout"><b>Every route passes ${[...shared].map(esc).join(', ')}.</b> Different jacks, the same equipment: a problem there cuts all ${routes.length}.</div>` : ''}`) +
+        canvas(`All routes from SW-B12-03 · <span class="sub">equipment every route passes is outlined in amber</span>`, drawings)
+    } else {
+      const r = ALL_ROUTES[st.route ?? 0], steps = routeSteps(r), net = r.mismatch ? 'b' : 'a'
+      const nodes = steps.filter((x) => x.jacks), racks = new Set(nodes.map((x) => x.rack)), places = new Set(nodes.map((x) => NODE_OF[x.rack]))
+      let no = 0
+      const rows = steps.map((x, i) => {
+        if (x.link) return `<tr class="cable ${net}"><td></td><td colspan="5">cable <span class="mono">${x.link}</span></td><td></td></tr>`
+        no++
+        const go = x.kind === 'Switch' ? 'switch' : x.kind === 'HDF' ? 'hdf' : x.kind === 'Panel' ? 'hdf' : 'switch'
+        const [a, b] = x.jacks
+        return `<tr><td class="no">${no}</td><td><b>${esc(x.name)}</b> <span class="tag">${x.kind}</span></td><td class="sub">${bdi(SITE)} › ${bdi(NODE_OF[x.rack])} › ${x.rack}</td><td class="mono">${i === 0 ? '—' : esc(a.cap)}</td><td class="mono">${b ? esc(b.cap) : i === 0 ? esc(a.cap) : '—'}</td><td class="sub">${b ? 'bridge' : i === 0 ? 'start' : 'end'}</td><td><button type="button" class="btn" data-go="${go}">Open</button></td></tr>`
+      }).join('')
+      const title = `SW-B12-03 · ${r.from} → ${r.to} · ${r.port}`
+      const drawing = `<div class="pathline framed">${drawPath(steps, net, true, null, true)}</div>`
+      body = pic ? canvas(`${title} · <span class="sub">${r.cables} cables</span>`, drawing)
+        : `<div class="tp-title"><h2>${title}</h2><div class="tp-summary"><span><b>${r.cables} cables</b></span><span>${nodes.length} equipment</span><span>${racks.size} racks in ${places.size} nodes</span><span>${r.mismatch ? 'Network A → <b style="color:var(--net-b)">Network B</b>' : `Network A · ends at ${r.role}`}</span></div></div>
+        ${r.mismatch ? '<div class="callout b"><b>A mismatch, not a route.</b> Gi1/0/33 is on Network A, and the circuit ends at AGG-12 on Network B. Check the cable at either end.</div>' : ''}
+        ${canvas(title, drawing)}
+        <div class="section-label">Walk, step by step</div>
+        <div class="walk"><table><thead><tr><th>#</th><th>Equipment</th><th>Where</th><th>Arrives at</th><th>Leaves from</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+    }
+    $('#main').innerHTML = `<div class="bar"><div class="crumbs"><button type="button" id="tp-back">← Back</button><span class="sep">›</span><span class="here">Trace</span></div>
+      ${pic ? '' : `<div class="seg" role="group" aria-label="Trace mode"><button type="button" aria-pressed="true">Find AGG / BB</button><button type="button" aria-pressed="false">Port to port</button></div>
+      <select aria-label="Start" style="height:30px;border:1px solid var(--rule);border-radius:6px;padding:0 8px;background:var(--paper)"><option>SW-B12-03 · all ports</option></select>`}
+      <span class="spacer"></span>
+      <div class="seg" role="group" aria-label="Show"><button type="button" data-tp-view="one" aria-pressed="${st.tpView !== 'all'}">One route</button><button type="button" data-tp-view="all" aria-pressed="${st.tpView === 'all'}">All routes</button></div>
+      ${pic ? '' : '<button type="button" class="btn quiet">Show on map</button>'}<span class="sub" style="font-size:12px">Export</span><button type="button" class="btn" data-export="PNG" title="Download the drawing as a picture, with a header: start → end, Installed or the plan, the date">PNG</button><button type="button" class="btn" data-export="PDF" title="Download one PDF page: the drawing and the walk">PDF</button></div>
+      <div class="tp${pic ? ' pic' : ''}">${pic ? '' : `<aside class="tp-list" aria-label="Results">${list}</aside>`}<div class="tp-body">${st.toast ? `<div class="dock-note" role="status">${st.toast}</div>` : ''}${body}</div></div>`
+  }
+  /** Fit (no zoom chosen): the whole picture fits the canvas's width (and its height in Picture only), never above 100%
+      on the page or 250% in Picture only. A chosen zoom stays until Fit. */
+  function zoomTrace() {
+    const c = $('#tp-canvas'), z = $('#tp-zoomed')
+    if (!c || !z) return
+    let k = st.tpZoom
+    if (k == null) {
+      z.style.zoom = 1
+      const cs = getComputedStyle(c), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight), padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
+      k = Math.min((c.clientWidth - padX) / z.scrollWidth, st.tpPicture ? (c.clientHeight - padY) / z.scrollHeight : 1, st.tpPicture ? 2.5 : 1)
+      k = Math.max(0.3, k)
+    }
+    z.style.zoom = k; st.tpShown = k
+    const l = $('#tp-zl'); if (l) l.textContent = Math.round(k * 100) + '%'
+  }
+  function zoomBy(f) { st.tpZoom = Math.min(4, Math.max(0.3, (st.tpShown ?? 1) * f)); zoomTrace() }
   function cablesList(items, name, under) {
     const q = (st.cableFilter || '').trim().toLowerCase()
     const all = items.map((j, i) => ({ j, i })).filter(({ j }) => j.s).map(({ j, i }) => ({ j, f: farOf(j, i) }))
@@ -659,7 +922,7 @@
     const free = !j.s
     const actions = st.plan
       ? free ? `<div class="row-actions"><button class="btn primary" data-go="patching">Connect…</button><button class="btn" data-go="patching">Connect a range…</button></div>`
-        : `<div class="row-actions"><button class="btn danger">Disconnect…</button><button class="btn">Trace from here</button></div>`
+        : `<div class="row-actions"><button class="btn danger">Disconnect…</button><button class="btn" data-tab="trace">Trace from here</button></div>`
       : `<div class="sub">Open a plan to connect or disconnect.</div>`
     const other = isHdf ? `${j.label} ${st.hdfSide === 'Rear' ? 'front' : 'rear'}` : ''
     const farEnd = isHdf ? `AGG-0${(j.row ?? 1) % 2 + 1} · Port ${(j.pos ?? 3) + 6}` : j.up ? `AGG-0${j.n - 48} · Port 12` : `PANEL-B12-01 · ${j.n}`
@@ -769,22 +1032,33 @@
     if (st.screen === 'tree') renderTree()
     else if (st.screen === 'hdf') renderHdf()
     else if (st.screen === 'switch') renderSwitch()
+    else if (st.screen === 'trace') { renderTracePage(); zoomTrace() }
     else renderPatching()
     renderDock()
     if (st.screen === 'tree') requestAnimationFrame(() => renderTree())
     $('#size').textContent = `This window: ${innerWidth} × ${innerHeight}`
   }
+  function litRoute() {
+    if (st.screen === 'tree') st.selNode = '0:0'
+    else if (st.screen === 'switch') { const f = ALL_ROUTES[st.route].from; st.selJack = f.startsWith('Te') ? 'sw:te' + f.slice(-1) : 'sw:' + f.split('/').pop() }
+  }
   function go(screen) {
+    if (screen === 'trace' && st.screen !== 'trace') st.traceBack = st.screen
     st.screen = screen; st.farSel = null; st.menu = false; st.selJack = null; st.confirmDone = false; st.pickerOpen = false
     if (screen === 'patching') { st.dock = null; renderPatching.scrolled = false }
-    else if (screen !== 'tree') st.dock = null
+    else if (screen === 'trace') { st.dock = null; st.traced = true; if (st.route == null) st.route = 0 }
+    else if (st.dockTab === 'details') st.dock = null
+    if (st.route != null) litRoute()
     try { history.replaceState(null, '', '#' + screen) } catch {}
     render()
   }
 
   document.addEventListener('click', (e) => {
+    const ip = e.target.closest('[data-insp-port]')
+    if (ip) { const id = ip.dataset.inspPort; go('switch'); st.selJack = id; st.dock = true; st.dockTab = 'details'; return render() }
     const row = e.target.closest('[data-jack-row]')
     if (row) { st.selJack = row.dataset.jackRow; st.dock = true; st.dockTab = 'details'; return render() }
+    if (st.toast && !e.target.closest('[data-export]')) st.toast = ''
     const t = e.target.closest('button, input, select, summary')
     if (!t) { if (st.menu) { st.menu = false; render() } return }
     if (t.dataset.far) { st.farSel = st.farSel === t.dataset.far ? null : t.dataset.far; return render() }
@@ -798,12 +1072,22 @@
     if (t.dataset.view) return go(t.dataset.view === 'Conceptual' ? 'tree' : 'hdf')
     if (t.id === 'ctx-installed' || t.id === 'ctx-plan') { st.plan = t.id === 'ctx-plan'; return render() }
     if (t.id === 'changes') { st.dock = true; st.dockTab = 'changes'; return render() }
+    if (t.id === 'trace-run') { st.traced = true; st.route = 0; litRoute(); return render() }
+    if (t.id === 'trace-clear') { st.traced = false; st.route = null; return render() }
+    if (t.dataset.route) { st.route = +t.dataset.route; st.tpZoom = null; if (t.hasAttribute('data-tp-one')) st.tpView = 'one'; litRoute(); return render() }
+    if (t.dataset.export) { st.toast = t.dataset.export === 'PNG' ? `Downloaded route-SW-B12-03-${ALL_ROUTES[st.route ?? 0].to}.png (demo: nothing is saved). With All routes, every route is in the one picture.` : `Downloaded route-SW-B12-03-${ALL_ROUTES[st.route ?? 0].to}.pdf (demo): the drawing on top, the walk under it, one page.`; return render() }
+    if (t.dataset.tz) { if (t.dataset.tz === 'fit') { st.tpZoom = null; zoomTrace() } else zoomBy(t.dataset.tz === 'in' ? 1.25 : 1 / 1.25); return }
+    if (t.id === 'tp-pic') { st.tpPicture = !st.tpPicture; st.tpZoom = null; return render() }
+    if (t.dataset.tpView) { st.tpView = t.dataset.tpView; st.tpZoom = null; return render() }
+    if (t.id === 'tp-back') return go(st.traceBack || 'tree')
+    if (t.dataset.rail === 'Trace' && st.screen === 'trace') return
+    if (t.id === 'ctx-plan-2') { st.plan = true; return render() }
     if (t.dataset.rail) {
-      const tab = { Explore: 'explore', Trace: 'trace', Inspect: 'inspector', Add: 'changes' }[t.dataset.rail]
+      const tab = { Explore: 'explore', Trace: 'trace', Inspect: 'inspector', Add: 'add' }[t.dataset.rail]
       if (st.dock && st.dockTab === tab) st.dock = null; else { st.dock = true; st.dockTab = tab }
       return render()
     }
-    if (t.dataset.tab) { st.dockTab = t.dataset.tab; return render() }
+    if (t.dataset.tab) { st.dock = true; st.dockTab = t.dataset.tab; return render() }
     if (t.hasAttribute('data-close-dock')) { st.dock = null; st.selJack = null; if (st.screen === 'tree') st.selNode = null; return render() }
     if (t.dataset.node) { st.selNode = t.dataset.node; st.dock = true; st.dockTab = 'details'; return render() }
     if (t.id === 'key') { st.keyOpen = !st.keyOpen; return render() }
@@ -848,9 +1132,23 @@
     }
   })
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && st.screen === 'trace' && st.tpPicture) { st.tpPicture = false; st.tpZoom = null; return render() }
     if (e.key === 'Escape') { if (st.confirmDone || st.pickerOpen || st.menu) { st.confirmDone = st.pickerOpen = st.menu = false; render() } else if (st.dock) { st.dock = null; render() } }
   })
-  addEventListener('resize', () => { $('#size').textContent = `This window: ${innerWidth} × ${innerHeight}`; if (st.screen === 'tree') renderTree() })
+  // ⌘/Ctrl + wheel (and a trackpad pinch, which the browser sends the same way) zooms the trace picture; dragging it pans.
+  document.addEventListener('wheel', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || !e.target.closest('#tp-canvas')) return
+    e.preventDefault(); zoomBy(Math.exp(-Math.max(-50, Math.min(50, e.deltaY)) * 0.005))
+  }, { passive: false })
+  let drag = null
+  document.addEventListener('pointerdown', (e) => {
+    const c = e.target.closest('#tp-canvas')
+    if (!c || e.button !== 0 || e.target.closest('button')) return
+    drag = { c, x: e.clientX, y: e.clientY, l: c.scrollLeft, t: c.scrollTop }; c.classList.add('dragging')
+  })
+  document.addEventListener('pointermove', (e) => { if (drag) { drag.c.scrollLeft = drag.l - (e.clientX - drag.x); drag.c.scrollTop = drag.t - (e.clientY - drag.y) } })
+  document.addEventListener('pointerup', () => { if (drag) { drag.c.classList.remove('dragging'); drag = null } })
+  addEventListener('resize', () => { $('#size').textContent = `This window: ${innerWidth} × ${innerHeight}`; if (st.screen === 'tree') renderTree(); if (st.screen === 'trace') zoomTrace() })
   const start = (location.hash || '').slice(1)
   if (SCREENS.some((s) => s[0] === start)) st.screen = start
   render()
