@@ -241,7 +241,10 @@ test('POL-20 the inspector has Overview and Ports tabs, a compact port table, al
   await inspect(page, 'panel-a')
 
   // Tabs: Overview first, then Positions for a passive panel (Ports for a switch).
-  const tabs = page.getByRole('tab')
+  const tabs = page
+    .getByRole('tablist')
+    .filter({ hasText: 'Overview' })
+    .getByRole('tab')
   await expect(tabs).toHaveText(['Overview', 'Positions', 'History'])
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
   const overview = page.getByRole('tabpanel')
@@ -312,7 +315,7 @@ test('POL-20 the inspector has Overview and Ports tabs, a compact port table, al
   await inspect(page, 'hdf-01')
   await portsTab(page).click()
   await filter(page, 'All').click()
-  const content = page.locator('.studio-drawer .drawer-content')
+  const content = page.locator('.dock:not([hidden]) .dock-body:not([hidden])')
   await content.evaluate((el) => (el.scrollTop = el.scrollHeight))
   const header = page.locator('.inspector-header')
   await expect(header).toBeInViewport()
@@ -385,7 +388,7 @@ test('POL-35 Enter or Space on a focused card opens its drawer, Enter on a switc
 }) => {
   await page.goto('/')
   await fitted(page)
-  await expect(page.locator('.studio-drawer')).toHaveCount(0)
+  await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
   const drawer = page.getByTestId('hierarchy-drawer')
   const building = page.locator(`[data-card-key="${BUILDING_A}"]`)
   await building.focus()

@@ -8,13 +8,6 @@
   min-width: 0;
   background: var(--floor);
 }
-/* D34: an open drawer keeps the page clear of it. */
-.studio.drawer-left .inventory-page {
-  padding-left: var(--clear-of-left-drawer);
-}
-.studio.drawer-right .inventory-page {
-  padding-right: var(--clear-of-right-drawer);
-}
 .inventory-page .sr-only {
   position: absolute;
   width: 1px;

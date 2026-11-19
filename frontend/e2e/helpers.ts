@@ -120,7 +120,7 @@ export async function expectInsideVisibleArea(page: Page, ids: string[]) {
         let left = 0
         let right = 0
         let bottom = 0
-        for (const d of document.querySelectorAll('.studio-drawer')) {
+        for (const d of document.querySelectorAll('.dock:not([hidden])')) {
           const r = d.getBoundingClientRect()
           if (d.classList.contains('left')) left = Math.max(left, r.right)
           else right = Math.max(right, surface.right - r.left)
@@ -173,7 +173,11 @@ export const layout = (page: Page) =>
   )
 
 export async function openExplore(page: Page) {
-  if ((await page.locator('.studio-drawer.left').count()) === 0)
+  if (
+    (await page
+      .getByRole('complementary', { name: 'Explore infrastructure' })
+      .count()) === 0
+  )
     await page
       .getByRole('button', { name: 'Open explorer', exact: true })
       .click()

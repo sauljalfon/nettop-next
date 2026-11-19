@@ -95,10 +95,10 @@ test('VP-02 the rack keeps clear of the Changes drawer', async ({ page }) => {
   for (const right of rights) expect(right).toBeLessThanOrEqual(box.x)
 })
 
-test('VP-02 on the map the inspector floats over the canvas and nothing moves', async ({
+test('VP-02 on the map the inspector sits beside the canvas, on the right, and nothing moves', async ({
   page,
 }) => {
-  // EDGE-17 selected on the tree with the drawers closed, then open the inspector over it.
+  // EDGE-17 selected on the tree with the dock closed, then open the inspector beside it.
   await selectEquipment(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page.getByRole('button', { name: 'Open explorer', exact: true }).click()
@@ -112,9 +112,10 @@ test('VP-02 on the map the inspector floats over the canvas and nothing moves', 
   expect(await page.locator('.flow-surface').boundingBox()).toEqual(surface)
   expect(await viewport(page)).toBe(before)
   const drawer = (await inspector(page).boundingBox())!
-  const flow = (await page.locator('.flow-surface').boundingBox())!
-  expect(drawer.x).toBeLessThan(flow.x + flow.width)
-  expect(drawer.x + drawer.width).toBeGreaterThan(flow.x)
+  const canvas = (await page.locator('.workspace-canvas').boundingBox())!
+  // The dock is on the right and its box does not overlap the canvas's.
+  expect(drawer.x).toBeGreaterThan(canvas.x)
+  expect(drawer.x).toBeGreaterThanOrEqual(canvas.x + canvas.width - 1)
 })
 
 // VP-03 (D33): a 1U row is never below 26px; a tall rack scrolls and never clips a name.

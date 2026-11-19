@@ -19,7 +19,7 @@ async function newPlan(request: APIRequestContext, name: string) {
   expect(response.status()).toBe(201)
   return (await response.json()).id as string
 }
-const inspector = (page: Page) => page.locator('aside.studio-drawer')
+const inspector = (page: Page) => page.locator('.dock:not([hidden])')
 
 async function openMainDistribution(page: Page) {
   await page.getByRole('button', { name: 'Physical', exact: true }).click()

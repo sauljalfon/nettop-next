@@ -68,7 +68,7 @@ test('clicking equipment in the rack opens its page, named in the bar', async ({
     'data-location',
     /rack:rack-sm01\/equipment:hdf-01$/,
   )
-  await expect(page.locator('aside.studio-drawer')).toHaveCount(0) // the inspector stays closed
+  await expect(page.locator('.dock:not([hidden])')).toHaveCount(0) // the inspector stays closed
   await expect(
     page
       .getByRole('navigation', { name: 'Breadcrumbs' })

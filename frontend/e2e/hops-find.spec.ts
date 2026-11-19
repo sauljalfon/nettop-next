@@ -103,8 +103,11 @@ test('there is exactly one search field labelled "Find equipment" in the whole a
 }) => {
   await page.goto('/')
   await fitted(page)
+  // Add is for plans only: disabled in Installed.
+  await expect(
+    page.getByRole('button', { name: 'Add equipment library', exact: true }),
+  ).toBeDisabled()
   for (const opener of [
-    'Add equipment library',
     'Open explorer',
     'Open trace tools',
     'Open inspector',
@@ -137,15 +140,15 @@ test('Explore hides sites, nodes and racks without a match while the search has 
   await expect(page.locator('.explorer-node')).toHaveCount(1)
   await expect(page.locator('.tree-rack')).toHaveCount(1)
   await expect(page.locator('.tree-equipment')).toHaveText(['EDGE-17U8'])
-  await expect(page.locator('.studio-drawer').getByText('DR Site')).toHaveCount(
-    0,
-  )
+  await expect(
+    page.locator('.dock:not([hidden])').getByText('DR Site'),
+  ).toHaveCount(0)
 
   await search.fill('agg')
   await expect(page.locator('.explorer-site')).toHaveCount(2)
   await expect(page.locator('.tree-rack')).toHaveCount(3) // Core 01, Core 02 and DR02, not Core 03
   await expect(
-    page.locator('.studio-drawer').getByText('Rack Core 03'),
+    page.locator('.dock:not([hidden])').getByText('Rack Core 03'),
   ).toHaveCount(0)
 
   await search.fill('zzz')

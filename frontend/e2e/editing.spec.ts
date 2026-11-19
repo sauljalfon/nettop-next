@@ -401,16 +401,17 @@ test('ED-11 the HDF form adds a 4-row HDF in a rack, shows the server refusing a
   await expect(block(page, newId)).toHaveAttribute('data-proposed', 'true')
 })
 
-test('ED-11 without a plan the library offers the HDF item disabled, with a reason', async ({
+test('ED-11 without a plan the rail’s Add is disabled with a reason and no library opens', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await expect(page.getByRole('button', { name: 'Add HDF…' })).toBeDisabled()
-  await expect(page.getByTestId('hdf-disabled-hint')).toHaveText(
-    'Open a plan to add an HDF.',
-  )
+  const add = page.getByRole('button', { name: 'Add equipment library' })
+  await expect(add).toBeDisabled()
+  await expect(add).toHaveAttribute('title', 'Add: open a plan first')
+  await expect(
+    page.getByRole('complementary', { name: 'Equipment library' }),
+  ).toHaveCount(0)
 })
 
 test('ED-14 Escape closes each inline confirm and form, and focus returns to the button that opened it', async ({

@@ -302,7 +302,7 @@ test('POL-31 the picture starts at the left, clear of the drawers, and scrolls s
     page.evaluate((selector) => {
       const first = document.querySelector(selector)!.getBoundingClientRect()
       const covers = [
-        ...document.querySelectorAll('.studio-drawer, .tool-rail'),
+        ...document.querySelectorAll('.dock:not([hidden]), .tool-rail'),
       ].map((el) => el.getBoundingClientRect())
       return covers.every(
         (c) =>
@@ -328,7 +328,7 @@ test('POL-31 the picture starts at the left, clear of the drawers, and scrolls s
   await toggle(page).click()
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await selectEquipment(page, 'EDGE-17')
-  await expect(page.locator('.studio-drawer.right')).toBeVisible()
+  await expect(page.locator('.dock:not([hidden])')).toBeVisible()
   await toggle(page).click()
   await expect(diagram(page)).toBeVisible()
   expect(await clear('[data-testid="rd-step"][data-n="1"]')).toBe(true)

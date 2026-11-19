@@ -163,7 +163,11 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
     (e) => e.kind === 'hdf' && e.name.startsWith('SM1-HDF'),
   )!
   const showOnMap = async (name: string) => {
-    if ((await page.locator('.studio-drawer.left').count()) === 0)
+    if (
+      (await page
+        .getByRole('complementary', { name: 'Explore infrastructure' })
+        .count()) === 0
+    )
       await page
         .getByRole('button', { name: 'Open explorer', exact: true })
         .click()
@@ -421,7 +425,11 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
   })
 
   await timed('Explore opens', async () => {
-    if ((await page.locator('.studio-drawer.left').count()) === 0)
+    if (
+      (await page
+        .getByRole('complementary', { name: 'Explore infrastructure' })
+        .count()) === 0
+    )
       await page
         .getByRole('button', { name: 'Open explorer', exact: true })
         .click()

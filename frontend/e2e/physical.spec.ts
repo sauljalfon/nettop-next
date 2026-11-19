@@ -515,7 +515,9 @@ async function cardsClearOfCovers(page: Page) {
     const rect = (el: Element) => el.getBoundingClientRect()
     const flow = rect(document.querySelector('.site-flow')!)
     const covers = [
-      ...document.querySelectorAll('.studio-drawer, .map-results, .tool-rail'),
+      ...document.querySelectorAll(
+        '.dock:not([hidden]), .map-results, .tool-rail',
+      ),
     ].map(rect)
     const problems: string[] = []
     for (const card of document.querySelectorAll('.react-flow__node')) {
@@ -554,7 +556,7 @@ test('PHY-20 the site screen fits into the visible area, on entering and after R
   await physical(page).click()
   await expect(page.getByLabel('Map trace results')).toBeVisible()
   await page.getByRole('button', { name: 'Open inspector' }).click()
-  await expect(page.locator('aside.studio-drawer')).toBeVisible()
+  await expect(page.locator('.dock:not([hidden])')).toBeVisible()
 
   await openMainCampus(page)
   await expect

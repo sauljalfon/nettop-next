@@ -17,7 +17,7 @@ test('RI-14 the fixture’s UPS opens in the inspector and on its page with "No 
   await page.goto('/')
   await fitted(page)
   await selectEquipment(page, 'UPS-A03')
-  const inspector = page.locator('aside.studio-drawer')
+  const inspector = page.locator('.dock:not([hidden])')
   await expect(inspector.getByTestId('no-ports')).toHaveText('No ports')
   await expect(inspector.getByTestId('equipment-details')).toContainText('Type')
   await expect(inspector.getByTestId('equipment-details')).toContainText('UPS')

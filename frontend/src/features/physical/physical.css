@@ -10,12 +10,6 @@
   padding: 14px 25px 8px 100px;
   z-index: 30;
 }
-.studio.drawer-left .physical-top {
-  padding-left: var(--clear-of-left-drawer);
-}
-.studio.drawer-right .physical-top {
-  padding-right: var(--clear-of-right-drawer);
-}
 .physical-nav {
   display: flex;
   align-items: center;
@@ -249,14 +243,6 @@
   padding: 18px 25px 25px 100px;
   overflow: auto;
 }
-.studio.drawer-left .site-grid,
-.studio.drawer-left .node-level {
-  padding-left: var(--clear-of-left-drawer);
-}
-.studio.drawer-right .site-grid,
-.studio.drawer-right .node-level {
-  padding-right: var(--clear-of-right-drawer);
-}
 .site-card {
   display: flex;
   flex-direction: column;
@@ -309,12 +295,6 @@
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: 8px;
-}
-.studio.drawer-left .site-flow .site-note {
-  margin-left: var(--clear-of-left-drawer);
-}
-.studio.drawer-right .site-flow .site-note {
-  margin-right: var(--clear-of-right-drawer);
 }
 .node-card {
   display: flex;
@@ -396,20 +376,6 @@
   border: 1px solid var(--rule);
   border-radius: 8px;
   box-shadow: var(--shadow-pop);
-}
-.studio.drawer-left .cable-list {
-  left: var(--clear-of-left-drawer);
-}
-.studio.drawer-right .cable-list {
-  right: var(--clear-of-right-drawer);
-  width: fit-content; /* with left and right both set, keep the list as wide as its content */
-  max-width: min(760px, calc(100% - 100px - var(--clear-of-right-drawer)));
-}
-.studio.drawer-left.drawer-right .cable-list {
-  max-width: min(
-    760px,
-    calc(100% - var(--clear-of-left-drawer) - var(--clear-of-right-drawer))
-  );
 }
 .cable-list header {
   display: flex;
@@ -555,12 +521,6 @@
   padding: 14px 25px 25px 100px;
   overflow: auto;
 }
-.studio.drawer-left .rack-level {
-  padding-left: var(--clear-of-left-drawer);
-}
-.studio.drawer-right .rack-level {
-  padding-right: var(--clear-of-right-drawer);
-}
 .rack-heading {
   display: flex;
   align-items: baseline;
@@ -661,12 +621,6 @@
   height: 100%;
   padding: 14px 25px 25px 100px;
   overflow: auto;
-}
-.studio.drawer-left .equipment-page {
-  padding-left: var(--clear-of-left-drawer);
-}
-.studio.drawer-right .equipment-page {
-  padding-right: var(--clear-of-right-drawer);
 }
 /* The page: rack strip, face, endpoint detail. Beside each other when there is room,
    the detail below the face when there is not (D34): measured on the page's content width. */

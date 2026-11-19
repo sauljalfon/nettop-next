@@ -39,7 +39,8 @@ import type {
   TraceRequest,
 } from '../shared/types'
 import ConceptualMap from '../features/map/ConceptualMap'
-import { drawerSides } from '../features/map/drawers'
+import Dock, { DockBody, DockProvider } from '../features/frame/DockView'
+import { dockSession, useDock } from '../features/frame/dock'
 import {
   buildSearchItems,
   inspectorQuery,
@@ -109,9 +110,6 @@ import Name from '../shared/ui/Name'
 const ROUTE_NOT_HERE =
   'The selected route is not in this context; showing the first.'
 
-type Drawer =
-  'library' | 'explorer' | 'plans' | 'inspector' | 'trace' | 'networks' | null
-
 export default function App() {
   const client = useQueryClient()
   const [context, setContext] = useState<Context>(() =>
@@ -120,7 +118,7 @@ export default function App() {
   const [planID, setPlanID] = useState(
     () => new URLSearchParams(location.search).get('plan') ?? '',
   )
-  const [drawer, setDrawer] = useState<Drawer>(null)
+  const dock = useDock()
   const [pending, setPending] = useState<PendingEquipment>()
   const [status, setStatus] = useState('')
   const statusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -235,17 +233,16 @@ export default function App() {
         rackId: rackID ?? '',
         unit: unit ?? first ?? 1,
       })
-      setDrawer('library')
+      dockSession.open('add')
     },
     [topology.data, context, selectedPlan],
   )
-  const openInspector = useCallback(() => setDrawer('inspector'), [])
-  const toggleDrawer = (value: Drawer) =>
-    setDrawer((previous) => (previous === value ? null : value))
+  const openInspector = useCallback(() => dockSession.open('inspector'), [])
   const setMode = (next: Context) => {
     setPending(undefined)
     setContext(next)
-    setDrawer(next === 'planned' ? 'plans' : null)
+    dockSession.setPlanned(next === 'planned')
+    if (next === 'planned') dockSession.open('changes')
     setStatus('')
   }
   // Installed's drawer: open a draft in Plan view, or start a new one.
@@ -309,234 +306,181 @@ export default function App() {
     mapSession.networks,
   )
   const mapNetworkId = shownNetworks(mapNetworks, networks)[0]
+  useEffect(() => {
+    dockSession.setPlanned(context === 'planned')
+  }, [context])
   return (
-    <div
-      className={`studio ${drawerSides(drawer).left ? 'drawer-left' : ''} ${drawerSides(drawer).right ? 'drawer-right' : ''}`}
-    >
-      <header className="studio-header">
-        <div className="brand">
-          <span className="brand-mark">
-            <Network size={21} />
-          </span>
-          net<span>top</span>
-        </div>
-        <ViewSwitch view={view} onChange={setView} />
-        <NetworkSelect
-          networks={networks}
-          value={view === 'conceptual' ? mapNetworkId : networkId}
-          many={pillNetworks > 1 ? pillNetworks : undefined}
-          onChange={(id) => {
-            // A network chosen on Conceptual is also the map's; All networks only changes the choice.
-            if (view === 'conceptual' && id) mapSession.showNetwork(id)
-            setNetworkChoice(id)
-            // Choosing the network already chosen must still replace "N networks".
-            if (view === 'inventory') inventorySession.setHeaderNetwork(id)
-          }}
-          onManage={() => setDrawer('networks')}
-        />
-        <div className="context-switch">
-          <button
-            className={context === 'installed' ? 'active' : ''}
-            aria-pressed={context === 'installed'}
-            onClick={() => setMode('installed')}
-          >
-            Installed
-          </button>
-          <button
-            className={context === 'planned' ? 'active' : ''}
-            aria-pressed={context === 'planned'}
-            onClick={() => setMode('planned')}
-          >
-            <GitBranch size={14} />
-            Plan:{' '}
-            {selectedPlan ? <Name text={selectedPlan.name} /> : 'New draft'}
-          </button>
-        </div>
-        <button
-          className="header-action"
-          onClick={() => toggleDrawer('plans')}
-          aria-expanded={drawer === 'plans'}
-        >
-          <Layers size={16} />
-          Changes
-          {context === 'planned' && (
-            <span className="count-badge">{changeCount(selectedPlan)}</span>
-          )}
-        </button>
-        <EnvironmentBadge />
-      </header>
-      <nav className="tool-rail" aria-label="Workspace tools">
-        <button
-          aria-label="Add equipment library"
-          aria-expanded={drawer === 'library'}
-          className={drawer === 'library' ? 'active' : ''}
-          onClick={() => toggleDrawer('library')}
-        >
-          <Plus />
-          <span>Add</span>
-        </button>
-        <button
-          aria-label="Open explorer"
-          aria-expanded={drawer === 'explorer'}
-          className={drawer === 'explorer' ? 'active' : ''}
-          onClick={() => toggleDrawer('explorer')}
-        >
-          <Search />
-          <span>Explore</span>
-        </button>
-        <button
-          aria-label="Open trace tools"
-          aria-expanded={drawer === 'trace'}
-          className={drawer === 'trace' ? 'active' : ''}
-          onClick={() => toggleDrawer('trace')}
-        >
-          <GitFork />
-          <span>Trace</span>
-        </button>
-        <button
-          aria-label="Open inspector"
-          aria-expanded={drawer === 'inspector'}
-          className={drawer === 'inspector' ? 'active' : ''}
-          onClick={() => toggleDrawer('inspector')}
-        >
-          <Settings2 />
-          <span>Inspect</span>
-        </button>
-      </nav>
-      {error ? (
-        <div className="workspace-message" role="alert">
-          <h2>Cannot load the workspace</h2>
-          <p>{error.message}</p>
-          <button className="btn" onClick={() => void refresh()}>
-            Retry
-          </button>
-        </div>
-      ) : !installed.data ||
-        !plans.data ||
-        ((context === 'installed' || (selectedID && !stale)) &&
-          !topology.data) ? (
-        <div className="workspace-message">Loading infrastructure…</div>
-      ) : context === 'planned' && !selectedPlan ? (
-        <div className="workspace-message">
-          Create or select a plan in Changes to begin.
-        </div>
-      ) : context === 'planned' && selectedPlan && stale ? (
-        <StaleCard
-          plan={selectedPlan}
-          onSaved={saved}
-          notify={notify}
-          onOpenChanges={() => setDrawer('plans')}
-          onViewInstalled={() => setMode('installed')}
-        />
-      ) : (
-        topology.data && (
-          <Workspace
-            onFixed={fixed}
-            key={`${context}:${selectedID ?? 'installed'}`}
-            snapshot={topology.data}
-            installed={installed.data}
-            plan={context === 'planned' ? selectedPlan : undefined}
-            drawer={drawer}
-            closeDrawer={() => setDrawer(null)}
-            pending={pending}
-            onCreateEquipment={requestEquipment}
-            onCancelPending={() => setPending(undefined)}
-            onEquipmentAdded={() => {
-              setPending(undefined)
-              setDrawer(null)
+    <DockProvider>
+      <div className={`studio ${context === 'planned' ? 'in-plan' : ''}`}>
+        <header className="studio-header">
+          <div className="brand">
+            <span className="brand-mark">
+              <Network size={21} />
+            </span>
+            net<span>top</span>
+          </div>
+          <ViewSwitch view={view} onChange={setView} />
+          <NetworkSelect
+            networks={networks}
+            value={view === 'conceptual' ? mapNetworkId : networkId}
+            many={pillNetworks > 1 ? pillNetworks : undefined}
+            onChange={(id) => {
+              // A network chosen on Conceptual is also the map's; All networks only changes the choice.
+              if (view === 'conceptual' && id) mapSession.showNetwork(id)
+              setNetworkChoice(id)
+              // Choosing the network already chosen must still replace "N networks".
+              if (view === 'inventory') inventorySession.setHeaderNetwork(id)
             }}
-            onSelectEquipment={openInspector}
-            onManageNetworks={() => setDrawer('networks')}
-            onPlanSaved={saved}
-            onRefresh={refresh}
-            onOpenAdd={() => setDrawer('library')}
-            onNetworkChange={setNetworkChoice}
-            view={view}
-            onViewChange={setView}
-            networkId={networkId}
+            onManage={() => dockSession.open('networks')}
           />
-        )
-      )}
-      {drawer === 'plans' && installed.data && plans.data && (
-        <DrawerPanel
-          title="Changes & plans"
-          subtitle="Proposals stay separate from installed infrastructure"
-          onClose={() => setDrawer(null)}
-          side="right"
-        >
-          <ChangesDrawer
-            context={context}
-            plans={plans.data}
-            installed={installed.data}
-            selected={selectedPlan}
-            onSelectPlan={(id) => {
-              setPending(undefined)
-              setPlanID(id)
-            }}
-            onOpenPlan={openPlan}
-            onCreated={createdFromInstalled}
+          <div className="context-switch">
+            <button
+              className={context === 'installed' ? 'active' : ''}
+              aria-pressed={context === 'installed'}
+              onClick={() => setMode('installed')}
+            >
+              Installed
+            </button>
+            <button
+              className={context === 'planned' ? 'active' : ''}
+              aria-pressed={context === 'planned'}
+              onClick={() => setMode('planned')}
+            >
+              <GitBranch size={14} />
+              Plan:{' '}
+              {selectedPlan ? <Name text={selectedPlan.name} /> : 'New draft'}
+            </button>
+          </div>
+          <button
+            className="header-action"
+            onClick={() => dockSession.rail('changes')}
+            aria-expanded={dock.open && dock.tab === 'changes'}
+          >
+            <Layers size={16} />
+            Changes
+            {context === 'planned' && (
+              <span className="count-badge">{changeCount(selectedPlan)}</span>
+            )}
+          </button>
+          <EnvironmentBadge />
+        </header>
+        <nav className="tool-rail" aria-label="Workspace tools">
+          {(
+            [
+              ['add', 'Add equipment library', Plus],
+              ['explore', 'Open explorer', Search],
+              ['trace', 'Open trace tools', GitFork],
+              ['inspector', 'Open inspector', Settings2],
+            ] as const
+          ).map(([tab, label, Icon]) => {
+            const off = tab === 'add' && context !== 'planned'
+            const on = dock.open && dock.tab === tab
+            return (
+              <button
+                key={tab}
+                aria-label={label}
+                title={off ? 'Add: open a plan first' : undefined}
+                disabled={off}
+                aria-expanded={on}
+                className={on ? 'active' : ''}
+                onClick={() => dockSession.rail(tab)}
+              >
+                <Icon />
+              </button>
+            )
+          })}
+        </nav>
+        {error ? (
+          <div className="workspace-message" role="alert">
+            <h2>Cannot load the workspace</h2>
+            <p>{error.message}</p>
+            <button className="btn" onClick={() => void refresh()}>
+              Retry
+            </button>
+          </div>
+        ) : !installed.data ||
+          !plans.data ||
+          ((context === 'installed' || (selectedID && !stale)) &&
+            !topology.data) ? (
+          <div className="workspace-message">Loading infrastructure…</div>
+        ) : context === 'planned' && !selectedPlan ? (
+          <div className="workspace-message">
+            Create or select a plan in Changes to begin.
+          </div>
+        ) : context === 'planned' && selectedPlan && stale ? (
+          <StaleCard
+            plan={selectedPlan}
             onSaved={saved}
-            onRecorded={recorded}
-            onGo={goTo}
             notify={notify}
+            onOpenChanges={() => dockSession.open('changes')}
+            onViewInstalled={() => setMode('installed')}
           />
-        </DrawerPanel>
-      )}
-      {drawer === 'networks' && topology.data && (
-        <DrawerPanel
-          title="Manage networks"
-          subtitle="Networks are shared by every view."
-          onClose={() => setDrawer(null)}
-          side="right"
-        >
-          <NetworksDrawer
-            snapshot={topology.data}
-            onChanged={async (message) => {
-              await refresh()
-              notify(message)
-            }}
-          />
-        </DrawerPanel>
-      )}
-      {status && (
-        <div className="save-toast" role="status">
-          ✓ {status}
-        </div>
-      )}
-    </div>
-  )
-}
-
-export function DrawerPanel({
-  title,
-  subtitle,
-  onClose,
-  side = 'left',
-  children,
-}: {
-  title: string
-  subtitle?: string
-  onClose: () => void
-  side?: 'left' | 'right'
-  children: React.ReactNode
-}) {
-  return (
-    <aside className={`studio-drawer drawer ${side}`} aria-label={title}>
-      <header>
-        <div>
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
-        </div>
-        <button
-          className="icon-button"
-          aria-label={`Close ${title}`}
-          onClick={onClose}
-        >
-          <X size={18} />
-        </button>
-      </header>
-      <div className="drawer-content">{children}</div>
-    </aside>
+        ) : (
+          topology.data && (
+            <Workspace
+              onFixed={fixed}
+              key={`${context}:${selectedID ?? 'installed'}`}
+              snapshot={topology.data}
+              installed={installed.data}
+              plan={context === 'planned' ? selectedPlan : undefined}
+              pending={pending}
+              onCreateEquipment={requestEquipment}
+              onCancelPending={() => setPending(undefined)}
+              onEquipmentAdded={() => {
+                setPending(undefined)
+                dockSession.close()
+              }}
+              onSelectEquipment={openInspector}
+              onManageNetworks={() => dockSession.open('networks')}
+              onPlanSaved={saved}
+              onRefresh={refresh}
+              onOpenAdd={() => dockSession.open('add')}
+              onNetworkChange={setNetworkChoice}
+              view={view}
+              onViewChange={setView}
+              networkId={networkId}
+            />
+          )
+        )}
+        {installed.data && plans.data && (
+          <DockBody tab="changes">
+            <ChangesDrawer
+              context={context}
+              plans={plans.data}
+              installed={installed.data}
+              selected={selectedPlan}
+              onSelectPlan={(id) => {
+                setPending(undefined)
+                setPlanID(id)
+              }}
+              onOpenPlan={openPlan}
+              onCreated={createdFromInstalled}
+              onSaved={saved}
+              onRecorded={recorded}
+              onGo={goTo}
+              notify={notify}
+            />
+          </DockBody>
+        )}
+        {topology.data && (
+          <DockBody tab="networks">
+            <NetworksDrawer
+              snapshot={topology.data}
+              onChanged={async (message) => {
+                await refresh()
+                notify(message)
+              }}
+            />
+          </DockBody>
+        )}
+        <Dock planned={context === 'planned'} />
+        {status && (
+          <div className="save-toast" role="status">
+            ✓ {status}
+          </div>
+        )}
+      </div>
+    </DockProvider>
   )
 }
 
@@ -544,8 +488,6 @@ interface WorkspaceProps {
   snapshot: Snapshot
   installed: Snapshot
   plan?: Plan
-  drawer: Drawer
-  closeDrawer: () => void
   pending?: PendingEquipment
   onCreateEquipment: (
     kind: 'switch' | 'panel' | 'rack_item',
@@ -576,8 +518,6 @@ function Workspace({
   snapshot,
   installed,
   plan,
-  drawer,
-  closeDrawer,
   pending,
   onCreateEquipment,
   onCancelPending,
@@ -593,6 +533,8 @@ function Workspace({
   onViewChange,
   networkId,
 }: WorkspaceProps) {
+  const dock = useDock()
+  const closeDrawer = dockSession.close
   const [selected, setSelected] = useState(snapshot.equipment[0]?.id ?? '')
   const [physicalError, setPhysicalError] = useState('')
   const [mode, setMode] = useState<'distribution' | 'point_to_point'>(
@@ -1093,6 +1035,26 @@ function Workspace({
       )}
     </Inspector>
   )
+  const dockErrors = (
+    <>
+      {traceMutation.error && (
+        <p role="alert" className="inline-error">
+          {traceMutation.error.message}
+          <button className="text-button" onClick={() => void onRefresh()}>
+            Refresh topology
+          </button>
+        </p>
+      )}
+      {placement.error && (
+        <p role="alert" className="inline-error">
+          {placement.error.message}
+          <button className="text-button" onClick={() => void onRefresh()}>
+            Refresh draft
+          </button>
+        </p>
+      )}
+    </>
+  )
   return (
     <main className="workspace-canvas">
       <PatchingHost
@@ -1166,150 +1128,112 @@ function Workspace({
           onError={setPhysicalError}
         />
       )}
-      {drawer === 'library' && (
-        <DrawerPanel
-          title="Equipment library"
-          subtitle="Drag onto a rack, or add an HDF with its form"
-          onClose={closeDrawer}
-        >
-          <LibraryItems
-            canEdit={canEdit}
-            edit={edit}
-            tree={tree}
-            networks={snapshot.networks}
-            defaultRackId={current.rackId}
-            near={{ siteId: current.siteId, nodeId: current.nodeId }}
-            pending={pending}
-            onCancelPending={onCancelPending}
-            onAdded={onEquipmentAdded}
-            onManageNetworks={onManageNetworks}
-            onHdfCreated={(saved, name) => {
-              const created = saved.equipment.find(
-                (e) => e.kind === 'hdf' && e.name === name,
-              )
-              if (created) setOpenAfterCreate(created.id)
-              closeDrawer()
-            }}
-          />
-        </DrawerPanel>
-      )}
-      {drawer === 'explorer' && (
-        <DrawerPanel
-          title="Explore infrastructure"
-          subtitle="Site → node → rack → equipment"
-          onClose={closeDrawer}
-        >
-          <Explorer
-            snapshot={snapshot}
-            index={index}
-            searchItems={searchItems}
-            selected={selected}
-            onChoose={chooseEquipment}
-            onChooseHit={chooseSearchHit}
-            onOpenRack={openRack}
-            onHighlight={highlightLocation}
-            physical={view === 'physical'}
-            onOpenPlace={openPlace}
-            canEdit={canEdit}
-          />
-        </DrawerPanel>
-      )}
-      {(drawer === 'inspector' || drawer === 'trace') && (
-        <DrawerPanel
-          title={drawer === 'trace' ? 'Trace tools' : 'Equipment inspector'}
-          subtitle={
-            drawer === 'trace'
-              ? 'Exact physical continuity, calculated by Go'
-              : 'Select equipment on the map to inspect it'
-          }
-          onClose={closeDrawer}
-          side="right"
-        >
-          {drawer === 'inspector' && drawerEquipment}
-          {drawer === 'trace' && (
-            <section className="trace-form">
-              <p className="section-label">Pathfinding</p>
-              <label>
-                Trace mode
-                <select
-                  value={mode}
-                  disabled={traceMutation.isPending}
-                  onChange={(e) => {
-                    const next = e.target.value as typeof mode
-                    setMode(next)
-                    if (
-                      next === 'point_to_point' &&
-                      start.startsWith('device:')
-                    )
-                      setStart(
-                        snapshot.endpoints.find(
-                          (p) => p.equipmentId === start.slice(7),
-                        )?.id ?? '',
-                      )
-                    clearTrace()
-                  }}
-                >
-                  <option value="distribution">Find AGG / BB</option>
-                  <option value="point_to_point">Exact port → port</option>
-                </select>
-              </label>
-              <TracePicker
-                label="Start"
-                items={startItems.get()}
-                value={start}
+      <DockBody tab="add">
+        <LibraryItems
+          canEdit={canEdit}
+          edit={edit}
+          tree={tree}
+          networks={snapshot.networks}
+          defaultRackId={current.rackId}
+          near={{ siteId: current.siteId, nodeId: current.nodeId }}
+          pending={pending}
+          onCancelPending={onCancelPending}
+          onAdded={onEquipmentAdded}
+          onManageNetworks={onManageNetworks}
+          onHdfCreated={(saved, name) => {
+            const created = saved.equipment.find(
+              (e) => e.kind === 'hdf' && e.name === name,
+            )
+            if (created) setOpenAfterCreate(created.id)
+            closeDrawer()
+          }}
+        />
+      </DockBody>
+      <DockBody tab="explore">
+        <Explorer
+          snapshot={snapshot}
+          index={index}
+          searchItems={searchItems}
+          selected={selected}
+          onChoose={chooseEquipment}
+          onChooseHit={chooseSearchHit}
+          onOpenRack={openRack}
+          onHighlight={highlightLocation}
+          physical={view === 'physical'}
+          onOpenPlace={openPlace}
+          canEdit={canEdit}
+        />
+      </DockBody>
+      <DockBody tab="inspector">
+        {drawerEquipment}
+        {dockErrors}
+      </DockBody>
+      <DockBody tab="trace">
+        <>
+          <section className="trace-form">
+            <p className="section-label">Pathfinding</p>
+            <label>
+              Trace mode
+              <select
+                value={mode}
                 disabled={traceMutation.isPending}
+                onChange={(e) => {
+                  const next = e.target.value as typeof mode
+                  setMode(next)
+                  if (next === 'point_to_point' && start.startsWith('device:'))
+                    setStart(
+                      snapshot.endpoints.find(
+                        (p) => p.equipmentId === start.slice(7),
+                      )?.id ?? '',
+                    )
+                  clearTrace()
+                }}
+              >
+                <option value="distribution">Find AGG / BB</option>
+                <option value="point_to_point">Exact port → port</option>
+              </select>
+            </label>
+            <TracePicker
+              label="Start"
+              items={startItems.get()}
+              value={start}
+              disabled={traceMutation.isPending}
+              onChange={(value) => {
+                setStart(value)
+                clearTrace()
+              }}
+            />
+            {mode === 'point_to_point' && (
+              <TracePicker
+                label="Destination"
+                items={endItems.get()}
+                value={end}
                 onChange={(value) => {
-                  setStart(value)
+                  setEnd(value)
                   clearTrace()
                 }}
               />
-              {mode === 'point_to_point' && (
-                <TracePicker
-                  label="Destination"
-                  items={endItems.get()}
-                  value={end}
-                  onChange={(value) => {
-                    setEnd(value)
-                    clearTrace()
-                  }}
-                />
-              )}
-              <button
-                className="btn primary"
-                disabled={traceMutation.isPending || !start}
-                onClick={runTrace}
-              >
-                {traceMutation.isPending
-                  ? 'Tracing…'
-                  : mode === 'distribution'
-                    ? 'Find AGG / BB'
-                    : 'Trace physical path'}
-              </button>
-              <p className="muted">
-                Cables and panel bridges only. No inferred transit through
-                switch ports.
-              </p>
-            </section>
-          )}
-          {traceMutation.error && (
-            <p role="alert" className="inline-error">
-              {traceMutation.error.message}
-              <button className="text-button" onClick={() => void onRefresh()}>
-                Refresh topology
-              </button>
+            )}
+            <button
+              className="btn primary"
+              disabled={traceMutation.isPending || !start}
+              onClick={runTrace}
+            >
+              {traceMutation.isPending
+                ? 'Tracing…'
+                : mode === 'distribution'
+                  ? 'Find AGG / BB'
+                  : 'Trace physical path'}
+            </button>
+            <p className="muted">
+              Cables and panel bridges only. No inferred transit through switch
+              ports.
             </p>
-          )}
-          {placement.error && (
-            <p role="alert" className="inline-error">
-              {placement.error.message}
-              <button className="text-button" onClick={() => void onRefresh()}>
-                Refresh draft
-              </button>
-            </p>
-          )}
-        </DrawerPanel>
-      )}
-      {placement.error && drawer !== 'inspector' && (
+          </section>
+          {dockErrors}
+        </>
+      </DockBody>
+      {placement.error && !(dock.open && dock.tab === 'inspector') && (
         <div role="alert" className="error-toast">
           {placement.error.message}
           <button
@@ -1324,8 +1248,7 @@ function Workspace({
       {/* The Trace and inspector drawers show a trace error themselves. */}
       {view === 'conceptual' &&
         traceMutation.error &&
-        drawer !== 'inspector' &&
-        drawer !== 'trace' && (
+        !(dock.open && (dock.tab === 'inspector' || dock.tab === 'trace')) && (
           <MapTraceError
             message={traceMutation.error.message}
             onRefresh={() => void onRefresh()}

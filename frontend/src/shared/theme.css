@@ -33,6 +33,8 @@
   --unresolved: #9bacc0; /* a network that cannot be resolved */
 
   /* Added beyond the plan's table. */
+  --plan-band: #fbf1d6; /* the header while a plan is open */
+  --plan-edge: #e8cf8a; /* its bottom border */
   --rule-strong: #b6c1cc; /* hover border of an outlined button */
   --ink-hover: #2b3d50; /* hover of a primary button */
   --amber-ink: #3a2a00; /* text on an amber count pill */

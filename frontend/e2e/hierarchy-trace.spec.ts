@@ -137,13 +137,17 @@ test('HI-10 Explore’s highlight marks the node card amber and fits it into vie
     'data-highlighted',
     'false',
   )
-  const area = (await page.locator('.studio-drawer.left').boundingBox())!
+  const area = (await page.locator('.dock:not([hidden])').boundingBox())!
+  const canvas = (await page.locator('.workspace-canvas').boundingBox())!
+  // The highlighted card is in view and not under the open tool: its right edge is
+  // at or left of the dock's left edge, and a click on it would land on it.
   await expect
     .poll(async () => {
       const b = (await target.boundingBox())!
-      return b.x >= area.x + area.width - 1 && b.y >= 0
+      return b.x + b.width <= area.x + 1 && b.x >= canvas.x - 1 && b.y >= 0
     })
     .toBe(true)
+  await target.click({ trial: true })
   const fit = await settledViewport(page)
   // Once: leaving and coming back keeps the view.
   await page.getByRole('button', { name: 'Physical', exact: true }).click()

@@ -16,7 +16,7 @@ test('trace physical continuity on the map and in rack elevations', async ({
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
   await fitted(page)
-  await expect(page.locator('.studio-drawer')).toHaveCount(0)
+  await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
   await page
     .getByRole('button', { name: 'Open trace tools', exact: true })
     .click()
@@ -98,7 +98,7 @@ test('trace physical continuity on the map and in rack elevations', async ({
   expect(errors).toEqual([])
 })
 
-test('panels overlay the full-page map and panning does not render the shell', async ({
+test('the dock sits beside the map (the map’s right edge is the dock’s left edge) and panning does not render the shell', async ({
   page,
 }) => {
   await page.goto('/')
@@ -113,7 +113,14 @@ test('panels overlay the full-page map and panning does not render the shell', a
   await expect(page.locator('.location-breadcrumb')).toContainText(
     'DR Site › DR Distribution › Rack DR02 › AGG-12',
   )
-  expect(await page.locator('.flow-surface').boundingBox()).toEqual(bounds)
+  const surface = (await page.locator('.flow-surface').boundingBox())!
+  const dock = (await page.locator('.dock:not([hidden])').boundingBox())!
+  expect(Math.abs(surface.x + surface.width - dock.x)).toBeLessThanOrEqual(1)
+  expect([surface.x, surface.y, surface.height]).toEqual([
+    bounds!.x,
+    bounds!.y,
+    bounds!.height,
+  ])
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   // The tree shows AGG-12 selected: panning it must not touch the shell.
   await fitted(page)

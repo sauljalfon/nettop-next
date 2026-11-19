@@ -15,7 +15,7 @@ async function traceFromTools(page: Page) {
   await expect(rows(page)).toHaveCount(3)
 }
 
-test('POL-02 every overlay button stays clickable with each drawer open', async ({
+test('POL-02 every overlay button stays clickable with each tool open in the dock (Add is disabled in Installed)', async ({
   page,
 }) => {
   await page.goto('/')
@@ -37,25 +37,25 @@ test('POL-02 every overlay button stays clickable with each drawer open', async 
     for (const button of overlay) await button.click({ trial: true })
   }
   await check() // no drawer
-  const drawers: [string, string][] = [
-    ['Add equipment library', 'left'],
-    ['Open explorer', 'left'],
-    ['Open trace tools', 'right'],
-    ['Open inspector', 'right'],
-    ['Changes', 'right'],
+  await expect(
+    page.getByRole('button', { name: 'Add equipment library', exact: true }),
+  ).toBeDisabled()
+  const drawers = [
+    'Open explorer',
+    'Open trace tools',
+    'Open inspector',
+    'Changes',
   ]
-  for (const [opener, side] of drawers) {
+  for (const opener of drawers) {
     const toggle = page.getByRole('button', {
       name: opener === 'Changes' ? /^Changes/ : opener,
       exact: opener !== 'Changes',
     })
     await toggle.click()
-    await expect(page.locator('.studio')).toHaveClass(
-      new RegExp(`drawer-${side}`),
-    )
+    await expect(page.locator('.dock:not([hidden])')).toBeVisible()
     await check()
     await toggle.click() // close it again
-    await expect(page.locator('.studio-drawer')).toHaveCount(0)
+    await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
   }
 })
 
@@ -67,7 +67,7 @@ test('POL-32 a trace that fails with every drawer closed shows its error on the 
   // EDGE-17 selected with every drawer closed; the trace starts from a passive chip in its drawer.
   await selectEquipment(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  await expect(page.locator('.studio-drawer')).toHaveCount(0)
+  await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
   await page.route('**/api/traces*', (route) =>
     route.fulfill({
       status: 500,
@@ -90,9 +90,9 @@ test('POL-32 a trace that fails with every drawer closed shows its error on the 
     .getByRole('button', { name: 'Open trace tools', exact: true })
     .click()
   await expect(page.getByRole('alert')).toHaveCount(1)
-  await expect(page.locator('.studio-drawer').getByRole('alert')).toContainText(
-    'Trace engine unavailable',
-  )
+  await expect(
+    page.locator('.dock:not([hidden])').getByRole('alert'),
+  ).toContainText('Trace engine unavailable')
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
   // It can be dismissed.
   await page.getByRole('button', { name: 'Dismiss trace error' }).click()

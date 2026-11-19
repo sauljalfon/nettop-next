@@ -46,7 +46,11 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
     unit: string,
   ) => {
     await page.getByTestId(from).locator('.rack-block').click() // opens its page
-    if ((await page.locator('aside.studio-drawer').count()) === 0)
+    if (
+      (await page
+        .getByRole('complementary', { name: 'Equipment inspector' })
+        .count()) === 0
+    )
       await page.getByRole('button', { name: 'Open inspector' }).click()
     await chooseRack(page, 'Placement', where)
     await page.getByLabel('Placement unit', { exact: true }).fill(unit)

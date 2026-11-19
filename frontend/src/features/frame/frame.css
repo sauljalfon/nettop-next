@@ -1,0 +1,100 @@
+/* The frame (D43): header, rail, the page and one dock, as a grid. */
+.dock {
+  width: 380px;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 40px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  border-left: 1px solid var(--rule);
+  background: var(--paper);
+  overflow: hidden;
+}
+.dock[hidden] {
+  display: none;
+}
+.dock-tabs {
+  display: flex;
+  align-items: stretch;
+  padding: 0 4px 0 6px;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.dock-tablist {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.dock-tablist::-webkit-scrollbar {
+  display: none;
+}
+.dock-tabs .tab {
+  flex: none;
+  border: 0;
+  background: transparent;
+  padding: 0 7px;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+  font-size: var(--t-sm);
+}
+.dock-tabs .tab[aria-selected='true'] {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom-color: var(--ink);
+}
+.dock-tabs .x {
+  flex: none;
+  margin-left: 4px;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-soft);
+  padding: 0;
+}
+.dock-tabs .x:hover {
+  background: var(--paper-sunk);
+}
+.dock-bodies {
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+}
+.dock-body {
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 14px 16px 20px;
+}
+.dock-body[hidden] {
+  display: none;
+}
+.dock-head {
+  margin-bottom: 14px;
+}
+.dock-head h2 {
+  font-size: var(--t-lg);
+  font-weight: 600;
+  margin: 0;
+}
+.dock-head p {
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+  margin: 2px 0 0;
+}
+@media (max-width: 760px) {
+  .dock {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(380px, 100vw);
+    z-index: 70;
+  }
+}

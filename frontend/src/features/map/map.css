@@ -130,20 +130,6 @@
   height: 24px;
 }
 
-/* Overlays keep clear of an open drawer: right of the left one, left of the right one. */
-.studio.drawer-left .map-results {
-  left: var(--clear-of-left-drawer);
-}
-
-.studio.drawer-right .map-results {
-  right: calc(var(--clear-of-right-drawer) + var(--controls-reserve));
-}
-
-.studio.drawer-right .flow-surface .react-flow__controls.react-flow__panel,
-.studio.drawer-right .map-tools {
-  right: var(--clear-of-right-drawer);
-}
-
 .map-tools {
   display: flex;
   align-items: flex-start;
@@ -215,12 +201,6 @@
   overflow: hidden;
   background: var(--paper);
 }
-.studio.drawer-left .route-layer {
-  padding-left: var(--clear-of-left-drawer);
-}
-.studio.drawer-right .route-layer {
-  padding-right: var(--clear-of-right-drawer);
-}
 
 /* The hierarchy (D39): tops, AGGs and node cards in frames, drawn from real cables. */
 .hierarchy-surface {
@@ -256,9 +236,6 @@
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: var(--r-drawer);
-}
-.studio.drawer-left .hierarchy-surface .hierarchy-panel {
-  margin-left: var(--clear-of-left-drawer);
 }
 .hierarchy-panel h2 {
   margin: 0;
@@ -597,9 +574,6 @@
   max-width: calc(100% - 44px);
   overflow: hidden;
 }
-.studio.drawer-right .hierarchy-drawer {
-  right: var(--clear-of-right-drawer);
-}
 .hd-head {
   padding: 14px 16px 10px;
   border-bottom: 1px solid var(--rule-soft);
@@ -820,7 +794,4 @@
 /* The trace results keep clear of the hierarchy drawer, as they do of the studio drawers. */
 .workspace-canvas:has(.hierarchy-drawer) .map-results {
   right: calc(410px + 22px + 18px);
-}
-.studio.drawer-right .workspace-canvas:has(.hierarchy-drawer) .map-results {
-  right: calc(var(--clear-of-right-drawer) + 410px + 18px);
 }

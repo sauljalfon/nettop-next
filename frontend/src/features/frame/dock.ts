@@ -1,0 +1,153 @@
+import { useSyncExternalStore } from 'react'
+
+/** The dock's tabs, in the order they are drawn (see `tabsFor`). */
+export type DockTab =
+  'details' | 'inspector' | 'trace' | 'explore' | 'add' | 'changes' | 'networks'
+
+export interface DockState {
+  open: boolean
+  tab: DockTab
+  /** Set while the view has something selected: Node on the tree, Port on an equipment page. */
+  details?: 'Node' | 'Port'
+  /** The last tab other than details and networks that was open, for `detailsGone`. */
+  last?: DockTab
+}
+
+export const initialDock: DockState = { open: false, tab: 'inspector' }
+
+const remember = (s: DockState, tab: DockTab): DockTab | undefined =>
+  tab === 'details' || tab === 'networks' ? s.last : tab
+
+/** Opens on that tab. */
+export function openTab(s: DockState, tab: DockTab): DockState {
+  if (tab === 'details' && !s.details) return s
+  return { ...s, open: true, tab, last: remember(s, tab) }
+}
+
+/** The same icon again closes; another icon switches the tab. */
+export function railClick(s: DockState, tab: DockTab): DockState {
+  return s.open && s.tab === tab ? close(s) : openTab(s, tab)
+}
+
+export function close(s: DockState): DockState {
+  return { ...s, open: false }
+}
+
+/** Something was selected: the dock opens on the details tab. */
+export function detailsShown(s: DockState, label: 'Node' | 'Port'): DockState {
+  return { ...s, open: true, tab: 'details', details: label }
+}
+
+/** The selection is gone: the details tab leaves; on it, the dock goes to the last other tab, else closes. */
+export function detailsGone(s: DockState): DockState {
+  const { details: _gone, ...rest } = s
+  void _gone
+  if (s.tab !== 'details') return rest
+  if (s.last && s.last !== 'details') return { ...rest, tab: s.last }
+  return { ...rest, open: false, tab: initialDock.tab }
+}
+
+/** Add exists only in a plan: in Installed it becomes Changes. */
+export function forContext(s: DockState, planned: boolean): DockState {
+  if (planned) return s
+  return {
+    ...s,
+    tab: s.tab === 'add' ? 'changes' : s.tab,
+    last: s.last === 'add' ? 'changes' : s.last,
+  }
+}
+
+export function tabsFor(s: DockState, planned: boolean): DockTab[] {
+  return [
+    ...(s.details ? (['details'] as const) : []),
+    'inspector',
+    'trace',
+    'explore',
+    ...(planned ? (['add'] as const) : []),
+    'changes',
+    ...(s.tab === 'networks' ? (['networks'] as const) : []),
+  ]
+}
+
+/** The tab's visible label. */
+export function tabLabel(s: DockState, tab: DockTab): string {
+  const labels: Record<DockTab, string> = {
+    details: s.details ?? 'Node',
+    inspector: 'Inspector',
+    trace: 'Trace',
+    explore: 'Explore',
+    add: 'Add',
+    changes: 'Changes',
+    networks: 'Networks',
+  }
+  return labels[tab]
+}
+
+/** The dock's accessible name for the open tab (the old drawers' titles). */
+export function tabTitle(s: DockState, tab: DockTab): string {
+  const titles: Record<DockTab, string> = {
+    details: s.details === 'Port' ? 'Port details' : 'Node details',
+    inspector: 'Equipment inspector',
+    trace: 'Trace tools',
+    explore: 'Explore infrastructure',
+    add: 'Equipment library',
+    changes: 'Changes & plans',
+    networks: 'Manage networks',
+  }
+  return titles[tab]
+}
+
+/** The line under the title; none for the details tab, whose body has its own head. */
+export const TAB_SUBTITLES: Partial<Record<DockTab, string>> = {
+  inspector: 'Select equipment on the map to inspect it',
+  trace: 'Exact physical continuity, calculated by Go',
+  explore: 'Site → node → rack → equipment',
+  add: 'Drag onto a rack, or add an HDF with its form',
+  changes: 'Proposals stay separate from installed infrastructure',
+  networks: 'Networks are shared by every view.',
+}
+
+type Listener = () => void
+
+/** Session-only store of the dock, outside React like `mapSession`: never persisted, never fed to traversal. */
+function createDockSession() {
+  let state: DockState = initialDock
+  let planned = false
+  const listeners = new Set<Listener>()
+  const set = (next: DockState) => {
+    if (next === state) return
+    state = next
+    listeners.forEach((l) => l())
+  }
+  const guard = (tab: DockTab): DockTab =>
+    tab === 'add' && !planned ? 'changes' : tab
+  return {
+    subscribe(listener: Listener) {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    get: () => state,
+    rail: (tab: DockTab) => set(railClick(state, guard(tab))),
+    open: (tab: DockTab) => set(openTab(state, guard(tab))),
+    close: () => set(close(state)),
+    showDetails: (label: 'Node' | 'Port') => set(detailsShown(state, label)),
+    hideDetails: () => set(detailsGone(state)),
+    setPlanned(next: boolean) {
+      planned = next
+      set(forContext(state, next))
+    },
+    /** For tests. */
+    reset() {
+      planned = false
+      set(initialDock)
+    },
+  }
+}
+
+export const dockSession = createDockSession()
+
+export function useDock(): DockState {
+  return useSyncExternalStore(dockSession.subscribe, dockSession.get)
+}

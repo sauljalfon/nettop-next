@@ -1,26 +1,64 @@
-import { expect, test } from './fixtures'
+import { expect, test, type Page } from './fixtures'
 import { cardPositions, fitted, viewport } from './helpers'
 import { chooseRack } from './patching-helpers'
 
-test('C10 opening and closing tools keeps the full-page canvas and viewport', async ({
+/** Opens each tool in turn; the dock sits beside the canvas and the map is neither refit nor panned. */
+async function expectToolsBesideTheMap(page: Page, openers: string[]) {
+  await fitted(page) // read the viewport only after the one-time fit has settled
+  const bounds = (await page.locator('.flow-surface').boundingBox())!
+  const port = await viewport(page)
+  const card = page.locator('[data-card-key]').first()
+  const cardBefore = (await card.boundingBox())!
+  for (const name of openers) {
+    await page.getByRole('button', { name, exact: true }).click()
+    const dock = page.locator('.dock:not([hidden])')
+    await expect(dock).toBeVisible()
+    const d = (await dock.boundingBox())!
+    const surface = (await page.locator('.flow-surface').boundingBox())!
+    // The map's right edge is the dock's left edge; its other edges stay.
+    expect(Math.abs(surface.x + surface.width - d.x)).toBeLessThanOrEqual(1)
+    expect(surface.x).toBe(bounds.x)
+    expect(surface.y).toBe(bounds.y)
+    expect(surface.height).toBe(bounds.height)
+    // Nothing scrolls sideways.
+    expect(
+      await page.evaluate(() =>
+        [
+          document.documentElement,
+          ...document.querySelectorAll('.studio, .workspace-canvas'),
+        ].some((el) => el.scrollWidth > el.clientWidth + 1),
+      ),
+    ).toBe(false)
+    // The tree is not refit: the viewport and a card's place on the screen stay.
+    expect(await viewport(page)).toBe(port)
+    expect(await card.boundingBox()).toEqual(cardBefore)
+    await page.getByRole('button', { name, exact: true }).click()
+    await expect(dock).toHaveCount(0)
+    expect(await page.locator('.flow-surface').boundingBox()).toEqual(bounds)
+  }
+}
+
+test('C10 a tool opens the dock beside the canvas and the map is neither refit nor moved', async ({
   page,
 }) => {
   await page.goto('/')
-  await fitted(page) // read the viewport only after the one-time fit has settled
-  const bounds = await page.locator('.flow-surface').boundingBox()
-  const port = await viewport(page)
-  for (const name of [
+  await expectToolsBesideTheMap(page, [
     'Open explorer',
     'Open trace tools',
     'Open inspector',
-    'Add equipment library',
-  ]) {
-    await page.getByRole('button', { name, exact: true }).click()
-    expect(await page.locator('.flow-surface').boundingBox()).toEqual(bounds)
-    expect(await viewport(page)).toBe(port)
-    await page.getByRole('button', { name, exact: true }).click()
-  }
-  await expect(page.locator('.studio-drawer')).toHaveCount(0)
+  ])
+  // Add is for plans only: disabled in Installed, and the dock never shows it there.
+  await expect(
+    page.getByRole('button', { name: 'Add equipment library', exact: true }),
+  ).toBeDisabled()
+  await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
+})
+
+test('C10b Add, in a plan, opens the dock beside the canvas and the map is neither refit nor moved', async ({
+  page,
+}) => {
+  await page.goto('/?plan=expansion')
+  await expectToolsBesideTheMap(page, ['Add equipment library'])
 })
 
 test('C12 saving and refetching reconcile by ID without remounting or resetting', async ({
