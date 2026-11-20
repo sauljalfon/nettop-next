@@ -9,10 +9,6 @@
   min-width: 0;
   margin: 4px 0 8px;
 }
-.map-results.physical .walk-sheet {
-  max-height: 196px;
-  overflow-y: auto;
-}
 .walk-meta {
   margin: 0;
   font-size: var(--t-xs);

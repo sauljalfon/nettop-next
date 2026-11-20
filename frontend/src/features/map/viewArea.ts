@@ -1,11 +1,11 @@
 import { coversFromRects, withToolRail, type Covers } from './center'
 
-/** What covers the canvas: the open drawers and the results overlay (and the tool rail). */
-const OVERLAYS = '.studio-drawer, .map-results'
+/** What covers the canvas: the open drawers (and the tool rail). */
+const OVERLAYS = '.studio-drawer'
 
 /**
  * The canvas rectangle and how much of each edge is covered by the open
- * drawers, the results overlay and the tool rail. Both the conceptual map and
+ * drawers and the tool rail. Both the conceptual map and
  * the site screen fit and center in what is left.
  */
 export function visibleArea(

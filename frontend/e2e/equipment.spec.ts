@@ -28,7 +28,6 @@ async function traceAgg03(page: Page) {
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 
 /** Opens an equipment's page by clicking it in its rack. */
@@ -255,7 +254,7 @@ test('PHY-09 Find AGG / BB from an HDF position shows the routes in the overlay 
   await sideControl(page).getByRole('button', { name: 'Rear' }).click()
   await endpoint(page, HDF01_3C5_REAR).click()
   await page.getByRole('button', { name: 'Find AGG / BB from here' }).click()
-  const results = page.getByLabel('Map trace results')
+  const results = page.getByLabel('Trace results')
   await expandResults(page)
   await expect(results).toBeVisible()
   await expect(page.getByTestId('route-row').first()).toContainText('AGG-03')

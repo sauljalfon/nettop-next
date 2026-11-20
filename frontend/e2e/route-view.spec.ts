@@ -12,7 +12,7 @@ import {
 const ORDER = ['EDGE-17', 'PANEL-A', 'HDF-01', 'HDF-02', 'AGG-03']
 const toggle = (page: Page) => page.getByRole('button', { name: 'Route view' })
 const rows = (page: Page) =>
-  page.getByLabel('Map trace results').getByTestId('route-row')
+  page.getByLabel('Trace results').getByTestId('route-row')
 const diagram = (page: Page) => page.getByTestId('route-diagram')
 const steps = (page: Page) => diagram(page).getByTestId('rd-step')
 const cables = (page: Page) => diagram(page).getByTestId('rd-cable')
@@ -23,7 +23,6 @@ async function traceFrom(page: Page, name: string, count: number) {
   await page
     .getByRole('button', { name: `Find AGG / BB from ${name}`, exact: true })
     .click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(rows(page)).toHaveCount(count)
 }
 const traceFromEdge17 = (page: Page) => traceFrom(page, 'EDGE-17', 3)
@@ -53,7 +52,6 @@ test('POL-22 the toggle covers the map with the route, and turning it off leaves
     .click()
   await pick(page, 'Start', 'edge-17 all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await expect(rows(page)).toHaveCount(3)
   const mapState = () =>
     hierarchy.evaluate((el) => ({
@@ -313,10 +311,7 @@ test('POL-31 the picture starts at the left, clear of the drawers, and scrolls s
       )
     }, id)
 
-  // With Trace tools open.
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
+  // With the Trace tab open (the trace opened it).
   await toggle(page).click()
   await expect(diagram(page)).toBeVisible()
   expect(await clear('[data-testid="rd-step"][data-n="1"]')).toBe(true)
@@ -326,9 +321,9 @@ test('POL-31 the picture starts at the left, clear of the drawers, and scrolls s
 
   // With the inspector open instead.
   await toggle(page).click()
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await selectEquipment(page, 'EDGE-17')
   await expect(page.locator('.dock:not([hidden])')).toBeVisible()
+  await page.getByRole('tab', { name: 'Trace' }).click() // the toggle is in the Trace tab
   await toggle(page).click()
   await expect(diagram(page)).toBeVisible()
   expect(await clear('[data-testid="rd-step"][data-n="1"]')).toBe(true)

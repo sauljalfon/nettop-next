@@ -131,3 +131,121 @@
 .dock-body.dock-details {
   padding: 0;
 }
+
+/* The Trace tab: the form, then the results as a list (the demo's .dlist). */
+.trace-results {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  min-width: 0;
+}
+.trace-results .group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--t-sm);
+}
+.trace-results .group-label .btn {
+  margin-left: auto;
+  height: 22px;
+  padding: 0 6px;
+}
+.trace-summary {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+}
+.trace-results .dlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.trace-results .dlist > li {
+  border-top: 1px solid var(--rule-soft);
+  min-width: 0;
+}
+.trace-results .dlist > li:first-child {
+  border-top: 0;
+}
+.trace-results .route-row {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border: 0;
+  background: var(--paper);
+  text-align: left;
+  font-size: var(--t-sm);
+}
+.trace-results .route-row:hover {
+  background: var(--paper-sunk);
+}
+.trace-results .route-row[aria-pressed='true'] {
+  background: var(--route-soft);
+  box-shadow: inset 3px 0 0 var(--route);
+}
+.trace-results .route-row .r {
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+}
+.trace-results .route-detail {
+  display: grid;
+  gap: 8px;
+}
+.trace-results .map-route-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.trace-results .route-view-toggle {
+  width: auto;
+  height: 26px;
+  font-size: var(--t-xs);
+}
+.trace-results .route-view-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.trace-results .route-view-toggle[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.trace-results .trace-explanation {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+}
+.trace-results .trace-explanation strong {
+  color: var(--ink);
+}
+.trace-results .dock-note {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--paper-sunk);
+  color: var(--ink-soft);
+  font-size: var(--t-sm);
+}
+
+/* Compact form: tight spacing, the button at its own width. */
+.dock .trace-form {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.dock .trace-form label,
+.dock .trace-form > div {
+  width: 100%;
+  margin: 0;
+  gap: 4px;
+}
+.dock .trace-form .btn.primary {
+  width: auto;
+  margin-top: 0;
+}

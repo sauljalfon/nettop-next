@@ -12,8 +12,7 @@ test('Find AGG / BB lists AGG then BB results with destination, role and network
   await pick(page, 'Start', 'edge-17 all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
 
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
-  const results = page.getByLabel('Map trace results')
+  const results = page.getByLabel('Trace results')
   await expect(results).toContainText('Physical path found')
   await expect(results.getByTestId('route-row')).toContainText([
     'EDGE-17 · Port 1 → AGG-03 · Port 1 · AGG · Network A',
@@ -32,10 +31,12 @@ test('Find AGG / BB lists AGG then BB results with destination, role and network
   )
   await expect(results.getByTestId('mismatches')).toHaveCount(0)
   await expect(results.getByTestId('truncation')).toHaveCount(0)
-  // Collapsing keeps a one-line summary; expanding restores the list.
-  await results.getByRole('button', { name: 'Collapse results' }).click()
+  // The summary line sits above the route rows, and all three rows are visible at once.
   await expect(results).toContainText('3 routes · BB-01 · BB · Network A')
-  await expect(results.getByTestId('route-row')).toHaveCount(0)
-  await results.getByRole('button', { name: 'Expand results' }).click()
   await expect(results.getByTestId('route-row')).toHaveCount(3)
+  for (const i of [0, 1, 2])
+    await expect(results.getByTestId('route-row').nth(i)).toBeVisible()
+  const summary = (await results.locator('.trace-summary').boundingBox())!
+  const first = (await results.getByTestId('route-row').first().boundingBox())!
+  expect(summary.y).toBeLessThan(first.y)
 })

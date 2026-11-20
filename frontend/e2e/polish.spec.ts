@@ -2,7 +2,7 @@ import { expect, test, type Page } from './fixtures'
 import { fitted, pick, selectEquipment } from './helpers'
 
 const rows = (page: Page) =>
-  page.getByLabel('Map trace results').getByTestId('route-row')
+  page.getByLabel('Trace results').getByTestId('route-row')
 
 // The trace from the Trace tools, so the hierarchy stays the view and its own buttons are on screen.
 async function traceFromTools(page: Page) {
@@ -11,8 +11,8 @@ async function traceFromTools(page: Page) {
     .click()
   await pick(page, 'Start', 'edge-17 all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await expect(rows(page)).toHaveCount(3)
+  await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 
 test('POL-02 every overlay button stays clickable with each tool open in the dock (Add is disabled in Installed)', async ({
@@ -22,11 +22,6 @@ test('POL-02 every overlay button stays clickable with each tool open in the doc
   await fitted(page)
   await traceFromTools(page)
   const overlay = [
-    page.getByRole('button', { name: 'Collapse results' }),
-    page.getByRole('button', { name: 'Clear trace' }),
-    rows(page).nth(0),
-    rows(page).nth(1),
-    rows(page).nth(2),
     page.getByRole('button', { name: 'Zoom In' }),
     page.getByRole('button', { name: 'Zoom Out' }),
     page.getByRole('button', { name: 'Fit View' }),
@@ -59,16 +54,16 @@ test('POL-02 every overlay button stays clickable with each tool open in the doc
   }
 })
 
-test('POL-32 a trace that fails with every drawer closed shows its error on the map, once', async ({
+test('POL-32 a trace that fails shows its error in the Trace tab, once, and nothing over the map', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
-  // EDGE-17 selected with every drawer closed; the trace starts from a passive chip in its drawer.
+  // EDGE-17 selected with the dock closed; the trace starts from a passive chip in its Node tab.
   await selectEquipment(page, 'EDGE-17')
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
-  // The drawer is the dock's Node tab now: a click on the tree opens it again.
+  // The drawer is the dock's Node tab: a click on the tree opens it again.
   await page.locator('[data-card-switch="edge-17"] .hcard-switch-name').click()
   await page.route('**/api/traces*', (route) =>
     route.fulfill({
@@ -82,21 +77,21 @@ test('POL-32 a trace that fails with every drawer closed shows its error on the 
     .getByRole('button', { name: /^HDF-01/ })
     .first()
     .click()
-  const alert = page
-    .getByRole('alert')
-    .filter({ hasText: 'Trace engine unavailable' })
-  await expect(alert).toBeVisible()
-  await expect(page.getByRole('alert')).toHaveCount(1)
-  // With the Trace drawer open the error shows there instead, never twice.
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
-  await expect(page.getByRole('alert')).toHaveCount(1)
+  // The dock opens on Trace; the error shows there exactly once, with Refresh topology.
   await expect(
-    page.locator('.dock:not([hidden])').getByRole('alert'),
-  ).toContainText('Trace engine unavailable')
+    page
+      .locator('.dock:not([hidden])')
+      .getByRole('tab', { name: 'Trace', selected: true }),
+  ).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(1)
+  const inDock = page.locator('.dock:not([hidden])').getByRole('alert')
+  await expect(inDock).toContainText('Trace engine unavailable')
+  await expect(
+    inDock.getByRole('button', { name: 'Refresh topology' }),
+  ).toBeVisible()
+  await expect(page.locator('.map-results')).toHaveCount(0)
+  await expect(page.locator('.flow-surface').getByRole('alert')).toHaveCount(0)
+  // Closing the dock leaves nothing on the map.
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
-  // It can be dismissed.
-  await page.getByRole('button', { name: 'Dismiss trace error' }).click()
   await expect(page.getByRole('alert')).toHaveCount(0)
 })

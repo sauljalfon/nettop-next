@@ -90,7 +90,7 @@ test('POL-12 arrow keys move, Enter chooses, Esc keeps the old choice', async ({
 
   // The chosen passive endpoint really is the start of the next search.
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  const rows = page.getByLabel('Map trace results').getByTestId('route-row')
+  const rows = page.getByLabel('Trace results').getByTestId('route-row')
   await expect(rows).toHaveCount(1)
   await expect(rows).toContainText('HDF-01 · 3C/5 rear → AGG-03')
 })
@@ -118,6 +118,6 @@ test('POL-12 Destination is a picker too, and exact port-to-port still works', a
     .getByRole('button', { name: 'Trace physical path', exact: true })
     .click()
   await expect(
-    page.getByLabel('Map trace results').getByTestId('route-row'),
+    page.getByLabel('Trace results').getByTestId('route-row'),
   ).toContainText('EDGE-17 · Port 1 → AGG-03 · Port 1')
 })

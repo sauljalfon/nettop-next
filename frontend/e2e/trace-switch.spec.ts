@@ -15,7 +15,8 @@ const NOTE = 'The selected route is not in this context; showing the first.'
 
 async function toPlan(page: Page) {
   await page.getByRole('button', { name: /^Plan: / }).click()
-  await page.getByRole('button', { name: 'Close Changes & plans' }).click()
+  // The plan opens the Changes tab; the trace's results are in the Trace tab beside it.
+  await page.getByRole('tab', { name: 'Trace' }).click()
 }
 async function toInstalled(page: Page) {
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
@@ -24,7 +25,6 @@ async function findFromEdge17(page: Page) {
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(rows(page).first()).toBeVisible()
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 /** A fresh draft with one extra cable: EDGE-17 port 4 to AGG-15 port 2 adds a fourth route. */
 async function planWithRoute(request: APIRequestContext) {
@@ -146,7 +146,6 @@ test('TR-06 an error shows as usual and the trace comes back with its context; C
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(rows(page)).toHaveCount(1)
   await expect(rows(page).first()).toContainText('AGG-15')
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
 
   await toInstalled(page)
   await expect(page.getByRole('alert')).toContainText(
@@ -165,6 +164,6 @@ test('TR-06 an error shows as usual and the trace comes back with its context; C
   await toPlan(page)
   await page.waitForTimeout(500)
   expect(traces.length).toBe(sent)
-  await expect(page.getByLabel('Map trace results')).toHaveCount(0)
+  await expect(page.getByLabel('Trace results')).toHaveCount(0)
   await expect(page.getByRole('alert')).toHaveCount(0)
 })

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures'
 import {
+  expandResults,
   fitted,
   hierarchyState,
   highlightLocation,
@@ -17,7 +18,7 @@ const line = (page: Page, key: string) => page.locator(`[data-line="${key}"]`)
 const equipmentCard = (page: Page, id: string) =>
   page.locator(`[data-equipment-id="${id}"]`)
 const rows = (page: Page) =>
-  page.getByLabel('Map trace results').getByTestId('route-row')
+  page.getByLabel('Trace results').getByTestId('route-row')
 const BUILDING_A = 'agg-03+agg-08|node-building-a'
 const drawer = (page: Page) => page.getByTestId('hierarchy-drawer')
 
@@ -33,11 +34,7 @@ async function findFromEdge17(page: Page) {
   await drawer(page).locator('[data-switch-id="edge-17"]').click()
   await drawer(page).getByRole('button', { name: 'Find AGG / BB' }).click()
   await expect(rows(page)).toHaveCount(3)
-  // The drawer was the dock's Node tab; the dock's × closes it (and whatever tab the trace opened).
-  await page
-    .locator('.dock')
-    .getByRole('button', { name: /^Close / })
-    .click()
+  // The results are in the Trace tab, which stays open beside the tree.
 }
 
 test('HI-10 the route lights its cards and lines in place; choosing another route moves nothing', async ({
@@ -81,6 +78,10 @@ test('HI-10 nothing is dimmed: with Network B shown the A route is not drawn, an
 }) => {
   await toHierarchy(page)
   await findFromEdge17(page)
+  // Clear the selection (the Node tab's ×); the dock goes back to the Trace tab.
+  await page.getByRole('tab', { name: 'Node' }).click()
+  await page.getByRole('button', { name: 'Close Node details' }).click()
+  await expect(rows(page)).toHaveCount(3)
   await page
     .getByRole('combobox', { name: 'Show network' })
     .selectOption({ label: 'Network B' })
@@ -120,6 +121,7 @@ test('HI-10 the route of EDGE-17 lights the AGG-03 card, and choosing another ro
   await toHierarchy(page)
   await findFromEdge17(page)
   await card(page, BUILDING_A).click()
+  await expandResults(page) // the click opened the Node tab; back to Trace
   await expect(card(page, 'agg-03')).toHaveAttribute('data-on-route', 'true')
   await expect(card(page, 'agg-08')).toHaveAttribute('data-on-route', 'false')
   await settledViewport(page)
@@ -196,5 +198,6 @@ test('HI-10 Clear highlight and Escape clear the highlight, never the trace', as
   await page.keyboard.press('Escape')
   await expect(target).toHaveAttribute('data-highlighted', 'false')
   await expect(target).toHaveAttribute('data-on-route', 'true')
+  await expandResults(page) // Explore's tab was open (and Esc closed it): back to Trace
   await expect(rows(page)).toHaveCount(3)
 })

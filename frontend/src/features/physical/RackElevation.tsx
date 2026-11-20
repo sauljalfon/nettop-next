@@ -61,8 +61,7 @@ export default function RackElevation({
   const [room, setRoom] = useState({ space: 600, cover: 0 })
   // The room for the cabinet, measured in the viewport and never from the page's
   // own height (which grows with the cabinet): from the cabinet's top edge down
-  // to the top of whatever covers the bottom of the canvas (the results panel,
-  // collapsed or expanded), or the canvas's bottom when nothing does. The same
+  // to the top of whatever covers the bottom of the canvas, or the canvas's bottom when nothing does. The same
   // covers the map fits around. Measured again when the window, the panel, a
   // drawer or the page above the cabinet changes size or appears.
   useLayoutEffect(() => {
@@ -76,7 +75,7 @@ export default function RackElevation({
       const area = visibleArea(canvas)
       if (!cabinet || !area) return
       for (const watched of [
-        ...document.querySelectorAll('.map-results, .studio-drawer'),
+        ...document.querySelectorAll('.studio-drawer'),
         ...(canvas?.querySelectorAll('.physical-top') ?? []),
       ])
         if (!observed.has(watched)) {

@@ -105,7 +105,7 @@ export async function pick(
 
 /**
  * Every given card is inside the part of the canvas that is visible: not under
- * an open drawer or the results overlay.
+ * an open dock or the tool rail.
  */
 export async function expectInsideVisibleArea(page: Page, ids: string[]) {
   await expect
@@ -125,11 +125,6 @@ export async function expectInsideVisibleArea(page: Page, ids: string[]) {
           if (d.classList.contains('left')) left = Math.max(left, r.right)
           else right = Math.max(right, surface.right - r.left)
         }
-        for (const o of document.querySelectorAll('.map-results'))
-          bottom = Math.max(
-            bottom,
-            surface.bottom - o.getBoundingClientRect().top,
-          )
         const rail = document
           .querySelector('.tool-rail')
           ?.getBoundingClientRect()
@@ -216,14 +211,16 @@ export async function openRackInPhysical(
     .click({ position: { x: 2, y: 2 } })
 }
 
-/** In Physical the results panel opens as one line; open it. Does nothing when it is already open. */
+/** Shows the trace results: opens the dock's Trace tab when it is not the open one. */
 export async function expandResults(page: Page) {
-  const panel = page.getByLabel('Map trace results')
-  await expect(panel).toBeVisible()
-  // A save toast sits over the bottom of the page for a few seconds; let it go.
-  await expect(page.locator('.save-toast')).toHaveCount(0, { timeout: 10_000 })
-  const expand = panel.getByRole('button', { name: 'Expand results' })
-  if (await expand.count()) await expand.click()
+  const tab = page
+    .locator('.dock:not([hidden])')
+    .getByRole('tab', { name: 'Trace', selected: true })
+  if (!(await tab.count()))
+    await page
+      .getByRole('button', { name: 'Open trace tools', exact: true })
+      .click()
+  await expect(page.getByLabel('Trace results')).toBeVisible()
 }
 
 /**

@@ -6,7 +6,7 @@ import {
   selectEquipment,
 } from './helpers'
 
-const results = (page: Page) => page.getByLabel('Map trace results')
+const results = (page: Page) => page.getByLabel('Trace results')
 const sheet = (page: Page) => page.getByTestId('walk-sheet')
 
 async function traceFromEdge17(page: Page) {
@@ -14,7 +14,6 @@ async function traceFromEdge17(page: Page) {
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
 }
 
@@ -83,9 +82,10 @@ test('WS-01 a row click selects that equipment on the map; the Server button ope
     .getByTestId('walk-row')
     .filter({ hasText: 'in front 2B/3' })
     .click()
+  // The row selected its equipment; the inspector is its own tab beside Trace.
+  await page.getByRole('tab', { name: 'Inspector' }).click()
   await expect(page.locator('.inspector-header h2')).toHaveText('HDF-02')
-
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
+  await page.getByRole('tab', { name: 'Trace' }).click()
   await sheet(page)
     .getByRole('button', { name: 'Show in Physical: HDF-02' })
     .click()
@@ -267,7 +267,6 @@ test('WS-04 the inspector lists the same lines; a click finds AGG / BB from that
   )
 
   await lines(page).nth(1).click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(1)
   await expect(sheet(page).getByTestId('walk-end')).toHaveText(
     'Ends at AGG-08 · Port 1, an AGG.',

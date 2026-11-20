@@ -119,7 +119,8 @@ export function tabTitle(s: DockState, tab: DockTab): string {
 /** The line under the title; none for the details tab, whose body has its own head. */
 export const TAB_SUBTITLES: Partial<Record<DockTab, string>> = {
   inspector: 'Select equipment on the map to inspect it',
-  trace: 'Exact physical continuity, calculated by Go',
+  trace:
+    'Cables and panel bridges only. No inferred transit through switch ports.',
   explore: 'Site → node → rack → equipment',
   add: 'Drag onto a rack, or add an HDF with its form',
   changes: 'Proposals stay separate from installed infrastructure',

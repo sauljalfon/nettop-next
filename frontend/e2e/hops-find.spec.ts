@@ -2,14 +2,13 @@ import { expect, test, type Page } from './fixtures'
 import { fitted, expandResults, selectEquipment } from './helpers'
 
 const rows = (page: Page) =>
-  page.getByLabel('Map trace results').getByTestId('route-row')
+  page.getByLabel('Trace results').getByTestId('route-row')
 
 async function traceFromEdge17(page: Page) {
   await selectEquipment(page, 'EDGE-17')
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(rows(page)).toHaveCount(3)
 }
 
@@ -83,9 +82,11 @@ test('POL-05 clicking a walk row selects its equipment and opens the inspector, 
     .getByTestId('walk-row')
     .filter({ hasText: 'in front 2B/3' })
     .click()
-  await expect(page.locator('.inspector-header h2')).toHaveText('HDF-02')
   // The row selects the equipment for the inspector; the tree's selection stays.
+  await page.getByRole('tab', { name: 'Inspector' }).click()
+  await expect(page.locator('.inspector-header h2')).toHaveText('HDF-02')
   await expect(selected).toHaveAttribute('data-selected', 'true')
+  await page.getByRole('tab', { name: 'Trace' }).click()
   await expect(rows(page)).toHaveCount(3)
   await expect(tree.locator('[data-card-key="agg-03"]')).toHaveAttribute(
     'data-on-route',

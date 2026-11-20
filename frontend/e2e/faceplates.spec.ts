@@ -32,7 +32,6 @@ async function traceAgg03(page: Page) {
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 
 test.beforeEach(async ({ page }) => {
@@ -339,26 +338,31 @@ test('RK-01 a 42U cabinet scrolls clear of the results panel at the bottom of th
   await traceAgg03(page)
   await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
   await expectMark(page, 'data-physical-level', 'rack')
-  const panel = page.getByLabel('Map trace results')
-  await expect(panel).toBeVisible()
-  // Scrolled to the bottom, every unit, the lowest included, is above the panel's top edge.
+  const dock = page.locator('.dock:not([hidden])')
+  await expect(page.getByLabel('Trace results')).toBeVisible()
+  // With the Trace tab open beside the page, scrolled to the bottom every unit, the lowest
+  // included, is inside the rack panel and the window, and none is under the dock.
   const bottomClear = async () => {
     await page
       .locator('.rack-level')
       .evaluate((el) => (el.scrollTop = el.scrollHeight))
-    const panelTop = (await panel.boundingBox())!.y
-    let worst = 0
+    const level = (await page.locator('.rack-level').boundingBox())!
+    const dockLeft = (await dock.boundingBox())!.x
+    const windowBottom = page.viewportSize()!.height
+    let ok = true
     for (const unit of [1, 2, 3, 4, 20, 42]) {
       const slot = (await page
         .getByTestId(`rack-slot-rack-t42-${unit}`)
         .boundingBox())!
-      worst = Math.max(worst, slot.y + slot.height)
+      if (unit === 1 || unit === 2 || unit === 3 || unit === 4)
+        ok =
+          ok &&
+          slot.y + slot.height <= level.y + level.height + 1 &&
+          slot.y + slot.height <= windowBottom + 1
+      ok = ok && slot.x + slot.width <= dockLeft + 1
     }
-    return worst <= panelTop + 1
+    return ok
   }
-  await expect.poll(bottomClear).toBe(true)
-  // Expanding the panel leaves U1 clear once the rack level is scrolled again.
-  await panel.getByRole('button', { name: 'Expand results' }).click()
   await expect.poll(bottomClear).toBe(true)
 })
 
@@ -366,24 +370,23 @@ for (const size of [
   { width: 1440, height: 900 },
   { width: 1280, height: 720 },
 ]) {
-  test(`RK-01 at ${size.width}×${size.height} U1 of the 42U rack ends above the results panel once scrolled to the bottom`, async ({
+  test(`RK-01 at ${size.width}×${size.height} U1 of the 42U rack is fully visible beside the Trace tab once scrolled to the bottom`, async ({
     page,
   }) => {
     await page.setViewportSize(size)
     await page.goto('/')
     await fitted(page)
-    await traceAgg03(page) // the panel is open in Conceptual
+    await traceAgg03(page) // the Trace tab stays open beside the page
     await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
     await expectMark(page, 'data-physical-level', 'rack')
-    const panel = page.getByLabel('Map trace results')
-    await expect(
-      panel.getByRole('button', { name: 'Expand results' }),
-    ).toBeVisible() // collapsed in Physical
+    const dock = page.locator('.dock:not([hidden])')
+    await expect(page.getByLabel('Trace results')).toBeVisible()
     const check = async () => {
       await page
         .locator('.rack-level')
         .evaluate((el) => (el.scrollTop = el.scrollHeight))
-      const panelTop = (await panel.boundingBox())!.y
+      const level = (await page.locator('.rack-level').boundingBox())!
+      const dockLeft = (await dock.boundingBox())!.x
       const slot = (await page
         .getByTestId('rack-slot-rack-t42-1')
         .boundingBox())!
@@ -391,7 +394,13 @@ for (const size of [
       const pageScrolls = await page.evaluate(
         () => document.documentElement.scrollHeight > window.innerHeight + 1,
       )
-      return slot.y + slot.height <= panelTop + 1 && !pageScrolls
+      const windowBottom = page.viewportSize()!.height
+      return (
+        slot.y + slot.height <= level.y + level.height + 1 &&
+        slot.y + slot.height <= windowBottom + 1 &&
+        slot.x + slot.width <= dockLeft + 1 &&
+        !pageScrolls
+      )
     }
     await expect.poll(check).toBe(true)
     // Resizing the window keeps it so.

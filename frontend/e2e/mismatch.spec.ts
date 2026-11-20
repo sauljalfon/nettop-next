@@ -28,10 +28,9 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
 
   // The map overlay: the same three routes, and the mismatch listed apart.
-  const overlay = page.getByLabel('Map trace results')
+  const overlay = page.getByLabel('Trace results')
   await expect(overlay.getByTestId('route-row')).toHaveCount(3)
   await expect(overlay.getByTestId('route-row')).toContainText([
     'AGG-03',
@@ -49,7 +48,7 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
 
   // The Physical view uses the same results overlay and says the same.
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
-  const panel = page.getByLabel('Map trace results')
+  const panel = page.getByLabel('Trace results')
   await expandResults(page)
   await expect(panel.getByTestId('route-row')).toHaveCount(3)
   const apart = panel.getByTestId('mismatches')
@@ -64,11 +63,10 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(
-    page.getByLabel('Map trace results').getByTestId('route-row'),
+    page.getByLabel('Trace results').getByTestId('route-row'),
   ).toHaveCount(3)
   await expect(
-    page.getByLabel('Map trace results').getByTestId('mismatches'),
+    page.getByLabel('Trace results').getByTestId('mismatches'),
   ).toHaveCount(0)
 })

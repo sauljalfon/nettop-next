@@ -26,7 +26,6 @@ async function traceAgg03(page: Page) {
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 
 const nodeCard = (page: Page, id: string) => page.getByTestId(`rf__node-${id}`)
@@ -481,7 +480,7 @@ test('results in Physical use the map overlay, without route view or export, and
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await traceAgg03(page)
   await physical(page).click()
-  const results = page.getByLabel('Map trace results')
+  const results = page.getByLabel('Trace results')
   await expandResults(page)
   await expect(results).toBeVisible()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
@@ -515,9 +514,7 @@ async function cardsClearOfCovers(page: Page) {
     const rect = (el: Element) => el.getBoundingClientRect()
     const flow = rect(document.querySelector('.site-flow')!)
     const covers = [
-      ...document.querySelectorAll(
-        '.dock:not([hidden]), .map-results, .tool-rail',
-      ),
+      ...document.querySelectorAll('.dock:not([hidden]), .tool-rail'),
     ].map(rect)
     const problems: string[] = []
     for (const card of document.querySelectorAll('.react-flow__node')) {
@@ -554,7 +551,7 @@ test('PHY-20 the site screen fits into the visible area, on entering and after R
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await traceAgg03(page) // results overlay expanded
   await physical(page).click()
-  await expect(page.getByLabel('Map trace results')).toBeVisible()
+  await expect(page.getByLabel('Trace results')).toBeVisible()
   await page.getByRole('button', { name: 'Open inspector' }).click()
   await expect(page.locator('.dock:not([hidden])')).toBeVisible()
 

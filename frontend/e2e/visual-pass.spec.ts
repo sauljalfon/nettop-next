@@ -142,16 +142,15 @@ test('VP-03 Rack T42 keeps 26px rows, scrolls, and labels every unit', async ({
   )
 })
 
-test('VP-03 scrolled to the bottom, U1 is fully visible above the results panel', async ({
+test('VP-03 scrolled to the bottom, U1 is fully visible beside the Trace tab', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
-  const panel = page.getByLabel('Map trace results')
-  await expect(panel).toBeVisible()
+  const dock = page.locator('.dock:not([hidden])')
+  await expect(page.getByLabel('Trace results')).toBeVisible()
   const level = page.locator('.rack-level')
   await level.evaluate((el) => (el.scrollTop = el.scrollHeight))
   await expect
@@ -159,10 +158,12 @@ test('VP-03 scrolled to the bottom, U1 is fully visible above the results panel'
       const slot = (await page
         .getByTestId('rack-slot-rack-t42-1')
         .boundingBox())!
-      const top = (await panel.boundingBox())!.y
+      const dockLeft = (await dock.boundingBox())!.x
+      const windowBottom = page.viewportSize()!.height
       const area = (await level.boundingBox())!
       return (
-        slot.y + slot.height <= top + 1 &&
+        slot.y + slot.height <= windowBottom + 1 &&
+        slot.x + slot.width <= dockLeft + 1 &&
         slot.y >= area.y &&
         slot.y + slot.height <= area.y + area.height + 1
       )

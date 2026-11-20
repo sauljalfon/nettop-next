@@ -2,7 +2,7 @@ import { expect, test, type Page } from './fixtures'
 import { fitted, pick, viewport } from './helpers'
 
 const rows = (page: Page) =>
-  page.getByLabel('Map trace results').getByTestId('route-row')
+  page.getByLabel('Trace results').getByTestId('route-row')
 
 // The trace from the Trace tools, so the hierarchy stays the view.
 async function traceFromTools(page: Page) {
@@ -12,7 +12,6 @@ async function traceFromTools(page: Page) {
   await pick(page, 'Start', 'edge-17 all ports')
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(rows(page)).toHaveCount(3)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 const hierarchy = (page: Page) => page.locator('[data-view="hierarchy"]')
 const positions = (page: Page) =>
@@ -67,7 +66,7 @@ test('Clear trace removes the route marks only', async ({ page }) => {
     hierarchy(page).locator('[data-on-route="true"]'),
   ).not.toHaveCount(0)
   await page.getByRole('button', { name: 'Clear trace' }).click()
-  await expect(page.getByLabel('Map trace results')).toHaveCount(0)
+  await expect(page.getByLabel('Trace results')).toHaveCount(0)
   await expect(hierarchy(page).locator('[data-on-route="true"]')).toHaveCount(0)
   expect(await positions(page)).toBe(all)
   expect(await viewport(page)).toBe(port)

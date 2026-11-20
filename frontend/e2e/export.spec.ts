@@ -24,9 +24,8 @@ async function traceFromEdge17(page: Page) {
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(
-    page.getByLabel('Map trace results').getByTestId('route-row'),
+    page.getByLabel('Trace results').getByTestId('route-row'),
   ).toHaveCount(3)
 }
 

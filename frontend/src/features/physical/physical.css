@@ -1479,11 +1479,6 @@
   justify-content: flex-end;
 }
 
-/* The trace results sit above the path bar, never over it. */
-.workspace-canvas:has(.pathbar) .map-results {
-  bottom: calc(var(--pathbar-h) + 17px);
-}
-
 /* Connects to: one 30px line per far equipment; a click lights its jacks. */
 .connects-to {
   width: 300px;

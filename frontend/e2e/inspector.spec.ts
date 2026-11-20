@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './fixtures'
 import {
   BUILDING_A,
+  expandResults,
   expectInsideVisibleArea,
   fitted,
   selectEquipment,
@@ -141,12 +142,13 @@ test('POL-10 Find AGG / BB from an inspector entry, and Show on map selects it o
   await page
     .getByRole('button', { name: 'Find AGG / BB from here: HDF-01 3C / 5' })
     .click()
-  const results = page.getByLabel('Map trace results')
+  const results = page.getByLabel('Trace results')
   await expect(results.getByTestId('route-row')).toHaveCount(1)
   await expect(results.getByTestId('route-row')).toContainText('3C/5 front')
   await expect(results.getByTestId('route-row')).toContainText('AGG-03')
 
   // Show on map (header): selected on the tree, nothing highlighted, the route kept.
+  await page.getByRole('tab', { name: 'Inspector' }).click()
   await page.getByRole('button', { name: 'Show on map: HDF-01' }).click()
   await expect(page.locator(`[data-card-key="${BUILDING_A}"]`)).toHaveAttribute(
     'data-lit',
@@ -156,6 +158,7 @@ test('POL-10 Find AGG / BB from an inspector entry, and Show on map selects it o
     'HDF-01',
   )
   await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
+  await expandResults(page)
   await expect(results.getByTestId('route-row')).toHaveCount(1)
 })
 
@@ -343,12 +346,9 @@ test('POL-21 the inspector has no trace form: one Find AGG / BB button, and its 
   await expect(find).toHaveCount(1)
   await find.click()
   await expect(
-    page.getByLabel('Map trace results').getByTestId('route-row'),
+    page.getByLabel('Trace results').getByTestId('route-row'),
   ).toHaveCount(3)
-  // The trace tools still have the form.
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
+  // The Trace tab, which the trace opened, has the form.
   await expect(page.getByRole('combobox', { name: 'Trace mode' })).toBeVisible()
 })
 

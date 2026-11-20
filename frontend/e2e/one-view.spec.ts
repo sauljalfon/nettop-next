@@ -26,7 +26,7 @@ async function expectInFreeArea(page: Page, selectors: string[]) {
           .getBoundingClientRect()
         const covers = [
           ...document.querySelectorAll(
-            '.dock:not([hidden]), .hierarchy-drawer, .tool-rail, .map-results',
+            '.dock:not([hidden]), .hierarchy-drawer, .tool-rail',
           ),
         ].map((el) => el.getBoundingClientRect())
         return list.map((sel) => {

@@ -66,16 +66,14 @@ import {
   ViewSwitch,
   type MapView,
 } from '../features/map/MapControls'
-import MapResults from '../features/map/MapResults'
+import TraceTab from '../features/frame/TraceTab'
 import { walkOfRoute } from '../features/paths/follow'
 import { buildSheet } from '../features/paths/sheet'
-import MapTraceError from '../features/map/MapTraceError'
 import LibraryItems, {
   type PendingEquipment,
 } from '../features/planning/LibraryItems'
 import { locationTree } from '../features/patching/patching'
 import PlacementEditor from '../features/planning/PlacementEditor'
-import TracePicker from '../features/pathfinding/TracePicker'
 import { pickerItems } from '../features/pathfinding/picker'
 import { filterTree } from '../features/explore/tree'
 import { canFindFromDevice } from '../features/inspector/model'
@@ -569,12 +567,17 @@ function Workspace({
       traceSession.selectRoute(route && { start: route.start, end: route.end })
     },
   })
+  // A failed trace shows its error in the Trace tab, so the dock opens there.
+  useEffect(() => {
+    if (traceMutation.isError) dockSession.open('trace')
+  }, [traceMutation.isError])
   // A trace the user starts is remembered outside this Workspace, so an
   // Installed/Plan switch (which remounts it) can run it again; clearing forgets it.
   const startTrace = useCallback(
     (request: TraceRequest) => {
       traceSession.start(request)
       setRouteFellBack(false)
+      dockSession.open('trace')
       traceMutation.mutate({ request })
     },
     [traceMutation.mutate],
@@ -1037,14 +1040,6 @@ function Workspace({
   )
   const dockErrors = (
     <>
-      {traceMutation.error && (
-        <p role="alert" className="inline-error">
-          {traceMutation.error.message}
-          <button className="text-button" onClick={() => void onRefresh()}>
-            Refresh topology
-          </button>
-        </p>
-      )}
       {placement.error && (
         <p role="alert" className="inline-error">
           {placement.error.message}
@@ -1169,69 +1164,58 @@ function Workspace({
         {dockErrors}
       </DockBody>
       <DockBody tab="trace">
-        <>
-          <section className="trace-form">
-            <p className="section-label">Pathfinding</p>
-            <label>
-              Trace mode
-              <select
-                value={mode}
-                disabled={traceMutation.isPending}
-                onChange={(e) => {
-                  const next = e.target.value as typeof mode
-                  setMode(next)
-                  if (next === 'point_to_point' && start.startsWith('device:'))
-                    setStart(
-                      snapshot.endpoints.find(
-                        (p) => p.equipmentId === start.slice(7),
-                      )?.id ?? '',
-                    )
-                  clearTrace()
-                }}
-              >
-                <option value="distribution">Find AGG / BB</option>
-                <option value="point_to_point">Exact port → port</option>
-              </select>
-            </label>
-            <TracePicker
-              label="Start"
-              items={startItems.get()}
-              value={start}
-              disabled={traceMutation.isPending}
-              onChange={(value) => {
-                setStart(value)
-                clearTrace()
-              }}
-            />
-            {mode === 'point_to_point' && (
-              <TracePicker
-                label="Destination"
-                items={endItems.get()}
-                value={end}
-                onChange={(value) => {
-                  setEnd(value)
-                  clearTrace()
-                }}
-              />
-            )}
-            <button
-              className="btn primary"
-              disabled={traceMutation.isPending || !start}
-              onClick={runTrace}
-            >
-              {traceMutation.isPending
-                ? 'Tracing…'
-                : mode === 'distribution'
-                  ? 'Find AGG / BB'
-                  : 'Trace physical path'}
-            </button>
-            <p className="muted">
-              Cables and panel bridges only. No inferred transit through switch
-              ports.
-            </p>
-          </section>
-          {dockErrors}
-        </>
+        <TraceTab
+          snapshot={snapshot}
+          mode={mode}
+          start={start}
+          end={end}
+          startItems={startItems.get()}
+          endItems={endItems.get()}
+          pending={traceMutation.isPending}
+          onMode={(next) => {
+            setMode(next)
+            if (next === 'point_to_point' && start.startsWith('device:'))
+              setStart(
+                snapshot.endpoints.find((p) => p.equipmentId === start.slice(7))
+                  ?.id ?? '',
+              )
+            clearTrace()
+          }}
+          onStart={(value) => {
+            setStart(value)
+            clearTrace()
+          }}
+          onEnd={(value) => {
+            setEnd(value)
+            clearTrace()
+          }}
+          onRun={runTrace}
+          error={traceMutation.error?.message}
+          onRefresh={() => void onRefresh()}
+          result={
+            traceMutation.data?.revision === snapshot.revision
+              ? traceMutation.data
+              : undefined
+          }
+          routeIndex={routeIndex}
+          onRoute={chooseRouteIndex}
+          sheet={routeSheet}
+          note={routeFellBack ? ROUTE_NOT_HERE : undefined}
+          onHop={(endpointId) => {
+            const port = snapshot.endpoints.find((p) => p.id === endpointId)
+            if (!port) return
+            if (view === 'physical') return openEndpointPhysical(endpointId)
+            select(port.equipmentId)
+          }}
+          onShowInPhysical={showStepInPhysical}
+          onClear={() => clearTrace()}
+          routeView={
+            view === 'physical'
+              ? undefined
+              : { on: routeView, onChange: mapSession.setRouteView }
+          }
+          planName={plan?.name}
+        />
       </DockBody>
       {placement.error && !(dock.open && dock.tab === 'inspector') && (
         <div role="alert" className="error-toast">
@@ -1244,38 +1228,6 @@ function Workspace({
             <X size={16} />
           </button>
         </div>
-      )}
-      {/* The Trace and inspector drawers show a trace error themselves. */}
-      {view === 'conceptual' &&
-        traceMutation.error &&
-        !(dock.open && (dock.tab === 'inspector' || dock.tab === 'trace')) && (
-          <MapTraceError
-            message={traceMutation.error.message}
-            onRefresh={() => void onRefresh()}
-            onDismiss={() => clearTrace()}
-          />
-        )}
-      {traceMutation.data?.revision === snapshot.revision && (
-        <MapResults
-          snapshot={snapshot}
-          sheet={routeSheet}
-          note={routeFellBack ? ROUTE_NOT_HERE : undefined}
-          result={traceMutation.data}
-          routeIndex={routeIndex}
-          onRoute={chooseRouteIndex}
-          onHop={(endpointId) => {
-            const port = snapshot.endpoints.find((p) => p.id === endpointId)
-            if (!port) return
-            if (view === 'physical') return openEndpointPhysical(endpointId)
-            select(port.equipmentId)
-          }}
-          onShowInPhysical={showStepInPhysical}
-          onClear={() => clearTrace()}
-          routeView={routeView}
-          onRouteView={mapSession.setRouteView}
-          planName={plan?.name}
-          physical={view === 'physical'}
-        />
       )}
       {physicalError && (
         <div role="alert" className="error-toast">

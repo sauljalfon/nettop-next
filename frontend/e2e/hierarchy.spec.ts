@@ -226,7 +226,7 @@ test('HI-09 from the drawer: Inspector, Find AGG / BB, and Show in Physical', as
 
   await detail.getByRole('button', { name: 'Find AGG / BB' }).click()
   await expect(
-    page.getByLabel('Map trace results').getByTestId('route-row'),
+    page.getByLabel('Trace results').getByTestId('route-row'),
   ).toHaveCount(3)
   // The route lights the cards it touches, in place.
   await expect(card(page, BUILDING_A)).toHaveAttribute('data-on-route', 'true')

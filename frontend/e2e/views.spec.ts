@@ -260,7 +260,6 @@ test('F05 a conceptual endpoint opens the exact place in Physical: from the insp
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await page
     .getByRole('button', { name: 'Show in Physical: HDF-02', exact: true })
     .first()

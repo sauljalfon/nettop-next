@@ -1,12 +1,12 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted } from './helpers'
+import { expandResults, fitted } from './helpers'
 
 const root = (page: Page) => page.locator('.physical-explorer')
 const mark = (page: Page, name: string) =>
   root(page).evaluate((el, n) => el.getAttribute(n) ?? '', name)
 const expectMark = (page: Page, name: string, value: string) =>
   expect.poll(() => mark(page, name)).toBe(value)
-const results = (page: Page) => page.getByLabel('Map trace results')
+const results = (page: Page) => page.getByLabel('Trace results')
 const physical = (page: Page) =>
   page.getByRole('button', { name: 'Physical', exact: true })
 const trail = (page: Page) => page.getByTestId('route-trail')
@@ -16,7 +16,6 @@ async function traceAgg03(page: Page) {
   await page.getByRole('button', { name: 'Open trace tools' }).click()
   await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expect(page.getByTestId('route-row')).toHaveCount(3)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
 
 /** Each walk row's name stays on one line, with its icon beside it and not stretched. */
@@ -63,40 +62,46 @@ test('TR-01 the walk rows keep their name on one line with the icon beside it, i
   await traceAgg03(page)
   await expectHopLayout(page) // Conceptual: the panel is open
   await physical(page).click()
-  await results(page).getByRole('button', { name: 'Expand results' }).click()
   await expectHopLayout(page)
 })
 
-test('TR-03 in Physical the results panel opens as one line and its expanded walk sheet scrolls', async ({
+test('TR-03 in Physical the results are in the Trace tab beside the page, and the walk sheet is inside the scrolling dock', async ({
   page,
 }) => {
   await traceAgg03(page)
-  // Conceptual keeps today's open panel.
+  // Conceptual: the routes are in the dock.
   await expect(page.getByTestId('route-row')).toHaveCount(3)
   await physical(page).click()
+  const dock = page.locator('.dock:not([hidden])')
   await expect(results(page)).toBeVisible()
-  await expect(page.getByTestId('route-row')).toHaveCount(0)
+  await expect(dock.getByTestId('route-row')).toHaveCount(3)
   await expect(results(page)).toContainText('Find AGG / BB')
   await expect(results(page)).toContainText('3 routes')
   await expect(results(page)).toContainText('AGG-03')
-  const one = await results(page).boundingBox()
-  expect(one!.height).toBeLessThan(70)
+  // The equipment page is not covered: its right edge is at or left of the dock's left edge.
+  const dockBox = (await dock.boundingBox())!
+  const pageBox = (await page.locator('.physical-explorer').boundingBox())!
+  expect(pageBox.x + pageBox.width).toBeLessThanOrEqual(dockBox.x + 1)
 
-  await results(page).getByRole('button', { name: 'Expand results' }).click()
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
-  const hops = results(page).getByTestId('walk-sheet')
-  const metrics = await hops.evaluate((el) => ({
-    client: el.clientHeight,
-    scroll: el.scrollHeight,
-    overflowY: getComputedStyle(el).overflowY,
-  }))
-  expect(metrics.client).toBeLessThanOrEqual(200) // about six rows
-  expect(metrics.scroll).toBeGreaterThan(metrics.client)
-  expect(['auto', 'scroll']).toContain(metrics.overflowY)
+  // The walk sheet is inside the dock, whose body scrolls.
+  const sheet = results(page).getByTestId('walk-sheet')
+  const sheetBox = (await sheet.boundingBox())!
+  expect(sheetBox.x).toBeGreaterThanOrEqual(dockBox.x - 1)
+  expect(sheetBox.x + sheetBox.width).toBeLessThanOrEqual(
+    dockBox.x + dockBox.width + 1,
+  )
+  const overflowY = await dock
+    .locator('.dock-body:not([hidden])')
+    .evaluate((el) => getComputedStyle(el).overflowY)
+  expect(['auto', 'scroll']).toContain(overflowY)
+  // The page itself does not scroll.
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight > window.innerHeight + 1,
+    ),
+  ).toBe(false)
 
-  // It collapses again, and closing clears the trace.
-  await results(page).getByRole('button', { name: 'Collapse results' }).click()
-  await expect(page.getByTestId('route-row')).toHaveCount(0)
+  // Closing the trace clears it.
   await results(page).getByRole('button', { name: 'Clear trace' }).click()
   await expect(results(page)).toHaveCount(0)
 })
@@ -149,6 +154,7 @@ test('TR-04 the trail shows the route as steps; chips, Prev and Next open the ex
   await steps(page).nth(2).click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:r')
   await expectMark(page, 'data-route-step', '3')
+  await page.getByRole('tab', { name: 'Port' }).click() // the jacks' switch is in the Port tab
   await page.getByRole('button', { name: 'Switch to front' }).click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:f')
   await expectMark(page, 'data-route-step', '3')
@@ -169,6 +175,7 @@ test('TR-04 the trail shows the route as steps; chips, Prev and Next open the ex
   await expectMark(page, 'data-selected-endpoint', 'agg-03:p1')
 
   // Clearing the trace removes the trail only.
+  await expandResults(page)
   await results(page).getByRole('button', { name: 'Clear trace' }).click()
   await expect(trail(page)).toHaveCount(0)
   await expectMark(page, 'data-physical-level', 'equipment')
