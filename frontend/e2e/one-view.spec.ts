@@ -155,7 +155,7 @@ test('OV-08 Show on map from a Physical endpoint selects the equipment, and HDF-
   await expect(depends).toContainText('EDGE-17')
 })
 
-test('OV-09 a passive chip opens the route view on that jack, a device chip selects that device', async ({
+test('OV-09 a passive chip opens the Trace page on that jack, a device chip selects that device', async ({
   page,
 }) => {
   await selectEquipment(page, 'EDGE-17')
@@ -166,17 +166,13 @@ test('OV-09 a passive chip opens the route view on that jack, a device chip sele
     .getByRole('button', { name: /^HDF-01/ })
     .first()
     .click()
-  await expect(page.getByTestId('route-layer')).toBeVisible()
-  await expect(page.locator('.flow-surface')).toHaveAttribute(
-    'data-route-view',
-    'true',
-  )
-  await page.getByRole('button', { name: 'Route view' }).click() // back to the map
-  await expect(page.locator('.flow-surface')).toHaveAttribute(
-    'data-route-view',
-    'false',
-  )
-  await showNodeDetails(page) // the route started in the Trace tab
+  await expect(page.getByTestId('trace-page')).toBeVisible()
+  await page
+    .getByTestId('trace-page')
+    .getByRole('button', { name: '← Back', exact: true })
+    .click() // back to the tree
+  await expect(page.getByTestId('trace-page')).toHaveCount(0)
+  await showNodeDetails(page)
   await way.getByRole('button', { name: 'AGG-03', exact: true }).first().click()
   await expect(card(page, 'agg-03')).toHaveAttribute('data-selected', 'true')
   await expect(drawer(page).locator('h2')).toHaveText('AGG-03')

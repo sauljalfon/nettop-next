@@ -66,6 +66,25 @@ export function exportFileName(
   return `route-${safe(start)}-${safe(end)}.${extension}`
 }
 
+/** The gap between two captured parts (the drawing, then the walk), in CSS px. */
+export const STACK_GAP = 16
+
+/**
+ * The size of several captured parts stacked top to bottom with a gap between:
+ * as wide as the widest, as tall as all of them and the gaps.
+ */
+export function stackSize(
+  sizes: readonly { width: number; height: number }[],
+  gap: number = STACK_GAP,
+): { width: number; height: number } {
+  return {
+    width: Math.max(0, ...sizes.map((s) => s.width)),
+    height:
+      sizes.reduce((sum, s) => sum + s.height, 0) +
+      gap * Math.max(0, sizes.length - 1),
+  }
+}
+
 export interface CaptureLayout {
   /** The whole image in CSS px: the diagram area under the header band. */
   width: number
@@ -140,32 +159,41 @@ function drawHeader(
 }
 
 /**
- * Captures the route diagram once and downloads it as a PNG or a one-page PDF.
- * The libraries load on the first export. The capture is of a clone of the
- * diagram element at its full scroll size, so the whole route is in the image
- * whatever is scrolled or covered, and the page itself is never touched: no
- * session or snapshot change, and no backend call.
+ * Captures the route's picture once and downloads it as a PNG or a one-page
+ * PDF. The libraries load on the first export. `elements` are captured at
+ * their full scroll size and stacked top to bottom (the Trace page gives the
+ * drawing for a PNG, the drawing and the walk for a PDF), so the whole route is
+ * in the image whatever the zoom or the scroll, and the page itself is never
+ * touched: no session or snapshot change, and no backend call.
  */
 export async function exportRouteView(options: {
   format: 'png' | 'pdf'
-  /** The diagram's own element (the inner `.rd`), not its scroll box. */
-  element: HTMLElement
+  /** The parts to capture, in order: the elements themselves, not their scroll boxes. */
+  elements: HTMLElement[]
   header: ExportHeader
   start: string
   end: string
 }): Promise<void> {
-  const { format, element, header } = options
-  const size = { width: element.scrollWidth, height: element.scrollHeight }
+  const { format, elements, header } = options
+  const sizes = elements.map((el) => ({
+    width: el.scrollWidth,
+    height: el.scrollHeight,
+  }))
+  const size = stackSize(sizes)
   if (!size.width || !size.height) throw new Error('Nothing to export.')
   const layout = captureLayout(size)
   const { toCanvas } = await import('html-to-image')
-  const picture = await toCanvas(element, {
-    width: size.width,
-    height: size.height,
-    pixelRatio: layout.ratio,
-    backgroundColor: '#ffffff',
-    skipFonts: true, // the app uses system fonts only
-  })
+  const pictures = []
+  for (const [i, element] of elements.entries())
+    pictures.push(
+      await toCanvas(element, {
+        width: sizes[i].width,
+        height: sizes[i].height,
+        pixelRatio: layout.ratio,
+        backgroundColor: '#ffffff',
+        skipFonts: true, // the app uses system fonts only
+      }),
+    )
   const canvas = document.createElement('canvas')
   canvas.width = layout.pixelWidth
   canvas.height = layout.pixelHeight
@@ -173,13 +201,17 @@ export async function exportRouteView(options: {
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   drawHeader(ctx, header, layout)
-  ctx.drawImage(
-    picture,
-    layout.offset.x * layout.ratio,
-    (layout.headerHeight + layout.offset.y) * layout.ratio,
-    size.width * layout.ratio,
-    size.height * layout.ratio,
-  )
+  let top = layout.headerHeight + layout.offset.y
+  pictures.forEach((picture, i) => {
+    ctx.drawImage(
+      picture,
+      layout.offset.x * layout.ratio,
+      top * layout.ratio,
+      sizes[i].width * layout.ratio,
+      sizes[i].height * layout.ratio,
+    )
+    top += sizes[i].height + STACK_GAP
+  })
   const fileName = exportFileName(options.start, options.end, format)
   if (format === 'png') {
     const blob = await new Promise<Blob | null>((resolve) =>

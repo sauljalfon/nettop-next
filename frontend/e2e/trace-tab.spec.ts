@@ -49,10 +49,16 @@ test('TR-01 Find AGG / BB from the inspector opens the Trace tab with the routes
     expect(r.y).toBeGreaterThanOrEqual(box.y)
     expect(r.y + r.height).toBeLessThanOrEqual(box.y + box.height)
   }
-  // No page yet: the full-page button is not drawn.
+  // Open full page ⤢ is in the tab; the Route view toggle and the export went to the page.
   await expect(
-    dock(page).getByRole('button', { name: /Open full page/ }),
+    dock(page).getByRole('button', { name: 'Open full page ⤢' }),
+  ).toBeVisible()
+  await expect(
+    dock(page).getByRole('button', { name: 'Route view' }),
   ).toHaveCount(0)
+  await expect(dock(page).getByRole('button', { name: /^Export/ })).toHaveCount(
+    0,
+  )
 })
 
 test('TR-02 choosing a route lights it in place and never moves the view', async ({

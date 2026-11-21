@@ -45,6 +45,7 @@ export default function EquipmentPage({
   onSide,
   onGoToPeer,
   onFind,
+  onFullPage,
   onShowOnMap,
   marks,
   routeName,
@@ -74,6 +75,8 @@ export default function EquipmentPage({
   onSide: (side: 'front' | 'rear') => void
   onGoToPeer: (endpointId: string) => void
   onFind: (endpointId: string) => void
+  /** Full page ⤢ on the path bar. */
+  onFullPage: (endpointId: string) => void
   onShowOnMap: (equipmentId: string) => void
   /** The selected route's marks and its destination's name. */
   marks: RouteMarks
@@ -375,6 +378,7 @@ export default function EquipmentPage({
           numbering={numbering}
           onOpen={goToJack}
           onClose={closePort}
+          onFullPage={onFullPage}
         />
       )}
     </div>

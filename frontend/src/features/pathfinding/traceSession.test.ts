@@ -48,6 +48,38 @@ describe('TR-05 the last trace is kept outside the Workspace', () => {
   })
 })
 
+describe('the Trace page choices are kept outside the Workspace', () => {
+  it('start as One route, no Picture only', () => {
+    const s = createTraceSession()
+    expect(s.pageView()).toBe('one')
+    expect(s.picture()).toBe(false)
+  })
+
+  it('tell the subscribers when they change, and only then', () => {
+    const s = createTraceSession()
+    let calls = 0
+    const off = s.subscribe(() => calls++)
+    s.setPageView('all')
+    s.setPageView('all')
+    s.setPicture(true)
+    s.setPicture(true)
+    expect(calls).toBe(2)
+    expect([s.pageView(), s.picture()]).toEqual(['all', true])
+    off()
+    s.setPicture(false)
+    expect(calls).toBe(2)
+  })
+
+  it('survive clearing the trace', () => {
+    const s = createTraceSession()
+    s.start({ mode: 'distribution', device: 'edge-17' })
+    s.setPageView('all')
+    s.setPicture(true)
+    s.clear()
+    expect([s.pageView(), s.picture()]).toEqual(['all', true])
+  })
+})
+
 describe('TR-06 choosing the route again after a rerun', () => {
   const result = edge17Result() // AGG-03, AGG-08, BB-01
 

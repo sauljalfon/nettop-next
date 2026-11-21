@@ -80,6 +80,8 @@ interface Props {
   onSelectEquipment: (equipmentId: string) => void
   /** Find AGG / BB from one endpoint; the results show in the overlay. */
   onFindFromEndpoint: (endpointId: string) => void
+  /** Full page ⤢ on a cabled jack's path: Find AGG / BB from it, on the Trace page. */
+  onFullPage: (endpointId: string) => void
   /** Show an equipment on the conceptual map. */
   onShowOnMap: (equipmentId: string) => void
   /** The equipment page's Open in inventory. */
@@ -112,6 +114,7 @@ export default function PhysicalExplorer({
   onCreateEquipment,
   onSelectEquipment,
   onFindFromEndpoint,
+  onFullPage,
   onShowOnMap,
   onOpenInInventory,
   onError,
@@ -534,6 +537,7 @@ export default function PhysicalExplorer({
               if (owner) onSelectEquipment(owner)
             }}
             onFind={onFindFromEndpoint}
+            onFullPage={onFullPage}
             onShowOnMap={onShowOnMap}
             marks={marks}
             edit={edit}

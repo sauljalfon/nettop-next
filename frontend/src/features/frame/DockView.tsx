@@ -84,7 +84,14 @@ const typing = (el: Element | null) =>
  * The one dock: a tab row and a body that narrows the page beside it.
  * Always mounted (hidden while closed) so the details slot stays stable.
  */
-export default function Dock({ planned }: { planned: boolean }) {
+export default function Dock({
+  planned,
+  suppressed = false,
+}: {
+  planned: boolean
+  /** The Trace page has the whole window: the dock is kept (its slots stay) but not drawn. */
+  suppressed?: boolean
+}) {
   const dock = useDock()
   const { setBody, setDetails } = useContext(SetSlotsContext)
   const tabs = tabsFor(dock, planned)
@@ -128,7 +135,7 @@ export default function Dock({ planned }: { planned: boolean }) {
   }, [onDetails])
 
   useEffect(() => {
-    if (!dock.open) return
+    if (!dock.open || suppressed) return
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
       if (typing(event.target as Element | null)) return
@@ -147,10 +154,14 @@ export default function Dock({ planned }: { planned: boolean }) {
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [dock.open, close, onDetails])
+  }, [dock.open, suppressed, close, onDetails])
 
   return (
-    <aside className="dock" aria-label={title} hidden={!dock.open}>
+    <aside
+      className="dock"
+      aria-label={title}
+      hidden={!dock.open || suppressed}
+    >
       <div className="dock-tabs">
         <div className="dock-tablist-wrap">
           <div

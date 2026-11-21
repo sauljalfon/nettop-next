@@ -1,12 +1,9 @@
-import { useState } from 'react'
 import type { Snapshot, TraceResult } from '../../shared/types'
 import Chip from '../../shared/ui/Chip'
 import Pieces from '../../shared/ui/Pieces'
-import { exportHeader, exportRouteView } from '../map/exportRoute'
 import { resultsSummary, resultsTitle, routeRows } from '../map/routeList'
 import type { Sheet } from '../paths/sheet'
 import WalkSheet from '../paths/WalkSheet'
-import { endpointLabel } from '../pathfinding/projection'
 import { mismatchLine, truncationNotice } from '../pathfinding/results'
 import TracePicker from '../pathfinding/TracePicker'
 import type { PickerItem } from '../pathfinding/picker'
@@ -41,59 +38,15 @@ interface Props {
   onHop: (endpointId: string) => void
   onShowInPhysical: (endpointId: string) => void
   onClear: () => void
-  /** The route view and its export: on Conceptual only (they go when the Trace page arrives). */
-  routeView?: { on: boolean; onChange: (on: boolean) => void }
-  planName?: string
-  /** Absent until the Trace page exists: then the button is not drawn. */
+  /** Open full page ⤢: the Trace page, for the trace shown here. */
   onOpenPage?: () => void
 }
 
 /** The whole body of the dock's Trace tab: the form, a failed trace's error, then the results. */
 export default function TraceTab(props: Props) {
-  const { snapshot, result, routeIndex } = props
-  const [exporting, setExporting] = useState<'png' | 'pdf'>()
-  const [exportError, setExportError] = useState<string>()
-  async function exportRoute(format: 'png' | 'pdf') {
-    const route = result?.routes[routeIndex]
-    const element = document.querySelector<HTMLElement>(
-      '.flow-surface [data-testid="route-diagram"]',
-    )
-    if (!result || !route || !element) return
-    const start = endpointLabel(snapshot, route.start)
-    const end = endpointLabel(snapshot, route.end)
-    setExporting(format)
-    setExportError(undefined)
-    try {
-      await exportRouteView({
-        format,
-        element,
-        start,
-        end,
-        header: exportHeader({
-          start,
-          end,
-          mode: result.mode,
-          networkName: snapshot.networks.find(
-            (n) => n.id === route.sourceNetworkId,
-          )?.name,
-          plan: props.planName,
-          date: new Date().toLocaleDateString('en-CA'),
-        }),
-      })
-    } catch (error) {
-      setExportError(error instanceof Error ? error.message : 'Export failed.')
-    } finally {
-      setExporting(undefined)
-    }
-  }
-
+  const { result } = props
   return (
     <>
-      {props.onOpenPage && (
-        <button type="button" className="btn quiet" onClick={props.onOpenPage}>
-          Open full page ⤢
-        </button>
-      )}
       <section className="trace-form">
         <label>
           Trace mode
@@ -141,15 +94,7 @@ export default function TraceTab(props: Props) {
           </button>
         </p>
       )}
-      {result && (
-        <Results
-          {...props}
-          result={result}
-          exporting={exporting}
-          exportError={exportError}
-          onExport={(format) => void exportRoute(format)}
-        />
-      )}
+      {result && <Results {...props} result={result} />}
     </>
   )
 }
@@ -164,15 +109,9 @@ function Results({
   onHop,
   onShowInPhysical,
   onClear,
-  routeView,
-  exporting,
-  exportError,
-  onExport,
+  onOpenPage,
 }: Props & {
   result: TraceResult
-  exporting?: 'png' | 'pdf'
-  exportError?: string
-  onExport: (format: 'png' | 'pdf') => void
 }) {
   const rows = routeRows(snapshot, result)
   const selected = result.routes[routeIndex]
@@ -184,6 +123,11 @@ function Results({
         <Chip kind={result.status === 'reached' ? 'route' : 'state'}>
           {result.status === 'reached' ? 'Physical path found' : 'No route'}
         </Chip>
+        {onOpenPage && (
+          <button type="button" className="btn quiet" onClick={onOpenPage}>
+            Open full page ⤢
+          </button>
+        )}
         <button type="button" className="btn quiet" onClick={onClear}>
           Clear trace
         </button>
@@ -236,38 +180,6 @@ function Results({
           <div className="group-label">
             <strong>Walk of the selected route</strong>
           </div>
-          {routeView && (
-            <div className="map-route-tools">
-              <button
-                className="route-view-toggle btn"
-                aria-pressed={routeView.on}
-                onClick={() => routeView.onChange(!routeView.on)}
-              >
-                Route view
-              </button>
-              {(['png', 'pdf'] as const).map((format) => (
-                <button
-                  key={format}
-                  className="route-view-toggle btn quiet"
-                  aria-label={`Export ${format.toUpperCase()}`}
-                  disabled={!routeView.on || exporting !== undefined}
-                  title={
-                    routeView.on
-                      ? `Download the route as a ${format.toUpperCase()}`
-                      : 'Turn on Route view to export'
-                  }
-                  onClick={() => onExport(format)}
-                >
-                  {exporting === format ? 'Exporting…' : format.toUpperCase()}
-                </button>
-              ))}
-              {exportError && (
-                <span role="alert" className="inline-error">
-                  {exportError}
-                </span>
-              )}
-            </div>
-          )}
           {sheet && (
             <WalkSheet
               sheet={sheet}

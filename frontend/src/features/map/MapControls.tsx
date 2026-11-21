@@ -2,9 +2,10 @@ import { useState } from 'react'
 import type { Network } from '../../shared/types'
 import { MANAGE_NETWORKS } from '../networks/model'
 
-export type MapView = 'conceptual' | 'physical' | 'inventory'
+/** The header's views, and the Trace page (D46) while it replaces them: none of the three is pressed then. */
+export type MapView = 'conceptual' | 'physical' | 'inventory' | 'trace'
 
-const VIEW_LABEL: Record<MapView, string> = {
+const VIEW_LABEL: Record<Exclude<MapView, 'trace'>, string> = {
   conceptual: 'Conceptual',
   physical: 'Physical',
   inventory: 'Inventory',

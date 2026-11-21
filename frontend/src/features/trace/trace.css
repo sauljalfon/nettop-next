@@ -1,0 +1,474 @@
+/* The Trace page (D46): one trace on a whole page, without the dock.
+   Look: docs/history/demos/workbench-demo.html (.tp, .tp-list, .tp-canvas, .nframe, .walk, .callout). */
+.trace-page {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--paper);
+}
+.trace-page .sub {
+  color: var(--ink-soft);
+}
+.trace-page .tag {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  font-size: var(--t-min);
+  color: var(--ink-soft);
+}
+
+/* The bar: ← Back › Trace, what was traced, One route | All routes, Show on map, Export. */
+.tp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.tp-bar .spacer {
+  flex: 1;
+}
+.tp-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 2px 4px;
+  min-width: 0;
+  color: var(--ink-soft);
+}
+.tp-crumbs .tp-back {
+  border: 0;
+  background: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--ink-soft);
+}
+.tp-crumbs .tp-back:hover {
+  background: var(--paper-sunk);
+  color: var(--ink);
+}
+.tp-crumbs .here {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--t-lg);
+  padding: 0 2px;
+}
+.tp-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--t-sm);
+}
+
+/* Results on the left, the chosen route (or all of them) on the right. */
+.tp {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  background: var(--paper);
+}
+.tp.pic {
+  grid-template-columns: minmax(0, 1fr);
+}
+.tp-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  border-right: 1px solid var(--rule);
+}
+.tp-body {
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 16px 20px 28px;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+.tp.pic .tp-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tp-empty {
+  align-self: start;
+  padding: 40px 24px;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+.tp-title {
+  display: grid;
+  gap: 2px;
+}
+.tp-title h2 {
+  font-size: var(--t-xl);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.tp-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--ink-soft);
+}
+.tp-summary b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.tp-summary b.net-other {
+  color: var(--net);
+}
+.tp-group {
+  display: grid;
+  gap: 4px;
+}
+.trace-page .group-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.trace-page .section-label {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.trace-page .dlist {
+  display: grid;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  overflow: hidden;
+}
+.trace-page .dlist > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 7px 10px;
+  border: 0;
+  border-top: 1px solid var(--rule-soft);
+  background: var(--paper);
+  text-align: left;
+  font-size: var(--t-sm);
+}
+.trace-page .dlist > button:first-child {
+  border-top: 0;
+}
+.trace-page .dlist > button:hover {
+  background: var(--paper-sunk);
+}
+.trace-page .dlist > button[aria-pressed='true'] {
+  background: var(--route-soft);
+  box-shadow: inset 3px 0 0 var(--route);
+}
+.trace-page .dlist > button.mm {
+  box-shadow: inset 3px 0 0 var(--mixed-networks);
+}
+.trace-page .dlist > button.mm[aria-pressed='true'] {
+  background: var(--paper-sunk);
+}
+.trace-page .dlist .r {
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+.trace-page .dlist .s {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+}
+.outcomes {
+  display: grid;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  overflow: hidden;
+}
+.outcomes summary {
+  padding: 7px 10px;
+  background: var(--paper-sunk);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+.outcomes div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 5px 10px;
+  border-top: 1px solid var(--rule-soft);
+  font-size: var(--t-xs);
+}
+.outcomes div span:last-child {
+  color: var(--ink-soft);
+}
+
+/* A note: amber for the shared equipment; a mismatch carries the other network's colour. */
+.trace-page .callout {
+  padding: 8px 12px;
+  border-radius: var(--r-control);
+  background: var(--amber-soft);
+  border: 1px solid var(--env-border);
+  color: var(--amber-ink);
+}
+.trace-page .callout.mismatch {
+  background: color-mix(
+    in srgb,
+    var(--net, var(--mixed-networks)) 12%,
+    var(--paper)
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--net, var(--mixed-networks)) 40%,
+    var(--paper)
+  );
+  color: var(--ink);
+}
+
+/* The drawing: the jack path's plates (D45), each node's steps in a dashed frame. */
+.nframe {
+  flex: none;
+  display: grid;
+  grid-template-rows: 20px auto;
+  padding: 0 6px 6px;
+  border: 1.5px dashed var(--rule-strong);
+  border-radius: 10px;
+}
+.nframe .nlabel {
+  padding: 3px 6px 0;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.nrow {
+  display: flex;
+  align-items: stretch;
+}
+.trace-line.pathline {
+  flex: none;
+  flex-wrap: nowrap;
+  overflow: visible;
+  padding: 0;
+}
+.trace-line .pn {
+  min-width: 116px;
+}
+/* A cable between two frames: its line drops by the frame's label and border, to meet the jacks. */
+.trace-line > .pcell.link .cable-line {
+  top: calc(21.5px + 18px + var(--jack-y));
+}
+.trace-line > .pcell.link .cable-id {
+  margin-top: calc(21.5px + var(--jack-y) - 24px);
+}
+.pn.shared {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--amber);
+}
+.pn.here.shared {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--ink);
+}
+.tp-pic-route {
+  display: grid;
+  gap: 4px;
+}
+.tp-pic-route .lbl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+}
+.tp-pic-route .lbl .btn {
+  height: 24px;
+  padding: 0 8px;
+}
+.tp-pic-route[aria-current='true'] .lbl b {
+  color: var(--route);
+}
+
+/* The canvas: zoom, drag, Picture only. */
+.tp-canvas-wrap {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+.tp.pic .tp-canvas-wrap {
+  flex: 1;
+}
+.tp-canvas {
+  overflow: auto;
+  max-height: 80vh;
+  padding: 44px 14px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  cursor: grab;
+}
+.tp-canvas.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+.tp.pic .tp-canvas {
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--floor);
+  padding: 52px 24px 24px;
+}
+.tp-sizer {
+  position: relative;
+}
+.tp-zoomed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  transform-origin: 0 0;
+}
+.tp-zoomed [data-testid='trace-drawing'] {
+  display: grid;
+  gap: 16px;
+}
+.tp-zoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  overflow: hidden;
+  box-shadow: var(--shadow-pop);
+}
+.tp-zoom button {
+  height: 28px;
+  min-width: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  background: var(--paper);
+  white-space: nowrap;
+}
+.tp-zoom button:first-child {
+  border-left: 0;
+}
+.tp-zoom button:hover {
+  background: var(--paper-sunk);
+}
+.tp-zoom button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.tp-zoom span {
+  min-width: 50px;
+  text-align: center;
+  font: var(--t-xs) / 28px var(--mono);
+  color: var(--ink-soft);
+  border-left: 1px solid var(--rule);
+}
+.tp-pic-title {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  right: 340px;
+  z-index: 3;
+  font-weight: 600;
+  font-size: var(--t-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tp-pic-title .sub {
+  font-weight: 400;
+}
+
+/* Walk, step by step. */
+.walk {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  overflow: auto;
+}
+.walk table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+}
+.walk th {
+  text-align: left;
+  font-weight: 600;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  padding: 6px 10px;
+  background: var(--paper-sunk);
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.walk td {
+  padding: 6px 10px;
+  border-top: 1px solid var(--rule-soft);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.walk tr.cable td {
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+  padding-block: 3px;
+  background: var(--paper);
+}
+.walk tr.cable td:first-child {
+  border-left: 3px solid var(--net);
+}
+.walk .no {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  width: 28px;
+}
+.walk .mono {
+  font-family: var(--mono);
+}
+.walk .btn {
+  height: 24px;
+  padding: 0 8px;
+}
+
+@media (max-width: 760px) {
+  .trace-page {
+    overflow: auto;
+    grid-template-rows: auto auto;
+  }
+  .tp {
+    display: block;
+  }
+  .tp-list,
+  .tp-body {
+    overflow: visible;
+  }
+  .tp-list {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+}

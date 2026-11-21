@@ -97,24 +97,6 @@ test('HI-10 nothing is dimmed: with Network B shown the A route is not drawn, an
   await expect(page.locator('.dimmed')).toHaveCount(0)
 })
 
-test('HI-10 the Route view covers the hierarchy, and turning it off restores it exactly', async ({
-  page,
-}) => {
-  await toHierarchy(page)
-  await findFromEdge17(page)
-  await settledViewport(page)
-  const before = await hierarchyState(page)
-  const view = await viewport(page)
-  const toggle = page.getByRole('button', { name: 'Route view' })
-  await toggle.click()
-  await expect(page.getByTestId('route-layer')).toBeVisible()
-  await toggle.click()
-  await expect(page.getByTestId('route-layer')).toHaveCount(0)
-  expect(await hierarchyState(page)).toEqual(before)
-  expect(await viewport(page)).toBe(view)
-  await expect(card(page, BUILDING_A)).toHaveAttribute('data-on-route', 'true')
-})
-
 test('HI-10 the route of EDGE-17 lights the AGG-03 card, and choosing another route moves nothing', async ({
   page,
 }) => {

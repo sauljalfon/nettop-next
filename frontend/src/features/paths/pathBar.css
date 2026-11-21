@@ -1,8 +1,11 @@
 /* The path of the selected jack: one line of hardware along the bottom of the equipment page.
    Look: docs/history/demos/workbench-demo.html (.pathbar). */
-.pathbar {
+.pathbar,
+.trace-line {
   --plate: 84px;
   --jack-y: 47px;
+}
+.pathbar {
   flex: none;
   height: var(--pathbar-h);
   min-width: 0;
@@ -36,6 +39,16 @@
   width: 26px;
   height: 26px;
   padding: 0;
+}
+.pathbar-head .path-full {
+  margin-left: auto;
+  align-self: center;
+  height: 24px;
+  padding: 0 8px;
+  font-size: var(--t-sm);
+}
+.pathbar-head .path-full + .path-close {
+  margin-left: 0;
 }
 .pathline {
   display: flex;

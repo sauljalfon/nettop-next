@@ -141,6 +141,7 @@
 }
 .trace-results .group-label {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   font-size: var(--t-sm);
@@ -195,26 +196,6 @@
 .trace-results .route-detail {
   display: grid;
   gap: 8px;
-}
-.trace-results .map-route-tools {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.trace-results .route-view-toggle {
-  width: auto;
-  height: 26px;
-  font-size: var(--t-xs);
-}
-.trace-results .route-view-toggle:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.trace-results .route-view-toggle[aria-pressed='true'] {
-  background: var(--ink);
-  color: var(--paper);
-  border-color: var(--ink);
 }
 .trace-results .trace-explanation {
   margin: 0;

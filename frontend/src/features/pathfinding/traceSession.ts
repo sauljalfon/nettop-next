@@ -16,6 +16,9 @@ export interface StoredTrace {
  * context switch, which remounts the Workspace, can run it again in the new
  * context. Session-only. Clearing the trace forgets it, so nothing reruns.
  */
+/** One route at a time, or every route stacked (the Trace page's choice). */
+export type TracePageView = 'one' | 'all'
+
 export interface TraceSession {
   get(): StoredTrace | undefined
   /** A new request; the previous route is forgotten. */
@@ -23,10 +26,22 @@ export interface TraceSession {
   /** The route now shown. Ignored when there is no request. */
   selectRoute(route: RouteRef | undefined): void
   clear(): void
+  /** The Trace page's One route | All routes; survives a clear and a remount. */
+  pageView(): TracePageView
+  setPageView(view: TracePageView): void
+  /** The Trace page's Picture only. */
+  picture(): boolean
+  setPicture(on: boolean): void
+  /** Called after pageView or picture changes. */
+  subscribe(listener: () => void): () => void
 }
 
 export function createTraceSession(): TraceSession {
   let stored: StoredTrace | undefined
+  let pageView: TracePageView = 'one'
+  let picture = false
+  const listeners = new Set<() => void>()
+  const emit = () => listeners.forEach((l) => l())
   return {
     get: () => stored,
     start(request) {
@@ -37,6 +52,22 @@ export function createTraceSession(): TraceSession {
     },
     clear() {
       stored = undefined
+    },
+    pageView: () => pageView,
+    setPageView(view) {
+      if (view === pageView) return
+      pageView = view
+      emit()
+    },
+    picture: () => picture,
+    setPicture(on) {
+      if (on === picture) return
+      picture = on
+      emit()
+    },
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
     },
   }
 }

@@ -5,6 +5,8 @@ import {
   exportFileName,
   exportHeader,
   pdfText,
+  STACK_GAP,
+  stackSize,
 } from './exportRoute'
 
 describe('POL-29 the header', () => {
@@ -108,5 +110,24 @@ describe('POL-27 capture size', () => {
     expect(l.pixelHeight).toBeLessThanOrEqual(EXPORT.maxSide)
     // Still the same picture: the aspect ratio is kept.
     expect(l.pixelWidth / l.pixelHeight).toBeCloseTo(l.width / l.height, 1)
+  })
+})
+
+describe('stackSize (the PDF: the drawing, then the walk)', () => {
+  it('is the widest part, and the heights with a gap between', () => {
+    expect(
+      stackSize([
+        { width: 900, height: 200 },
+        { width: 1100, height: 300 },
+      ]),
+    ).toEqual({ width: 1100, height: 500 + STACK_GAP })
+  })
+
+  it('one part is itself, and none is empty', () => {
+    expect(stackSize([{ width: 5, height: 7 }])).toEqual({
+      width: 5,
+      height: 7,
+    })
+    expect(stackSize([])).toEqual({ width: 0, height: 0 })
   })
 })

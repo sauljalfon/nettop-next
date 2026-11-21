@@ -54,7 +54,7 @@ test('POL-02 every overlay button stays clickable with each tool open in the doc
   }
 })
 
-test('POL-32 a trace that fails shows its error in the Trace tab, once, and nothing over the map', async ({
+test('POL-32 a trace that fails shows its error on the Trace page, once, and nothing over the map', async ({
   page,
 }) => {
   await page.goto('/')
@@ -77,21 +77,24 @@ test('POL-32 a trace that fails shows its error in the Trace tab, once, and noth
     .getByRole('button', { name: /^HDF-01/ })
     .first()
     .click()
-  // The dock opens on Trace; the error shows there exactly once, with Refresh topology.
+  // The chip opens the Trace page; the error shows there exactly once, with Refresh topology.
+  const tracePage = page.getByTestId('trace-page')
+  await expect(tracePage).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(1)
+  const inPage = tracePage.getByRole('alert')
+  await expect(inPage).toContainText('Trace engine unavailable')
+  await expect(
+    inPage.getByRole('button', { name: 'Refresh topology' }),
+  ).toBeVisible()
+  await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
+  await expect(page.locator('.map-results')).toHaveCount(0)
+  await expect(page.locator('.flow-surface').getByRole('alert')).toHaveCount(0)
+  // Back leaves nothing on the map, and the dock is as it was: the Node tab.
+  await tracePage.getByRole('button', { name: '← Back', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(
     page
       .locator('.dock:not([hidden])')
-      .getByRole('tab', { name: 'Trace', selected: true }),
+      .getByRole('tab', { name: 'Node', selected: true }),
   ).toBeVisible()
-  await expect(page.getByRole('alert')).toHaveCount(1)
-  const inDock = page.locator('.dock:not([hidden])').getByRole('alert')
-  await expect(inDock).toContainText('Trace engine unavailable')
-  await expect(
-    inDock.getByRole('button', { name: 'Refresh topology' }),
-  ).toBeVisible()
-  await expect(page.locator('.map-results')).toHaveCount(0)
-  await expect(page.locator('.flow-surface').getByRole('alert')).toHaveCount(0)
-  // Closing the dock leaves nothing on the map.
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
-  await expect(page.getByRole('alert')).toHaveCount(0)
 })

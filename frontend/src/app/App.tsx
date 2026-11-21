@@ -40,7 +40,7 @@ import type {
 } from '../shared/types'
 import ConceptualMap from '../features/map/ConceptualMap'
 import Dock, { DockBody, DockProvider } from '../features/frame/DockView'
-import { dockSession, useDock } from '../features/frame/dock'
+import { dockSession, useDock, type DockState } from '../features/frame/dock'
 import {
   buildSearchItems,
   inspectorQuery,
@@ -67,6 +67,7 @@ import {
   type MapView,
 } from '../features/map/MapControls'
 import TraceTab from '../features/frame/TraceTab'
+import TracePage from '../features/trace/TracePage'
 import { walkOfRoute } from '../features/paths/follow'
 import { buildSheet } from '../features/paths/sheet'
 import LibraryItems, {
@@ -123,6 +124,32 @@ export default function App() {
     undefined,
   )
   const [view, setView] = useState<MapView>('conceptual')
+  // The view the Trace page was opened from: ← Back returns to it, still mounted.
+  const [pageBack, setPageBack] =
+    useState<Exclude<MapView, 'trace'>>('conceptual')
+  // The dock as it was when the page opened: ← Back puts it back (the page itself has no dock).
+  const dockBefore = useRef<DockState | null>(null)
+  const openTracePage = useCallback(
+    (before?: DockState) => {
+      if (view !== 'trace') {
+        setPageBack(view)
+        dockBefore.current = before ?? dockSession.get()
+      }
+      traceSession.setPicture(false)
+      dockSession.close()
+      setView('trace')
+    },
+    [view],
+  )
+  const closeTracePage = useCallback(
+    (restoreDock = true) => {
+      setView(pageBack)
+      const before = dockBefore.current
+      dockBefore.current = null
+      if (restoreDock && before?.open) dockSession.open(before.tab)
+    },
+    [pageBack],
+  )
   const [networkChoice, setNetworkChoice] = useState<string>()
   const plans = useQuery({
     queryKey: ['plans'],
@@ -351,8 +378,13 @@ export default function App() {
           </div>
           <button
             className="header-action"
-            onClick={() => dockSession.rail('changes')}
-            aria-expanded={dock.open && dock.tab === 'changes'}
+            onClick={() => {
+              if (view === 'trace') closeTracePage(false)
+              dockSession.rail('changes')
+            }}
+            aria-expanded={
+              view !== 'trace' && dock.open && dock.tab === 'changes'
+            }
           >
             <Layers size={16} />
             Changes
@@ -372,7 +404,8 @@ export default function App() {
             ] as const
           ).map(([tab, label, Icon]) => {
             const off = tab === 'add' && context !== 'planned'
-            const on = dock.open && dock.tab === tab
+            const on =
+              view === 'trace' ? tab === 'trace' : dock.open && dock.tab === tab
             return (
               <button
                 key={tab}
@@ -381,7 +414,14 @@ export default function App() {
                 disabled={off}
                 aria-expanded={on}
                 className={on ? 'active' : ''}
-                onClick={() => dockSession.rail(tab)}
+                onClick={() => {
+                  // On the Trace page its own icon is on and does nothing; another icon leaves the page for that tab.
+                  if (view === 'trace') {
+                    if (tab === 'trace') return
+                    closeTracePage(false)
+                  }
+                  dockSession.rail(tab)
+                }}
               >
                 <Icon />
               </button>
@@ -435,7 +475,10 @@ export default function App() {
               onOpenAdd={() => dockSession.open('add')}
               onNetworkChange={setNetworkChoice}
               view={view}
+              pageBack={pageBack}
               onViewChange={setView}
+              onOpenPage={openTracePage}
+              onBack={() => closeTracePage()}
               networkId={networkId}
             />
           )
@@ -471,7 +514,7 @@ export default function App() {
             />
           </DockBody>
         )}
-        <Dock planned={context === 'planned'} />
+        <Dock planned={context === 'planned'} suppressed={view === 'trace'} />
         {status && (
           <div className="save-toast" role="status">
             ✓ {status}
@@ -508,7 +551,13 @@ interface WorkspaceProps {
   /** After a direct fix: refetch and toast. */
   onFixed: (message: string) => Promise<void>
   view: MapView
+  /** The view the Trace page returns to: it stays mounted under the page. */
+  pageBack: Exclude<MapView, 'trace'>
   onViewChange: (view: MapView) => void
+  /** Opens the Trace page (the dock's Open full page, a jack's path, a Way up chip); `dockBefore` is the dock ← Back returns to. */
+  onOpenPage: (dockBefore?: DockState) => void
+  /** ← Back on the Trace page. */
+  onBack: () => void
   networkId?: string
 }
 
@@ -527,11 +576,19 @@ function Workspace({
   onOpenAdd,
   onNetworkChange,
   onFixed,
-  view,
+  view: viewState,
+  pageBack,
   onViewChange,
+  onOpenPage,
+  onBack,
   networkId,
 }: WorkspaceProps) {
   const dock = useDock()
+  // On the Trace page the view underneath is the one it came from.
+  const onTracePage = viewState === 'trace'
+  const view = onTracePage ? pageBack : viewState
+  const onTracePageRef = useRef(onTracePage)
+  onTracePageRef.current = onTracePage
   const closeDrawer = dockSession.close
   const [selected, setSelected] = useState(snapshot.equipment[0]?.id ?? '')
   const [physicalError, setPhysicalError] = useState('')
@@ -569,7 +626,9 @@ function Workspace({
   })
   // A failed trace shows its error in the Trace tab, so the dock opens there.
   useEffect(() => {
-    if (traceMutation.isError) dockSession.open('trace')
+    // On the Trace page the error shows there (the effect must not run again on ← Back).
+    if (traceMutation.isError && !onTracePageRef.current)
+      dockSession.open('trace')
   }, [traceMutation.isError])
   // A trace the user starts is remembered outside this Workspace, so an
   // Installed/Plan switch (which remounts it) can run it again; clearing forgets it.
@@ -622,10 +681,6 @@ function Workspace({
     [snapshot],
   )
   const searchItems = useIdleLazy(() => buildSearchItems(index), [index])
-  const routeView = useSyncExternalStore(
-    mapSession.subscribe,
-    mapSession.routeView,
-  )
   const installedIDs = useMemo(
     () => new Set(installed.equipment.map((e) => e.id)),
     [installed.equipment],
@@ -634,6 +689,16 @@ function Workspace({
     () => new Set(installed.links.map((l) => l.id)),
     [installed.links],
   )
+  // In a plan: what is installed, so the page draws proposed plates and cables dashed.
+  const planInstalled = useMemo(
+    () =>
+      plan ? { equipment: installedIDs, links: installedLinkIDs } : undefined,
+    [plan, installedIDs, installedLinkIDs],
+  )
+  const traceResult =
+    traceMutation.data?.revision === snapshot.revision
+      ? traceMutation.data
+      : undefined
   const route =
     traceMutation.data?.revision === snapshot.revision
       ? traceMutation.data.routes[routeIndex]
@@ -886,23 +951,17 @@ function Workspace({
     },
     [onViewChange],
   )
-  // A passive chip in the drawer: the route from that jack, drawn as the route view
-  // as soon as the trace answers.
-  const wantRouteView = useRef(false)
+  // A passive chip in the drawer, or Full page on a jack's path: Find AGG / BB from that
+  // jack, and the Trace page opens (it says "Tracing…" until the server answers).
   const showJackRoute = useCallback(
     (endpointId: string) => {
-      wantRouteView.current = true
+      // ← Back returns to the dock as it is now, not to the Trace tab the new trace opens.
+      const before = dockSession.get()
       traceFromPort(endpointId)
+      onOpenPage(before)
     },
-    [traceFromPort],
+    [traceFromPort, onOpenPage],
   )
-  useEffect(() => {
-    if (!wantRouteView.current || traceMutation.isPending) return
-    if (routeSheet) {
-      wantRouteView.current = false
-      mapSession.setRouteView(true)
-    } else if (traceMutation.isError) wantRouteView.current = false
-  }, [traceMutation.isPending, traceMutation.isError, routeSheet])
   // A row of the Inventory: select its equipment and open the inspector, on the
   // port when the row has one (the same request Explore's port hits make).
   const openFromInventory = useCallback(
@@ -1051,7 +1110,7 @@ function Workspace({
     </>
   )
   return (
-    <main className="workspace-canvas">
+    <main className={`workspace-canvas${onTracePage ? ' trace-open' : ''}`}>
       <PatchingHost
         snapshot={snapshot}
         index={index}
@@ -1118,6 +1177,7 @@ function Workspace({
           onCreateEquipment={onCreateEquipment}
           onSelectEquipment={setSelected}
           onFindFromEndpoint={traceFromPort}
+          onFullPage={showJackRoute}
           onShowOnMap={showOnMap}
           onOpenInInventory={openInInventory}
           onError={setPhysicalError}
@@ -1192,11 +1252,7 @@ function Workspace({
           onRun={runTrace}
           error={traceMutation.error?.message}
           onRefresh={() => void onRefresh()}
-          result={
-            traceMutation.data?.revision === snapshot.revision
-              ? traceMutation.data
-              : undefined
-          }
+          result={traceResult}
           routeIndex={routeIndex}
           onRoute={chooseRouteIndex}
           sheet={routeSheet}
@@ -1209,14 +1265,26 @@ function Workspace({
           }}
           onShowInPhysical={showStepInPhysical}
           onClear={() => clearTrace()}
-          routeView={
-            view === 'physical'
-              ? undefined
-              : { on: routeView, onChange: mapSession.setRouteView }
-          }
-          planName={plan?.name}
+          onOpenPage={() => onOpenPage()}
         />
       </DockBody>
+      {onTracePage && (
+        <TracePage
+          snapshot={snapshot}
+          index={index}
+          installed={planInstalled}
+          result={traceResult}
+          pending={traceMutation.isPending}
+          error={traceMutation.error?.message}
+          onRefresh={() => void onRefresh()}
+          routeIndex={routeIndex}
+          onRoute={chooseRouteIndex}
+          onBack={onBack}
+          onOpen={showInPhysical}
+          onShowOnMap={() => onViewChange('conceptual')}
+          planName={plan?.name}
+        />
+      )}
       {placement.error && !(dock.open && dock.tab === 'inspector') && (
         <div role="alert" className="error-toast">
           {placement.error.message}
