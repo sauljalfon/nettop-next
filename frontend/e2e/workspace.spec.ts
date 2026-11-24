@@ -1,12 +1,13 @@
 import { expect, test } from './fixtures'
 import {
+  selectEquipment,
   fitted,
   openRackInPhysical,
   viewport,
   settledViewport,
   hierarchyState,
-  pick,
   expandResults,
+  findAggBb,
 } from './helpers'
 
 test('trace physical continuity on the map and in rack elevations', async ({
@@ -17,10 +18,7 @@ test('trace physical continuity on the map and in rack elevations', async ({
   await page.goto('/')
   await fitted(page)
   await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await expect(page.getByTestId('route-row')).toHaveCount(3)
   // The selected route lights its cards and lines, and its walk sheet names the exact positions.
   await expect
@@ -53,12 +51,16 @@ test('trace physical continuity on the map and in rack elevations', async ({
     path: testInfo.outputPath('racks.png'),
     fullPage: true,
   })
-  // Choose EDGE-17 Port 2 as the trace start in the Trace tools.
+  // Start from EDGE-17 Port 2 only (selected from the map: Explore opens the equipment page in Physical): the port row's Find AGG / BB from here.
+  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
+  await selectEquipment(page, 'EDGE-17')
+  await page.getByRole('tab', { name: 'Ports' }).click()
   await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .getByRole('button', {
+      name: 'Find AGG / BB from here: EDGE-17 Port 2',
+      exact: true,
+    })
     .click()
-  await pick(page, 'Start', 'edge-17 port 2', 'EDGE-17 · Port 2')
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
   await expandResults(page)
   await expect(
     page.getByText(/4 cables · 3 internal bridges/).first(),
@@ -66,29 +68,10 @@ test('trace physical continuity on the map and in rack elevations', async ({
   await expect(page.getByTestId('route-row')).toContainText(
     'AGG-08 · Port 1 · AGG · Network A',
   )
-  await page
-    .getByRole('combobox', { name: 'Trace mode', exact: true })
-    .selectOption('point_to_point')
-  await pick(page, 'Start', 'edge-17 port 1', 'EDGE-17 · Port 1')
-  await pick(page, 'Destination', 'agg-03 port 1', 'AGG-03 · Port 1')
-  await page
-    .getByRole('button', { name: 'Trace physical path', exact: true })
-    .click()
-  await expandResults(page)
-  await expect(
-    page.getByText(/4 cables · 3 internal bridges/).first(),
-  ).toBeVisible()
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await expect(page.locator('.results-drawer')).toHaveCount(0)
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
-  await page
-    .getByRole('combobox', { name: 'Trace mode', exact: true })
-    .selectOption('distribution')
-  await pick(page, 'Start', 'edge-18 all ports')
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page, 'EDGE-18')
   await expandResults(page)
   await expect(
     page.getByText(/1 cables · 0 internal bridges/).first(),
@@ -108,7 +91,7 @@ test('the dock sits beside the map (the map’s right edge is the dock’s left 
   await page.getByLabel('Find equipment').fill('agg-12')
   await expect(page.locator('.tree-equipment')).toHaveCount(1)
   await page.locator('.tree-equipment').click()
-  // Choosing equipment in Explore opens the inspector on it (and selects it on the tree), with no highlight.
+  // Choosing equipment in Explore opens the inspector on it (and selects it on the tree).
   await expect(page.locator('.inspector-header h2')).toHaveText('AGG-12')
   await expect(page.locator('.location-breadcrumb')).toContainText(
     'DR Site › DR Distribution › Rack DR02 › AGG-12',

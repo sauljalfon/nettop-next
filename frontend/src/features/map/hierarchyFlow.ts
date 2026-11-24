@@ -1,6 +1,5 @@
 import type { Edge, Node } from '@xyflow/react'
 import type { RouteMarks } from '../physical/inventory'
-import { resolveLocation, type LocationRef } from './highlight'
 import type { HierarchyGroup, NetworkHierarchy } from './hierarchy'
 import { MARK_TEXT } from './hierarchyDetails'
 import type { Lit, Selection } from './hierarchySelection'
@@ -34,7 +33,6 @@ export interface HierarchyTierData extends Record<string, unknown> {
   color: string
   proposed: boolean
   onRoute: boolean
-  highlighted: boolean
   hot: boolean
   emphasis?: Emphasis
   selected: boolean
@@ -52,7 +50,6 @@ export interface HierarchyFrameAgg {
   title?: string
   proposed: boolean
   onRoute: boolean
-  highlighted: boolean
   hot: boolean
   emphasis?: Emphasis
   selected: boolean
@@ -94,7 +91,6 @@ export interface HierarchyNodeData extends Record<string, unknown> {
   color: string
   proposed: boolean
   onRoute: boolean
-  highlighted: boolean
   hot: boolean
   emphasis?: Emphasis
   selected: boolean
@@ -147,25 +143,6 @@ const ROUTE = 'var(--route)'
 const HOT = 'var(--amber)'
 const PROPOSED = 'var(--proposed)'
 
-/** The node cards of the site or node, and the tier cards placed there. */
-export function highlightedCards(
-  h: NetworkHierarchy,
-  index: SnapshotIndex,
-  location: LocationRef | undefined,
-): ReadonlySet<string> {
-  const at = resolveLocation(index, location)
-  const out = new Set<string>()
-  if (!at) return out
-  const here = (place: { nodeId?: string; siteId?: string } | undefined) =>
-    (at.kind === 'node' ? place?.nodeId : place?.siteId) === at.id
-  for (const g of h.groups)
-    for (const c of g.nodes)
-      if (here({ nodeId: c.nodeId, siteId: c.siteId })) out.add(c.key)
-  for (const id of [...h.topIds, ...h.aggIds])
-    if (here(index.places.get(id))) out.add(id)
-  return out
-}
-
 /** The selected card, and for a node card the AGGs of its switches. */
 export function hotCards(
   h: NetworkHierarchy,
@@ -202,15 +179,13 @@ export function projectHierarchy(args: {
   marks: RouteMarks
   /** The node cards that are open (`mapSession.openNodes`). */
   open: ReadonlySet<string>
-  /** Cards the location highlight marks (`highlightedCards`). */
-  highlighted: ReadonlySet<string>
   /** The selected card and its AGGs (`hotCards`). */
   hot: ReadonlySet<string>
   /** What the selection lights (`litBy`); nothing is dimmed without it. */
   lit?: Lit
   selection?: Selection
 }): { nodes: HierarchyFlowNode[]; edges: Edge[] } {
-  const { h, layout, index, marks, open, highlighted, hot, selection } = args
+  const { h, layout, index, marks, open, hot, selection } = args
   // A selection on another network lights nothing here.
   const lit = args.lit?.networkId === h.networkId ? args.lit : undefined
   const emphasis = (isLit: boolean): Emphasis | undefined =>
@@ -246,7 +221,6 @@ export function projectHierarchy(args: {
           : undefined,
       proposed: h.proposed.has(id),
       onRoute: onRouteOf(id),
-      highlighted: highlighted.has(id),
       hot: hot.has(id),
       emphasis: emphasis(!!lit?.aggs.has(id)),
       selected: selectedId === id,
@@ -303,7 +277,6 @@ export function projectHierarchy(args: {
         color,
         proposed: h.proposed.has(id),
         onRoute: onRouteOf(id),
-        highlighted: highlighted.has(id),
         hot: hot.has(id),
         emphasis: emphasis(!!lit?.tops.has(id)),
         selected: selectedId === id,
@@ -340,7 +313,6 @@ export function projectHierarchy(args: {
           color,
           proposed: c.proposed,
           onRoute,
-          highlighted: highlighted.has(c.key),
           hot: hot.has(c.key),
           emphasis: emphasis(!!lit?.cards.has(c.key)),
           selected:

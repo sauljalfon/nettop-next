@@ -5,27 +5,14 @@ import { resultsSummary, resultsTitle, routeRows } from '../map/routeList'
 import type { Sheet } from '../paths/sheet'
 import WalkSheet from '../paths/WalkSheet'
 import { mismatchLine, truncationNotice } from '../pathfinding/results'
-import TracePicker from '../pathfinding/TracePicker'
-import type { PickerItem } from '../pathfinding/picker'
-
-type Mode = 'distribution' | 'point_to_point'
 
 interface Props {
   snapshot: Snapshot
-  // The form.
-  mode: Mode
-  start: string
-  end: string
-  startItems: readonly PickerItem[]
-  endItems: readonly PickerItem[]
-  pending: boolean
-  onMode: (mode: Mode) => void
-  onStart: (value: string) => void
-  onEnd: (value: string) => void
-  onRun: () => void
   /** A failed trace: its message, shown once, here. */
   error?: string
   onRefresh: () => void
+  /** A request is in flight. */
+  pending?: boolean
   // The results.
   result?: TraceResult
   routeIndex: number
@@ -42,55 +29,22 @@ interface Props {
   onOpenPage?: () => void
 }
 
-/** The whole body of the dock's Trace tab: the form, a failed trace's error, then the results. */
+/** The whole body of the dock's Trace tab: a failed trace's error, then the results. */
 export default function TraceTab(props: Props) {
   const { result } = props
   return (
     <>
-      <section className="trace-form">
-        <label>
-          Trace mode
-          <select
-            value={props.mode}
-            disabled={props.pending}
-            onChange={(e) => props.onMode(e.target.value as Mode)}
-          >
-            <option value="distribution">Find AGG / BB</option>
-            <option value="point_to_point">Exact port → port</option>
-          </select>
-        </label>
-        <TracePicker
-          label="Start"
-          items={props.startItems}
-          value={props.start}
-          disabled={props.pending}
-          onChange={props.onStart}
-        />
-        {props.mode === 'point_to_point' && (
-          <TracePicker
-            label="Destination"
-            items={props.endItems}
-            value={props.end}
-            onChange={props.onEnd}
-          />
-        )}
-        <button
-          className="btn primary"
-          disabled={props.pending || !props.start}
-          onClick={props.onRun}
-        >
-          {props.pending
-            ? 'Tracing…'
-            : props.mode === 'distribution'
-              ? 'Find AGG / BB'
-              : 'Trace physical path'}
-        </button>
-      </section>
+      {props.pending && !result && !props.error && (
+        <p className="dock-note">Tracing…</p>
+      )}
       {props.error && (
         <p role="alert" className="inline-error">
           {props.error}
           <button className="text-button" onClick={props.onRefresh}>
             Refresh topology
+          </button>
+          <button className="text-button" onClick={props.onClear}>
+            Clear trace
           </button>
         </p>
       )}

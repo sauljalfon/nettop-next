@@ -1,6 +1,6 @@
 import type { Network } from '../../shared/types'
 
-/** Distinct from each other, from the teal route and from the amber highlight. */
+/** Distinct from each other, from the teal route and from the amber selection. */
 export const PALETTE = [
   '#2f6fdb',
   '#9a4fc7',

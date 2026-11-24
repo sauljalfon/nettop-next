@@ -122,16 +122,3 @@ export function ResetLayout({
     </span>
   )
 }
-
-/** Shown only while a location is highlighted; clears it, never the trace. */
-export function ClearHighlight({ onClear }: { onClear: () => void }) {
-  return (
-    <button
-      className="map-tool btn"
-      aria-label="Clear highlight"
-      onClick={onClear}
-    >
-      Clear highlight
-    </button>
-  )
-}

@@ -108,11 +108,7 @@ test('there is exactly one search field labelled "Find equipment" in the whole a
   await expect(
     page.getByRole('button', { name: 'Add equipment library', exact: true }),
   ).toBeDisabled()
-  for (const opener of [
-    'Open explorer',
-    'Open trace tools',
-    'Open inspector',
-  ]) {
+  for (const opener of ['Open explorer', 'Open inspector']) {
     const toggle = page.getByRole('button', { name: opener, exact: true })
     await toggle.click()
     const total =

@@ -213,20 +213,3 @@
   color: var(--ink-soft);
   font-size: var(--t-sm);
 }
-
-/* Compact form: tight spacing, the button at its own width. */
-.dock .trace-form {
-  display: grid;
-  gap: 8px;
-  justify-items: start;
-}
-.dock .trace-form label,
-.dock .trace-form > div {
-  width: 100%;
-  margin: 0;
-  gap: 4px;
-}
-.dock .trace-form .btn.primary {
-  width: auto;
-  margin-top: 0;
-}

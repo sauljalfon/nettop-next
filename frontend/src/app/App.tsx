@@ -11,8 +11,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Building2,
   GitBranch,
-  GitFork,
-  Highlighter,
   Layers,
   MapPin,
   Network,
@@ -60,7 +58,6 @@ import {
   type RouteRef,
 } from '../features/pathfinding/traceSession'
 import { mapSession, shownNetworks } from '../features/map/mapSession'
-import { highlightFor, type LocationRef } from '../features/map/highlight'
 import {
   NetworkSelect,
   ViewSwitch,
@@ -75,7 +72,6 @@ import LibraryItems, {
 } from '../features/planning/LibraryItems'
 import { locationTree } from '../features/patching/patching'
 import PlacementEditor from '../features/planning/PlacementEditor'
-import { pickerItems } from '../features/pathfinding/picker'
 import { filterTree } from '../features/explore/tree'
 import { canFindFromDevice } from '../features/inspector/model'
 import { endpointLabel } from '../features/pathfinding/projection'
@@ -399,13 +395,11 @@ export default function App() {
             [
               ['add', 'Add equipment library', Plus],
               ['explore', 'Open explorer', Search],
-              ['trace', 'Open trace tools', GitFork],
               ['inspector', 'Open inspector', Settings2],
             ] as const
           ).map(([tab, label, Icon]) => {
             const off = tab === 'add' && context !== 'planned'
-            const on =
-              view === 'trace' ? tab === 'trace' : dock.open && dock.tab === tab
+            const on = view !== 'trace' && dock.open && dock.tab === tab
             return (
               <button
                 key={tab}
@@ -415,11 +409,8 @@ export default function App() {
                 aria-expanded={on}
                 className={on ? 'active' : ''}
                 onClick={() => {
-                  // On the Trace page its own icon is on and does nothing; another icon leaves the page for that tab.
-                  if (view === 'trace') {
-                    if (tab === 'trace') return
-                    closeTracePage(false)
-                  }
+                  // On the Trace page an icon leaves the page for that tab.
+                  if (view === 'trace') closeTracePage(false)
                   dockSession.rail(tab)
                 }}
               >
@@ -592,24 +583,6 @@ function Workspace({
   const closeDrawer = dockSession.close
   const [selected, setSelected] = useState(snapshot.equipment[0]?.id ?? '')
   const [physicalError, setPhysicalError] = useState('')
-  const [mode, setMode] = useState<'distribution' | 'point_to_point'>(
-    'distribution',
-  )
-  // Lazy: these scans run once, not on every render.
-  const [start, setStart] = useState(() => {
-    const access = snapshot.equipment.find((e) => e.role === 'access')
-    return access ? `device:${access.id}` : (snapshot.endpoints[0]?.id ?? '')
-  })
-  const [end, setEnd] = useState(() => {
-    const aggregation = new Set(
-      snapshot.equipment
-        .filter((e) => e.role === 'aggregation')
-        .map((e) => e.id),
-    )
-    return (
-      snapshot.endpoints.find((p) => aggregation.has(p.equipmentId))?.id ?? ''
-    )
-  })
   const [routeIndex, setRouteIndex] = useState(0)
   const [routeFellBack, setRouteFellBack] = useState(false)
   const traceMutation = useMutation({
@@ -628,7 +601,7 @@ function Workspace({
   useEffect(() => {
     // On the Trace page the error shows there (the effect must not run again on ← Back).
     if (traceMutation.isError && !onTracePageRef.current)
-      dockSession.open('trace')
+      dockSession.showTrace()
   }, [traceMutation.isError])
   // A trace the user starts is remembered outside this Workspace, so an
   // Installed/Plan switch (which remounts it) can run it again; clearing forgets it.
@@ -636,7 +609,7 @@ function Workspace({
     (request: TraceRequest) => {
       traceSession.start(request)
       setRouteFellBack(false)
-      dockSession.open('trace')
+      dockSession.showTrace()
       traceMutation.mutate({ request })
     },
     [traceMutation.mutate],
@@ -645,6 +618,7 @@ function Workspace({
     traceSession.clear()
     setRouteFellBack(false)
     traceMutation.reset()
+    dockSession.hideTrace()
   }, [traceMutation.reset])
   const placement = useMutation({
     mutationFn: (input: {
@@ -670,16 +644,7 @@ function Workspace({
   // Snapshot-only work, shared by the map and the inspector.
   const index = useMemo(() => indexSnapshot(snapshot), [snapshot])
   const tree = useMemo(() => locationTree(snapshot), [snapshot])
-  // The trace pickers' and Explore's search lists: built once per snapshot (and
-  // mode) when the browser is idle, never when a drawer opens.
-  const startItems = useIdleLazy(
-    () => pickerItems(snapshot, { devices: mode === 'distribution' }),
-    [snapshot, mode],
-  )
-  const endItems = useIdleLazy(
-    () => pickerItems(snapshot, { devices: false }),
-    [snapshot],
-  )
+  // Explore's search list: built once per snapshot when the browser is idle, never when a drawer opens.
   const searchItems = useIdleLazy(() => buildSearchItems(index), [index])
   const installedIDs = useMemo(
     () => new Set(installed.equipment.map((e) => e.id)),
@@ -716,7 +681,11 @@ function Workspace({
   useEffect(() => {
     placement.reset()
     const stored = traceSession.get()
-    if (!stored) return traceMutation.reset()
+    if (!stored) {
+      dockSession.hideTrace()
+      return traceMutation.reset()
+    }
+    dockSession.traceAvailable()
     setRouteFellBack(false)
     traceMutation.mutate({ request: stored.request, wanted: stored.route })
   }, [snapshot.revision])
@@ -741,7 +710,6 @@ function Workspace({
       const port = snapshot.endpoints.find((p) => p.id === id)
       if (!port) return
       setSelected(port.equipmentId)
-      setStart(id)
       clearTrace()
       onSelectEquipment()
     },
@@ -752,28 +720,17 @@ function Workspace({
       const port = snapshot.endpoints.find((p) => p.id === id)
       if (!port) return
       setSelected(port.equipmentId)
-      setMode('distribution')
-      setStart(id)
       startTrace({ mode: 'distribution', start: id })
     },
     [snapshot.endpoints, startTrace],
   )
-  // Choosing a site or node (in Explore, or from the inspector's location links):
-  // highlight its equipment and cables on the map, and fit the view to them once.
-  const highlightLocation = useCallback(
-    (location: LocationRef) => {
-      mapSession.setHighlight(location)
-      onViewChange('conceptual')
-      const h = highlightFor(index, location)
-      if (h) mapSession.requestFit([...h.equipmentIds, ...h.neighborIds])
+  // A site or node name (Explore, the inspector's place line) opens it in Physical.
+  const openPlace = useCallback(
+    (target: { siteId?: string; nodeId?: string }) => {
+      physicalSession.navigate(openLocation(index, target))
+      onViewChange('physical')
     },
     [index, onViewChange],
-  )
-  // In Physical, Explore navigates Physical: site and node open their screens.
-  const openPlace = useCallback(
-    (target: { siteId?: string; nodeId?: string }) =>
-      physicalSession.navigate(openLocation(index, target)),
-    [index],
   )
   // A hop or a cable end opened in Physical selects its equipment (without the
   // inspector) and shows its rack; the equipment page comes with M4 step 6.
@@ -914,19 +871,8 @@ function Workspace({
     },
     [plan, snapshot],
   )
-  function runTrace() {
-    startTrace(
-      mode === 'point_to_point'
-        ? { mode, start, end }
-        : start.startsWith('device:')
-          ? { mode, device: start.slice(7) }
-          : { mode, start },
-    )
-  }
   function traceSelectedDevice() {
     if (equipment) {
-      setMode('distribution')
-      setStart(`device:${equipment.id}`)
       startTrace({ mode: 'distribution', device: equipment.id })
     }
   }
@@ -934,15 +880,12 @@ function Workspace({
   const findFromDevice = useCallback(
     (id: string) => {
       setSelected(id)
-      setMode('distribution')
-      setStart(`device:${id}`)
       startTrace({ mode: 'distribution', device: id })
     },
     [startTrace],
   )
   // The one entry point to the tree (D40): select the equipment and show it on the
   // hierarchy. The canvas opens its node, lights its way up and what depends on it.
-  // No highlight.
   const showOnMap = useCallback(
     (id: string) => {
       setSelected(id)
@@ -1062,7 +1005,6 @@ function Workspace({
   )
   const drawerEquipment = equipment && (
     <Inspector
-      planId={plan?.id}
       onFixed={onFixed}
       snapshot={snapshot}
       index={index}
@@ -1079,7 +1021,7 @@ function Workspace({
       onOpenInInventory={openInInventory}
       openRequest={openRequest}
       onOpenRequestHandled={() => setOpenRequest(undefined)}
-      onHighlight={highlightLocation}
+      onOpenPlace={openPlace}
       onOpenRack={openRack}
       searchRequest={portSearch}
       edit={edit}
@@ -1211,8 +1153,6 @@ function Workspace({
           onChoose={chooseEquipment}
           onChooseHit={chooseSearchHit}
           onOpenRack={openRack}
-          onHighlight={highlightLocation}
-          physical={view === 'physical'}
           onOpenPlace={openPlace}
           canEdit={canEdit}
         />
@@ -1224,30 +1164,7 @@ function Workspace({
       <DockBody tab="trace">
         <TraceTab
           snapshot={snapshot}
-          mode={mode}
-          start={start}
-          end={end}
-          startItems={startItems.get()}
-          endItems={endItems.get()}
           pending={traceMutation.isPending}
-          onMode={(next) => {
-            setMode(next)
-            if (next === 'point_to_point' && start.startsWith('device:'))
-              setStart(
-                snapshot.endpoints.find((p) => p.equipmentId === start.slice(7))
-                  ?.id ?? '',
-              )
-            clearTrace()
-          }}
-          onStart={(value) => {
-            setStart(value)
-            clearTrace()
-          }}
-          onEnd={(value) => {
-            setEnd(value)
-            clearTrace()
-          }}
-          onRun={runTrace}
           error={traceMutation.error?.message}
           onRefresh={() => void onRefresh()}
           result={traceResult}
@@ -1322,8 +1239,6 @@ function Explorer({
   onChoose,
   onChooseHit,
   onOpenRack,
-  onHighlight,
-  physical,
   onOpenPlace,
   canEdit,
 }: {
@@ -1337,10 +1252,7 @@ function Explorer({
   /** A port or cable found by the search: open that endpoint (Physical), or select its equipment and filter the inspector (Conceptual). */
   onChooseHit: (endpointId: string) => void
   onOpenRack: (id: string) => void
-  /** Highlight a site or node on the map. */
-  onHighlight: (location: LocationRef) => void
-  /** In Physical, a site or node opens its screen instead of highlighting on the map. */
-  physical: boolean
+  /** A site or node name opens it in Physical, from either view. */
   onOpenPlace: (target: { siteId?: string; nodeId?: string }) => void
   canEdit: boolean
 }) {
@@ -1373,10 +1285,9 @@ function Explorer({
   const handlers = useRef<TreeHandlers>({
     onChoose,
     onOpenRack,
-    onHighlight,
     onOpenPlace,
   })
-  handlers.current = { onChoose, onOpenRack, onHighlight, onOpenPlace }
+  handlers.current = { onChoose, onOpenRack, onOpenPlace }
   return (
     <>
       <label className="search">
@@ -1398,7 +1309,6 @@ function Explorer({
       <ExplorerTree
         tree={tree}
         selected={selected}
-        physical={physical}
         canEdit={canEdit}
         handlers={handlers}
       />
@@ -1445,7 +1355,6 @@ function Explorer({
 interface TreeHandlers {
   onChoose: (id: string) => void
   onOpenRack: (id: string) => void
-  onHighlight: (location: LocationRef) => void
   onOpenPlace: (target: { siteId?: string; nodeId?: string }) => void
 }
 
@@ -1458,20 +1367,17 @@ const ExplorerTree = memo(
   function ExplorerTree({
     tree,
     selected,
-    physical,
     canEdit,
     handlers,
   }: {
     tree: ReturnType<typeof filterTree>
     selected: string
-    physical: boolean
     canEdit: boolean
     handlers: { current: TreeHandlers }
   }) {
-    const { onChoose, onOpenRack, onHighlight, onOpenPlace } = {
+    const { onChoose, onOpenRack, onOpenPlace } = {
       onChoose: (id: string) => handlers.current.onChoose(id),
       onOpenRack: (id: string) => handlers.current.onOpenRack(id),
-      onHighlight: (l: LocationRef) => handlers.current.onHighlight(l),
       onOpenPlace: (t: { siteId?: string; nodeId?: string }) =>
         handlers.current.onOpenPlace(t),
     }
@@ -1483,26 +1389,11 @@ const ExplorerTree = memo(
               <MapPin size={16} />
               <button
                 className="location-name"
-                aria-label={
-                  physical
-                    ? `Open ${site.name} in Physical`
-                    : `Highlight ${site.name} on the map`
-                }
-                title={physical ? 'Open in Physical' : 'Highlight on the map'}
-                onClick={() =>
-                  physical
-                    ? onOpenPlace({ siteId: site.id })
-                    : onHighlight({ kind: 'site', id: site.id })
-                }
+                aria-label={`Open ${site.name} in Physical`}
+                title="Open in Physical"
+                onClick={() => onOpenPlace({ siteId: site.id })}
               >
                 <Name text={site.name} />
-                {!physical && (
-                  <Highlighter
-                    size={13}
-                    className="location-icon"
-                    aria-hidden
-                  />
-                )}
               </button>
             </h3>
             {nodes.map(({ node, racks }) => (
@@ -1511,28 +1402,11 @@ const ExplorerTree = memo(
                   <Building2 size={15} />
                   <button
                     className="location-name"
-                    aria-label={
-                      physical
-                        ? `Open ${node.name} in Physical`
-                        : `Highlight ${node.name} on the map`
-                    }
-                    title={
-                      physical ? 'Open in Physical' : 'Highlight on the map'
-                    }
-                    onClick={() =>
-                      physical
-                        ? onOpenPlace({ nodeId: node.id })
-                        : onHighlight({ kind: 'node', id: node.id })
-                    }
+                    aria-label={`Open ${node.name} in Physical`}
+                    title="Open in Physical"
+                    onClick={() => onOpenPlace({ nodeId: node.id })}
                   >
                     <Name text={node.name} />
-                    {!physical && (
-                      <Highlighter
-                        size={13}
-                        className="location-icon"
-                        aria-hidden
-                      />
-                    )}
                   </button>
                 </h4>
                 {racks.map(({ rack, equipment }) => (
@@ -1574,8 +1448,5 @@ const ExplorerTree = memo(
     )
   },
   (a, b) =>
-    a.tree === b.tree &&
-    a.selected === b.selected &&
-    a.physical === b.physical &&
-    a.canEdit === b.canEdit,
+    a.tree === b.tree && a.selected === b.selected && a.canEdit === b.canEdit,
 )

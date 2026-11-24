@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from './fixtures'
-import { settledViewport } from './helpers'
+import { selectEquipment, settledViewport } from './helpers'
 
 // SC-02 / HI-12, opt-in: `SCALE=1 npx playwright test -c playwright.scale.config.ts`.
 // Runs against the generated campus (backend/internal/scalefixture) and records
@@ -367,41 +367,18 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
   expect(scrolls.inner).toBe(true)
   expect(scrolls.page).toBe(false)
 
-  // The trace drawer, a search in it, and the trace itself on the full map.
+  // Find AGG / BB from a switch through Explore and the inspector, on the full map.
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-  // The pickers' lists are built when the browser is idle; give it a moment, as a user would.
-  await page.waitForTimeout(4000)
-  await timed('Trace drawer opens (picker visible)', async () => {
-    await page.getByRole('button', { name: 'Open trace tools' }).click()
-    await expect(page.getByRole('combobox', { name: 'Start' })).toBeVisible({
-      timeout: 30_000,
-    })
+  await selectEquipment(page, 'ACC-B17')
+  const find = page.getByRole('button', {
+    name: 'Find AGG / BB from ACC-B17',
+    exact: true,
   })
-  await timed('picker search answers ("acc-b17")', async () => {
-    const start = page.getByRole('combobox', { name: 'Start' })
-    await start.fill('acc-b17')
-    await expect(
-      page
-        .getByRole('listbox', { name: 'Start matches' })
-        .getByRole('option')
-        .first(),
-    ).toBeVisible({
-      timeout: 30_000,
-    })
-  })
-  // Trace from that match: Building 17 is on the network the map shows.
-  await page
-    .getByRole('listbox', { name: 'Start matches' })
-    .getByRole('option')
-    .first()
-    .click()
-  await page.getByRole('combobox', { name: 'Start' }).blur()
-  const find = page.getByRole('button', { name: 'Find AGG / BB', exact: true })
-  const clicked = Date.now()
   const response = page.waitForResponse(
     (r) => r.url().includes('/api/traces') && r.request().method() === 'POST',
     { timeout: 60_000 },
   )
+  const clicked = Date.now()
   await find.click()
   await response
   timings.push(['trace response (server + network)', Date.now() - clicked])
@@ -417,13 +394,6 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
   await shot(page, '6-trace-on-campus-hierarchy')
 
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
-  await timed('trail step (chip opens its endpoint)', async () => {
-    const steps = page.getByTestId('trail-step')
-    await expect(steps.first()).toBeVisible({ timeout: 30_000 })
-    await steps.nth(1).click()
-    await expectMark(page, 'data-route-step', '2')
-  })
-
   await timed('Explore opens', async () => {
     if (
       (await page
@@ -802,7 +772,6 @@ test('INV-16 the new lists and commands at campus size', async ({ page }) => {
           links: new Set(),
         },
         open: new Set(),
-        highlighted: new Set(),
         hot: new Set(),
       }),
     )

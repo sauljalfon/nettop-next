@@ -11,6 +11,10 @@ export interface DockState {
   details?: 'Node' | 'Port'
   /** The last tab other than details and networks that was open, for `detailsGone`. */
   last?: DockTab
+  /** The last tab other than details, networks and the trace, for `traceGone`. */
+  other?: DockTab
+  /** Set while there is a trace: the Trace tab is listed only then. */
+  trace?: true
 }
 
 export const initialDock: DockState = { open: false, tab: 'inspector' }
@@ -21,7 +25,10 @@ const remember = (s: DockState, tab: DockTab): DockTab | undefined =>
 /** Opens on that tab. */
 export function openTab(s: DockState, tab: DockTab): DockState {
   if (tab === 'details' && !s.details) return s
-  return { ...s, open: true, tab, last: remember(s, tab) }
+  if (tab === 'trace' && !s.trace) return s
+  const other =
+    tab === 'details' || tab === 'networks' || tab === 'trace' ? s.other : tab
+  return { ...s, open: true, tab, last: remember(s, tab), other }
 }
 
 /** The same icon again closes; another icon switches the tab. */
@@ -66,6 +73,27 @@ export function detailsGone(s: DockState): DockState {
   return { ...rest, open: false, tab: initialDock.tab }
 }
 
+/** A trace was started: the Trace tab exists and the dock opens on it. */
+export function traceShown(s: DockState): DockState {
+  return openTab({ ...s, trace: true }, 'trace')
+}
+
+/** A trace exists (for example rerun after a context switch): the tab is there, the dock stays as it is. */
+export function traceAvailable(s: DockState): DockState {
+  return s.trace ? s : { ...s, trace: true }
+}
+
+/** The trace is cleared: the tab leaves; on it, the dock goes to the last other tab, else closes. */
+export function traceGone(s: DockState): DockState {
+  const { trace: _gone, ...rest } = s
+  void _gone
+  // A details tab that would return to the trace must not.
+  const last = s.last === 'trace' ? s.other : s.last
+  if (s.tab !== 'trace') return { ...rest, last }
+  if (s.other) return { ...rest, tab: s.other, last }
+  return { ...rest, open: false, tab: initialDock.tab, last }
+}
+
 /** Add exists only in a plan: in Installed it becomes Changes. */
 export function forContext(s: DockState, planned: boolean): DockState {
   if (planned) return s
@@ -80,7 +108,7 @@ export function tabsFor(s: DockState, planned: boolean): DockTab[] {
   return [
     ...(s.details ? (['details'] as const) : []),
     'inspector',
-    'trace',
+    ...(s.trace ? (['trace'] as const) : []),
     'explore',
     ...(planned ? (['add'] as const) : []),
     'changes',
@@ -159,6 +187,12 @@ function createDockSession() {
     availableDetails: (label: 'Node' | 'Port') =>
       set(detailsAvailable(state, label)),
     hideDetails: () => set(detailsGone(state)),
+    /** A trace started: its tab appears and opens. */
+    showTrace: () => set(traceShown(state)),
+    /** A trace exists (rerun on mount): its tab is listed, the dock is left alone. */
+    traceAvailable: () => set(traceAvailable(state)),
+    /** The trace was cleared: its tab goes. */
+    hideTrace: () => set(traceGone(state)),
     /** The feature that shows the details registers its close (the tree's clear, the page's close port); pass undefined to drop it. */
     setDetailsCloser(fn: (() => void) | undefined) {
       detailsCloser = fn

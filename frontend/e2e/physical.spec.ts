@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, expandResults } from './helpers'
+import { fitted, expandResults, findAggBb } from './helpers'
 
 // The explorer writes its state on its root, so these specs assert the model
 // (level, location, route marks, positions) rather than counting drawn elements.
@@ -23,8 +23,7 @@ async function toPhysical(page: Page) {
 
 /** Find AGG / BB from EDGE-17; the first route (AGG-03) is selected. */
 async function traceAgg03(page: Page) {
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await expect(page.getByTestId('route-row')).toHaveCount(3)
 }
 
@@ -228,7 +227,7 @@ test('F11 breadcrumbs and Back restore the previous location, with no modal stac
   await expectMark(page, 'data-location', 'site:site-main-campus')
 })
 
-test('PHY-04 Explore navigates Physical, and keeps its behavior in Conceptual', async ({
+test('PHY-04 Explore navigates Physical, from Conceptual as well', async ({
   page,
 }) => {
   await toPhysical(page)
@@ -260,16 +259,16 @@ test('PHY-04 Explore navigates Physical, and keeps its behavior in Conceptual', 
   // The inspector is not opened by navigating in Physical.
   await expect(page.getByLabel('Equipment inspector')).toHaveCount(0)
 
-  // In Conceptual the same drawer highlights on the hierarchy, as before.
+  // In Conceptual the same names open Physical too.
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await page
-    .getByRole('button', { name: 'Highlight Building A on the map' })
+    .getByRole('button', { name: 'Open Building A in Physical' })
     .click()
-  await expect(
-    page.locator('[data-card-key="agg-03+agg-08|node-building-a"]'),
-  ).toHaveAttribute('data-highlighted', 'true')
-  await physical(page).click()
-  await expect(root(page)).toHaveAttribute('data-location', /rack:rack-core-01/)
+  await expectMark(
+    page,
+    'data-location',
+    'site:site-main-campus/node:node-building-a',
+  )
 })
 
 test('PHY-05 the scope note names the network and other networks stay visible but muted', async ({

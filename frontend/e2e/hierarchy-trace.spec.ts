@@ -3,12 +3,11 @@ import {
   expandResults,
   fitted,
   hierarchyState,
-  highlightLocation,
   settledViewport,
   viewport,
 } from './helpers'
 
-// HI-10. A trace highlights in place (locked 3): nothing moves, nothing is dimmed.
+// HI-10. A trace marks in place (locked 3): nothing moves, nothing is dimmed.
 test.describe.configure({ mode: 'serial' })
 
 const root = (page: Page) => page.locator('[data-view="hierarchy"]')
@@ -112,74 +111,4 @@ test('HI-10 the route of EDGE-17 lights the AGG-03 card, and choosing another ro
   await expect(card(page, 'bb-01')).toHaveAttribute('data-on-route', 'true')
   await expect(card(page, 'agg-03')).toHaveAttribute('data-on-route', 'false')
   expect(await viewport(page)).toBe(view)
-})
-
-test('HI-10 Explore’s highlight marks the node card amber and fits it into view once; coming back does not fit again', async ({
-  page,
-}) => {
-  await toHierarchy(page)
-  await highlightLocation(page, 'Building A')
-  const target = card(page, BUILDING_A)
-  await expect(target).toHaveAttribute('data-highlighted', 'true')
-  await expect(card(page, 'agg-15')).toHaveAttribute(
-    'data-highlighted',
-    'false',
-  )
-  const area = (await page.locator('.dock:not([hidden])').boundingBox())!
-  const canvas = (await page.locator('.workspace-canvas').boundingBox())!
-  // The highlighted card is in view and not under the open tool: its right edge is
-  // at or left of the dock's left edge, and a click on it would land on it.
-  await expect
-    .poll(async () => {
-      const b = (await target.boundingBox())!
-      return b.x + b.width <= area.x + 1 && b.x >= canvas.x - 1 && b.y >= 0
-    })
-    .toBe(true)
-  await target.click({ trial: true })
-  const fit = await settledViewport(page)
-  // Once: leaving and coming back keeps the view.
-  await page.getByRole('button', { name: 'Physical', exact: true }).click()
-  await expect(page.locator('.physical-explorer')).toBeVisible()
-  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-  await expect(root(page)).toHaveAttribute('data-fitted', 'true')
-  await expect.poll(() => viewport(page)).toBe(fit)
-  await expect(target).toHaveAttribute('data-highlighted', 'true')
-})
-
-test('HI-10 a highlight of a whole site marks its node cards and the tier cards placed there', async ({
-  page,
-}) => {
-  await toHierarchy(page)
-  await highlightLocation(page, 'Main Campus')
-  await expect(card(page, BUILDING_A)).toHaveAttribute(
-    'data-highlighted',
-    'true',
-  )
-  for (const id of ['bb-01', 'agg-03', 'agg-08', 'agg-15'])
-    await expect(card(page, id)).toHaveAttribute('data-highlighted', 'true')
-})
-
-test('HI-10 Clear highlight and Escape clear the highlight, never the trace', async ({
-  page,
-}) => {
-  await toHierarchy(page)
-  await findFromEdge17(page)
-  const target = card(page, BUILDING_A)
-  await highlightLocation(page, 'Building A')
-  await expect(target).toHaveAttribute('data-highlighted', 'true')
-  await page.getByRole('button', { name: 'Clear highlight' }).click()
-  await expect(target).toHaveAttribute('data-highlighted', 'false')
-  await expect(
-    page.getByRole('button', { name: 'Clear highlight' }),
-  ).toHaveCount(0)
-  await expect(target).toHaveAttribute('data-on-route', 'true')
-
-  await highlightLocation(page, 'Building A')
-  await expect(target).toHaveAttribute('data-highlighted', 'true')
-  await page.locator('body').click({ position: { x: 5, y: 600 } })
-  await page.keyboard.press('Escape')
-  await expect(target).toHaveAttribute('data-highlighted', 'false')
-  await expect(target).toHaveAttribute('data-on-route', 'true')
-  await expandResults(page) // Explore's tab was open (and Esc closed it): back to Trace
-  await expect(rows(page)).toHaveCount(3)
 })

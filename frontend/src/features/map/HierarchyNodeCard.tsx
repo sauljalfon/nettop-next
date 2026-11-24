@@ -62,14 +62,13 @@ export default memo(function HierarchyNodeCard({
   data,
 }: NodeProps<HierarchyNodeNode>) {
   const { onCard, onEquipment, onClose } = useContext(HierarchyActions)
-  const state = `${data.proposed ? ' proposed' : ''}${data.onRoute ? ' on-route' : ''}${data.highlighted ? ' highlighted' : ''}${data.hot ? ' hot' : ''}`
+  const state = `${data.proposed ? ' proposed' : ''}${data.onRoute ? ' on-route' : ''}${data.hot ? ' hot' : ''}`
   const name = data.noNode ? 'Not in a node' : <Name text={data.name} />
   const marks = {
     'data-card-key': data.key,
     'data-open': data.open,
     'data-on-route': data.onRoute,
     'data-proposed': data.proposed,
-    'data-highlighted': data.highlighted,
     'data-hot': data.hot,
     ...emphasisMarks(data.emphasis, data.selected),
   }

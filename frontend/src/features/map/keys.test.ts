@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { shouldClearOnEscape } from './keys'
 
-describe('Esc clears the highlight, except while typing', () => {
+describe('Esc clears the selection, except while typing', () => {
   it('ignores Esc while an input, select or textarea has focus', () => {
     for (const tagName of ['INPUT', 'SELECT', 'TEXTAREA'])
       expect(shouldClearOnEscape({ tagName })).toBe(false)

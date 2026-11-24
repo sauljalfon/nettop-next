@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
-import { pick } from './helpers'
+import { findAggBb } from './helpers'
 import { chooseRack } from './patching-helpers'
 
 const getPlan = async (request: APIRequestContext, id: string) =>
@@ -61,9 +61,7 @@ test('save a plan, add equipment through the library form, reload, and reject st
   })
   expect(cabled.status()).toBe(200)
   await page.reload()
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await pick(page, 'Start', 'edge-browser all ports')
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page, 'EDGE-BROWSER')
   await expect(
     page.getByText('Physical path found', { exact: true }),
   ).toBeVisible()

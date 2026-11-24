@@ -1,84 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { createMapSession, shownNetworks } from './mapSession'
 
-describe('POL-14 the location highlight lives in the session', () => {
-  const building = { kind: 'node', id: 'node-a' } as const
-
-  it('sets, replaces and clears the highlight', () => {
-    const session = createMapSession()
-    expect(session.highlight()).toBeUndefined()
-    session.setHighlight(building)
-    expect(session.highlight()).toEqual(building)
-    session.setHighlight({ kind: 'site', id: 'site-dr' })
-    expect(session.highlight()).toEqual({ kind: 'site', id: 'site-dr' })
-    session.setHighlight(undefined)
-    expect(session.highlight()).toBeUndefined()
-  })
-
-  it('replaces the highlight object so subscribers can compare references', () => {
-    const session = createMapSession()
-    session.setHighlight(building)
-    const before = session.highlight()
-    session.setHighlight({ ...building })
-    expect(session.highlight()).not.toBe(before)
-  })
-
-  it('does not alias the object it was given', () => {
-    const session = createMapSession()
-    const given = { kind: 'node' as const, id: 'node-a' }
-    session.setHighlight(given)
-    given.id = 'changed'
-    expect(session.highlight()).toEqual(building)
-  })
-
-  it('notifies subscribers, and leaves the hierarchy viewport alone', () => {
-    const session = createMapSession()
-    session.setHierarchyViewport({ x: 1, y: 2, zoom: 0.5 })
-    let calls = 0
-    session.subscribe(() => calls++)
-    session.setHighlight(building)
-    session.setHighlight(undefined)
-    expect(calls).toBe(2)
-    expect(session.hierarchyViewport()).toEqual({ x: 1, y: 2, zoom: 0.5 })
-  })
-})
-
-describe('POL-14 a fit request is handled once', () => {
-  it('numbers requests and carries the cards to fit', () => {
-    const session = createMapSession()
-    expect(session.fitRequest()).toBeUndefined()
-    session.requestFit(['EDGE-17', 'PANEL-A'])
-    expect(session.fitRequest()).toEqual({
-      ids: ['EDGE-17', 'PANEL-A'],
-      serial: 1,
-    })
-    session.requestFit(['EDGE-17', 'PANEL-A'])
-    expect(session.fitRequest()!.serial).toBe(2)
-  })
-
-  it('marks a request handled, never backwards', () => {
-    const session = createMapSession()
-    session.requestFit(['a'])
-    session.requestFit(['b'])
-    expect(session.fitHandled()).toBe(0)
-    session.markFitHandled(2)
-    session.markFitHandled(1)
-    expect(session.fitHandled()).toBe(2)
-  })
-
-  it('does not change the hierarchy viewport by itself', () => {
-    const session = createMapSession()
-    session.setHierarchyViewport({ x: 3, y: 4, zoom: 0.5 })
-    session.requestFit(['EDGE-17'])
-    expect(session.hierarchyViewport()).toEqual({ x: 3, y: 4, zoom: 0.5 })
-  })
-
-  it('does not alias the list it was given', () => {
-    const session = createMapSession()
-    const ids = ['a']
-    session.requestFit(ids)
-    ids.push('b')
-    expect(session.fitRequest()!.ids).toEqual(['a'])
+describe('D47 nothing of the node/site highlight is left in the session', () => {
+  it('has no highlight and no fit request', () => {
+    const session = createMapSession() as unknown as Record<string, unknown>
+    for (const gone of [
+      'highlight',
+      'setHighlight',
+      'fitRequest',
+      'requestFit',
+      'fitHandled',
+      'markFitHandled',
+    ])
+      expect(session[gone]).toBeUndefined()
   })
 })
 

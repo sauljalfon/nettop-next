@@ -66,18 +66,12 @@ export async function selectEquipment(page: Page, name: string) {
   await expect(page.locator('.inspector-header h2')).toHaveText(name)
 }
 
-/** Chooses an item in a trace picker (Start or Destination) by searching and clicking a match. */
-export async function pick(
-  page: Page,
-  name: 'Start' | 'Destination',
-  query: string,
-  option?: string | RegExp,
-) {
-  await page.getByRole('combobox', { name, exact: true }).fill(query)
-  const options = page
-    .getByRole('listbox', { name: `${name} matches` })
-    .getByRole('option')
-  await (option ? options.filter({ hasText: option }) : options).first().click()
+/** Find AGG / BB from a switch: selects it through Explore, then uses the inspector's button. The Trace tab opens. */
+export async function findAggBb(page: Page, name = 'EDGE-17') {
+  await selectEquipment(page, name)
+  await page
+    .getByRole('button', { name: `Find AGG / BB from ${name}`, exact: true })
+    .click()
 }
 
 /**
@@ -155,12 +149,10 @@ export async function openExplore(page: Page) {
       .click()
 }
 
-/** Click a site or node name in the Explore drawer. */
-export async function highlightLocation(page: Page, name: string) {
+/** Click a site or node name in the Explore drawer: it opens that place in Physical. */
+export async function openPlaceFromExplore(page: Page, name: string) {
   await openExplore(page)
-  await page
-    .getByRole('button', { name: `Highlight ${name} on the map` })
-    .click()
+  await page.getByRole('button', { name: `Open ${name} in Physical` }).click()
 }
 
 /**
@@ -188,15 +180,16 @@ export async function openRackInPhysical(
     .click({ position: { x: 2, y: 2 } })
 }
 
-/** Shows the trace results: opens the dock's Trace tab when it is not the open one. */
+/** Shows the trace results: opens the dock (on the Inspector) when it is closed, then its Trace tab when it is not the open one. */
 export async function expandResults(page: Page) {
-  const tab = page
-    .locator('.dock:not([hidden])')
-    .getByRole('tab', { name: 'Trace', selected: true })
-  if (!(await tab.count()))
+  const dock = page.locator('.dock:not([hidden])')
+  if (!(await dock.count()))
     await page
-      .getByRole('button', { name: 'Open trace tools', exact: true })
+      .getByRole('button', { name: 'Open inspector', exact: true })
       .click()
+  const tab = dock.getByRole('tab', { name: 'Trace', selected: true })
+  if (!(await tab.count()))
+    await dock.getByRole('tab', { name: 'Trace' }).click()
   await expect(page.getByLabel('Trace results')).toBeVisible()
 }
 

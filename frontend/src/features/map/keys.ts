@@ -1,5 +1,5 @@
 /**
- * Whether Esc should clear the map highlight: not while the user is typing in an
+ * Whether Esc should clear the map selection: not while the user is typing in an
  * input, select or textarea (or any editable element), where Esc belongs to that
  * control.
  */

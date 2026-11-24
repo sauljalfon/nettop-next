@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, openRackInPhysical } from './helpers'
+import { fitted, openRackInPhysical, findAggBb } from './helpers'
 
 const root = (page: Page) => page.locator('.physical-explorer')
 const mark = (page: Page, name: string) =>
@@ -29,8 +29,7 @@ async function openEquipment(
   await expectMark(page, 'data-physical-level', 'equipment')
 }
 async function traceAgg03(page: Page) {
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await expect(page.getByTestId('route-row')).toHaveCount(3)
 }
 

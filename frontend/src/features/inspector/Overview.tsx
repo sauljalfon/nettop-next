@@ -14,8 +14,6 @@ interface Props {
   /** Display name and shared color of a network ID. */
   networkName: (id: string) => string
   networkColor: (id: string) => string
-  /** The uplinks summary, at the top (switches only). */
-  uplinks?: ReactNode
   /** The Details block (fields, Edit details). */
   details?: ReactNode
   /** The plan placement form, when a plan is open. */
@@ -32,13 +30,11 @@ export default function Overview({
   networkName,
   networkColor,
   details,
-  uplinks,
   children,
 }: Props) {
   const counts = networkCounts(groups)
   return (
     <div className="inspector-overview">
-      {uplinks}
       <dl className="detail-list">
         {type ? (
           <div>

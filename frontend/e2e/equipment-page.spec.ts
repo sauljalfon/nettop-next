@@ -285,27 +285,6 @@ test('EP-07 the port actions come first', async ({ page, request }) => {
   })
 })
 
-test('EP-08 a switch uplinks are under its face', async ({ page }) => {
-  await openEdge17(page)
-  const uplinks = page.getByTestId('uplinks')
-  await expect(page.getByTestId('uplink-line').first()).toBeVisible()
-  const face = (await page
-    .getByRole('region', { name: 'EDGE-17 face' })
-    .boundingBox())!
-  expect((await uplinks.boundingBox())!.y).toBeGreaterThanOrEqual(
-    face.y + face.height - 1,
-  )
-  await expect(panel(page)).toHaveCount(0)
-  const row = page.getByTestId('uplink-line').first()
-  const endpoint = await row.getAttribute('data-endpoint')
-  await row.click()
-  await expect(panel(page)).toBeVisible()
-  await expect(jack(page, endpoint!)).toHaveAttribute('data-selected', 'true')
-  await page.screenshot({
-    path: 'test-results/workbench-2/edge-17-port-selected.png',
-  })
-})
-
 const openUps = (page: Page) =>
   openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'ups-a03')
 
@@ -815,9 +794,6 @@ test('EP-21 it sits beside an HDF’s face and under a switch’s', async ({
   face = (await faceCard(page, 'EDGE-17').boundingBox())!
   card = (await connects(page).boundingBox())!
   expect(card.y).toBeGreaterThanOrEqual(face.y + face.height)
-  await expect(page.locator('.uplinks')).toBeVisible()
-  const up = (await page.locator('.uplinks').boundingBox())!
-  expect(card.y).toBeGreaterThanOrEqual(up.y + up.height - 1)
   // Absent on a rack item.
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'ups-a03')
   await expect(connects(page)).toHaveCount(0)

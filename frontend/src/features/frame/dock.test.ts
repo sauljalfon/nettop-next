@@ -10,6 +10,9 @@ import {
   openTab,
   railClick,
   tabsFor,
+  traceAvailable,
+  traceGone,
+  traceShown,
   type DockState,
 } from './dock'
 
@@ -27,8 +30,8 @@ describe('dock transitions', () => {
     })
   })
   it('the same rail icon twice closes, another switches', () => {
-    const once = railClick(initialDock, 'trace')
-    expect(railClick(once, 'trace').open).toBe(false)
+    const once = railClick(initialDock, 'explore')
+    expect(railClick(once, 'explore').open).toBe(false)
     expect(railClick(once, 'inspector')).toMatchObject({
       open: true,
       tab: 'inspector',
@@ -56,8 +59,8 @@ describe('dock transitions', () => {
     expect(gone.details).toBeUndefined()
   })
   it('details gone while on another tab only removes the tab', () => {
-    const s = openTab(detailsShown(initialDock, 'Node'), 'trace')
-    expect(detailsGone(s)).toMatchObject({ open: true, tab: 'trace' })
+    const s = openTab(detailsShown(initialDock, 'Node'), 'explore')
+    expect(detailsGone(s)).toMatchObject({ open: true, tab: 'explore' })
     expect(tabsFor(detailsGone(s), false)).not.toContain('details')
   })
   it('Installed turns Add into Changes', () => {
@@ -70,13 +73,11 @@ describe('dock transitions', () => {
   it('tabs come in order, Add only in a plan, Networks only while open', () => {
     expect(tabsFor(initialDock, false)).toEqual([
       'inspector',
-      'trace',
       'explore',
       'changes',
     ])
     expect(tabsFor(initialDock, true)).toEqual([
       'inspector',
-      'trace',
       'explore',
       'add',
       'changes',
@@ -84,12 +85,54 @@ describe('dock transitions', () => {
     expect(tabsFor(detailsShown(open('networks'), 'Node'), true)).toEqual([
       'details',
       'inspector',
-      'trace',
       'explore',
       'add',
       'changes',
     ])
     expect(tabsFor(open('networks'), false).at(-1)).toBe('networks')
+  })
+})
+
+describe('the Trace tab', () => {
+  it('is listed only while there is a trace', () => {
+    expect(tabsFor(initialDock, false)).not.toContain('trace')
+    const s = traceShown(initialDock)
+    expect(s).toMatchObject({ open: true, tab: 'trace' })
+    expect(tabsFor(s, false)).toEqual([
+      'inspector',
+      'trace',
+      'explore',
+      'changes',
+    ])
+    expect(tabsFor(traceAvailable(initialDock), false)).toContain('trace')
+    expect(traceAvailable(initialDock).open).toBe(false)
+  })
+  it('cannot be opened without a trace', () => {
+    expect(openTab(initialDock, 'trace')).toBe(initialDock)
+    expect(railClick(initialDock, 'trace')).toBe(initialDock)
+  })
+  it('clearing it on the tab goes to the last other tab', () => {
+    const s = traceShown(openTab(initialDock, 'explore'))
+    expect(s.tab).toBe('trace')
+    const gone = traceGone(s)
+    expect(gone).toMatchObject({ open: true, tab: 'explore' })
+    expect(gone.trace).toBeUndefined()
+    expect(tabsFor(gone, false)).not.toContain('trace')
+  })
+  it('clearing it with no other tab closes the dock', () => {
+    const gone = traceGone(traceShown(initialDock))
+    expect(gone.open).toBe(false)
+    expect(gone.trace).toBeUndefined()
+  })
+  it('details gone returns to the trace tab, and a cleared trace is never returned to', () => {
+    const s = detailsShown(traceShown(openTab(initialDock, 'explore')), 'Node')
+    expect(detailsGone(s)).toMatchObject({ open: true, tab: 'trace' })
+    const cleared = traceGone(openTab(s, 'trace'))
+    expect(cleared.last).toBe('explore')
+  })
+  it('clearing it while on another tab only removes the tab', () => {
+    const s = openTab(traceShown(initialDock), 'changes')
+    expect(traceGone(s)).toMatchObject({ open: true, tab: 'changes' })
   })
 })
 

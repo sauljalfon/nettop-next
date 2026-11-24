@@ -39,7 +39,6 @@ import HierarchyDrawer from './HierarchyDrawer'
 import { hierarchyFit } from './hierarchyFit'
 import {
   emphasisMarks,
-  highlightedCards,
   hotCards,
   projectHierarchy,
   type HierarchyFlowNode,
@@ -52,7 +51,6 @@ import HierarchyNodeCard from './HierarchyNodeCard'
 import HierarchyPanel from './HierarchyPanel'
 import { dockSession } from '../frame/dock'
 import { shouldClearOnEscape } from './keys'
-import { ClearHighlight } from './MapControls'
 import { mapSession, type MapSession } from './mapSession'
 import { colorOf, networkColors } from './networkColors'
 import { indexSnapshot, type SnapshotIndex } from './snapshotIndex'
@@ -174,7 +172,7 @@ function besidePanel(
  * The hierarchy of one network: tops, AGGs and node cards in frames, drawn from
  * real cables only. Nothing is dragged or saved. It fits once per session and
  * again when the shown network changes (the provider is keyed on it); a refetch,
- * the trace, Only problems and the highlight never refit or move a card.
+ * the trace and Only problems never refit or move a card.
  */
 export default function HierarchyCanvas(props: HierarchyProps) {
   const session = props.session ?? mapSession
@@ -278,31 +276,11 @@ function Canvas({
   )
 
   const marks = useMemo(() => routeMarks(index, route), [index, route])
-  const highlight = useSyncExternalStore(session.subscribe, session.highlight)
-  const highlighted = useMemo(
-    () => (h ? highlightedCards(h, index, highlight) : new Set<string>()),
-    [h, index, highlight],
-  )
   const surface = useRef<HTMLDivElement>(null)
   // The tree stays mounted, hidden, under the Trace page: Esc there is the page's.
   const hidden = () =>
     !!surface.current &&
     getComputedStyle(surface.current).visibility === 'hidden'
-
-  // Esc clears the highlight without touching the trace.
-  useEffect(() => {
-    if (!highlight) return
-    const onKey = (event: KeyboardEvent) => {
-      if (
-        event.key === 'Escape' &&
-        !hidden() &&
-        shouldClearOnEscape(event.target as HTMLElement | null)
-      )
-        session.setHighlight(undefined)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [highlight, session])
 
   // Esc clears the selection (and its drawer), unless the user is typing or a
   // dialog is open. The viewport and the open cards stay.
@@ -342,13 +320,12 @@ function Canvas({
             colors,
             marks,
             open,
-            highlighted,
             hot,
             lit,
             selection,
           })
         : undefined,
-    [h, layout, index, colors, marks, open, highlighted, hot, lit, selection],
+    [h, layout, index, colors, marks, open, hot, lit, selection],
   )
 
   // Local node state carries React Flow's measurements; positions are the projection's.
@@ -419,49 +396,6 @@ function Canvas({
     })
   }, [flow, session, networkId])
   useEffect(() => () => cancelAnimationFrame(frame.current), [])
-
-  // A new location highlight (Explore) asks for one fit to the highlighted
-  // cards, at zoom 1 or less. Each request is handled once, by whichever map
-  // sees it first, so a remount never replays it. Cards not measured yet are
-  // waited for.
-  const fitRequest = useSyncExternalStore(session.subscribe, session.fitRequest)
-  useEffect(() => {
-    if (!fitRequest || fitRequest.serial <= session.fitHandled()) return
-    let second = 0
-    const first = requestAnimationFrame(() => {
-      second = requestAnimationFrame(() => {
-        const ids = [...highlighted]
-        if (ids.length === 0) return session.markFitHandled(fitRequest.serial)
-        const boxes = ids.map((id) => flow.getInternalNode(id))
-        const where = visibleArea(surface.current)
-        if (!where || boxes.some((b) => !b?.measured.width)) return // retried when the nodes change
-        session.markFitHandled(fitRequest.serial)
-        const xs = boxes.flatMap((b) => [
-          b!.internals.positionAbsolute.x,
-          b!.internals.positionAbsolute.x + b!.measured.width!,
-        ])
-        const ys = boxes.flatMap((b) => [
-          b!.internals.positionAbsolute.y,
-          b!.internals.positionAbsolute.y + (b!.measured.height ?? 0),
-        ])
-        const bounds = {
-          x: Math.min(...xs),
-          y: Math.min(...ys),
-          width: Math.max(...xs) - Math.min(...xs),
-          height: Math.max(...ys) - Math.min(...ys),
-        }
-        void flow
-          .setViewport(fitViewport(bounds, where.box, where.covers, FIT), {
-            duration: 300,
-          })
-          .then(() => session.setHierarchyViewport(flow.getViewport()))
-      })
-    })
-    return () => {
-      cancelAnimationFrame(first)
-      cancelAnimationFrame(second)
-    }
-  }, [fitRequest, nodes, highlighted, flow, session])
 
   // After the first fit, a selection pans (never zooms or refits) to show its
   // card with its frame, or the card alone when both do not fit, when that is not
@@ -602,13 +536,6 @@ function Canvas({
               keyShown={keyShown}
               onKey={session.setKeyShown}
             />
-            <Panel position="top-right" className="map-tools">
-              {highlight && (
-                <ClearHighlight
-                  onClear={() => session.setHighlight(undefined)}
-                />
-              )}
-            </Panel>
           </ReactFlow>
         </HierarchyActions.Provider>
       )}

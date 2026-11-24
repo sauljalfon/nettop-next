@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from './fixtures'
-import { openRackInPhysical, expandResults } from './helpers'
+import { openRackInPhysical, expandResults, findAggBb } from './helpers'
 import { chooseRack } from './patching-helpers'
 import { getPlan } from './plan-api'
 
@@ -89,8 +89,9 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   expect(draft.equipment[0]).toMatchObject({ rackId: 'rack-dr02', unit: 3 })
   // The collision message is still on screen over the bottom of the page.
   await page.getByRole('button', { name: 'Dismiss placement error' }).click()
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  // Selecting a switch is done from the map: the rack view has no inspector to pick from.
+  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
+  await findAggBb(page)
   await expandResults(page)
   await expect(
     page.getByText(/4 cables · 3 internal bridges/).first(),

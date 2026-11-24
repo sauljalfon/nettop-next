@@ -194,37 +194,14 @@ test('WS-02 a panel or HDF position shows its path and no chain', async ({
   await expect(detail(page).getByTestId('walk-sheet')).toHaveCount(0)
 })
 
-// WS-03…05: the uplinks summary.
-const uplinks = (page: Page) => page.getByTestId('uplinks')
-const lines = (page: Page) => uplinks(page).getByTestId('uplink-line')
+// WS-03: the face marks the ports that reach an AGG or BB (the summary list is gone, D47).
+const EDGE_UPLINK_PORTS = ['edge-17:p1', 'edge-17:p2', 'edge-17:p3']
 
-const EDGE_LINES = [
-  ['edge-17:p1', 'Port 1', 'AGG-03', 'AGG'],
-  ['edge-17:p2', 'Port 2', 'AGG-08', 'AGG'],
-  ['edge-17:p3', 'Port 3', 'BB-01', 'BB'],
-]
-
-test('WS-03 EDGE-17’s page lists its uplinks, AGG first; a line selects its port', async ({
+test('WS-03 EDGE-17’s face marks its uplink ports and explains the mark', async ({
   page,
 }) => {
   await openEdge17(page)
-  await expect(lines(page)).toHaveCount(3)
-  await expect(uplinks(page)).toContainText('3 of 24 ports reach an AGG or BB')
-  for (const [i, [id, port, dest, role]] of EDGE_LINES.entries()) {
-    const line = lines(page).nth(i)
-    await expect(line).toHaveAttribute('data-endpoint', id)
-    await expect(line).toContainText(port)
-    await expect(line).toContainText(`→ ${dest} · Port 1${role}`)
-    await expect(line).toContainText('4 cables')
-    await expect(line.locator('.uplink-via')).toHaveText(
-      'via PANEL-A › HDF-01 › HDF-02',
-    )
-    await expect(line.locator('bdi', { hasText: dest })).toHaveCount(1)
-  }
-  await expect(uplinks(page).getByTestId('uplinks-mismatch')).toHaveCount(0)
-
-  // The listed ports carry the mark; a free one does not.
-  for (const id of ['edge-17:p1', 'edge-17:p2', 'edge-17:p3'])
+  for (const id of EDGE_UPLINK_PORTS)
     await expect(endpoint(page, id)).toHaveAttribute('data-uplink', 'true')
   await expect(endpoint(page, 'edge-17:p4')).not.toHaveAttribute(
     'data-uplink',
@@ -233,17 +210,13 @@ test('WS-03 EDGE-17’s page lists its uplinks, AGG first; a line selects its po
   await expect(page.locator('.face-legend')).toContainText(
     'reaches an AGG or BB',
   )
-
-  // A click selects the port; the Path bar shows where it ends.
-  await lines(page).nth(1).click()
+  // A click selects the port; the Path bar shows where it ends. The mark stays with the ring.
+  await endpoint(page, 'edge-17:p2').click()
   await expectMark(page, 'data-selected-endpoint', 'edge-17:p2')
-  await expect(lines(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
-  await expect(lines(page).nth(0)).toHaveAttribute('aria-pressed', 'false')
   const end = pathBar(page).getByTestId('path-plate').last()
   await expect(end).toContainText('AGG-08')
   await expect(end).toContainText('Port 1')
   await expect(end).toHaveAttribute('data-destination', 'aggregation')
-  // The uplink mark stays together with the selected ring.
   await expect(endpoint(page, 'edge-17:p2')).toHaveAttribute(
     'data-uplink',
     'true',
@@ -254,71 +227,38 @@ test('WS-03 EDGE-17’s page lists its uplinks, AGG first; a line selects its po
   )
 })
 
-test('WS-04 the inspector lists the same lines; a click finds AGG / BB from that port', async ({
+// D47: the route trail and the Uplinks summary are gone.
+test('D47-02 with a route selected, EDGE-17’s page in Physical has no trail and no Uplinks block', async ({
   page,
 }) => {
+  await traceFromEdge17(page)
+  await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
+  await page.locator('.rack-block[data-equipment-id="edge-17"]').click()
+  await expectMark(page, 'data-physical-level', 'equipment')
+  await expect(root(page)).toHaveAttribute('data-route-steps', '5') // the route is still selected
+  await expect(page.getByRole('region', { name: 'EDGE-17 face' })).toBeVisible()
+  await expect(page.getByTestId('route-trail')).toHaveCount(0)
+  await expect(
+    page.getByRole('navigation', { name: 'Route trail' }),
+  ).toHaveCount(0)
+  await expect(page.getByTestId('trail-step')).toHaveCount(0)
+  await expect(page.getByTestId('uplinks')).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Uplinks' })).toHaveCount(0)
+  await expect(page.getByTestId('uplink-line')).toHaveCount(0)
+  // The teal route marks stay: the face's jacks on the route.
+  await expect(endpoint(page, 'edge-17:p1')).toBeVisible()
+})
+
+test('D47-03 the inspector of EDGE-17 has no Uplinks block', async ({
+  page,
+}) => {
+  await traceFromEdge17(page)
+  await expect(page.getByTestId('walk-sheet')).toHaveCount(1)
   await selectEquipment(page, 'EDGE-17')
-  await expect(lines(page)).toHaveCount(3)
-  await expect(uplinks(page)).toContainText('3 of 24 ports reach an AGG or BB')
-  await expect(lines(page).nth(0)).toContainText('→ AGG-03 · Port 1AGG')
-  await expect(lines(page).nth(2)).toContainText('BB')
-  await expect(lines(page).nth(1).locator('.uplink-via')).toHaveText(
-    'via PANEL-A › HDF-01 › HDF-02',
-  )
-
-  await lines(page).nth(1).click()
-  await expect(page.getByTestId('route-row')).toHaveCount(1)
-  await expect(sheet(page).getByTestId('walk-end')).toHaveText(
-    'Ends at AGG-08 · Port 1, an AGG.',
-  )
-  await expect(sheet(page).getByTestId('walk-row').first()).toContainText(
-    'start · out Port 2',
-  )
-})
-
-test('WS-05 an AGG’s page says paths end there and makes no trace request', async ({
-  page,
-}) => {
-  const traces: string[] = []
-  page.on('request', (r) => {
-    if (r.url().includes('/traces')) traces.push(r.url())
-  })
-  await openEquipment(
-    page,
-    'Main Campus',
-    'Main Distribution',
-    'Rack Core 01',
-    'agg-03',
-  )
-  await expect(uplinks(page)).toContainText(
-    'AGG-03 is an AGG: paths from access switches end here.',
-  )
-  await expect(lines(page)).toHaveCount(0)
-  await page.waitForTimeout(500)
-  expect(traces).toEqual([])
-})
-
-test('WS-03 a port that reaches an AGG on another network is counted apart', async ({
-  page,
-  request,
-}) => {
-  const created = await request.post('/api/plans', {
-    data: { name: 'Cross network', expectedBaseRevision: 'acceptance-1' },
-  })
-  const plan = await created.json()
-  const saved = await request.post(`/api/plans/${plan.id}/commands`, {
-    data: {
-      type: 'add_cable',
-      expectedRevision: plan.revision,
-      cable: { a: 'edge-17:p4', b: 'agg-12:p2' },
-    },
-  })
-  expect(saved.status()).toBe(200)
-  await page.goto(`/?plan=${plan.id}`)
-  await fitted(page)
-  await openEdge17(page)
-  await expect(lines(page)).toHaveCount(3)
-  await expect(uplinks(page).getByTestId('uplinks-mismatch')).toHaveText(
-    '1 port reaches an AGG or BB on another network.',
-  )
+  await expect(
+    page.getByRole('heading', { name: 'EDGE-17' }).first(),
+  ).toBeVisible()
+  await expect(page.getByTestId('uplinks')).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Uplinks' })).toHaveCount(0)
+  await expect(page.getByTestId('uplink-line')).toHaveCount(0)
 })

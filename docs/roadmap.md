@@ -40,7 +40,24 @@ Finished milestones (M1–M5c, M5b steps 11–13, P1, P2) and their designs, rec
    - **Export:** PNG of the drawing (all routes in one picture with All routes) and a one-page PDF (the drawing, then the walk), with the route view's header (start → end, Installed or the plan, the date).
 4. **Inventory and the rack elevation**, as density passes (rows, toolbar, the rack's overflow in a plan).
 
-## Switch models (next after the workbench; not designed yet)
+## Fewer trace tools (current; approved 2026-11-24, D47)
+
+From the owner after part 3 of the workbench: the jack's path and Find AGG / BB from a switch cover what the trace form was for. Owner's answers (2026-11-24): remove the rail's Trace icon; remove the form ("Remove the form"), and so exact port → port; Explore's amber highlight "go"; keep the teal route on the tree and in Physical; a site or node name opens Physical. Frontend only; the API is unchanged.
+
+- **Rail:** Add, Explore, Inspector. No Trace icon.
+- **The dock's Trace tab:** only while there is a trace (Find AGG / BB from the inspector's switch, a port or position row, a jack, a passive chip in Way up, or Full page ⤢ on a jack's path). It shows the results (AGG first, mismatches, truncation), the selected route's walk, **Clear trace** (which also removes the tab) and **Open full page ⤢**; a failed trace shows its error there. No mode, Start, Destination or Find AGG / BB button; no Start/Destination search lists.
+- **The Trace page:** unchanged; its bar names the trace as text ("Find AGG / BB", the start).
+- **Place names:** a site or node name in Explore (on every view) and in the inspector's place line opens that site or node in Physical, as the rack link already does. The amber highlight, its Clear highlight button, its Esc and its one-time fit are removed.
+- **Route trail in Physical:** the one-line strip of the route's steps under the breadcrumbs (‹ Prev / Next ›) goes; the teal marks stay.
+- **Uplinks summary:** "Uplinks · N of M ports reach an AGG or BB" goes from a switch's equipment page and the inspector; Find AGG / BB from the switch gives the routes.
+- **Kept:** the teal route on the tree and in Physical; the rerun of a trace across Installed ↔ Plan.
+- **Tests:** specs that used the form start from a switch or a port instead; the exact port → port and highlight specs are deleted; a spec checks that a site and a node name open Physical.
+
+## The inspector as a short card (next; a demo first)
+
+Owner, 2026-11-24: yes to making the Inspector simpler. The idea: a short card (name, place, network, cabled count, Find AGG / BB, Open in Physical, Show on map, Open in inventory) and the equipment page as the one full view. What only the Inspector has today must move first: **History**, **Placement** to another node (in a plan) and the port table's per-port actions (the equipment page has them jack by jack; Inventory as a list). A clickable demo of the card and of the equipment page with History and Move… comes before any design is approved.
+
+## Switch models (after the workbench; not designed yet)
 
 **Why.** The owner (2026-11-16), from a photo of the Add switch form: adding a switch takes too many steps, and most switches are the same few models. The place is already filled in from where they are; the slow part is the ports: today "+ Add port group" turns the count into a "Port {n}" group and an empty one, and every group's count, names, type, connector and speed are typed for every switch.
 

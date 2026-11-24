@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
-import { fitted, openRackInPhysical } from './helpers'
+import { fitted, openRackInPhysical, findAggBb } from './helpers'
 
 // The explorer writes its state on its root; these specs assert that model.
 const root = (page: Page) => page.locator('.physical-explorer')
@@ -40,8 +40,7 @@ async function openMainDistribution(page: Page) {
 }
 
 async function traceAgg03(page: Page) {
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await expect(page.getByTestId('route-row')).toHaveCount(3)
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }

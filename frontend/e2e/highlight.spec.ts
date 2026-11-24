@@ -1,10 +1,7 @@
-import { expect, test, type Page } from './fixtures'
+import { expect, test } from './fixtures'
 import { fitted, openExplore } from './helpers'
 
-const clear = (page: Page) =>
-  page.getByRole('button', { name: 'Clear highlight' })
-
-test('POL-15 equipment in Explore is selected, opens the inspector and is selected on the tree, with no highlight', async ({
+test('POL-15 equipment in Explore is selected, opens the inspector and is selected on the tree, and Explore follows the view in Physical', async ({
   page,
 }) => {
   await page.goto('/')
@@ -18,8 +15,6 @@ test('POL-15 equipment in Explore is selected, opens the inspector and is select
     'data-selected',
     'true',
   )
-  await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
-  await expect(clear(page)).toHaveCount(0)
 
   // Enter in the search chooses the first match the same way.
   await openExplore(page)
@@ -31,7 +26,6 @@ test('POL-15 equipment in Explore is selected, opens the inspector and is select
     'data-selected',
     'true',
   )
-  await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
 
   // In Physical, Explore follows the view: equipment opens its rack there, and
   // neither the map nor the inspector is touched.

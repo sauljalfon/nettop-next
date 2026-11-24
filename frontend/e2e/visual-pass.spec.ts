@@ -5,6 +5,7 @@ import {
   selectEquipment,
   settledViewport,
   viewport,
+  findAggBb,
 } from './helpers'
 
 // VP-02 (D34): on pages an open right drawer keeps the content clear; on the
@@ -70,7 +71,7 @@ test('VP-02 a switch page keeps clear of the inspector', async ({ page }) => {
     .evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(sideways).toBeLessThanOrEqual(1)
   const narrow = await faceWidth(page)
-  // The face is as wide as its content (the Uplinks list keeps 640px), so it need not shrink.
+  // The face is as wide as its content, so it need not shrink.
   expect(narrow).toBeLessThanOrEqual(wide)
 
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
@@ -145,8 +146,7 @@ test('VP-03 Rack T42 keeps 26px rows, scrolls, and labels every unit', async ({
 test('VP-03 scrolled to the bottom, U1 is fully visible beside the Trace tab', async ({
   page,
 }) => {
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await expect(page.getByTestId('route-row')).toHaveCount(3)
   await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
   const dock = page.locator('.dock:not([hidden])')

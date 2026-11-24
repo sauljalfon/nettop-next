@@ -5,6 +5,7 @@ import {
   expectNearPlace,
   fitted,
   openRackInPhysical,
+  findAggBb,
 } from './helpers'
 
 // The explorer writes its state on its root; these specs assert that model.
@@ -25,8 +26,7 @@ const HDF01_3C5_FRONT = 'hdf-01:sp-3C:5:f'
 const HDF02_2B3_FRONT = 'hdf-02:sp-2B:3:f'
 
 async function traceAgg03(page: Page) {
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await expect(page.getByTestId('route-row')).toHaveCount(3)
 }
 

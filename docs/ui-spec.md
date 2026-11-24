@@ -10,13 +10,13 @@ A calm, spacious technical workspace: paper on a light floor, restrained borders
 - **Calm:** tools open on demand in one right **dock**, one tab at a time; the dock narrows the page beside it and never covers it, and closing it gives the page its width back (D43, workbench part 3). Inline confirms and forms, no stacks of modals. Escape closes a confirm, form, popover or pane, and focus returns to the button that opened it.
 - **Truthful:** a summary says what it counts (real cables); a colour never replaces a label (roles, sides and states are written, BB is labelled BB); proposed objects are marked Proposed and drawn dashed; a preview is never shown as installed.
 - **Stable:** saving, refetching, tracing, filtering or switching context never resets the viewport or the selection, never refits and never remounts. Objects are reconciled by stable ID.
-- **Colours follow meaning, never an ID:** each network has one stable colour by creation order (grey when unresolved); the selected route is teal; a highlight is amber; free endpoints are white.
+- **Colours follow meaning, never an ID:** each network has one stable colour by creation order (grey when unresolved); the selected route is teal; free endpoints are white.
 - **The look is paper and hardware (D33, D34):** paper for everything read or edited, steel only for racks, faceplates and HDFs; one stylesheet (`src/shared/theme.css`) holds every colour, font and size, and every screen including the inventory uses it. Selection and buttons are ink, sentence case, nothing under 11px. Names are always isolated, so right-to-left text never reorders. How it is built is in [status.md](status.md).
 
 ## 2. Shell
 
 - A compact header: workspace title, **Conceptual / Physical / Inventory**, the **network selector** (All networks, one network, **Manage networks…**), and **Installed / Plan** (the draft picker). They are independent; switching one never changes another. A DEV or TEST badge outside production.
-- A 44px header (the views, the network, Installed | Plan with the plan's name, **Changes** with its count) and a 48px rail: **Add** (the equipment library, a plan only), **Explore** (the location tree and search), **Trace**, **Inspector**. An icon opens its tab of the dock; the same icon again, × or Esc closes it. The dock's tabs: **Node** or **Port** (what is selected), Inspector, Trace, Explore, Add, Changes, and Networks while Manage networks is open.
+- A 44px header (the views, the network, Installed | Plan with the plan's name, **Changes** with its count) and a 48px rail: **Add** (the equipment library, a plan only), **Explore** (the location tree and search), **Inspector**. An icon opens its tab of the dock; the same icon again, × or Esc closes it. The dock's tabs: **Node** or **Port** (what is selected), Inspector, **Trace** (only while there is a trace, D47), Explore, Add, Changes, and Networks while Manage networks is open.
 - Selecting equipment opens the **inspector**: a sticky header (identity, network and Installed/Proposed badges, the cabling meter, the location breadcrumb, Show on map, Show in Physical, Open in inventory, Find AGG / BB for switches), then Overview (details, placement, Edit details), Ports/Positions (a compact table with row actions) and History (direct fixes and recorded plans).
 - The **results overlay** of a trace is expandable, lists every AGG/BB route (AGG first) and the mismatches, and never takes the canvas permanently.
 
@@ -29,7 +29,7 @@ A calm, spacious technical workspace: paper on a light floor, restrained borders
 - **The network selector** chooses the tree's network; it never hides shared passive equipment and never changes what a trace finds.
 - **A trace highlights the map in place:** the route's cards and lines are teal; nothing moves and the viewport stays. What the route touches is never dimmed.
 - **An HDF is not expanded on the map:** it is a step in a way up; Physical shows its full grid.
-- **Highlight a location:** a site or node from Explore or the inspector marks its node cards amber and fits them once; it is independent of the trace.
+- **Place names:** a site or node name, in Explore or the inspector's place line, opens it in Physical (D47; there is no location highlight).
 - **The Trace page** (D46, replaces the route view): a page of its own, opened from the Trace tab's Open full page ⤢, a jack path's Full page ⤢ or a passive chip in Way up; ← Back returns to where you were. Every result on the left; the chosen route drawn end to end with the jack path's plates, each node's steps in a dashed Site › Node frame, then the walk step by step; All routes outlines in amber what every route passes; the drawing zooms and has Picture only. Exportable as PNG and PDF.
 
 ## 4. Physical explorer (locked 4, 8, 9)
@@ -43,7 +43,7 @@ Sites → site → node → rack → equipment → exact port or position (front
 - **Endpoint detail** (beside the face, only for a selected jack; in a plan Connect… or Disconnect… first): Go to peer (the far end of its cable) and, for a panel or HDF position, Switch to front/rear (keeping the position); always Find AGG / BB from here, Show on map, and port details and their state (reserved, disabled, faulty jacks are hatched, with a readable number).
 - **The path of the selected jack** (D45): along the bottom of the equipment page, the hardware it passes as plates joined by cables, both ways from a panel or HDF position, stored links only; a plate opens that equipment; Close path clears the selection.
 - **Connects to** (D45): a small card of the equipment directly at the other end of this one's cables, most cables first, with counts; choosing one lights its jacks on the face. Beside an HDF's or a panel's face, under a switch's.
-- **Uplinks summary:** an access switch's page (and its inspector) lists each port that reaches an AGG or BB, AGG first, with its destination, cable count and the passives it goes through; those ports are marked ↑ on the faceplate.
+- **Uplink marks:** on an access switch's faceplate the ports that reach an AGG or BB are marked ↑ (the Uplinks summary list was removed, D47: Find AGG / BB from the switch gives the routes).
 - **Navigation:** clickable breadcrumbs and an in-app Back that restores the exact location, endpoint and side; Show in Physical from the inspector, its rows and every walk sheet row; switching back to Conceptual finds the map exactly as it was. A selected route shows as a trail of steps across levels.
 - Not a geographic map or floor plan; real photos or plans need real data.
 
@@ -61,7 +61,7 @@ Sites → site → node → rack → equipment → exact port or position (front
 
 ## 6. Find AGG / BB (locked 7)
 
-- Started from a switch (all ports), a port or position row, a passive chip in the Node tab's way up, a jack's path (Full page ⤢), or the dock's Trace tab; exact port-to-port tracing stays in the Trace tab. The results light in place on the tree or the face; the Trace page is the deep dive.
+- Started from a switch (all ports), a port or position row, a passive chip in the Node tab's way up, or a jack's path (Full page ⤢). There is no trace form and no exact port-to-port trace (D47): a jack's path shows one jack's whole path. The results light in place on the tree or the face; the Trace page is the deep dive.
 - Every reachable route is listed with destination, actual role, network, start port and its length (cables, bridges); AGG first, BB never dropped; mismatches separately as "on another network"; truncation said plainly. An unreachable device is never a result.
 - Choosing another route changes the highlight and the revealed positions, never the layout. Each route expands to its **walk sheet**: one row per equipment grouped by place (Site › Node › Rack, with the unit), the bridge folded into the row ("in front 2 → out rear 2"), cables by label (else a short ID), a note when the path leaves a node or site, a line saying how it ends, and right-to-left names kept readable.
 

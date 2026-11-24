@@ -88,7 +88,7 @@ test('RI-14 the Inventory’s Type column and pill list the rack items', async (
   await expect(page.getByRole('table')).toContainText('Other · KVM switch')
 })
 
-test('RI-15 a rack item is never a trace start, on the tree, or a patching far end', async ({
+test('RI-15 a rack item is never on the tree or a patching far end', async ({
   page,
   request,
 }) => {
@@ -98,17 +98,6 @@ test('RI-15 a rack item is never a trace start, on the tree, or a patching far e
   await expect(page.locator('[data-card-key]').first()).toBeVisible()
   await expect(page.locator('[data-card-key*="ups-a03"]')).toHaveCount(0)
   await expect(page.locator('[data-card-key*="kvm-core-01"]')).toHaveCount(0)
-
-  // Not in the trace picker.
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
-  const start = page.getByRole('combobox', { name: 'Start', exact: true })
-  await start.fill('UPS-A03')
-  await expect(page.getByText('No match.')).toBeVisible()
-  await start.fill('KVM-CORE')
-  await expect(page.getByText('No match.')).toBeVisible()
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
 
   // Not a far end in the patching screen: Rack A03 offers EDGE-17 and PANEL-A only.
   const id = await newPlan(request, unique('RiPatch'))

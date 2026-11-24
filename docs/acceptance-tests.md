@@ -111,7 +111,7 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | TR-01 | Walk sheet rows keep their name on one line with the icon beside it, in both views | `trail` |
 | TR-02 | Endpoint labels are readable (structure, never the stored label) | `hops.test.ts` |
 | TR-03 | In Physical the results panel opens as one line and its expanded walk sheet scrolls | `trail` |
-| TR-04 | The trail shows the route's steps; chips, Prev and Next open the exact endpoint; Back returns | `trail`, `trail.test.ts` |
+| TR-04 | Retired with the route trail (D47, 2026-11-24); successor D47-02 (no trail) | — |
 | TR-05, TR-06 | The trace is rerun across Installed ↔ Plan; a missing route falls back to the first with a note | `trace-switch`, `traceSession.test.ts` |
 | RK-01, RK-02 | A 12U rack labels every unit; a 42U rack's U1 ends above the results panel once scrolled, at 1440×900 and 1280×720, and only the rack scrolls; faceplates per kind and their states | `faceplates`, `cabinet.test.ts` |
 | PB-01 to PB-03 | Odd-over-even switch ports; one legend swatch per network; arrow keys, Home/End and Enter with one tab stop | `faceplates`, `equipmentModel.test.ts`, `faceNav.test.ts` |
@@ -121,7 +121,7 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | PR-01, PR-02 | The rack and equipment sheets download as one-page PDFs with the header, table and text layer | `search-sheets`, `sheets.test.ts` |
 | SC-01 | The campus fixture validates, is deterministic and has the realistic shape (6–12 switches a node, one AGG or one pair per node and network, mostly one uplink, a few second uplinks and direct-to-BB switches, the deliberate faults) | `internal/scalefixture` (Go) |
 | SC-02 | The opt-in campus run records the timings and screenshots (OV-12: topology load; first tree draw fitted; the busiest node's drawer; a Building 16 switch selected (Show on map until lit); AGG-60 selected; a sub-main HDF selected; then the site screen, node drag and save, 40-rack node, rack search, 42U rack, 32-row HDF, Trace drawer, picker search, trace on the tree, trail step, Explore, Explore cable search) | `scale` (`SCALE=1`, skipped otherwise) |
-| SC-03 | Picker and Explore lists are built once per snapshot when idle; an empty picker query is cheap | `lazy.test.ts`, `picker.test.ts` |
+| SC-03 | Explore's search list is built once per snapshot when idle (the trace picker was removed, D47); an empty query is cheap | `lazy.test.ts`, `picker.test.ts` |
 | SC-04 | Retired with the device map in step 7 (D35): `reuse.test.ts` (a route change keeps untouched cards and lines as the same objects) was deleted with it. The hierarchy and Focus project from scratch per snapshot; the HI-12 timings (SC-02) are the check now | `scale` (`SCALE=1`) |
 | PHY-13 | Above 12 unsaved nodes the layout is layered by cable distance; far fewer lines cross a third card than in the grid | `connections.test.ts`, `center.test.ts` |
 | — | The zoom controls are a compact box (under 60 px wide) in the map and on a site screen | `physical` |
@@ -182,7 +182,10 @@ Every spec reaches equipment through Explore (`selectEquipment`, which selects i
 | HI-07 | Session: the shown network (fallback to the first existing), Only problems, the viewport, the open nodes. Amended by D40: `back()` and the view are gone (OV-06) | `mapSession.test.ts` |
 | HI-08 | Retired as written; successor OV-11: one `uplink:` row per marked switch and one per AGG with no BB; the count equals the map's | `problems.test.ts` |
 | HI-09 | In the browser: Network A (BB-01; AGG-03 + AGG-08 over Building A; AGG-15 with 0 nodes) and Network B (no top row); the header choosing B redraws and fits once, All networks keeps B; Building A's drawer lists EDGE-17's uplinks with the via path; Inspector and Find AGG / BB from it; the drawer of AGG-03; Only problems; the Expansion plan's dashed card and line; Hebrew names isolated. Amended by D40: the layout is left to right, Focus is gone | `hierarchy` |
-| HI-10 | Trace and highlight on the hierarchy: the route lights its cards and lines, another route moves nothing, with Network B the route is undimmed, Explore's highlight marks and fits once, Clear highlight and Esc | `hierarchy-trace` |
+| HI-10 | Trace and highlight on the hierarchy: the route lights its cards and lines, another route moves nothing, with Network B the route is undimmed, (Explore's highlight, Clear highlight and its Esc retired with the highlight, D47, 2026-11-24) | `hierarchy-trace` |
+| D47-01 | Browser: a site or node name in Explore (on Conceptual) and in the inspector's place line opens it in Physical | `views` |
+| D47-02, D47-03 | Browser: with a route selected, EDGE-17's page has no trail and no Uplinks block (the ↑ marks stay); its inspector has no Uplinks block | `walk-sheet` |
+| TT-05 | Browser: the Trace tab has no form; Find AGG / BB from a switch shows the routes; Clear trace removes the tab | `trace-tab` |
 | HI-11 | `/api/map-layout` answers 404 like an unknown path; the client has no map-layout calls | `httpapi/server_test.go`, `src/shared/api.test.ts` |
 | HI-12 | Retired as written; successor OV-12: the first tree draw (fitted), a selection to lit, opening the busiest node, the drawer of an AGG; the Problems list with its uplink rows; timings in [status.md](status.md) (measurements, not budgets) | `scale` (`SCALE=1`; with SC-02) |
 | HI-13 | A direct fix renames Building A to a long Hebrew name while its drawer is open: card, frame and drawer show it isolated and cut, the drawer stays on the same card, nothing moves; the name is restored after | `hierarchy.recording` |
@@ -220,7 +223,7 @@ Frontend only; the specs use the acceptance fixture unless said.
 | INV-06 | The header's network and the Network pill follow each other (D37), also after a list change; several networks read "N networks"; Reset filters clears both; Conceptual is unchanged | `inventorySession.test.ts`, `model.test.ts`; `inventory` |
 | INV-07 | Campus: opening the view and Ports and positions, a search, a sort, Group by, scrolling a grouped list, a pill and the CSV timed (measurements, not budgets); fewer than 100 rows drawn at any time | `scale` (`SCALE=1`; with SC-02) |
 
-Explore while the Inventory is shown (equipment and port hits open the inspector and the page stays; a site or node still highlights on the map) and the Plan's Proposed chip run in `inventory` too.
+Explore while the Inventory is shown (equipment and port hits open the inspector and the page stays; since D47 a site or node name opens it in Physical) and the Plan's Proposed chip run in `inventory` too.
 
 ## A more useful inventory (2026-10-20)
 
@@ -256,7 +259,7 @@ The design and its steps are in [history/plans/2026-11-01-rack-items.md](history
 | RI-12 | Texts: the Changes line ("Added UPS · <name> · Rack A03 U6–7"), the delete confirm ("It has no ports or cables."), the work list; patching never offers a rack item as a far end; Copy rack layout copies rack items, Duplicate is not offered | `planning/summary.test.ts`, `deletePreview.test.ts`, `duplicate.test.ts`, `inventory/workList.test.ts`, `patching/patching.test.ts`; `duplicate` (BK-04) |
 | RI-13 | Browser, plan: drag Rack item onto a free unit of Rack A03, choose UPS, add; dashed with its plate; move it by a drag; its Changes line; record, Installed shows it; delete it in a later plan | `rack-items.recording` |
 | RI-14 | Browser, Installed: the UPS opens in the inspector and on its page with "No ports", no Duplicate in a plan; the Inventory's Type pill; the cable manager's type fixed to Other "Fan tray" and History lists it | `rack-items`; `rack-items.recording` (the fix) |
-| RI-15 | Browser: a rack item is not in the trace picker, on the tree, a Find AGG / BB start or a patching far end | `rack-items` |
+| RI-15 | Browser: a rack item is not on the tree, a Find AGG / BB start or a patching far end | `rack-items` |
 
 ## M5–M7 — Editing, persistence, scale, and governance
 

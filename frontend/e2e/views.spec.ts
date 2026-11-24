@@ -4,11 +4,12 @@ import {
   fitted,
   openRackInPhysical,
   hierarchyState,
-  pick,
   selectEquipment,
   settledViewport,
   viewport,
   expandResults,
+  openExplore,
+  findAggBb,
 } from './helpers'
 
 // The explorer and the map write their state as data marks; these specs assert them.
@@ -25,8 +26,7 @@ const select = (page: Page) =>
   page.getByRole('combobox', { name: 'Show network' })
 
 async function findFromEdge17(page: Page, route: number) {
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await expect(page.getByTestId('route-row')).toHaveCount(3)
   await page.getByTestId('route-row').nth(route).click()
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
@@ -174,9 +174,7 @@ test('PHY-11 the same walkthrough with Network B and AGG-12: 3C/2 is selected, a
   await page.goto('/')
   await fitted(page)
   await select(page).selectOption({ label: 'Network B' })
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await pick(page, 'Start', 'edge-22 all ports')
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page, 'EDGE-22')
   await expect(page.getByTestId('route-row')).toHaveCount(1)
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await pan(page)
@@ -258,8 +256,7 @@ test('F05 a conceptual endpoint opens the exact place in Physical: from the insp
 
   // A hop: in Conceptual it switches to Physical and opens that endpoint.
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await page
     .getByRole('button', { name: 'Show in Physical: HDF-02', exact: true })
     .first()
@@ -306,4 +303,56 @@ test('F11 Installed/Plan keeps the physical location, falling back to the neares
   await expect(
     page.getByRole('button', { name: 'Back', exact: true }),
   ).toBeEnabled()
+})
+
+test('D47-01 a site or node name opens it in Physical: from Explore on Conceptual, and from the inspector place line', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await fitted(page)
+  await expect(page.locator('.flow-surface')).toBeVisible()
+  // Explore on Conceptual: the site name, then (back on Conceptual) the node name.
+  await openExplore(page)
+  await page
+    .getByRole('button', { name: 'Open Main Campus in Physical' })
+    .click()
+  await expect(page.locator('.flow-surface')).toHaveCount(0)
+  await expectMark(page, 'data-physical-level', 'site')
+  await expectMark(page, 'data-location', 'site:site-main-campus')
+  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Open Building A in Physical' })
+    .click()
+  await expectMark(page, 'data-physical-level', 'node')
+  await expectMark(
+    page,
+    'data-location',
+    'site:site-main-campus/node:node-building-a',
+  )
+
+  // The inspector of EDGE-17: its site and node links do the same.
+  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
+  await page.locator('[data-card-key="agg-03+agg-08|node-building-a"]').click()
+  const drawer = page.getByTestId('hierarchy-drawer')
+  await drawer.locator('[data-switch-id="edge-17"]').click()
+  await drawer.getByRole('button', { name: 'Inspector' }).click()
+  await expect(page.locator('.inspector-header h2')).toHaveText('EDGE-17')
+  await page
+    .getByRole('button', { name: 'Open site Main Campus in Physical' })
+    .click()
+  await expect(page.locator('.flow-surface')).toHaveCount(0)
+  await expectMark(page, 'data-physical-level', 'site')
+  await expectMark(page, 'data-location', 'site:site-main-campus')
+  await expect(
+    page.getByRole('complementary', { name: 'Equipment inspector' }),
+  ).toBeVisible()
+  await page
+    .getByRole('button', { name: 'Open node Building A in Physical' })
+    .click()
+  await expectMark(page, 'data-physical-level', 'node')
+  await expectMark(
+    page,
+    'data-location',
+    'site:site-main-campus/node:node-building-a',
+  )
 })

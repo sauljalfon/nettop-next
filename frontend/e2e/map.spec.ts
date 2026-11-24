@@ -42,11 +42,7 @@ test('C10 a tool opens the dock beside the canvas and the map is neither refit n
   page,
 }) => {
   await page.goto('/')
-  await expectToolsBesideTheMap(page, [
-    'Open explorer',
-    'Open trace tools',
-    'Open inspector',
-  ])
+  await expectToolsBesideTheMap(page, ['Open explorer', 'Open inspector'])
   // Add is for plans only: disabled in Installed, and the dock never shows it there.
   await expect(
     page.getByRole('button', { name: 'Add equipment library', exact: true }),

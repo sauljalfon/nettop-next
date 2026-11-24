@@ -1,16 +1,12 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, pick, selectEquipment } from './helpers'
+import { fitted, selectEquipment, findAggBb } from './helpers'
 
 const rows = (page: Page) =>
   page.getByLabel('Trace results').getByTestId('route-row')
 
 // The trace from the Trace tools, so the hierarchy stays the view and its own buttons are on screen.
 async function traceFromTools(page: Page) {
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
-  await pick(page, 'Start', 'edge-17 all ports')
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page, 'EDGE-17')
   await expect(rows(page)).toHaveCount(3)
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }
@@ -35,12 +31,7 @@ test('POL-02 every overlay button stays clickable with each tool open in the doc
   await expect(
     page.getByRole('button', { name: 'Add equipment library', exact: true }),
   ).toBeDisabled()
-  const drawers = [
-    'Open explorer',
-    'Open trace tools',
-    'Open inspector',
-    'Changes',
-  ]
+  const drawers = ['Open explorer', 'Open inspector', 'Changes']
   for (const opener of drawers) {
     const toggle = page.getByRole('button', {
       name: opener === 'Changes' ? /^Changes/ : opener,

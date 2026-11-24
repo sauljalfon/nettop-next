@@ -147,7 +147,7 @@ test('POL-10 Find AGG / BB from an inspector entry, and Show on map selects it o
   await expect(results.getByTestId('route-row')).toContainText('3C/5 front')
   await expect(results.getByTestId('route-row')).toContainText('AGG-03')
 
-  // Show on map (header): selected on the tree, nothing highlighted, the route kept.
+  // Show on map (header): selected on the tree, the route kept.
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await page.getByRole('button', { name: 'Show on map: HDF-01' }).click()
   await expect(page.locator(`[data-card-key="${BUILDING_A}"]`)).toHaveAttribute(
@@ -157,56 +157,42 @@ test('POL-10 Find AGG / BB from an inspector entry, and Show on map selects it o
   await expect(page.getByTestId('hierarchy-drawer').locator('h2')).toHaveText(
     'HDF-01',
   )
-  await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
   await expandResults(page)
   await expect(results.getByTestId('route-row')).toHaveCount(1)
 })
 
-test('POL-11 the location links highlight the site or node on the map, and the rack opens in Physical', async ({
+test('POL-11 the location links open the site or node in Physical, and the rack opens in Physical', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await inspectOnHierarchy(page, 'edge-17', 'EDGE-17')
-  const highlighted = () =>
-    page
-      .locator('[data-card-key][data-highlighted="true"]')
-      .evaluateAll((els) => els.map((e) => e.getAttribute('data-card-key')))
+  const explorer = page.locator('.physical-explorer')
 
-  // A node highlights its node cards; a site also its tier cards. Both fit the view to them.
   await page
-    .getByRole('button', { name: 'Highlight node Building A on the map' })
+    .getByRole('button', { name: 'Open node Building A in Physical' })
     .click()
-  await expect.poll(highlighted).toEqual([BUILDING_A])
-  await expectInsideVisibleArea(page, [BUILDING_A])
-  await expect(
-    page.getByRole('button', { name: 'Clear highlight' }),
-  ).toBeVisible()
+  await expect(page.locator('.flow-surface')).toHaveCount(0)
+  await expect(explorer).toHaveAttribute(
+    'data-location',
+    'site:site-main-campus/node:node-building-a',
+  )
   await page
-    .getByRole('button', { name: 'Highlight site Main Campus on the map' })
+    .getByRole('button', { name: 'Open site Main Campus in Physical' })
     .click()
-  await expect
-    .poll(async () => (await highlighted()).sort())
-    .toEqual(['agg-03', BUILDING_A, 'agg-08', 'agg-15', 'bb-01'])
+  await expect(explorer).toHaveAttribute(
+    'data-location',
+    'site:site-main-campus',
+  )
 
   // The rack opens in Physical.
   await page.getByRole('button', { name: 'Open Rack A03 in Physical' }).click()
   await expect(page.locator('.flow-surface')).toHaveCount(0)
-  await expect(page.locator('.physical-explorer')).toHaveAttribute(
-    'data-location',
-    /rack:rack-a03/,
-  )
+  await expect(explorer).toHaveAttribute('data-location', /rack:rack-a03/)
   await expect(page.getByTestId('rack-slot-rack-a03-8')).toContainText(
     'EDGE-17',
   )
   await expect(page.getByTestId('rack-slot-rack-core-01-8')).toHaveCount(0) // only that rack
-
-  // From Physical, a location link switches back to the map and highlights there.
-  await page
-    .getByRole('button', { name: 'Highlight node Building A on the map' })
-    .click()
-  await expect(page.locator('.flow-surface')).toBeVisible()
-  await expect.poll(highlighted).toEqual([BUILDING_A])
 })
 
 test('whole-device Find AGG / BB is offered for switches only', async ({
@@ -330,7 +316,7 @@ test('POL-20 the inspector has Overview and Ports tabs, a compact port table, al
   ).toBeVisible()
 })
 
-test('POL-21 the inspector has no trace form: one Find AGG / BB button, and its result still shows', async ({
+test('POL-21 the inspector has no trace form: one Find AGG / BB button, and its result shows in a tab with no form', async ({
   page,
 }) => {
   await page.goto('/')
@@ -348,8 +334,10 @@ test('POL-21 the inspector has no trace form: one Find AGG / BB button, and its 
   await expect(
     page.getByLabel('Trace results').getByTestId('route-row'),
   ).toHaveCount(3)
-  // The Trace tab, which the trace opened, has the form.
-  await expect(page.getByRole('combobox', { name: 'Trace mode' })).toBeVisible()
+  // The Trace tab, which the trace opened, has no form.
+  await expect(page.getByRole('combobox', { name: 'Trace mode' })).toHaveCount(
+    0,
+  )
 })
 
 test('POL-20 the tabs follow the WAI-ARIA pattern: roving tabindex and arrow keys', async ({

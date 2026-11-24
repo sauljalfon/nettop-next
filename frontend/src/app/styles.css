@@ -661,7 +661,7 @@ button:hover:not(:disabled) {
   }
 }
 
-/* A site or node name in Explore: clicking it highlights it on the map. */
+/* A site or node name in Explore: clicking it opens it in Physical. */
 .location-name {
   padding: 0;
   border: 0;
@@ -676,16 +676,6 @@ button:hover:not(:disabled) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.location-name .location-icon {
-  opacity: 0;
-  color: var(--amber);
-}
-
-.location-name:hover .location-icon,
-.location-name:focus-visible .location-icon {
-  opacity: 1;
 }
 
 .location-name:hover {

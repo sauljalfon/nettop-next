@@ -1,16 +1,12 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, pick, viewport } from './helpers'
+import { fitted, viewport, findAggBb, settledViewport } from './helpers'
 
 const rows = (page: Page) =>
   page.getByLabel('Trace results').getByTestId('route-row')
 
-// The trace from the Trace tools, so the hierarchy stays the view.
+// The trace from a switch's inspector, so the hierarchy stays the view.
 async function traceFromTools(page: Page) {
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
-  await pick(page, 'Start', 'edge-17 all ports')
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page, 'EDGE-17')
   await expect(rows(page)).toHaveCount(3)
 }
 const hierarchy = (page: Page) => page.locator('[data-view="hierarchy"]')
@@ -24,13 +20,16 @@ test('P18 a route found while the map shows another network is still complete, a
 }) => {
   await page.goto('/')
   await fitted(page)
+  await traceFromTools(page)
+  // Clear the selection (the Node tab's ×), or it would pull its own network back.
+  await page.getByRole('tab', { name: 'Node' }).click()
+  await page.getByRole('button', { name: 'Close Node details' }).click()
   await choose(page, 'Network B')
   await expect(hierarchy(page)).toHaveAttribute('data-network', 'net-b')
   await expect(hierarchy(page)).toHaveAttribute('data-fitted', 'true')
   const all = await positions(page)
   const port = await viewport(page)
 
-  await traceFromTools(page)
   // The backend result is complete (three routes) though the map draws Network B:
   // none of its cards is on the route, and nothing is dimmed or moved.
   await expect(rows(page)).toHaveCount(3)
@@ -59,15 +58,16 @@ test('P18 a route found while the map shows another network is still complete, a
 test('Clear trace removes the route marks only', async ({ page }) => {
   await page.goto('/')
   await fitted(page)
-  const port = await viewport(page)
-  const all = await positions(page)
   await traceFromTools(page)
   await expect(
     hierarchy(page).locator('[data-on-route="true"]'),
   ).not.toHaveCount(0)
+  // The selection pans the tree once; Clear trace must not move it again.
+  const port = await settledViewport(page)
+  const all = await positions(page)
   await page.getByRole('button', { name: 'Clear trace' }).click()
   await expect(page.getByLabel('Trace results')).toHaveCount(0)
   await expect(hierarchy(page).locator('[data-on-route="true"]')).toHaveCount(0)
   expect(await positions(page)).toBe(all)
-  expect(await viewport(page)).toBe(port)
+  expect(await settledViewport(page)).toBe(port)
 })

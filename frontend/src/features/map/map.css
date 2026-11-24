@@ -223,7 +223,6 @@
 .hframe-agg.on-route {
   color: var(--route);
 }
-.hframe-agg.highlighted,
 .hframe-agg.hot {
   box-shadow: inset 0 0 0 2px var(--amber-halo);
 }
@@ -239,7 +238,7 @@
   border-top: 3px solid var(--ink-soft);
 }
 
-/* Cards: paper, a 1px rule, one row. Proposed is dashed, the route teal, a highlight amber. A route never dims; a selection does. */
+/* Cards: paper, a 1px rule, one row. Proposed is dashed, the route teal, the selected card amber. A route never dims; a selection does. */
 .hcard {
   display: flex;
   gap: 6px;
@@ -276,14 +275,12 @@
 .hcard.on-route {
   border: 2px solid var(--route);
 }
-.hcard.highlighted,
 .hcard.hot {
   border-color: var(--amber);
   box-shadow:
     0 0 0 2px var(--amber-halo),
     0 0 0 6px var(--amber-soft);
 }
-.hcard.on-route.highlighted,
 .hcard.on-route.hot {
   border-color: var(--route);
 }

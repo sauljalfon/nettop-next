@@ -121,3 +121,39 @@ test('TT-04 in Physical the same tab, and a row opens that endpoint', async ({
     /rack:rack-core-01/,
   )
 })
+
+test('TT-05 the Trace tab has no form: Find AGG / BB from a switch shows the routes, Clear trace removes the tab', async ({
+  page,
+}) => {
+  // No trace: no Trace icon on the rail, no Trace tab.
+  await expect(
+    page.getByRole('button', { name: 'Open trace tools' }),
+  ).toHaveCount(0)
+  await page.getByRole('button', { name: 'Open inspector' }).click()
+  await expect(page.getByRole('tab', { name: 'Trace' })).toHaveCount(0)
+  await findFromInspector(page)
+  const tab = dock(page).getByRole('tab', { name: 'Trace', selected: true })
+  await expect(tab).toBeVisible()
+  await expect(dock(page).getByTestId('route-row')).toHaveCount(3)
+  // No form: no mode select, no Start or Destination, no Find AGG / BB button in the tab.
+  await expect(page.getByRole('combobox', { name: 'Trace mode' })).toHaveCount(
+    0,
+  )
+  await expect(page.getByRole('combobox', { name: 'Start' })).toHaveCount(0)
+  await expect(page.getByRole('combobox', { name: 'Destination' })).toHaveCount(
+    0,
+  )
+  await expect(
+    page.getByRole('region', { name: 'Trace tools' }).or(dock(page)),
+  ).toBeVisible()
+  await expect(
+    dock(page).getByRole('button', { name: 'Find AGG / BB', exact: true }),
+  ).toHaveCount(0)
+  await dock(page).getByRole('button', { name: 'Clear trace' }).click()
+  await expect(page.getByRole('tab', { name: 'Trace' })).toHaveCount(0)
+  await expect(page.locator('[data-on-route="true"]')).toHaveCount(0)
+  // The dock stays open, on the Inspector it had before the trace.
+  await expect(
+    dock(page).getByRole('tab', { name: 'Inspector', selected: true }),
+  ).toBeVisible()
+})

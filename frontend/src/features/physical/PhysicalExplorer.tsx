@@ -34,7 +34,6 @@ import DuplicateEquipment from '../planning/DuplicateEquipment'
 import { hasPorts } from '../../shared/equipment'
 import { faceMarks, pageFace } from './equipmentModel'
 import PrintSheet from './PrintSheet'
-import RouteTrail from './RouteTrail'
 import { currentStep, trailSteps } from './trail'
 import { switchSide } from './detail'
 import { rackElevation, rackNeighbours } from './elevation'
@@ -435,17 +434,6 @@ export default function PhysicalExplorer({
               {scopeNote(snapshot.networks, selectedNetwork)}
             </p>
           </>
-        )}
-        {trail.length > 0 && (
-          <RouteTrail
-            title={trailTitle}
-            steps={trail}
-            current={trailAt}
-            onOpen={(step) => {
-              go({ endpointId: step.openEndpointId })
-              onSelectEquipment(step.equipmentId)
-            }}
-          />
         )}
       </div>
       <div className="physical-body">

@@ -5,7 +5,6 @@ import { acceptanceSnapshot, agg03Route } from './acceptanceFixture'
 import { buildHierarchies, type InstalledSets } from './hierarchy'
 import { hierarchyFixture } from './hierarchyFixture'
 import {
-  highlightedCards,
   hotCards,
   projectHierarchy,
   type HierarchyFlowNode,
@@ -22,7 +21,6 @@ function project(
   opts: {
     net?: string
     route?: boolean
-    highlighted?: ReadonlySet<string>
     hot?: ReadonlySet<string>
     onlyProblems?: boolean
     open?: ReadonlySet<string>
@@ -44,7 +42,6 @@ function project(
     colors: networkColors(s.networks),
     marks: opts.route ? routeMarks(index, agg03Route()) : none,
     open,
-    highlighted: opts.highlighted ?? new Set(),
     hot: opts.hot ?? new Set(),
   })
   return { h, layout, index, ...out }
@@ -387,7 +384,6 @@ describe('OV-02 the hierarchy projection', () => {
       colors: networkColors(s.networks),
       marks,
       open: new Set(),
-      highlighted: new Set(),
       hot: new Set(),
     })
     expect(node(nodes, 'AGG-03+AGG-08|node-a').data.onRoute).toBe(true)
@@ -420,7 +416,6 @@ describe('OV-02 the hierarchy projection', () => {
       colors: networkColors(s.networks),
       marks,
       open: new Set(),
-      highlighted: new Set(),
       hot: new Set(),
     })
     const lit = edges.filter((e) => classes(e).includes('on-route'))
@@ -428,12 +423,11 @@ describe('OV-02 the hierarchy projection', () => {
     expect(lit.map((e) => e.id)).not.toContain('line:uplink:BB2|AGG1+AGG2')
   })
 
-  it('leaves every box where it was when the route, the highlight or the hot set changes', () => {
+  it('leaves every box where it was when the route or the hot set changes', () => {
     const s = acceptanceSnapshot()
     const before = project(s)
     const after = project(s, {
       route: true,
-      highlighted: new Set(['AGG-03+AGG-08|node-a']),
       hot: new Set(['AGG-03']),
     })
     const at = (r: typeof before) =>
@@ -448,19 +442,17 @@ describe('OV-02 the hierarchy projection', () => {
     for (const e of edges) expect(classes(e)).not.toContain('dimmed')
   })
 
-  it('marks highlighted and hot AGGs, and the lines of a hot AGG from the tops that reach it', () => {
+  it('marks hot AGGs, and the lines of a hot AGG from the tops that reach it', () => {
     const { nodes, edges } = project(twoTops(), {
-      highlighted: new Set(['AGG1']),
       hot: new Set(['AGG1']),
     })
     const aggs = node(nodes, 'frame:AGG1+AGG2').data.aggs as {
       id: string
-      highlighted: boolean
       hot: boolean
     }[]
-    expect(aggs.map((a) => [a.id, a.highlighted, a.hot])).toEqual([
-      ['AGG1', true, true],
-      ['AGG2', false, false],
+    expect(aggs.map((a) => [a.id, a.hot])).toEqual([
+      ['AGG1', true],
+      ['AGG2', false],
     ])
     const hot = edges.filter((e) => classes(e).includes('hot')).map((e) => e.id)
     expect(hot).toEqual(
@@ -509,38 +501,9 @@ describe('OV-02 the hierarchy projection', () => {
       colors: networkColors(s.networks),
       marks: none,
       open: new Set(),
-      highlighted: new Set(),
       hot: new Set(),
     })
     expect(out).toEqual({ nodes: [], edges: [] })
-  })
-})
-
-describe('HI-06 highlightedCards', () => {
-  const s = acceptanceSnapshot()
-  const index = indexSnapshot(s)
-  const h = buildHierarchies(index).get('A')!
-
-  it('is empty with no location, or a location the snapshot does not have', () => {
-    expect(highlightedCards(h, index, undefined).size).toBe(0)
-    expect(highlightedCards(h, index, { kind: 'node', id: 'gone' }).size).toBe(
-      0,
-    )
-  })
-
-  it('marks the node cards of a node, and the tier cards placed there', () => {
-    const got = highlightedCards(h, index, { kind: 'node', id: 'node-a' })
-    expect(got.has('AGG-03+AGG-08|node-a')).toBe(true)
-    for (const id of [...h.topIds, ...h.aggIds])
-      expect(got.has(id)).toBe(index.places.get(id)?.nodeId === 'node-a')
-  })
-
-  it('marks every card of a site', () => {
-    const site = index.places.get('EDGE-17')!.siteId!
-    const got = highlightedCards(h, index, { kind: 'site', id: site })
-    expect(got.has('AGG-03+AGG-08|node-a')).toBe(true)
-    for (const id of [...h.topIds, ...h.aggIds])
-      expect(got.has(id)).toBe(index.places.get(id)?.siteId === site)
   })
 })
 

@@ -41,11 +41,10 @@ export default memo(function TierCard({ data }: NodeProps<HierarchyTierNode>) {
       <HierarchyHandle side="right" />
       <button
         type="button"
-        className={`hcard hcard-tier top${data.proposed ? ' proposed' : ''}${data.onRoute ? ' on-route' : ''}${data.highlighted ? ' highlighted' : ''}${data.hot ? ' hot' : ''}`}
+        className={`hcard hcard-tier top${data.proposed ? ' proposed' : ''}${data.onRoute ? ' on-route' : ''}${data.hot ? ' hot' : ''}`}
         data-card-key={data.id}
         data-on-route={data.onRoute}
         data-proposed={data.proposed}
-        data-highlighted={data.highlighted}
         data-hot={data.hot}
         {...emphasisMarks(data.emphasis, data.selected)}
         title={place || undefined}

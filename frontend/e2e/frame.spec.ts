@@ -30,7 +30,8 @@ test('FR-01 the header is 44px and the rail 48px', async ({ page }) => {
   await expect(canvas(page)).toBeVisible()
   expect((await header(page).boundingBox())!.height).toBe(44)
   expect((await rail(page).boundingBox())!.width).toBe(48)
-  await expect(rail(page).locator('button')).toHaveCount(4)
+  await expect(rail(page).locator('button')).toHaveCount(3)
+  await expect(open(page, 'Open trace tools')).toHaveCount(0)
   // Icons only: no text under them.
   await expect(rail(page)).toHaveText('')
 })
@@ -61,13 +62,14 @@ test('FR-03 one tab at a time', async ({ page }) => {
   await page.goto('/')
   await open(page, 'Open explorer').click()
   await expect(dock(page, 'Explore infrastructure')).toBeVisible()
-  await open(page, 'Open trace tools').click()
-  await expect(dock(page, 'Trace tools')).toBeVisible()
+  await open(page, 'Open inspector').click()
+  await expect(dock(page, 'Equipment inspector')).toBeVisible()
   await expect(page.getByRole('complementary')).toHaveCount(1)
-  await expect(page.getByRole('tab', { name: 'Trace' })).toHaveAttribute(
+  await expect(page.getByRole('tab', { name: 'Inspector' })).toHaveAttribute(
     'aria-selected',
     'true',
   )
+  await expect(page.getByRole('tab', { name: 'Trace' })).toHaveCount(0)
   await page.getByRole('tab', { name: 'Explore' }).click()
   await expect(dock(page, 'Explore infrastructure')).toBeVisible()
   await expect(page.getByRole('complementary')).toHaveCount(1)
@@ -75,12 +77,12 @@ test('FR-03 one tab at a time', async ({ page }) => {
 
 test('FR-04 the same icon again, ×, and Esc close it', async ({ page }) => {
   await page.goto('/')
-  await open(page, 'Open trace tools').click()
-  await expect(dock(page, 'Trace tools')).toBeVisible()
-  await open(page, 'Open trace tools').click()
+  await open(page, 'Open inspector').click()
+  await expect(dock(page, 'Equipment inspector')).toBeVisible()
+  await open(page, 'Open inspector').click()
   await expect(page.getByRole('complementary')).toHaveCount(0)
-  await open(page, 'Open trace tools').click()
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await open(page, 'Open inspector').click()
+  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await expect(page.getByRole('complementary')).toHaveCount(0)
   await open(page, 'Open explorer').click()
   await expect(dock(page, 'Explore infrastructure')).toBeVisible()
@@ -97,7 +99,7 @@ test('FR-05 Add is only in a plan', async ({ page }) => {
   const add = open(page, 'Add equipment library')
   await expect(add).toBeDisabled()
   await expect(add).toHaveAttribute('title', 'Add: open a plan first')
-  await open(page, 'Open trace tools').click()
+  await open(page, 'Open explorer').click()
   await expect(page.getByRole('tab', { name: 'Add' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await expect(add).toBeEnabled()
@@ -129,11 +131,7 @@ test.describe('1280×720', () => {
     await page.goto('/')
     await expect(canvas(page)).toBeVisible()
     expect(await sidewaysScroll(page)).toEqual([])
-    for (const name of [
-      'Open inspector',
-      'Open trace tools',
-      'Open explorer',
-    ]) {
+    for (const name of ['Open inspector', 'Open explorer']) {
       await open(page, name).click()
       await expect(page.getByRole('complementary')).toBeVisible()
       expect(await sidewaysScroll(page)).toEqual([])
@@ -186,9 +184,9 @@ test('FR-07c switching Installed ↔ Plan keeps the dock', async ({ page }) => {
 
 test.describe('1280×720 tabs', () => {
   test.use({ viewport: { width: 1280, height: 720 } })
-  // No test hook opens the details tab before Task 2, so this has six tabs:
-  // Inspector, Trace, Explore, Add, Changes and Networks.
-  test('FR-07d six or seven tabs fit or scroll inside the tab row', async ({
+  // No details tab and no trace, so this has five tabs:
+  // Inspector, Explore, Add, Changes and Networks.
+  test('FR-07d five or six tabs fit or scroll inside the tab row', async ({
     page,
   }) => {
     await page.goto('/')
@@ -198,7 +196,7 @@ test.describe('1280×720 tabs', () => {
       .selectOption({ label: 'Manage networks…' })
     const dockEl = dock(page, 'Manage networks')
     await expect(dockEl).toBeVisible()
-    await expect(page.getByRole('tab')).toHaveCount(6)
+    await expect(page.getByRole('tab')).toHaveCount(5)
     const d = (await dockEl.boundingBox())!
     const x = page.getByRole('button', { name: 'Close Manage networks' })
     await expect(x).toBeVisible()
@@ -214,8 +212,8 @@ test.describe('1280×720 tabs', () => {
     expect(await sidewaysScroll(page)).toEqual([])
     // The row itself must not push the dock wider than 380px.
     expect(d.width).toBe(380)
-    // On a phone the six tabs no longer fit: the row scrolls inside itself, the x stays put.
-    await page.setViewportSize({ width: 360, height: 640 })
+    // On a narrow phone the five tabs no longer fit: the row scrolls inside itself, the x stays put.
+    await page.setViewportSize({ width: 300, height: 640 })
     const list = page.getByRole('tablist', { name: 'Dock' })
     expect(await list.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
       true,
@@ -224,7 +222,7 @@ test.describe('1280×720 tabs', () => {
     await page.getByRole('tab', { name: 'Networks' }).scrollIntoViewIfNeeded()
     await expect(page.getByRole('tab', { name: 'Networks' })).toBeInViewport()
     const xs = (await x.boundingBox())!
-    expect(xs.x + xs.width).toBeLessThanOrEqual(360)
+    expect(xs.x + xs.width).toBeLessThanOrEqual(300)
     // (The page itself never scrolls; the phone header is not this task's concern.)
     expect(
       await page.evaluate(
@@ -391,7 +389,7 @@ test('FR-12 Key shows and hides the legend', async ({ page }) => {
 
 test.describe('1280×720 with details', () => {
   test.use({ viewport: { width: 1280, height: 720 } })
-  test('FR-07e seven tabs (Node, Add and Networks) fit or scroll inside the row', async ({
+  test('FR-07e six tabs (Node, Add and Networks) fit or scroll inside the row', async ({
     page,
     request,
   }) => {
@@ -404,7 +402,7 @@ test.describe('1280×720 with details', () => {
       .selectOption({ label: 'Manage networks…' })
     const dockEl = dock(page, 'Manage networks')
     await expect(dockEl).toBeVisible()
-    await expect(page.getByRole('tab')).toHaveCount(7)
+    await expect(page.getByRole('tab')).toHaveCount(6)
     await expect(page.getByRole('tab', { name: 'Node' })).toBeVisible()
     const d = (await dockEl.boundingBox())!
     const x = page.getByRole('button', { name: 'Close Manage networks' })

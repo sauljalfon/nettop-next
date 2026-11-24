@@ -2,7 +2,7 @@ import { expect, test, type Page } from './fixtures'
 import { readFileSync } from 'node:fs'
 import {
   fitted,
-  highlightLocation,
+  openPlaceFromExplore,
   openExplore,
   selectEquipment,
 } from './helpers'
@@ -843,11 +843,14 @@ test('Explore while the Inventory is shown: equipment and port hits open the ins
   await expect(root(page)).toBeVisible()
 })
 
-test('Explore while the Inventory is shown: a site highlights it on the map, as today', async ({
+test('Explore while the Inventory is shown: a site name opens it in Physical', async ({
   page,
 }) => {
   await openInventory(page)
-  await highlightLocation(page, 'Main Campus')
+  await openPlaceFromExplore(page, 'Main Campus')
   await expect(root(page)).toHaveCount(0)
-  await expect(page.locator('[data-view]')).toBeVisible()
+  await expect(physicalRoot(page)).toHaveAttribute(
+    'data-location',
+    'site:site-main-campus',
+  )
 })

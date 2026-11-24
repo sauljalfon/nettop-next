@@ -10,7 +10,6 @@ import EndpointEdit from '../planning/EndpointEdit'
 import type { PlanEdit } from '../planning/editing'
 import PortDetails from '../details/PortDetails'
 import PathBar from '../paths/PathBar'
-import UplinksSummary from '../paths/UplinksSummary'
 import { useUplinks } from '../paths/useUplinks'
 import ConnectsTo from './ConnectsToCard'
 import { connectsTo } from './connectsTo'
@@ -257,7 +256,7 @@ export default function EquipmentPage({
         <div
           className={`equipment-layout no-strip no-detail${linksBeside ? ' has-links' : ''}`}
         >
-          <div className="equipment-main">
+          <div className="equipment-main" data-kind={equipment.kind}>
             <p className="equipment-details" data-testid="equipment-details">
               {meta}
               {free > 0 && ` · ${free} free`}
@@ -294,14 +293,6 @@ export default function EquipmentPage({
               }}
               onSide={onSide}
             />
-            {equipment.kind === 'switch' && (
-              <UplinksSummary
-                equipment={equipment}
-                state={uplinks}
-                selectedEndpointId={location.endpointId}
-                onSelect={selectJack}
-              />
-            )}
             {!linksBeside && links(true)}
           </div>
           {linksBeside && links(false)}

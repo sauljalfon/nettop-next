@@ -733,62 +733,6 @@
   border-top: 1px solid var(--rule-soft);
 }
 
-/* Route trail */
-.route-trail {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-  font-size: var(--t-sm);
-  color: var(--ink-soft);
-}
-.trail-title {
-  flex: none;
-  font-weight: 600;
-  color: var(--ink);
-}
-.trail-steps {
-  display: flex;
-  flex: 1;
-  gap: 4px;
-  min-width: 0;
-  padding-bottom: 2px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  white-space: nowrap;
-}
-.trail-step {
-  flex: none;
-  height: 22px;
-  padding: 0 9px;
-  font-size: var(--t-xs);
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-}
-.trail-step[data-current='true'] {
-  font-weight: 500;
-  background: var(--route-soft);
-  border-color: var(--route);
-}
-.trail-count {
-  flex: none;
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-}
-.trail-nav {
-  flex: none;
-  height: 26px;
-  padding: 0 10px;
-  font-size: var(--t-xs);
-  font-weight: 500;
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-control);
-}
-
 /* Rack cabinet: rails with screw holes, units sized to the space (--unit). */
 .rack-cabinet {
   position: relative;
@@ -1428,7 +1372,7 @@
   line-height: 1;
 }
 
-/* The face with the uplinks summary above it. */
+/* The face column. */
 .equipment-main {
   display: grid;
   gap: 12px;
@@ -1441,15 +1385,9 @@
   width: 0;
   min-width: 100%;
 }
-.equipment-main:has(.uplinks) {
+/* A switch's page keeps a readable width for its details line. */
+.equipment-main[data-kind='switch'] {
   min-width: min(640px, 100cqw);
-}
-.equipment-main > .uplinks {
-  width: 0;
-  min-width: 100%;
-}
-.equipment-main .uplinks {
-  margin-bottom: 0;
 }
 
 /* Add rack / Add site: a dashed paper box with quiet button text. */

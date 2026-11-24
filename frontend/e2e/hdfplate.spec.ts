@@ -4,6 +4,7 @@ import {
   expectNearPlace,
   fitted,
   openRackInPhysical,
+  findAggBb,
 } from './helpers'
 import { planWith32RowHdf } from './plan-api'
 
@@ -40,8 +41,7 @@ async function openEquipment(
   await expectMark(page, 'data-physical-level', 'equipment')
 }
 async function traceAgg03(page: Page) {
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await expect(page.getByTestId('route-row')).toHaveCount(3)
   await page.getByRole('button', { name: 'Close Trace tools' }).click()
 }

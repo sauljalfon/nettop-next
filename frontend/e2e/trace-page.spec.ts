@@ -80,11 +80,13 @@ test('TP-01 Open full page shows the trace on its own page', async ({
   page,
 }) => {
   await openPage(page)
-  // No dock; the rail's Trace shows on; the view switch has none pressed.
+  // No dock; no rail icon is on; the view switch has none pressed.
   await expect(dockOpen(page)).toHaveCount(0)
   await expect(
-    page.getByRole('button', { name: 'Open trace tools', exact: true }),
-  ).toHaveClass(/active/)
+    page
+      .getByRole('navigation', { name: 'Workspace tools' })
+      .locator('.active'),
+  ).toHaveCount(0)
   for (const v of ['Conceptual', 'Physical', 'Inventory'])
     await expect(
       page.getByRole('button', { name: v, exact: true }),
@@ -456,9 +458,7 @@ test('TP-08 Esc on the Trace page (Picture only or not) leaves the tree’s sele
   const card = page.locator(`[data-card-key="${BUILDING_A}"]`)
   await card.click()
   await expect(card).toHaveAttribute('data-selected', 'true')
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
+  await page.getByRole('tab', { name: 'Trace' }).click()
   await page.getByRole('button', { name: 'Open full page ⤢' }).click()
   await expect(tp(page)).toBeVisible()
   // Esc with nothing to close on the page, then Esc to leave Picture only.
@@ -485,9 +485,7 @@ test('TP-08 ← Back returns to the tree with its viewport and selection, and to
   const card = page.locator(`[data-card-key="${BUILDING_A}"]`)
   await card.click()
   await expect(card).toHaveAttribute('data-selected', 'true')
-  await page
-    .getByRole('button', { name: 'Open trace tools', exact: true })
-    .click()
+  await page.getByRole('tab', { name: 'Trace' }).click()
   await expect(page.getByLabel('Trace results')).toBeVisible()
   const before = await hierarchyState(page)
   const port = await settledViewport(page)

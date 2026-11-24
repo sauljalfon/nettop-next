@@ -37,11 +37,10 @@ export default memo(function FrameCard({
             {i > 0 && <span className="hframe-peer" title="Peer link" />}
             <button
               type="button"
-              className={`hframe-agg${a.proposed ? ' proposed' : ''}${a.onRoute ? ' on-route' : ''}${a.highlighted ? ' highlighted' : ''}${a.hot ? ' hot' : ''}`}
+              className={`hframe-agg${a.proposed ? ' proposed' : ''}${a.onRoute ? ' on-route' : ''}${a.hot ? ' hot' : ''}`}
               data-card-key={a.id}
               data-on-route={a.onRoute}
               data-proposed={a.proposed}
-              data-highlighted={a.highlighted}
               data-hot={a.hot}
               {...emphasisMarks(a.emphasis, a.selected)}
               title={

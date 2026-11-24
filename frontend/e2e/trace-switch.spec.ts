@@ -4,8 +4,8 @@ import {
   fitted,
   openRackInPhysical,
   hierarchyState,
-  pick,
   viewport,
+  findAggBb,
 } from './helpers'
 
 const rows = (page: Page) => page.getByTestId('route-row')
@@ -22,8 +22,7 @@ async function toInstalled(page: Page) {
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
 }
 async function findFromEdge17(page: Page) {
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page)
   await expect(rows(page).first()).toBeVisible()
 }
 /** A fresh draft with one extra cable: EDGE-17 port 4 to AGG-15 port 2 adds a fourth route. */
@@ -75,7 +74,7 @@ test('TR-05 the same Find AGG / BB is rerun in the plan with AGG-08 still select
   expect(await viewport(page)).toBe(before.viewport)
 })
 
-test('TR-05 the physical location is kept, and the route trail follows the rerun route', async ({
+test('TR-05 the physical location is kept, and the route marks follow the rerun route', async ({
   page,
 }) => {
   await page.goto('/')
@@ -141,9 +140,7 @@ test('TR-06 an error shows as usual and the trace comes back with its context; C
   await page.goto('/?plan=expansion')
   await fitted(page)
   // EDGE-18 exists only in the plan: its route to AGG-15 does too.
-  await page.getByRole('button', { name: 'Open trace tools' }).click()
-  await pick(page, 'Start', 'edge-18 all ports')
-  await page.getByRole('button', { name: 'Find AGG / BB', exact: true }).click()
+  await findAggBb(page, 'EDGE-18')
   await expect(rows(page)).toHaveCount(1)
   await expect(rows(page).first()).toContainText('AGG-15')
 
@@ -159,9 +156,10 @@ test('TR-06 an error shows as usual and the trace comes back with its context; C
 
   // Clear trace forgets the request: switching sends nothing and shows nothing.
   await page.getByRole('button', { name: 'Clear trace' }).click()
+  await expect(page.getByRole('tab', { name: 'Trace' })).toHaveCount(0)
   const sent = traces.length
   await toInstalled(page)
-  await toPlan(page)
+  await page.getByRole('button', { name: /^Plan: / }).click()
   await page.waitForTimeout(500)
   expect(traces.length).toBe(sent)
   await expect(page.getByLabel('Trace results')).toHaveCount(0)

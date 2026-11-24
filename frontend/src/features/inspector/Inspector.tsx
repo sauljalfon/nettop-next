@@ -27,7 +27,6 @@ import DuplicateEquipment from '../planning/DuplicateEquipment'
 import { patchingSession } from '../patching/patchingSession'
 import { DisconnectConfirm } from '../planning/EditConfirms'
 import type { PlanEdit } from '../planning/editing'
-import type { LocationRef } from '../map/highlight'
 import NetworkBadge from '../map/NetworkBadge'
 import { cardRoleLabel } from '../map/cardRole'
 import { colorOf, networkColors } from '../map/networkColors'
@@ -39,8 +38,6 @@ import {
   inspectorLocation,
 } from './model'
 import Overview from './Overview'
-import UplinksSummary from '../paths/UplinksSummary'
-import { useUplinks } from '../paths/useUplinks'
 import PortTable from './PortTable'
 import './inspector.css'
 import Name from '../../shared/ui/Name'
@@ -56,14 +53,14 @@ interface Props {
   onFindFromDevice: () => void
   /** Find AGG / BB from one exact endpoint. */
   onFindFromHere: (endpointId: string) => void
-  /** Select the card and center on it (no highlight). */
+  /** Select the card and center on it. */
   onShowOnMap: (equipmentId: string) => void
   /** Open the equipment page in Physical, with an endpoint selected when given. */
   onShowInPhysical: (equipmentId: string, endpointId?: string) => void
   /** Open the Inventory's Ports list with only this equipment. */
   onOpenInInventory: (equipmentName: string) => void
-  /** Highlight the site or node on the map. */
-  onHighlight: (location: LocationRef) => void
+  /** Open a site or node in Physical. */
+  onOpenPlace: (target: { siteId?: string; nodeId?: string }) => void
   onOpenRack: (rackId: string) => void
   /** A port chosen in Explore: opens the Ports/Positions tab with its search filled. */
   searchRequest?: { equipmentId: string; query: string; serial: number }
@@ -75,8 +72,6 @@ interface Props {
   /** After a direct fix: refetch and toast. */
   onFixed: (message: string) => Promise<void>
   installedLinkIDs?: ReadonlySet<string>
-  /** The open plan's ID, for the uplinks request. */
-  planId?: string
   /** The plan placement form, shown on the Overview tab when a plan is open. */
   children?: ReactNode
 }
@@ -104,7 +99,7 @@ export default function Inspector({
   onShowOnMap,
   onShowInPhysical,
   onOpenInInventory,
-  onHighlight,
+  onOpenPlace,
   onOpenRack,
   searchRequest,
   openRequest,
@@ -112,7 +107,6 @@ export default function Inspector({
   edit,
   onFixed,
   installedLinkIDs,
-  planId,
   children,
 }: Props) {
   const forMe =
@@ -147,7 +141,6 @@ export default function Inspector({
     setTab(next)
     tabRefs.current[next]?.focus()
   }
-  const uplinks = useUplinks(snapshot, index, equipment, planId)
   const header = inspectorHeader(snapshot, index, equipment, installedIDs)
   const location = inspectorLocation(index, equipment.id)
   const groups = useMemo(
@@ -204,10 +197,8 @@ export default function Inspector({
             <>
               <button
                 className="location-link"
-                aria-label={`Highlight site ${location.site.name} on the map`}
-                onClick={() =>
-                  onHighlight({ kind: 'site', id: location.site!.id })
-                }
+                aria-label={`Open site ${location.site.name} in Physical`}
+                onClick={() => onOpenPlace({ siteId: location.site!.id })}
               >
                 <Name text={location.site.name} />
               </button>
@@ -218,10 +209,8 @@ export default function Inspector({
             <>
               <button
                 className="location-link"
-                aria-label={`Highlight node ${location.node.name} on the map`}
-                onClick={() =>
-                  onHighlight({ kind: 'node', id: location.node!.id })
-                }
+                aria-label={`Open node ${location.node.name} in Physical`}
+                onClick={() => onOpenPlace({ nodeId: location.node!.id })}
               >
                 <Name text={location.node.name} />
               </button>
@@ -342,15 +331,6 @@ export default function Inspector({
                   <Name text={location.rack.name} /> · U{equipment.unit}
                 </>
               ) : undefined
-            }
-            uplinks={
-              equipment.kind === 'switch' && (
-                <UplinksSummary
-                  equipment={equipment}
-                  state={uplinks}
-                  onSelect={onFindFromHere}
-                />
-              )
             }
             groups={groups}
             networkName={networkName}
