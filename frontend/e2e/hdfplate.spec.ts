@@ -439,3 +439,60 @@ test('PD-02 a switch port is port → cable → far end; a side with no cable is
   await expectMark(page, 'data-selected-endpoint', 'panel-a:10:r')
   await expectMark(page, 'data-side', 'rear')
 })
+
+test('D48-01 Pairs | Pigtails is on every panel and is the same choice as the HDF', async ({
+  page,
+}) => {
+  await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'panel-a')
+  const numbers = page.getByRole('group', { name: 'Numbers' })
+  await expect(numbers).toHaveCount(1)
+  const jack = endpoint(page, 'panel-a:1:f')
+  await expect(jack).toHaveText('1')
+  await expect(numbers.getByRole('button', { name: 'Pairs' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await numbers.getByRole('button', { name: 'Pigtails' }).click()
+  await expect(jack.locator('.jack-line')).toHaveText(['1', '2'])
+  expect((await jack.getAttribute('aria-label')) ?? '').toContain(
+    'pigtails 1,2',
+  )
+  await expect(endpoint(page, 'panel-a:3:f').locator('.jack-line')).toHaveText([
+    '5',
+    '6',
+  ])
+  const j = (await jack.boundingBox())!
+  expect(j.width).toBeCloseTo(28, 0)
+  expect(j.height).toBeCloseTo(30, 0)
+  const lines = jack.locator('.jack-line')
+  for (let i = 0; i < 2; i++) {
+    const l = (await lines.nth(i).boundingBox())!
+    expect(l.y).toBeGreaterThanOrEqual(j.y - 0.5)
+    expect(l.y + l.height).toBeLessThanOrEqual(j.y + j.height + 0.5)
+    expect(l.x).toBeGreaterThanOrEqual(j.x - 0.5)
+    expect(l.x + l.width).toBeLessThanOrEqual(j.x + j.width + 0.5)
+  }
+  await page.screenshot({ path: 'test-results/d48/panel-a-pigtails.png' })
+
+  // The same choice: the HDF is already on Pigtails, and Pairs there puts the panel back.
+  await openEquipment(
+    page,
+    'Main Campus',
+    'North Sub-main',
+    'Rack SM01',
+    'hdf-01',
+  )
+  await expect(
+    numbers.getByRole('button', { name: 'Pigtails' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    endpoint(page, 'hdf-01:sp-3C:5:f').locator('.jack-line'),
+  ).toHaveText(['9', '10'])
+  await numbers.getByRole('button', { name: 'Pairs' }).click()
+  await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'panel-a')
+  await expect(numbers.getByRole('button', { name: 'Pairs' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(jack).toHaveText('1')
+})

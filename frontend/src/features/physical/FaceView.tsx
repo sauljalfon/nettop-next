@@ -1,4 +1,4 @@
-import { FACE_COLUMNS, hdfJackText, layoutPlate } from './faces'
+import { FACE_COLUMNS, fiberPair, hdfJackText, layoutPlate } from './faces'
 import { useHdfNumbering } from './hdfNumbering'
 import NumberingSwitch from './NumberingSwitch'
 import {
@@ -320,7 +320,9 @@ export default function FaceView({
                 ))}
               </div>
             )}
-            {face.kind === 'hdf' && !printing && <NumberingSwitch />}
+            {(face.kind === 'hdf' || face.kind === 'panel') && !printing && (
+              <NumberingSwitch />
+            )}
           </div>
         </header>
       )}
@@ -393,10 +395,19 @@ export default function FaceView({
             <div className="plate-strip">
               {chunks(face.face.positions).map((row) =>
                 row.map((cell) =>
-                  button(cell, String(cell.position), 'jack', {
-                    'data-row': Math.floor((cell.position - 1) / PER_ROW),
-                    'data-position': cell.position,
-                  }),
+                  button(
+                    cell,
+                    hdfJackText(cell.position, numbering),
+                    'jack panel-jack',
+                    {
+                      'data-row': Math.floor((cell.position - 1) / PER_ROW),
+                      'data-position': cell.position,
+                    },
+                    undefined,
+                    numbering === 'pigtails'
+                      ? `pigtails ${fiberPair(cell.position)}`
+                      : undefined,
+                  ),
                 ),
               )}
             </div>

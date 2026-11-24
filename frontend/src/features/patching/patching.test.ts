@@ -12,6 +12,7 @@ import {
   findRack,
   follow,
   freeCount,
+  jackLabel,
   locationTree,
   nextFree,
   pairMarks,
@@ -427,5 +428,26 @@ describe('pairsWaitingText', () => {
   it('reads singular and plural', () => {
     expect(pairsWaitingText(1)).toBe('1 pair is not connected yet.')
     expect(pairsWaitingText(6)).toBe('6 pairs are not connected yet.')
+  })
+})
+
+describe('D48 a panel jack in patching by pairs or pigtails', () => {
+  const panelJack = (position: number, side: 'front' | 'rear') =>
+    s.endpoints.find(
+      (e) =>
+        s.equipment.find((q) => q.id === e.equipmentId)?.kind === 'panel' &&
+        e.position === position &&
+        e.side === side,
+    )!
+  it('is its stored label by pairs', () => {
+    expect(jackLabel(index, panelJack(1, 'front'), 'pairs')).toBe('1 front')
+  })
+  it('is its two fibers and its side by pigtails', () => {
+    expect(jackLabel(index, panelJack(1, 'front'), 'pigtails')).toBe(
+      '1,2 · Front',
+    )
+    expect(jackLabel(index, panelJack(3, 'rear'), 'pigtails')).toBe(
+      '5,6 · Rear',
+    )
   })
 })

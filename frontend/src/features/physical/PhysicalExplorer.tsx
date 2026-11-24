@@ -364,7 +364,7 @@ export default function PhysicalExplorer({
                   : undefined
               }
               onSide={setSide}
-              numbering={face?.kind === 'hdf'}
+              numbering={face?.kind === 'hdf' || face?.kind === 'panel'}
               onOpenInventory={
                 face ? () => onOpenInInventory(equipment.name) : undefined
               }

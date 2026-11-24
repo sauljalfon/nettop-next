@@ -990,6 +990,15 @@
   font-size: var(--t-min);
   line-height: 14px;
 }
+/* A panel jack keeps its 28×30; under pigtails its two fibers stack and sit in the middle. */
+.face-cell.jack.panel-jack:has(.jack-line) {
+  place-items: center;
+  padding: 0;
+}
+.face-cell.jack.panel-jack .jack-line {
+  display: block;
+  line-height: 13px;
+}
 .face-cell.jack.hdf-jack {
   place-items: center;
   width: var(--jack-hdf);

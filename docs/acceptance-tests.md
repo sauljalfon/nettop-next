@@ -185,6 +185,7 @@ Every spec reaches equipment through Explore (`selectEquipment`, which selects i
 | HI-10 | Trace and highlight on the hierarchy: the route lights its cards and lines, another route moves nothing, with Network B the route is undimmed, (Explore's highlight, Clear highlight and its Esc retired with the highlight, D47, 2026-11-24) | `hierarchy-trace` |
 | D47-01 | Browser: a site or node name in Explore (on Conceptual) and in the inspector's place line opens it in Physical | `views` |
 | D47-02, D47-03 | Browser: with a route selected, EDGE-17's page has no trail and no Uplinks block (the ↑ marks stay); its inspector has no Uplinks block | `walk-sheet` |
+| D48-01, D48-02 | Browser: PANEL-A's page has Pairs \| Pigtails, its jacks read 1/2 … 47/48 by pigtails, the choice is shared with HDF-01; patching names a panel jack by its fibers | `hdfplate`, `patching` |
 | TT-05 | Browser: the Trace tab has no form; Find AGG / BB from a switch shows the routes; Clear trace removes the tab | `trace-tab` |
 | HI-11 | `/api/map-layout` answers 404 like an unknown path; the client has no map-layout calls | `httpapi/server_test.go`, `src/shared/api.test.ts` |
 | HI-12 | Retired as written; successor OV-12: the first tree draw (fitted), a selection to lit, opening the busiest node, the drawer of an AGG; the Problems list with its uplink rows; timings in [status.md](status.md) (measurements, not budgets) | `scale` (`SCALE=1`; with SC-02) |

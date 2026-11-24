@@ -4,7 +4,7 @@ import Name from '../../shared/ui/Name'
 import PlacePath from '../../shared/ui/PlacePath'
 import { colorOf } from '../map/networkColors'
 import type { SnapshotIndex } from '../map/snapshotIndex'
-import { hdfJackName } from '../physical/faces'
+import { hdfJackName, panelJackName } from '../physical/faces'
 import type { HdfNumbering } from '../physical/hdfNumbering'
 import type { PathJack, PathPlate, PathStep } from './pathLine'
 import './pathBar.css'
@@ -33,6 +33,12 @@ export function jackName(
     if (sub)
       return `${hdfJackName(`${sub.row}${sub.column}`, p.position, numbering)} ${jack.side}`
   }
+  if (
+    plate.equipmentKind === 'panel' &&
+    p.position !== undefined &&
+    numbering === 'pigtails'
+  )
+    return `${panelJackName(p.position, numbering)} ${jack.side}`
   return `${jack.label} ${jack.side}`
 }
 
@@ -135,7 +141,9 @@ export function PathStepCell({ env, i }: { env: PathEnv; i: number }) {
   }
   const caps = p.jacks.map((j, k) => {
     const text =
-      p.equipmentKind === 'hdf' && k === 0
+      k === 0 &&
+      (p.equipmentKind === 'hdf' ||
+        (p.equipmentKind === 'panel' && numbering === 'pigtails'))
         ? jackName(index, p, j, numbering)
         : (j.side ?? j.label)
     return (

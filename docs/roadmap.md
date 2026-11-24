@@ -53,6 +53,10 @@ From the owner after part 3 of the workbench: the jack's path and Find AGG / BB 
 - **Kept:** the teal route on the tree and in Physical; the rerun of a trace across Installed ↔ Plan.
 - **Tests:** specs that used the form start from a switch or a port instead; the exact port → port and highlight specs are deleted; a spec checks that a site and a node name open Physical.
 
+## Pairs | Pigtails on panels (current; approved 2026-11-24, D48)
+
+Owner, 2026-11-24: "add it also to normal panels"; answers: the same one choice as the HDFs, on every panel. A panel's page gets the Pairs | Pigtails switch beside Front | Rear; Pigtails shows position *n* as 2*n*−1 over 2*n* in the same jack, counted across the panel; the patching screen and the printed sheet follow the choice. Frontend only.
+
 ## The inspector as a short card (next; a demo first)
 
 Owner, 2026-11-24: yes to making the Inspector simpler. The idea: a short card (name, place, network, cabled count, Find AGG / BB, Open in Physical, Show on map, Open in inventory) and the equipment page as the one full view. What only the Inspector has today must move first: **History**, **Placement** to another node (in a plan) and the port table's per-port actions (the equipment page has them jack by jack; Inventory as a list). A clickable demo of the card and of the equipment page with History and Move… comes before any design is approved.

@@ -270,6 +270,10 @@ export const hdfJackName = (
   n: HdfNumbering,
 ): string => `${block}/${n === 'pigtails' ? fiberPair(position) : position}`
 
+/** A standard panel jack's name: its position, or (pigtails) its fibers counted across the whole panel ("9,10"). */
+export const panelJackName = (position: number, n: HdfNumbering): string =>
+  n === 'pigtails' ? fiberPair(position) : String(position)
+
 /**
  * The full HDF grid on one side: columns A-D, as many rows as the HDF has
  * subpanels for, six positions per block. A block with no endpoint for a

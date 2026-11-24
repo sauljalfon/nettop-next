@@ -9,6 +9,7 @@ import {
   hdfJackText,
   layoutPlate,
   panelFace,
+  panelJackName,
   PATCHING_COLUMNS,
   switchBank,
 } from './faces'
@@ -357,5 +358,20 @@ describe('an HDF jack by pairs or by pigtails', () => {
   it('names it with the block and the position, or its fibers', () => {
     expect(hdfJackName('3C', 5, 'pairs')).toBe('3C/5')
     expect(hdfJackName('3C', 5, 'pigtails')).toBe('3C/9,10')
+  })
+})
+
+describe('a standard panel jack by pairs or by pigtails (D48)', () => {
+  it('shows position 5 as 9 over 10, 1 as 1 over 2, 24 as 47 over 48', () => {
+    expect(hdfJackText(5, 'pigtails')).toEqual(['9', '10'])
+    expect(hdfJackText(1, 'pigtails')).toEqual(['1', '2'])
+    expect(hdfJackText(24, 'pigtails')).toEqual(['47', '48'])
+    expect(hdfJackText(5, 'pairs')).toEqual(['5'])
+  })
+  it('names it by its fibers with no block, or by its position', () => {
+    expect(panelJackName(5, 'pigtails')).toBe('9,10')
+    expect(panelJackName(1, 'pigtails')).toBe('1,2')
+    expect(panelJackName(24, 'pigtails')).toBe('47,48')
+    expect(panelJackName(5, 'pairs')).toBe('5')
   })
 })

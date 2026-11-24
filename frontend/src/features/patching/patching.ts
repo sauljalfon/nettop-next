@@ -2,7 +2,7 @@ import { hasPorts } from '../../shared/equipment'
 import { hasSide } from '../../shared/ports'
 import type { Endpoint, Equipment, Snapshot } from '../../shared/types'
 import type { SnapshotIndex } from '../map/snapshotIndex'
-import { hdfJackName } from '../physical/faces'
+import { hdfJackName, panelJackName } from '../physical/faces'
 import type { HdfNumbering } from '../physical/hdfNumbering'
 import { runOf, type RangePair } from '../planning/range'
 
@@ -334,9 +334,9 @@ export const pairsWaitingText = (n: number) =>
   `${n} pair${n === 1 ? ' is' : 's are'} not connected yet.`
 
 /**
- * An endpoint's label as patching shows it: an HDF jack by pigtails as its block,
- * its two fibers and its side (by pairs: the stored label, as ever); anything else (a
- * switch port, a panel position) as stored. The block is the subpanel's row and
+ * An endpoint's label as patching shows it, by pigtails: a standard panel jack as its two
+ * fibers and its side ("9,10 · Front"), an HDF jack as its block, its two fibers and its
+ * side; by pairs, and for anything else (a switch port), the stored label, as ever. The block is the subpanel's row and
  * column, never parsed from the stored label.
  */
 export function jackLabel(
@@ -346,8 +346,12 @@ export function jackLabel(
 ): string {
   // By pairs the stored label is shown as it always was.
   if (n === 'pairs') return e.label
+  if (e.position === undefined) return e.label
+  // A standard panel has no block: its fibers and its side, in the stored label's form ("9,10 · Front").
+  if (index.equipment.get(e.equipmentId)?.kind === 'panel' && hasSide(e))
+    return `${panelJackName(e.position, n)} · ${e.side === 'front' ? 'Front' : 'Rear'}`
   const sub = index.lookup.subpanels.get(e.subpanelId ?? '')
-  if (!sub || e.position === undefined) return e.label
+  if (!sub) return e.label
   const name = hdfJackName(`${sub.row}${sub.column}`, e.position, n)
   return hasSide(e) ? `${name} ${e.side}` : name
 }

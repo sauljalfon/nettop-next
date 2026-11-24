@@ -452,3 +452,25 @@ test('PT-05b at 1280×720 the far place shrinks before the far name', async ({
   const cut = await name.evaluate((e) => e.scrollWidth > e.clientWidth)
   expect(cut).toBe(false)
 })
+
+test('D48-02 Pigtails names a panel jack by its fibers in patching', async ({
+  page,
+  request,
+}) => {
+  const id = await newPlan(request, unique('Patch'))
+  await openInRackA03(page, id, 'edge-17')
+  await page.locator('[data-endpoint-id="edge-17:p4"]').click()
+  await popover(page).getByRole('button', { name: 'Choose far end…' }).click()
+  await expect(patching(page)).toBeVisible()
+  const numbers = patching(page).getByRole('group', { name: 'Numbers' })
+  await numbers.getByRole('button', { name: 'Pigtails' }).click()
+  await farJack(page, 'panel-a:4:f').click()
+  await madeCount(page, 1)
+  const made = patching(page).locator('.patching-made-list li')
+  await expect(made.first()).toContainText('PANEL-A · 7,8 · Front')
+  await expect(patching(page).getByTestId('patching-next')).toContainText(
+    'PANEL-A · 9,10 · Front',
+  )
+  await numbers.getByRole('button', { name: 'Pairs' }).click()
+  await expect(made.first()).toContainText('PANEL-A · 4 · Front')
+})
