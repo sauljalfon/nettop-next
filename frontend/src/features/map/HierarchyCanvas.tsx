@@ -24,8 +24,6 @@ import {
 } from 'react'
 import type { Route, Snapshot } from '../../shared/types'
 import Name from '../../shared/ui/Name'
-import RouteDiagram from '../paths/RouteDiagram'
-import type { Sheet } from '../paths/sheet'
 import { positionMarks } from '../physical/explorerModel'
 import { routeMarks } from '../physical/inventory'
 import { FIT, fitViewport, panToShowFirstFit } from './center'
@@ -150,15 +148,12 @@ export interface HierarchyProps {
   onSelect: (equipmentId: string) => void
   /** The inspector's Find AGG / BB for this equipment. */
   onFindDevice: (equipmentId: string) => void
-  /** A passive chip in the drawer: the route view on that jack. */
+  /** A passive chip in the drawer: the Trace page on that jack. */
   onTraceJack?: (endpointId: string) => void
   onShowInPhysical: (equipmentId: string) => void
   onShowPlace: (target: { nodeId?: string }) => void
   /** The selected route: its cards and lines are lit, nothing moves. */
   route?: Route
-  /** The selected route as a walk sheet; the route view draws it over the map. */
-  routeSheet?: Sheet
-  onRouteStep?: (endpointId: string) => void
   session?: MapSession
 }
 
@@ -203,8 +198,6 @@ function Canvas({
   onShowInPhysical,
   onShowPlace,
   route,
-  routeSheet,
-  onRouteStep,
   session,
 }: HierarchyProps & { session: MapSession }) {
   const flow = useReactFlow()
@@ -222,11 +215,6 @@ function Canvas({
     session.onlyProblems,
   )
   const keyShown = useSyncExternalStore(session.subscribe, session.keyShown)
-  const routeViewOn = useSyncExternalStore(session.subscribe, session.routeView)
-  const active = routeViewOn && !!routeSheet
-  useEffect(() => {
-    if (routeViewOn && !routeSheet) session.setRouteView(false)
-  }, [routeViewOn, routeSheet, session])
 
   // Snapshot-only work: every network at once. In a plan, what the installed
   // topology lacks is proposed.
@@ -295,12 +283,19 @@ function Canvas({
     () => (h ? highlightedCards(h, index, highlight) : new Set<string>()),
     [h, index, highlight],
   )
+  const surface = useRef<HTMLDivElement>(null)
+  // The tree stays mounted, hidden, under the Trace page: Esc there is the page's.
+  const hidden = () =>
+    !!surface.current &&
+    getComputedStyle(surface.current).visibility === 'hidden'
+
   // Esc clears the highlight without touching the trace.
   useEffect(() => {
     if (!highlight) return
     const onKey = (event: KeyboardEvent) => {
       if (
         event.key === 'Escape' &&
+        !hidden() &&
         shouldClearOnEscape(event.target as HTMLElement | null)
       )
         session.setHighlight(undefined)
@@ -309,8 +304,8 @@ function Canvas({
     return () => window.removeEventListener('keydown', onKey)
   }, [highlight, session])
 
-  // Esc clears the selection (and its drawer), unless the user is typing, a
-  // dialog is open or the route view is on. The viewport and the open cards stay.
+  // Esc clears the selection (and its drawer), unless the user is typing or a
+  // dialog is open. The viewport and the open cards stay.
   useEffect(() => {
     if (!selection) return
     const onKey = (event: KeyboardEvent) => {
@@ -318,7 +313,7 @@ function Canvas({
       if (
         event.key === 'Escape' &&
         !event.defaultPrevented &&
-        !routeViewOn &&
+        !hidden() &&
         shouldClearOnEscape(target) &&
         !target?.closest?.('[role="dialog"], [aria-modal="true"]')
       )
@@ -326,7 +321,7 @@ function Canvas({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selection, routeViewOn, session])
+  }, [selection, session])
 
   // A new selection: show its network, open its cards (never close one).
   useEffect(() => {
@@ -377,7 +372,6 @@ function Canvas({
     [],
   )
 
-  const surface = useRef<HTMLDivElement>(null)
   const [fitted, setFitted] = useState(false)
   const frame = useRef(0)
   // Fits everything into the part of the canvas the panel, the drawers and the
@@ -425,11 +419,6 @@ function Canvas({
     })
   }, [flow, session, networkId])
   useEffect(() => () => cancelAnimationFrame(frame.current), [])
-
-  useEffect(() => {
-    const map = surface.current?.querySelector<HTMLElement>('.react-flow')
-    if (map) map.inert = active
-  }, [active])
 
   // A new location highlight (Explore) asks for one fit to the highlighted
   // cards, at zoom 1 or less. Each request is handled once, by whichever map
@@ -567,7 +556,6 @@ function Canvas({
       data-network={networkId ?? ''}
       data-card-positions={layout ? positionMarks(layout.boxes) : ''}
       data-open-cards={[...open].sort().join(' ')}
-      data-route-view={active}
     >
       {empty ? (
         <p className="hierarchy-empty">{message}</p>
@@ -604,20 +592,18 @@ function Canvas({
               gap={20}
               size={1.2}
             />
-            {!active && <Controls showInteractive={false} />}
-            {!active && (
-              <HierarchyPanel
-                networkName={networkName(h.networkId)}
-                counts={h.counts}
-                onlyProblems={onlyProblems}
-                onOnlyProblems={session.setOnlyProblems}
-                nothing={onlyProblems && layout?.frames.size === 0}
-                keyShown={keyShown}
-                onKey={session.setKeyShown}
-              />
-            )}
+            <Controls showInteractive={false} />
+            <HierarchyPanel
+              networkName={networkName(h.networkId)}
+              counts={h.counts}
+              onlyProblems={onlyProblems}
+              onOnlyProblems={session.setOnlyProblems}
+              nothing={onlyProblems && layout?.frames.size === 0}
+              keyShown={keyShown}
+              onKey={session.setKeyShown}
+            />
             <Panel position="top-right" className="map-tools">
-              {!active && highlight && (
+              {highlight && (
                 <ClearHighlight
                   onClear={() => session.setHighlight(undefined)}
                 />
@@ -626,7 +612,7 @@ function Canvas({
           </ReactFlow>
         </HierarchyActions.Provider>
       )}
-      {!active && selection && !gone && (
+      {selection && !gone && (
         <HierarchyDrawer
           hierarchies={hierarchies}
           index={index}
@@ -640,15 +626,6 @@ function Canvas({
           networkName={networkName}
           actions={drawerActions}
         />
-      )}
-      {active && routeSheet && (
-        <div className="route-layer" data-testid="route-layer">
-          <RouteDiagram
-            key={`${routeSheet.title.from.equipmentId}:${routeSheet.title.from.port}>${routeSheet.end.at?.equipmentId}:${routeSheet.end.at?.port}`}
-            sheet={routeSheet}
-            onStep={onRouteStep ?? (() => undefined)}
-          />
-        </div>
       )}
     </div>
   )

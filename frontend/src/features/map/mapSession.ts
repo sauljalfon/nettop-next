@@ -10,7 +10,7 @@ export interface Viewport {
 
 /**
  * Session-only state of the conceptual map: the hierarchy's viewport, the shown
- * network, Only problems, open nodes, the selection, the highlight and the route view. Nothing here is persisted to the server or fed to traversal.
+ * network, Only problems, open nodes, the selection, the highlight. Nothing here is persisted to the server or fed to traversal.
  */
 export interface MapSession {
   /**
@@ -19,12 +19,6 @@ export interface MapSession {
    */
   highlight(): LocationRef | undefined
   setHighlight(location: LocationRef | undefined): void
-  /**
-   * The route view: a picture of the active route that covers the map. Session-only;
-   * the map underneath is never touched, so turning it off restores it exactly.
-   */
-  routeView(): boolean
-  setRouteView(on: boolean): void
   /**
    * Asks the map to fit the view once to these cards (the result of choosing a
    * location). `serial` increases on every request.
@@ -81,7 +75,6 @@ export function shownNetworks(
 
 export function createMapSession(): MapSession {
   let highlight: LocationRef | undefined
-  let routeView = false
   let fit: { ids: string[]; serial: number } | undefined
   let fitHandled = 0
   let hierarchyViewport: Viewport | undefined
@@ -95,12 +88,6 @@ export function createMapSession(): MapSession {
     for (const listener of listeners) listener()
   }
   return {
-    routeView: () => routeView,
-    setRouteView(on) {
-      if (on === routeView) return
-      routeView = on
-      notify()
-    },
     highlight: () => highlight,
     setHighlight(next) {
       highlight = next && { kind: next.kind, id: next.id }

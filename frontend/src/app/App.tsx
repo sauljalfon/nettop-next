@@ -703,7 +703,7 @@ function Workspace({
     traceMutation.data?.revision === snapshot.revision
       ? traceMutation.data.routes[routeIndex]
       : undefined
-  // One walk sheet for the selected route: the results panel and the route view both read it.
+  // One walk sheet for the selected route, read by the results panel.
   const routeSheet = useMemo(
     () =>
       route
@@ -794,7 +794,7 @@ function Workspace({
     },
     [index, onViewChange],
   )
-  // A step of the route view or a row's Server button: that endpoint, in Physical.
+  // A row's Server button: that endpoint, in Physical.
   const showStepInPhysical = useCallback(
     (endpointId: string) => {
       const owner = index.owner.get(endpointId)
@@ -1124,8 +1124,6 @@ function Workspace({
           installedIDs={installedIDs}
           installedLinkIDs={installedLinkIDs}
           route={route}
-          routeSheet={routeSheet}
-          onRouteStep={showStepInPhysical}
           networkId={mapNetworkId}
           onSelect={select}
           onFindDevice={findFromDevice}

@@ -18,7 +18,7 @@ test.beforeEach(async ({ page }) => {
   await fitted(page)
 })
 
-test('TR-01 Find AGG / BB from the inspector opens the Trace tab with the routes', async ({
+test('TT-01 Find AGG / BB from the inspector opens the Trace tab with the routes', async ({
   page,
 }) => {
   await findFromInspector(page)
@@ -61,7 +61,7 @@ test('TR-01 Find AGG / BB from the inspector opens the Trace tab with the routes
   )
 })
 
-test('TR-02 choosing a route lights it in place and never moves the view', async ({
+test('TT-02 choosing a route lights it in place and never moves the view', async ({
   page,
 }) => {
   await findFromInspector(page)
@@ -79,7 +79,7 @@ test('TR-02 choosing a route lights it in place and never moves the view', async
   expect(await viewport(page)).toBe(port)
 })
 
-test('TR-03 a trace error shows in the tab with Refresh topology', async ({
+test('TT-03 a trace error shows in the tab with Refresh topology', async ({
   page,
 }) => {
   await page.route('**/api/traces*', (route) =>
@@ -103,7 +103,7 @@ test('TR-03 a trace error shows in the tab with Refresh topology', async ({
   await expect(page.locator('.map-results')).toHaveCount(0)
 })
 
-test('TR-04 in Physical the same tab, and a row opens that endpoint', async ({
+test('TT-04 in Physical the same tab, and a row opens that endpoint', async ({
   page,
 }) => {
   await findFromInspector(page)

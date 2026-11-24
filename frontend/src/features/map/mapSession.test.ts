@@ -82,42 +82,6 @@ describe('POL-14 a fit request is handled once', () => {
   })
 })
 
-describe('POL-22 route view state', () => {
-  it('is off by default and toggles', () => {
-    const session = createMapSession()
-    expect(session.routeView()).toBe(false)
-    session.setRouteView(true)
-    expect(session.routeView()).toBe(true)
-    session.setRouteView(false)
-    expect(session.routeView()).toBe(false)
-  })
-
-  it('leaves the map exactly as it was: viewport, open cards and highlight', () => {
-    const session = createMapSession()
-    session.setHierarchyViewport({ x: 10, y: 20, zoom: 0.7 })
-    session.toggleNode('n1')
-    session.setHighlight({ kind: 'node', id: 'node-a' })
-    const before = {
-      viewport: session.hierarchyViewport(),
-      open: session.openNodes(),
-      highlight: session.highlight(),
-    }
-    session.setRouteView(true)
-    session.setRouteView(false)
-    expect(session.hierarchyViewport()).toEqual(before.viewport)
-    expect(session.openNodes()).toBe(before.open)
-    expect(session.highlight()).toEqual(before.highlight)
-  })
-
-  it('notifies subscribers when toggled', () => {
-    const session = createMapSession()
-    let calls = 0
-    session.subscribe(() => calls++)
-    session.setRouteView(true)
-    expect(calls).toBe(1)
-  })
-})
-
 describe('HI-07 hierarchy session state', () => {
   it('defaults: nothing open and no viewport', () => {
     const session = createMapSession()

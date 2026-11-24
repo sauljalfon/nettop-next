@@ -31,7 +31,7 @@ export interface DrawerActions {
   onShowNode: (nodeId: string) => void
   /** A device chip: select that device on the tree. */
   onSelectEquipment: (equipmentId: string) => void
-  /** A passive chip: the route view on that jack. */
+  /** A passive chip: the Trace page on that jack. */
   onTraceJack: (endpointId: string) => void
 }
 

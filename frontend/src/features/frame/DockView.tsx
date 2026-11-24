@@ -146,8 +146,6 @@ export default function Dock({
         )
       )
         return
-      // The route view over the tree takes Esc itself; the tree's own handler leaves it alone then.
-      if (onDetails && document.querySelector('.route-layer')) return
       // The view's own Esc handler (the tree's) must not clear it a second time.
       if (onDetails) event.preventDefault()
       close()

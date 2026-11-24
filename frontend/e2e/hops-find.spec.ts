@@ -64,7 +64,7 @@ test('POL-04 the map overlay lists the same walk rows in Physical, in order', as
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
   await expandResults(page)
   expect(await sheetRows(page.getByTestId('walk-sheet'))).toEqual(mapRows)
-  // Without the route view toggle or export, which belong to the map.
+  // No Route view toggle or export here: they went to the Trace page.
   await expect(page.getByRole('button', { name: 'Route view' })).toHaveCount(0)
 })
 

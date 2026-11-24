@@ -89,7 +89,7 @@ A result carries the context (Installed or a plan), the traced revision, start a
 - **Changes are explicit and reversible inside a draft:** each change can be removed (`remove_change`, with its dependents), also on a stale draft. A draft behind Installed is never rebased automatically: Update draft moves it or lists the conflicts.
 - **A recorded plan** is read-only and keeps its labels (names) and the objects it changed, for History.
 - **IDs are stable** from proposal to installation; removing something a plan added deletes the addition.
-- **Layout is presentation:** map card positions, the viewport, the site screen's node positions and the route view's boxes are separate from placement and from plans. An unplaced canvas preview is local and untraceable. Layout undo and plan undo are different things; layout undo never reverses an installation.
+- **Layout is presentation:** map card positions, the viewport, the site screen's node positions and the Trace page's frames and zoom are separate from placement and from plans. An unplaced canvas preview is local and untraceable. Layout undo and plan undo are different things; layout undo never reverses an installation.
 
 ## 5. Backend
 

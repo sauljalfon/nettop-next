@@ -135,14 +135,14 @@ Update OpenAPI and client types with each implemented contract. Exact new comman
 | WS-03 | An access switch's page lists its uplinks (AGG first, cables, via); a line selects that port; those jacks carry the uplink mark | `walk-sheet`, `uplinks.test.ts` |
 | WS-04 | The inspector shows the same uplinks; a line runs Find AGG / BB from that port | `walk-sheet` |
 | WS-05 | An AGG or BB page says paths end there and makes no trace request; the mismatch line is unit-tested only | `walk-sheet`, `uplinks.test.ts` |
-| POL-22 and the route-view specs | (rewritten in step 6: reached through Explore and the overview, POL-22 checks the overview underneath) Route view is a picture over the map: steps in route order, sites and nodes with each cable's gap, a cross-site path; a step opens Physical; another route redraws; turning it off restores the map exactly; PNG/PDF hold the whole picture | `route-view`, `export`, `diagram.test.ts`, `exportRoute.test.ts` |
+| POL-22 and the route-view specs | Retired with the route view (D46, workbench part 3, 2026-11-22); successor the Trace page (`trace-page`: TP-01–TP-14, its PNG/PDF in TP-11) and the export header (POL-29, `export`, `exportRoute.test.ts`) | — |
 
 ## The visual pass (2026-10-15)
 
 | ID | Scenario | Where it runs |
 | --- | --- | --- |
 | VP-01 | Hebrew names sit in their own `<bdi>` on cards, in the inspector, the walk sheet and the Changes drawer, and a location reads Site › Node › Rack as separate names; every summary line has pieces that read as its text | `visual-pass.recording`, `textPieces.test.ts`, `summary.test.ts` |
-| VP-02 | On Physical and the equipment pages an open right drawer keeps every block clear of it, with no sideways scroll; on the map (a switch selected on the tree) and the site canvas a drawer floats and nothing moves | `visual-pass` |
+| VP-02 | On Physical and the equipment pages an open right drawer keeps every block clear of it, with no sideways scroll; on the map (a switch selected on the tree) and the site canvas a drawer floats and nothing moves (since workbench part 3: the dock sits beside the page, which narrows, and nothing is covered) | `visual-pass` |
 | VP-03 | A 42U rack keeps 26px rows, scrolls inside its panel and labels every unit; scrolled to the bottom U1 is fully visible; on Rack A03 no name is clipped on its label strip. Rows are 26–30px by the available height | `visual-pass`, `cabinet.test.ts` |
 | VP-03b | With the inspector open all 24 ports of EDGE-17 and the whole HDF grid sit inside the face card with no sideways scroll and the endpoint detail below it; without a drawer the HDF grid fills its card and every jack number is at least 11px | `visual-pass` |
 | VP-04 | Forms: label above the control; a focus ring that stays inside the form; Site › Node › Rack stacked in the narrow drawer and in one row, with Equipment below, in the patching screen; submit is ink, Cancel is paper with a rule border; a form that adds an object is dashed; a library item is one card | `visual-pass` |
@@ -182,7 +182,7 @@ Every spec reaches equipment through Explore (`selectEquipment`, which selects i
 | HI-07 | Session: the shown network (fallback to the first existing), Only problems, the viewport, the open nodes. Amended by D40: `back()` and the view are gone (OV-06) | `mapSession.test.ts` |
 | HI-08 | Retired as written; successor OV-11: one `uplink:` row per marked switch and one per AGG with no BB; the count equals the map's | `problems.test.ts` |
 | HI-09 | In the browser: Network A (BB-01; AGG-03 + AGG-08 over Building A; AGG-15 with 0 nodes) and Network B (no top row); the header choosing B redraws and fits once, All networks keeps B; Building A's drawer lists EDGE-17's uplinks with the via path; Inspector and Find AGG / BB from it; the drawer of AGG-03; Only problems; the Expansion plan's dashed card and line; Hebrew names isolated. Amended by D40: the layout is left to right, Focus is gone | `hierarchy` |
-| HI-10 | Trace and highlight on the hierarchy: the route lights its cards and lines, another route moves nothing, with Network B the route is undimmed, the Route view covers and restores, Explore's highlight marks and fits once, Clear highlight and Esc | `hierarchy-trace` |
+| HI-10 | Trace and highlight on the hierarchy: the route lights its cards and lines, another route moves nothing, with Network B the route is undimmed, Explore's highlight marks and fits once, Clear highlight and Esc | `hierarchy-trace` |
 | HI-11 | `/api/map-layout` answers 404 like an unknown path; the client has no map-layout calls | `httpapi/server_test.go`, `src/shared/api.test.ts` |
 | HI-12 | Retired as written; successor OV-12: the first tree draw (fitted), a selection to lit, opening the busiest node, the drawer of an AGG; the Problems list with its uplink rows; timings in [status.md](status.md) (measurements, not budgets) | `scale` (`SCALE=1`; with SC-02) |
 | HI-13 | A direct fix renames Building A to a long Hebrew name while its drawer is open: card, frame and drawer show it isolated and cut, the drawer stays on the same card, nothing moves; the name is restored after | `hierarchy.recording` |
@@ -201,7 +201,7 @@ Frontend only; the specs use the acceptance fixture unless said.
 | OV-06 | Session: select and clear; the open nodes; nothing left of the view, the focus, the hops, `back` or the open groups | `mapSession.test.ts` |
 | OV-07 | Browser: Show on map EDGE-17 from the Inspector lands on the tree with Building A open, EDGE-17 marked, AGG-03, AGG-08 and BB-01 lit and in the free canvas area, the rest dimmed, the zoom unchanged; Esc clears and keeps the viewport; a card click selects; a proposed card in a plan; no text under 11 px | `one-view` |
 | OV-08 | Browser: Show on map from Inventory, Physical and Explore selects the same way; a switch of another network shows that network; HDF-01 selected lights EDGE-17's card, says how many circuits of Network A run through it and its drawer lists EDGE-17 under "Depends on it" | `one-view` |
-| OV-09 | Browser: a passive chip in the way up opens the route view on that jack; a device chip selects that device | `one-view` |
+| OV-09 | Browser: a passive chip in the way up opens the Trace page on that jack (D46); a device chip selects that device | `one-view` |
 | OV-10 | No Focus anywhere: the Inspector has no Focus button, and no element has `data-view="focus"` after Show on map, Explore, Inventory or Physical | `one-view` |
 | OV-11 | Problems: one `uplink:` row per marked switch and one per AGG with no BB; the count equals the map's | `problems.test.ts` |
 | OV-12 | Campus measurement: the first draw (fitted), a selection to lit, opening the busiest node, the drawer of an AGG; screenshots of Building 16, AGG-60 and a sub-main HDF | `scale` (`SCALE=1`) |

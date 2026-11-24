@@ -66,29 +66,6 @@ export async function selectEquipment(page: Page, name: string) {
   await expect(page.locator('.inspector-header h2')).toHaveText(name)
 }
 
-export interface Marks {
-  /** The route view is what the map draws. */
-  routeView: boolean
-}
-
-/** What the map says about itself, written on .flow-surface (every view has it). */
-export const marks = (page: Page): Promise<Marks> =>
-  page.locator('.flow-surface').evaluate((el) => ({
-    routeView: el.getAttribute('data-route-view') === 'true',
-  }))
-
-/** Waits until the given marks hold; the others are not looked at. */
-export async function expectMarks(page: Page, expected: Partial<Marks>) {
-  await expect
-    .poll(async () => {
-      const all = await marks(page)
-      return Object.fromEntries(
-        Object.keys(expected).map((k) => [k, all[k as keyof Marks]]),
-      )
-    })
-    .toEqual(expected)
-}
-
 /** Chooses an item in a trace picker (Start or Destination) by searching and clicking a match. */
 export async function pick(
   page: Page,

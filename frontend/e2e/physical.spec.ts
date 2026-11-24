@@ -473,7 +473,7 @@ test('PHY-19 the cables to other sites open as a list too', async ({
   ])
 })
 
-test('results in Physical use the map overlay, without route view or export, and a hop opens its rack', async ({
+test('results in Physical are the same Trace tab, with no Route view button or export, and a hop opens its rack', async ({
   page,
 }) => {
   await toPhysical(page)

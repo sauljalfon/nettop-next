@@ -78,18 +78,6 @@
   cursor: default; /* React Flow makes every edge a pointer; no line here is clickable */
 }
 
-/* Route view: the diagram covers the map's drawing area. The map under it stays mounted
-   and untouched. It keeps clear of the tool rail and any open drawer. */
-.route-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  box-sizing: border-box;
-  padding: 28px 25px 25px 100px;
-  overflow: hidden;
-  background: var(--paper);
-}
-
 /* The hierarchy (D39): tops, AGGs and node cards in frames, drawn from real cables. */
 .hierarchy-surface {
   position: relative;

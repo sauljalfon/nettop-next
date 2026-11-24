@@ -449,6 +449,35 @@ test('TP-07 Picture only hides the list and the walk; Esc returns', async ({
   await expect(list(page)).toBeVisible()
 })
 
+test('TP-08 Esc on the Trace page (Picture only or not) leaves the tree’s selection alone', async ({
+  page,
+}) => {
+  await findFrom(page, 'EDGE-17', 3)
+  const card = page.locator(`[data-card-key="${BUILDING_A}"]`)
+  await card.click()
+  await expect(card).toHaveAttribute('data-selected', 'true')
+  await page
+    .getByRole('button', { name: 'Open trace tools', exact: true })
+    .click()
+  await page.getByRole('button', { name: 'Open full page ⤢' }).click()
+  await expect(tp(page)).toBeVisible()
+  // Esc with nothing to close on the page, then Esc to leave Picture only.
+  await page.keyboard.press('Escape')
+  await tp(page)
+    .getByRole('button', { name: /Picture only/ })
+    .click()
+  await expect(
+    tp(page).getByRole('button', { name: 'Exit picture' }),
+  ).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(
+    tp(page).getByRole('button', { name: 'Exit picture' }),
+  ).toHaveCount(0)
+  await backButton(page).click()
+  await expect(tp(page)).toHaveCount(0)
+  await expect(card).toHaveAttribute('data-selected', 'true')
+})
+
 test('TP-08 ← Back returns to the tree with its viewport and selection, and to the equipment page with its jack', async ({
   page,
 }) => {
@@ -562,10 +591,8 @@ test('TP-10 a passive chip in the drawer’s Way up opens the page on that jack'
   )
   await backButton(page).click()
   await fitted(page)
-  await expect(page.locator('.flow-surface')).toHaveAttribute(
-    'data-route-view',
-    'false',
-  )
+  await expect(page.locator('.flow-surface')).toBeVisible()
+  await expect(tp(page)).toHaveCount(0)
 })
 
 const download = async (page: Page, format: 'PNG' | 'PDF') => {
