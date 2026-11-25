@@ -336,6 +336,73 @@ paths:
         '404': {$ref: '#/components/responses/Error'}
         '422': {$ref: '#/components/responses/Error'}
         '500': {$ref: '#/components/responses/Error'}
+  /switch-models:
+    get:
+      operationId: listSwitchModels
+      summary: List switch models
+      description: Switch models are library data (D51), not topology. A switch copies its model's height and port groups when it is added; nothing links a switch to a model. Sorted by name ignoring case; `[]` when there are none. Reading or writing models never changes a topology revision and never makes a draft stale.
+      responses:
+        '200':
+          description: Every model
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/SwitchModel'}
+        '500': {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createSwitchModel
+      summary: Create a switch model
+      description: 'The server generates the ID (`model-…`). 1–8 port groups, 1–96 ports in all, checked by the same code and messages as `add_equipment`''s port groups, prefixed by the model name (e.g. `C9300-48P: port group 2: Names must contain {n} once`). A group never has `labels` (400). A duplicate name ignoring case and spaces at the ends is 409.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SwitchModelInput'}
+      responses:
+        '201':
+          description: The new model
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SwitchModel'}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+  /switch-models/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string}
+    put:
+      operationId: updateSwitchModel
+      summary: Replace a switch model
+      description: Replaces the name, manufacturer, height and port groups. Switches already added never change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SwitchModelInput'}
+      responses:
+        '200':
+          description: The updated model
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SwitchModel'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+    delete:
+      operationId: deleteSwitchModel
+      summary: Delete a switch model
+      description: Switches added from it keep their ports.
+      responses:
+        '204': {description: Deleted}
+        '404': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
   /networks:
     post:
       operationId: createNetwork
@@ -1042,6 +1109,41 @@ components:
       properties:
         id: {type: string}
         name: {type: string}
+    SwitchModelInput:
+      type: object
+      additionalProperties: false
+      required: [name, height, portGroups]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100, description: 'Trimmed, 1–100 characters, unique ignoring case.'}
+        manufacturer: {type: string, maxLength: 200}
+        height: {type: integer, minimum: 1, maximum: 10, description: 'Rack units.'}
+        portGroups:
+          type: array
+          minItems: 1
+          maxItems: 8
+          description: In port order, 1–96 ports in all. Count and Names only; the `labels` form is refused with 400.
+          items:
+            type: object
+            additionalProperties: false
+            required: [count, names]
+            properties:
+              count: {type: integer, minimum: 1}
+              names: {type: string, description: 'A pattern with exactly one `{n}`.'}
+              start: {type: integer, minimum: 0, description: 'First number (default 1).'}
+              details:
+                type: object
+                additionalProperties: false
+                properties:
+                  portType: {type: string}
+                  connector: {type: string}
+                  speed: {type: string}
+    SwitchModel:
+      allOf:
+        - {$ref: '#/components/schemas/SwitchModelInput'}
+        - type: object
+          required: [id]
+          properties:
+            id: {type: string}
     NetworkName:
       type: object
       additionalProperties: false

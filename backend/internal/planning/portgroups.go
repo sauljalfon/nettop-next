@@ -93,3 +93,11 @@ func portGroupPorts(name string, groups []PortGroupInput) ([]portSpec, error) {
 	}
 	return ports, nil
 }
+
+// CheckPortGroups runs the checks add_equipment applies to a new switch's port
+// groups and returns the number of ports they make. A switch model uses it, so
+// the limits and the messages are the same. Its error wraps ErrInvalid.
+func CheckPortGroups(name string, groups []PortGroupInput) (int, error) {
+	ports, err := portGroupPorts(name, groups)
+	return len(ports), err
+}

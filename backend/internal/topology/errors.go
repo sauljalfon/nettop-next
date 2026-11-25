@@ -9,6 +9,7 @@ var (
 	ErrSiteNotFound    = errors.New("site not found")
 	ErrNodeNotFound    = errors.New("node not found")
 	ErrNetworkNotFound = errors.New("network not found")
+	ErrModelNotFound   = errors.New("switch model not found")
 	ErrDuplicateName   = errors.New("duplicate name")
 	ErrInvalidInput    = errors.New("invalid input")
 )

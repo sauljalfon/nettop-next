@@ -7,6 +7,8 @@ import type {
   DirectFix,
   DirectFixItem,
   Network,
+  SwitchModel,
+  SwitchModelInput,
   NodePosition,
   Plan,
   PlanCommand,
@@ -196,6 +198,28 @@ export const renameNetwork = (id: string, name: string) =>
     `/networks/${encodeURIComponent(id)}`,
     json('PATCH', { name }),
   )
+
+export const switchModels = (signal?: AbortSignal) =>
+  request<SwitchModel[]>('/switch-models', { signal })
+export const createSwitchModel = (input: SwitchModelInput) =>
+  request<SwitchModel>('/switch-models', json('POST', input))
+export const updateSwitchModel = (id: string, input: SwitchModelInput) =>
+  request<SwitchModel>(
+    `/switch-models/${encodeURIComponent(id)}`,
+    json('PUT', input),
+  )
+export async function deleteSwitchModel(id: string): Promise<void> {
+  const response = await fetch(`/api/switch-models/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new APIError(
+      response.status,
+      body?.error ?? `API request failed (${response.status}).`,
+    )
+  }
+}
 
 const FIX_PATH: Record<ChangeLogKind, string> = {
   equipment: 'equipment',

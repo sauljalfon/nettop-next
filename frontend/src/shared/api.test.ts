@@ -12,6 +12,10 @@ import {
   recordedPlansFor,
   APIError,
   createNetwork,
+  createSwitchModel,
+  deleteSwitchModel,
+  switchModels,
+  updateSwitchModel,
   fixInstalled,
   fixInstalledMany,
   getChangeLog,
@@ -433,4 +437,42 @@ it('FX client: history asks for one object by kind and ID', async () => {
   expect(fetchMock.mock.calls[0][0]).toBe(
     '/api/change-log?entityKind=rack&entityId=rack%20a03',
   )
+})
+
+it('D51 client: lists, creates, updates and deletes switch models', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => [],
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  const input = {
+    name: 'C9300-48P',
+    manufacturer: 'Cisco',
+    height: 1,
+    portGroups: [{ count: 48, names: 'Gi1/0/{n}', start: 1 }],
+  }
+  await switchModels()
+  expect(fetchMock.mock.calls[0][0]).toBe('/api/switch-models')
+  await createSwitchModel(input)
+  expect(fetchMock.mock.calls[1][0]).toBe('/api/switch-models')
+  expect(fetchMock.mock.calls[1][1].method).toBe('POST')
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual(input)
+  await updateSwitchModel('model/a', input)
+  expect(fetchMock.mock.calls[2][0]).toBe('/api/switch-models/model%2Fa')
+  expect(fetchMock.mock.calls[2][1].method).toBe('PUT')
+  expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual(input)
+  fetchMock.mockResolvedValue({ ok: true, status: 204 })
+  await deleteSwitchModel('model/a')
+  expect(fetchMock.mock.calls[3][0]).toBe('/api/switch-models/model%2Fa')
+  expect(fetchMock.mock.calls[3][1].method).toBe('DELETE')
+  fetchMock.mockResolvedValue({
+    ok: false,
+    status: 409,
+    json: async () => ({ error: 'duplicate name' }),
+  })
+  await expect(createSwitchModel(input)).rejects.toMatchObject({
+    status: 409,
+    message: 'duplicate name',
+  })
 })

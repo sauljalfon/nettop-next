@@ -51,6 +51,11 @@ type Repository interface {
 	ResetSiteLayout(context.Context, string) error
 	CreateNetwork(context.Context, string) (topology.Network, error)
 	RenameNetwork(ctx context.Context, id, name string) (topology.Network, error)
+	// Switch models (D51) are library data like networks: no revision, no draft.
+	SwitchModels(context.Context) ([]planning.SwitchModel, error)
+	CreateSwitchModel(context.Context, planning.SwitchModel) (planning.SwitchModel, error)
+	UpdateSwitchModel(ctx context.Context, id string, m planning.SwitchModel) (planning.SwitchModel, error)
+	DeleteSwitchModel(ctx context.Context, id string) error
 	// Direct fixes of installed names and details (never topology): one
 	// change_log row per changed field; the topology revision never changes.
 	Fix(ctx context.Context, f fixes.Fix) ([]fixes.Entry, error)
@@ -148,6 +153,8 @@ func repositoryError(w http.ResponseWriter, err error) {
 		problem(w, 404, "Node not found")
 	case errors.Is(err, topology.ErrNetworkNotFound):
 		problem(w, 404, "Network not found")
+	case errors.Is(err, topology.ErrModelNotFound):
+		problem(w, 404, "Switch model not found")
 	case errors.Is(err, fixes.ErrNotFound):
 		var many *fixes.ManyError
 		if errors.As(err, &many) {
@@ -184,6 +191,28 @@ func decodeUpTo(w http.ResponseWriter, r *http.Request, value any, limit int64) 
 	}
 	return true
 }
+
+// decodeSwitchModel reads a model's body: unknown fields and the labels form of
+// a port group (a model has Count and Names only) are 400.
+func decodeSwitchModel(w http.ResponseWriter, r *http.Request) (planning.SwitchModel, bool) {
+	var input struct {
+		Name         string                    `json:"name"`
+		Manufacturer string                    `json:"manufacturer"`
+		Height       int                       `json:"height"`
+		PortGroups   []planning.PortGroupInput `json:"portGroups"`
+	}
+	if !decodeUpTo(w, r, &input, 65536) {
+		return planning.SwitchModel{}, false
+	}
+	for _, g := range input.PortGroups {
+		if g.Labels != nil {
+			problem(w, 400, "Invalid request JSON")
+			return planning.SwitchModel{}, false
+		}
+	}
+	return planning.SwitchModel{Name: input.Name, Manufacturer: input.Manufacturer, Height: input.Height, PortGroups: input.PortGroups}, true
+}
+
 func snapshot(w http.ResponseWriter, r *http.Request, repo Repository) (topology.Snapshot, bool) {
 	contextName := r.URL.Query().Get("context")
 	planID := r.URL.Query().Get("planId")
@@ -408,6 +437,48 @@ func New(repo Repository, environment string) http.Handler {
 			return
 		}
 		respond(w, 200, n)
+	})
+	mux.HandleFunc("GET /api/switch-models", func(w http.ResponseWriter, r *http.Request) {
+		list, err := repo.SwitchModels(r.Context())
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		if list == nil {
+			list = []planning.SwitchModel{}
+		}
+		respond(w, 200, list)
+	})
+	mux.HandleFunc("POST /api/switch-models", func(w http.ResponseWriter, r *http.Request) {
+		m, ok := decodeSwitchModel(w, r)
+		if !ok {
+			return
+		}
+		created, err := repo.CreateSwitchModel(r.Context(), m)
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 201, created)
+	})
+	mux.HandleFunc("PUT /api/switch-models/{id}", func(w http.ResponseWriter, r *http.Request) {
+		m, ok := decodeSwitchModel(w, r)
+		if !ok {
+			return
+		}
+		updated, err := repo.UpdateSwitchModel(r.Context(), r.PathValue("id"), m)
+		if err != nil {
+			repositoryError(w, err)
+			return
+		}
+		respond(w, 200, updated)
+	})
+	mux.HandleFunc("DELETE /api/switch-models/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if err := repo.DeleteSwitchModel(r.Context(), r.PathValue("id")); err != nil {
+			repositoryError(w, err)
+			return
+		}
+		w.WriteHeader(204)
 	})
 	// Direct fixes: names and details of installed objects, never topology.
 	mux.HandleFunc("PATCH /api/installed/{kind}/{id}", func(w http.ResponseWriter, r *http.Request) {

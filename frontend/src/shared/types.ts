@@ -324,6 +324,18 @@ export interface Network {
   id: string
   name: string
 }
+/** A group of a model's ports: count and names, never the labels form. */
+export type ModelPortGroup = Omit<PortGroupInput, 'labels'>
+/** Library data (D51), never topology: what a switch copies when it is added. */
+export interface SwitchModelInput {
+  name: string
+  manufacturer: string
+  height: number
+  portGroups: ModelPortGroup[]
+}
+export interface SwitchModel extends SwitchModelInput {
+  id: string
+}
 /** Saved arrangement of a node card on its site's Physical screen. */
 export interface NodePosition {
   nodeId: string
