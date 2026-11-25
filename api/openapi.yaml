@@ -462,7 +462,7 @@ paths:
     patch:
       operationId: fixInstalled
       summary: Correct an installed object's name or details (a direct fix)
-      description: "Changes only names and detail fields, never topology: a field such as rackId, unit, networkId or role is 422 (use a plan); an unknown field is 400. Fixable: equipment name and details; a switch port's label (only ports with a position; panel and HDF positions are named by their place) and port details; a cable's label, status and notes (a cable has no name; an internal bridge has no details); site and node name, location and description; rack name, location, rack type and description. Names follow the plan commands' rules (1–100 characters, a port label 1–64; equipment unique in Installed, nodes within their site, racks within their node, port labels on their switch, all ignoring case: 409). One change-log row is written per changed field, in one transaction; the topology revision does not change, so drafts stay current. Same values answer an empty list."
+      description: "Changes only names and detail fields, never topology: a field such as rackId, unit, networkId or role is 422 (use a plan); an unknown field is 400. Fixable: equipment name and details; a switch port's label (only ports with a position; panel and HDF positions are named by their place) and port details; a cable's label, status and notes (a cable has no name; an internal bridge has no details); site and node name, location and description; rack name, location, rack type and description. `portGroup` (1–8) regroups a switch port that has a position (the change-log field is `portGroup`); on anything else (a panel or HDF position, a port without a position, a cable, equipment, a container) or outside 1–8 it is 422. Names follow the plan commands' rules (1–100 characters, a port label 1–64; equipment unique in Installed, nodes within their site, racks within their node, port labels on their switch, all ignoring case: 409). One change-log row is written per changed field, in one transaction; the topology revision does not change, so drafts stay current. Same values answer an empty list."
       requestBody:
         required: true
         content:
@@ -489,7 +489,7 @@ paths:
     post:
       operationId: fixInstalledMany
       summary: Correct the details of many installed objects in one request (direct fixes)
-      description: "Applies 1–500 fixes in order, each to the result of the one before (two fixes of one object are allowed), in one transaction: nothing is written when any fix is refused, and the topology revision does not change. A fix is the kind (as in the URL of the single fix), the object's id and its `details`, with the same rules as the single fix. Names are not changed here (a fix with a `name` is 422: names are unique, so they are changed one at a time). A refusal names the fix by its position and its object: `fix 3 (ACC-F1-02): …`. One change-log row is written per changed field, all with the request's note; a fix that changes nothing writes none. 422 for no fixes or more than 500, a topology field, a name, an invalid value or a note over 500 characters; 404 for an unknown kind or object; 400 for unknown fields or malformed JSON."
+      description: "Applies 1–500 fixes in order, each to the result of the one before (two fixes of one object are allowed), in one transaction: nothing is written when any fix is refused, and the topology revision does not change. A fix is the kind (as in the URL of the single fix), the object's id, its `details` and, for an endpoint, a `portGroup`, with the same rules as the single fix. Names are not changed here (a fix with a `name` is 422: names are unique, so they are changed one at a time). A refusal names the fix by its position and its object: `fix 3 (ACC-F1-02): …`. One change-log row is written per changed field, all with the request's note; a fix that changes nothing writes none. 422 for no fixes or more than 500, a topology field, a name, an invalid value or a note over 500 characters; 404 for an unknown kind or object; 400 for unknown fields or malformed JSON."
       requestBody:
         required: true
         content:
@@ -573,6 +573,7 @@ components:
       properties:
         name: {type: string, description: The display name; a switch port's label for an endpoint.}
         details: {$ref: '#/components/schemas/Details'}
+        portGroup: {type: integer, minimum: 1, maximum: 8, description: "A switch port's group (endpoint fixes only; the port needs a position). Position, label and ID never change."}
         note: {type: string, maxLength: 500}
     DirectFixMany:
       type: object
@@ -592,6 +593,7 @@ components:
               kind: {type: string, enum: [equipment, endpoints, links, sites, nodes, racks]}
               id: {type: string}
               details: {$ref: '#/components/schemas/Details'}
+              portGroup: {type: integer, minimum: 1, maximum: 8, description: "Endpoint fixes only: a switch port's group (the port needs a position). 422 elsewhere or out of range."}
     ChangeLogEntry:
       type: object
       required: [id, at, entityKind, entityId, field, oldValue, newValue]
@@ -600,7 +602,7 @@ components:
         at: {type: string, format: date-time}
         entityKind: {type: string, enum: [equipment, endpoint, link, site, node, rack]}
         entityId: {type: string}
-        field: {type: string, description: '"name" or a detail field name.'}
+        field: {type: string, description: '"name", "portGroup" or a detail field name.'}
         oldValue: {type: string}
         newValue: {type: string, description: Empty when the field was cleared.}
         note: {type: string}

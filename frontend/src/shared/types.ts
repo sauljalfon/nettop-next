@@ -102,6 +102,8 @@ export interface ChangeLogEntry {
 export interface DirectFix {
   name?: string
   details?: Details
+  /** A switch port's group, 1–8 (endpoint fixes; the port needs a position). */
+  portGroup?: number
   note?: string
 }
 
@@ -110,6 +112,8 @@ export interface DirectFixItem {
   kind: ChangeLogKind
   id: string
   details?: Details
+  /** A switch port's group, 1–8 (endpoints with a position only). */
+  portGroup?: number
 }
 
 /** Up to 500 direct fixes applied in order, all or nothing. */

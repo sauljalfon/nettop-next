@@ -223,3 +223,63 @@ func TestRI04RackItemTypeAndTextFixes(t *testing.T) {
 		t.Fatalf("itemType on a switch must be refused: %v", err)
 	}
 }
+
+func intp(n int) *int { return &n }
+
+// D51: a switch port's group is a direct fix (Set model splits a plain face into the model's groups).
+func TestAPortGroupIsADirectFixOnASwitchPortOnly(t *testing.T) {
+	s := withGroupedSwitch(acceptance.Installed())
+	next, changes := mustApply(t, s, Fix{Kind: Endpoint, ID: "sw-g:p2", PortGroup: intp(2)})
+	want := []Change{{Field: "portGroup", OldValue: "1", NewValue: "2"}}
+	if !reflect.DeepEqual(changes, want) {
+		t.Fatalf("changes = %+v, want %+v", changes, want)
+	}
+	for _, p := range next.Endpoints {
+		if p.ID == "sw-g:p2" && (p.PortGroup != 2 || p.Position != 2 || p.Label != "Gi1/0/2") {
+			t.Fatalf("port = %+v", p)
+		}
+	}
+	if next.Revision != s.Revision {
+		t.Fatal("a fix must not change the revision")
+	}
+	if _, changes = mustApply(t, s, Fix{Kind: Endpoint, ID: "sw-g:p1", PortGroup: intp(1)}); len(changes) != 0 {
+		t.Fatalf("same group must give no change: %+v", changes)
+	}
+	for _, n := range []int{0, 9, -1} {
+		if _, _, err := Apply(s, Fix{Kind: Endpoint, ID: "sw-g:p1", PortGroup: intp(n)}); !errors.Is(err, topology.ErrInvalidInput) || !strings.Contains(err.Error(), "1–8") {
+			t.Fatalf("group %d: err = %v", n, err)
+		}
+	}
+	hdf := ""
+	for _, p := range s.Endpoints {
+		if p.SubpanelID != "" {
+			hdf = p.ID
+			break
+		}
+	}
+	for _, id := range []string{"panel-a:4:f", hdf, "agg-03:p2"} { // panel, HDF, switch port with no position
+		if _, _, err := Apply(s, Fix{Kind: Endpoint, ID: id, PortGroup: intp(2)}); !errors.Is(err, topology.ErrInvalidInput) || !strings.Contains(err.Error(), "port group") {
+			t.Fatalf("%s: err = %v", id, err)
+		}
+	}
+	for _, f := range []Fix{{Kind: Link, ID: "cable-a01"}, {Kind: Equipment, ID: "sw-g"}, {Kind: Rack, ID: "rack-a03"}} {
+		f.PortGroup = intp(2)
+		if _, _, err := Apply(s, f); !errors.Is(err, topology.ErrInvalidInput) || !strings.Contains(err.Error(), "port group") {
+			t.Fatalf("%s: err = %v", f.Kind, err)
+		}
+	}
+}
+
+func TestManyPortGroupsAreValidatedOnce(t *testing.T) {
+	s := withGroupedSwitch(acceptance.Installed())
+	next, changes, err := ApplyMany(s, []Fix{
+		{Kind: Endpoint, ID: "sw-g:p1", PortGroup: intp(2)},
+		{Kind: Endpoint, ID: "sw-g:p2", PortGroup: intp(3), Details: topology.Details{Speed: ptr("10G")}},
+	})
+	if err != nil || len(changes) != 2 || len(changes[1]) != 2 {
+		t.Fatalf("changes = %+v, err = %v", changes, err)
+	}
+	if next.Endpoints[len(next.Endpoints)-1].PortGroup != 3 {
+		t.Fatalf("%+v", next.Endpoints)
+	}
+}

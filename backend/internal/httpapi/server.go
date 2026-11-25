@@ -78,7 +78,7 @@ var fixKinds = map[string]string{
 var topologyFields = map[string]bool{
 	"id": true, "kind": true, "role": true, "networkId": true, "rackId": true, "unit": true, "height": true,
 	"siteId": true, "nodeId": true, "units": true, "equipmentId": true, "subpanelId": true,
-	"position": true, "side": true, "portGroup": true, "a": true, "b": true,
+	"position": true, "side": true, "a": true, "b": true,
 }
 
 // fixFields reads the fields of one fix's JSON object into f, as the single
@@ -106,6 +106,12 @@ func fixFields(body map[string]json.RawMessage, f *fixes.Fix, withNote bool) (in
 				return 400, "Invalid request JSON"
 			}
 			f.Name = &name
+		case key == "portGroup":
+			var n int
+			if json.Unmarshal(raw, &n) != nil {
+				return 400, "Invalid request JSON"
+			}
+			f.PortGroup = &n
 		case key == "note" && withNote:
 			if json.Unmarshal(raw, &f.Note) != nil {
 				return 400, "Invalid request JSON"

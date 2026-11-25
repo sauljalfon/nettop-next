@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -39,7 +40,9 @@ type Fix struct {
 	ID      string
 	Name    *string
 	Details topology.Details
-	Note    string
+	// PortGroup is a switch port's group, 1–8; nil leaves it.
+	PortGroup *int
+	Note      string
 }
 
 // Change is one field whose value the fix changed.
@@ -64,7 +67,7 @@ type Entry struct {
 // order is the order changes are listed in: the name, then the detail fields
 // in the order of topology.Details.Fields.
 var order = []string{"name", "manufacturer", "model", "serialNumber", "ipAddress", "status", "description",
-	"portType", "connector", "speed", "state", "label", "notes", "location", "rackType", "itemType", "itemText"}
+	"portType", "connector", "speed", "portGroup", "state", "label", "notes", "location", "rackType", "itemType", "itemText"}
 
 func invalid(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", topology.ErrInvalidInput, fmt.Sprintf(format, args...))
@@ -106,7 +109,7 @@ func equipmentValues(e topology.Equipment) map[string]string {
 }
 func endpointValues(p topology.Endpoint) map[string]string {
 	return map[string]string{"name": p.Label, "portType": p.PortType, "connector": p.Connector, "speed": p.Speed,
-		"state": p.State, "description": p.Description}
+		"state": p.State, "description": p.Description, "portGroup": strconv.Itoa(p.PortGroup)}
 }
 func linkValues(l topology.Link) map[string]string {
 	return map[string]string{"label": l.Label, "status": l.Status, "notes": l.Notes}
@@ -140,6 +143,9 @@ func apply(s topology.Snapshot, f Fix) (topology.Snapshot, []Change, error) {
 	var name string
 	if f.Name != nil {
 		name = strings.TrimSpace(*f.Name)
+	}
+	if f.PortGroup != nil && f.Kind != Endpoint {
+		return s, nil, invalid("a port group applies only to a switch port")
 	}
 	notFound := fmt.Errorf("%w: %s %s", ErrNotFound, f.Kind, f.ID)
 	var before, after map[string]string
@@ -196,6 +202,15 @@ func apply(s topology.Snapshot, f Fix) (topology.Snapshot, []Change, error) {
 				return s, nil, duplicate("%s already has a port named %s", owner.Name, name)
 			}
 			p.Label = name
+		}
+		if f.PortGroup != nil {
+			if owner.Kind != "switch" || p.Position == 0 {
+				return s, nil, invalid("%s: a port group applies only to a switch port with a position", who)
+			}
+			if *f.PortGroup < 1 || *f.PortGroup > 8 {
+				return s, nil, invalid("%s: a port group is 1–8", who)
+			}
+			p.PortGroup = *f.PortGroup
 		}
 		if err := setDetails(f.Details, p.SetDetail, who); err != nil {
 			return s, nil, err

@@ -126,3 +126,40 @@ func TestFixManyThenRecordKeepsTheFixes(t *testing.T) {
 		t.Fatalf("agg-08 model = %q", got)
 	}
 }
+
+// D51: a port's group is persisted by a direct fix and round-trips.
+func TestFixManyPersistsAPortGroup(t *testing.T) {
+	s, _ := seeded(t)
+	ctx := context.Background()
+	var err error
+	if _, err = s.pool.Exec(ctx, `INSERT INTO equipment(id,name,kind,role,network_id,rack_id,unit,height) VALUES('sw-g','SW-G','switch','access','net-a','rack-a03',3,1)`); err != nil {
+		t.Fatal(err)
+	}
+	for n := 1; n <= 2; n++ {
+		if _, err = s.pool.Exec(ctx, `INSERT INTO endpoints(id,equipment_id,equipment_kind,label,position,side,port_group) VALUES($1,'sw-g','switch',$2,$3,'',1)`,
+			"sw-g:p"+string(rune('0'+n)), "Gi1/0/"+string(rune('0'+n)), n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	revision := installedRevision(t, s)
+	one, two := 2, 3
+	entries, err := s.FixMany(ctx, []fixes.Fix{{Kind: fixes.Endpoint, ID: "sw-g:p1", PortGroup: &one}, {Kind: fixes.Endpoint, ID: "sw-g:p2", PortGroup: &two}}, "Set model")
+	if err != nil || len(entries) != 2 || entries[0].Field != "portGroup" || entries[0].OldValue != "1" || entries[0].NewValue != "2" {
+		t.Fatalf("entries = %+v, err = %v", entries, err)
+	}
+	got, err := s.Installed(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range got.Endpoints {
+		if p.ID == "sw-g:p1" && (p.PortGroup != 2 || p.Position != 1 || p.Label != "Gi1/0/1") || p.ID == "sw-g:p2" && p.PortGroup != 3 {
+			t.Fatalf("port = %+v", p)
+		}
+	}
+	if got.Revision != revision {
+		t.Fatal("revision changed")
+	}
+	if _, err = s.Fix(ctx, fixes.Fix{Kind: fixes.Endpoint, ID: "sw-g:p1", PortGroup: &one}); err != nil {
+		t.Fatal(err)
+	}
+}
