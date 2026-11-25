@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createPhysicalSession } from './physicalSession'
+import { chosenUnit, createPhysicalSession } from './physicalSession'
 import { SITES, type PhysicalLocation } from './location'
 
 const site: PhysicalLocation = { level: 'site', siteId: 'site-main' }
@@ -106,5 +106,67 @@ describe('a site screen remembers its viewport for the session', () => {
     s.requestRefit('site-main')
     expect(s.viewport('site-main')).toBeUndefined()
     expect(s.viewport('site-dr')).toEqual({ x: 3, y: 4, zoom: 1 })
+  })
+})
+
+describe('D50 the rack level keeps its chosen unit and jack per rack, session-only', () => {
+  const rows = [
+    { kind: 'equipment' as const, equipmentId: 'rack-item' },
+    { kind: 'free' as const, unit: 11 },
+    { kind: 'equipment' as const, equipmentId: 'agg-03' },
+    { kind: 'equipment' as const, equipmentId: 'hdf-02' },
+  ]
+  const ports = (id: string) => id !== 'rack-item'
+
+  it('starts empty and notifies when a unit is chosen', () => {
+    const s = createPhysicalSession()
+    expect(s.rackView('r1')).toEqual({})
+    const listener = vi.fn()
+    s.subscribe(listener)
+    s.chooseUnit('r1', 'agg-03')
+    expect(s.rackView('r1')).toEqual({ equipmentId: 'agg-03' })
+    expect(listener).toHaveBeenCalledTimes(1)
+    s.chooseUnit('r1', 'agg-03')
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the choice and the jack per rack, and a new unit drops the jack', () => {
+    const s = createPhysicalSession()
+    s.chooseUnit('r1', 'agg-03')
+    s.selectJack('r1', 'agg-03:p1')
+    s.chooseUnit('r2', 'hdf-02')
+    expect(s.rackView('r1')).toEqual({
+      equipmentId: 'agg-03',
+      endpointId: 'agg-03:p1',
+    })
+    expect(s.rackView('r2')).toEqual({ equipmentId: 'hdf-02' })
+    s.chooseUnit('r1', 'agg-03') // the same unit keeps its jack
+    expect(s.rackView('r1').endpointId).toBe('agg-03:p1')
+    s.chooseUnit('r1', 'hdf-02')
+    expect(s.rackView('r1')).toEqual({ equipmentId: 'hdf-02' })
+    s.selectJack('r1', undefined)
+    expect(s.rackView('r1')).toEqual({ equipmentId: 'hdf-02' })
+  })
+
+  it('the default is the topmost equipment with ports; a choice that left the rack falls back', () => {
+    expect(chosenUnit({}, rows, ports)).toBe('agg-03')
+    expect(chosenUnit({ equipmentId: 'hdf-02' }, rows, ports)).toBe('hdf-02')
+    expect(chosenUnit({ equipmentId: 'rack-item' }, rows, ports)).toBe(
+      'rack-item',
+    )
+    expect(chosenUnit({ equipmentId: 'gone' }, rows, ports)).toBe('agg-03')
+    expect(
+      chosenUnit({}, [{ kind: 'free' as const, unit: 1 }], ports),
+    ).toBeUndefined()
+  })
+
+  it('a rack with only a rack item defaults to nothing', () => {
+    expect(
+      chosenUnit(
+        {},
+        [{ kind: 'equipment' as const, equipmentId: 'rack-item' }],
+        ports,
+      ),
+    ).toBeUndefined()
   })
 })

@@ -18,7 +18,7 @@ async function openEquipment(
   id: string,
 ) {
   await openRackInPhysical(page, site, node, rack)
-  await page.locator(`.rack-block[data-equipment-id="${id}"]`).click()
+  await page.locator(`.rack-block[data-equipment-id="${id}"]`).dblclick()
   await expect(root(page)).toHaveAttribute('data-physical-level', 'equipment')
 }
 const openHdf01 = (page: Page) =>
@@ -171,7 +171,7 @@ test('EP-04 the bar fits at 1280×720 with a long Hebrew name', async ({
   await page.goto(`/?plan=${id}`)
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block', { hasText: 'לוח-ניתוב-ראשי' }).click()
+  await page.locator('.rack-block', { hasText: 'לוח-ניתוב-ראשי' }).dblclick()
   await expect(root(page)).toHaveAttribute('data-physical-level', 'equipment')
   const controls = [
     page.getByRole('group', { name: 'Side' }),
@@ -406,7 +406,7 @@ test('EP-11 (D50) a tall HDF keeps readable jacks inside its plate; the page may
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await page
     .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
-    .click()
+    .dblclick()
   await expect(root(page)).toHaveAttribute('data-physical-level', 'equipment')
   await expect(page.locator('.faceplate[data-fit]')).toHaveCount(1)
   const m = await page.locator('.faceplate[data-fit]').evaluate((plate) => {
@@ -651,7 +651,7 @@ test('EP-18c (D50) a tall HDF with a jack selected keeps every jack inside its p
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await page
     .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
-    .click()
+    .dblclick()
   await expect(root(page)).toHaveAttribute('data-physical-level', 'equipment')
   await page
     .locator('.faceplate[data-fit] [data-testid="face-endpoint"]')

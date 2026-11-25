@@ -196,7 +196,7 @@ test('FD-05 a faulty port: Edit port details in Physical, the jack is hatched, a
     'Main Distribution',
     'Rack Core 02',
   )
-  await page.locator('.rack-block[data-equipment-id="agg-15"]').click()
+  await page.locator('.rack-block[data-equipment-id="agg-15"]').dblclick()
   const jack = page.locator('[data-endpoint-id="agg-15:p3"]')
   await jack.click()
   const port = page.getByTestId('port-details')

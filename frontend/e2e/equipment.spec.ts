@@ -43,7 +43,7 @@ async function openEquipment(
   id: string,
 ) {
   await openRackInPhysical(page, site, node, rack)
-  await page.locator(`.rack-block[data-equipment-id="${id}"]`).click()
+  await page.locator(`.rack-block[data-equipment-id="${id}"]`).dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
 }
 const openHdf01 = (page: Page) =>

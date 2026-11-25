@@ -193,6 +193,23 @@ Every spec reaches equipment through Explore (`selectEquipment`, which selects i
 | HI-12 | Retired as written; successor OV-12: the first tree draw (fitted), a selection to lit, opening the busiest node, the drawer of an AGG; the Problems list with its uplink rows; timings in [status.md](status.md) (measurements, not budgets) | `scale` (`SCALE=1`; with SC-02) |
 | HI-13 | A direct fix renames Building A to a long Hebrew name while its drawer is open: card, frame and drawer show it isolated and cut, the drawer stays on the same card, nothing moves; the name is restored after | `hierarchy.recording` |
 
+## Physical uses the screen (2026-11-25)
+
+D50; [plan](plans/2026-11-25-physical-space.md).
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| D50-00 | The fit as pure functions: band counts, bands highest row first, the jack chosen for width and height with the 18px floor, ties to fewer bands, at the floor the shortest plate; free runs of 3+ units collapse in Installed only | `faceFit.test.ts`, `elevation.test.ts` |
+| D50-01 | Browser: an HDF page and a switch page at 1230×760, 1440×900, 1920×1080 and 2560×1440: no jack outside its plate, no plate outside its card; the HDF's jacks are larger at 1920 than at 1230 | `face-fit` |
+| D50-02 | Browser: a 12-row HDF added in a plan is drawn in 2 bands at 1920×1080, row 12 top-left; arrow keys keep the logical order across bands (7A/1 → 7A/4 → 6A/1); a 32-row HDF is in bands at 1536×864 (PB-05b) | `face-fit`, `hdfplate` |
+| D50-03 | Browser: the patching screen's faces keep their sizes (32px HDF jacks, 28×30 switch jacks) | `face-fit`, `hdfplate` (PB-05) |
+| D50-04 | Browser: a jack on EDGE-17 shows its card beside the face under Connects to, the dock stays closed and has no Port tab; × clears it; the column grows into the room above the path card at 1536×864 (Edit port details visible) and stays under the face at 1000px; the path card spans the face and the column; HDF-01 at 1230×760 with a jack keeps every jack in its plate | `equipment-work`, `frame` (FR-10, FR-11b) |
+| D50-05 | Browser: the path card's plates are larger at 1920×1080 than at 1230×760; the last plate can be reached inside the card; a free jack leaves the card as its one line (EP-15) | `equipment-work`, `equipment-page` |
+| D50-06 | Browser: Open the Trace page on the path card opens the Trace page | `equipment-work`, `trace-page` |
+| D50-07 | Browser: at 1920×1080 Rack Core 01 is at most 250px wide with every unit in view, a free run is one row; a click on AGG-03 shows its face beside the rack and the level stays the rack; Open page and a double-click open its page; the chosen unit is kept per rack | `rack-level`, `physicalSession.test.ts`, `cabinet.test.ts` |
+| D50-08 | Browser: a jack chosen beside the rack draws the path card under the rack and the device | `rack-level` |
+| D50-09 | Browser: in a plan every free unit is its own drop target; the drop specs still pass | `rack-level`, `placement`, `rack` |
+
 ## One conceptual view (2026-10-30)
 
 Frontend only; the specs use the acceptance fixture unless said.

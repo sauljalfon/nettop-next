@@ -35,7 +35,7 @@ test('RI-14 the fixture’s UPS opens in the inspector and on its page with "No 
     'data-item-type',
     'ups',
   )
-  await block.click()
+  await block.dblclick()
   await expect(level(page)).toHaveAttribute('data-physical-level', 'equipment')
   await expect(page.getByTestId('no-ports').first()).toBeVisible()
   await shot(page, 'page')
@@ -49,7 +49,7 @@ test('RI-14 in a plan, Duplicate is not offered for a rack item', async ({
   await page.goto(`/?plan=${id}`)
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block[data-equipment-id="ups-a03"]').click()
+  await page.locator('.rack-block[data-equipment-id="ups-a03"]').dblclick()
   await expect(level(page)).toHaveAttribute('data-physical-level', 'equipment')
   await page.getByRole('button', { name: 'More actions' }).click()
   await expect(
@@ -104,7 +104,7 @@ test('RI-15 a rack item is never on the tree or a patching far end', async ({
   await page.goto(`/?plan=${id}`)
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block[data-equipment-id="edge-17"]').click()
+  await page.locator('.rack-block[data-equipment-id="edge-17"]').dblclick()
   await page.locator('[data-endpoint-id="edge-17:p4"]').click()
   await page
     .getByTestId('connect-popover')

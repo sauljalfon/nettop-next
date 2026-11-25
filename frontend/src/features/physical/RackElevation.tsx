@@ -1,10 +1,17 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  Fragment,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+} from 'react'
 import type { Snapshot } from '../../shared/types'
 import { colorOf } from '../map/networkColors'
-import { visibleArea } from '../map/viewArea'
-import { blockDetail, labelEvery, rackMetrics, unitLabel } from './cabinet'
+import { blockDetail, compactUnitPx, labelEvery, unitLabel } from './cabinet'
 import { DRAG_TYPE, dropInto, type DropHandlers } from './drops'
-import type { ElevationRow } from './elevation'
+import { compactRack, type ElevationRow, type RackRow } from './elevation'
+import { scrollerOf } from './useFaceFit'
 import { elevationSubtitlePieces } from './explorerModel'
 import { piecesText } from '../../shared/textPieces'
 import Pieces from '../../shared/ui/Pieces'
@@ -12,10 +19,10 @@ import Name from '../../shared/ui/Name'
 import Chip from '../../shared/ui/Chip'
 
 const NO_NETWORK_EDGE = 'var(--steel-hover)'
-/** The cabinet's own padding above and below its units. */
-const CABINET_FRAME_PX = 28
-/** Air between the cabinet and the panel below it. */
-const BOTTOM_GAP_PX = 12
+/** The compact cabinet's padding above and below its units (`.rack-cabinet.compact`). */
+const COMPACT_FRAME_PX = 12
+/** The gap under the cabinet before the hint line. */
+const HINT_GAP_PX = 6
 
 interface Props extends DropHandlers {
   snapshot: Snapshot
@@ -24,9 +31,15 @@ interface Props extends DropHandlers {
   colors: ReadonlyMap<string, string>
   /** In a plan: free units are drop targets and equipment can be dragged. */
   canEdit: boolean
-  /** Opens the equipment's page. */
-  onSelect: (equipmentId: string) => void
-  /** A unit height to use instead of fitting the page (a printed sheet). */
+  /** The slim rack of the rack level (D50): fitted to the room, free runs folded in Installed. */
+  compact?: boolean
+  /** Compact: pixels kept free under the rack (the path card's height and gap). */
+  keepBelow?: number
+  /** A click on a unit: shows it beside the rack. */
+  onPick?: (equipmentId: string) => void
+  /** A double-click on a unit: opens its page. */
+  onOpen?: (equipmentId: string) => void
+  /** A unit height for the full elevation (a printed sheet); the compact rack fits the room instead. */
   fixedUnitPx?: number
   /** For a printed sheet: no print button. */
   printing?: boolean
@@ -35,9 +48,11 @@ interface Props extends DropHandlers {
 }
 
 /**
- * One rack as a steel cabinet with rails, top unit first. The unit height is
- * what fits the page, never below 26 px (D33): a rack that does not fit scrolls
- * and every unit is labeled. Each
+ * One rack as a steel cabinet with rails, top unit first. Compact (the rack
+ * level, D50): 190-250 px wide, the unit height (12-26 px) fitted to the room
+ * above the path card, the free runs of three or more folded into one dashed
+ * row in Installed, a click picks a unit and a double-click opens it. Not
+ * compact (the print sheet): the full elevation at `fixedUnitPx`. Each
  * equipment is one faceplate spanning its units: a switch with port dots, an
  * HDF with a grid texture and its row count, a panel with a row of jacks. Route
  * equipment has a teal border, the selected one a paper ring, proposed equipment
@@ -50,58 +65,64 @@ export default function RackElevation({
   rows,
   colors,
   canEdit,
-  onSelect,
+  compact,
+  keepBelow = 0,
+  onPick,
+  onOpen,
   fixedUnitPx,
   printing,
   onPrint,
   onMoveEquipment,
   onCreateEquipment,
 }: Props) {
-  const level = useRef<HTMLDivElement>(null)
-  const [room, setRoom] = useState({ space: 600, cover: 0 })
-  // The room for the cabinet, measured in the viewport and never from the page's
-  // own height (which grows with the cabinet): from the cabinet's top edge down
-  // to the top of whatever covers the bottom of the canvas, or the canvas's bottom when nothing does. The same
-  // covers the map fits around. Measured again when the window, the panel, a
-  // drawer or the page above the cabinet changes size or appears.
+  const cabinetBox = useRef<HTMLDivElement>(null)
+  const hintBox = useRef<HTMLParagraphElement>(null)
+  const [room, setRoom] = useState(600)
+  const shown: RackRow[] = useMemo(
+    () => (compact ? compactRack(rows, !canEdit) : rows),
+    [compact, rows, canEdit],
+  )
+  // Rows drawn, in units of the grid: a free unit and a run are one, equipment its height.
+  const span = (row: RackRow) => (row.kind === 'equipment' ? row.height : 1)
+  const total = shown.reduce((n, r) => n + span(r), 0)
+  // The room for the cabinet, from its top edge to the bottom of the scrolling
+  // page, less what is kept free under it (the path card) and the hint line.
+  // Measured in the viewport, never from the page's own height (which grows with the cabinet).
   useLayoutEffect(() => {
-    const el = level.current
-    if (!el || fixedUnitPx) return
-    const canvas = el.closest<HTMLElement>('.workspace-canvas')
-    const observed = new Set<Element>()
-    const resize = new ResizeObserver(() => measure())
+    const el = cabinetBox.current
+    if (!compact || !el) return
+    const scroller = scrollerOf(el)
     function measure() {
-      const cabinet = el!.querySelector('.rack-cabinet')
-      const area = visibleArea(canvas)
-      if (!cabinet || !area) return
-      for (const watched of [
-        ...document.querySelectorAll('.studio-drawer'),
-        ...(canvas?.querySelectorAll('.physical-top') ?? []),
-      ])
-        if (!observed.has(watched)) {
-          resize.observe(watched)
-          observed.add(watched)
-        }
-      const bottom = area.box.bottom - area.covers.bottom - BOTTOM_GAP_PX
-      const top = cabinet.getBoundingClientRect().top + el!.scrollTop
-      const space = Math.max(0, Math.round(bottom - top - CABINET_FRAME_PX))
-      const cover = area.covers.bottom
-      setRoom((r) =>
-        r.space === space && r.cover === cover ? r : { space, cover },
+      const top =
+        el!.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top +
+        scroller.scrollTop
+      const hint = hintBox.current
+        ? hintBox.current.offsetHeight + HINT_GAP_PX
+        : 0
+      const bottom = parseFloat(getComputedStyle(scroller).paddingBottom) || 0
+      const next = Math.max(
+        0,
+        Math.floor(
+          scroller.clientHeight -
+            top -
+            bottom -
+            keepBelow -
+            hint -
+            COMPACT_FRAME_PX,
+        ),
       )
+      setRoom((r) => (r === next ? r : next))
     }
     measure()
-    if (canvas) resize.observe(canvas)
+    const resize = new ResizeObserver(measure)
+    resize.observe(scroller)
     window.addEventListener('resize', measure)
-    const watch = new MutationObserver(measure)
-    const studio = el.closest('.studio')
-    if (studio) watch.observe(studio, { childList: true, subtree: true })
     return () => {
       resize.disconnect()
-      watch.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [fixedUnitPx])
+  }, [compact, keepBelow, total])
   // Per-equipment facts for the faceplates, one pass over the snapshot.
   const facts = useMemo(() => {
     const endpoints = new Map<string, number>()
@@ -120,47 +141,64 @@ export default function RackElevation({
   if (!rack) return null
   const equipment = new Map(snapshot.equipment.map((e) => [e.id, e]))
   const handlers = { onMoveEquipment, onCreateEquipment }
-  const { unitPx, gap } = fixedUnitPx
-    ? { unitPx: fixedUnitPx, gap: 2 }
-    : rackMetrics(room.space, rack.units)
-  const every = labelEvery(unitPx)
-  return (
-    <div
-      className="rack-level"
-      ref={level}
-      // Only a rack that does not fit (the minimum unit) scrolls, and then it
-      // scrolls clear of the panel; a rack that fits adds nothing to the page.
-      style={{
-        paddingBottom:
-          unitPx * rack.units + gap * (rack.units - 1) > room.space
-            ? room.cover + 25
-            : 25,
-      }}
-    >
-      <section className="rack-figure">
-        <header className="rack-heading title-row">
-          <h2>
-            <Name text={rack.name} />
-          </h2>
-          <span className="meta">{rack.units}U · front elevation</span>
-          {!printing && onPrint && (
-            <button className="btn print-button" onClick={onPrint}>
-              Print sheet
-            </button>
-          )}
-        </header>
-        <div
-          className="rack-cabinet"
-          data-unit-px={unitPx}
-          style={{
-            gridTemplateRows: `repeat(${rack.units}, ${unitPx}px)`,
-            ['--unit' as string]: `${unitPx}px`,
-            ['--gap' as string]: `${gap}px`,
-          }}
-        >
-          <i className="rail left" aria-hidden />
-          <i className="rail right" aria-hidden />
-          {Array.from({ length: rack.units }, (_, i) => rack.units - i).map(
+  const gap = 2
+  const unitPx = compact ? compactUnitPx(room, total) : (fixedUnitPx ?? 26)
+  const every = compact ? 1 : labelEvery(unitPx)
+  const slotDrop = (unit: number) => ({
+    onDragOver: (event: DragEvent) => {
+      if (!canEdit) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'copy'
+    },
+    onDrop: (event: DragEvent) => {
+      if (!canEdit) return
+      if (
+        dropInto(event.dataTransfer.getData(DRAG_TYPE), rackId, unit, handlers)
+      )
+        event.preventDefault()
+    },
+  })
+  // Where each row starts in the grid (compact: top down by what is drawn; full: by unit).
+  let cursor = 1
+  const cabinetRows = shown.map((row) => {
+    const start = compact
+      ? cursor
+      : row.kind === 'equipment'
+        ? rack.units - row.topUnit + 1
+        : row.kind === 'free'
+          ? rack.units - row.unit + 1
+          : cursor
+    cursor += span(row)
+    return { row, start }
+  })
+  const gridRows = compact ? total : rack.units
+  const figure = (
+    <section className="rack-figure">
+      <header className="rack-heading title-row">
+        <h2>
+          <Name text={rack.name} />
+        </h2>
+        <span className="meta">{rack.units}U · front elevation</span>
+        {!printing && onPrint && (
+          <button className="btn print-button" onClick={onPrint}>
+            Print sheet
+          </button>
+        )}
+      </header>
+      <div
+        className={`rack-cabinet ${compact ? 'compact' : ''}`}
+        ref={cabinetBox}
+        data-unit-px={unitPx}
+        style={{
+          gridTemplateRows: `repeat(${gridRows}, ${unitPx}px)`,
+          ['--unit' as string]: `${unitPx}px`,
+          ['--gap' as string]: `${gap}px`,
+        }}
+      >
+        <i className="rail left" aria-hidden />
+        <i className="rail right" aria-hidden />
+        {!compact &&
+          Array.from({ length: rack.units }, (_, i) => rack.units - i).map(
             (unit) => {
               const label = unitLabel(unit, every)
               return label.show ? (
@@ -174,50 +212,70 @@ export default function RackElevation({
               ) : null
             },
           )}
-          {rows.map((row) => {
-            if (row.kind === 'free')
-              return (
+        {cabinetRows.map(({ row, start }) => {
+          if (row.kind === 'run')
+            return (
+              <Fragment key={`run-${row.top}`}>
                 <div
-                  key={`free-${row.unit}`}
+                  className="rack-slot free run"
+                  data-testid={`rack-run-${rackId}-${row.top}-${row.bottom}`}
+                  style={{ gridColumn: '1 / span 2', gridRow: start }}
+                >
+                  {row.top}–{row.bottom} · {row.top - row.bottom + 1}U free
+                </div>
+              </Fragment>
+            )
+          if (row.kind === 'free')
+            return (
+              <Fragment key={`free-${row.unit}`}>
+                {compact && (
+                  <span
+                    className={`unit-label ${row.unit % 5 === 0 ? 'strong' : ''}`}
+                    style={{ gridColumn: 1, gridRow: start }}
+                  >
+                    {row.unit}
+                  </span>
+                )}
+                <div
                   className="rack-slot free"
                   data-testid={`rack-slot-${rackId}-${row.unit}`}
                   data-drop-target={canEdit}
-                  style={{ gridColumn: 2, gridRow: rack.units - row.unit + 1 }}
-                  onDragOver={(event) => {
-                    if (!canEdit) return
-                    event.preventDefault()
-                    event.dataTransfer.dropEffect = 'copy'
-                  }}
-                  onDrop={(event) => {
-                    if (!canEdit) return
-                    if (
-                      dropInto(
-                        event.dataTransfer.getData(DRAG_TYPE),
-                        rackId,
-                        row.unit,
-                        handlers,
-                      )
-                    )
-                      event.preventDefault()
+                  style={{ gridColumn: 2, gridRow: start }}
+                  {...slotDrop(row.unit)}
+                >
+                  {!compact && unitPx >= 18 && 'Available'}
+                </div>
+              </Fragment>
+            )
+          const e = equipment.get(row.equipmentId)!
+          const blockPx = row.height * unitPx + (row.height - 1) * gap
+          const detail = compact
+            ? blockPx >= 12
+              ? 'name'
+              : 'none'
+            : blockDetail(blockPx)
+          const pieces = elevationSubtitlePieces(e, snapshot.networks)
+          const subtitle = piecesText(pieces)
+          const ports = facts.endpoints.get(e.id) ?? 0
+          return (
+            <Fragment key={row.equipmentId}>
+              {compact && (
+                <span
+                  className="unit-label"
+                  style={{
+                    gridColumn: 1,
+                    gridRow: `${start} / span ${row.height}`,
                   }}
                 >
-                  {unitPx >= 18 && 'Available'}
-                </div>
-              )
-            const e = equipment.get(row.equipmentId)!
-            const blockPx = row.height * unitPx + (row.height - 1) * gap
-            const detail = blockDetail(blockPx)
-            const pieces = elevationSubtitlePieces(e, snapshot.networks)
-            const subtitle = piecesText(pieces)
-            const ports = facts.endpoints.get(e.id) ?? 0
-            return (
+                  {row.height > 1 ? `${row.topUnit}–${row.unit}` : row.unit}
+                </span>
+              )}
               <div
-                key={row.equipmentId}
                 className="rack-slot occupied"
                 data-testid={`rack-slot-${rackId}-${row.unit}`}
                 style={{
                   gridColumn: 2,
-                  gridRow: `${rack.units - row.topUnit + 1} / span ${row.height}`,
+                  gridRow: `${start} / span ${row.height}`,
                 }}
               >
                 <button
@@ -243,7 +301,8 @@ export default function RackElevation({
                     event.dataTransfer.setData(DRAG_TYPE, `equipment:${e.id}`)
                     event.dataTransfer.effectAllowed = 'copyMove'
                   }}
-                  onClick={() => onSelect(e.id)}
+                  onClick={() => onPick?.(e.id)}
+                  onDoubleClick={() => onOpen?.(e.id)}
                 >
                   {detail !== 'none' && (
                     <span className="block-text">
@@ -272,10 +331,24 @@ export default function RackElevation({
                   />
                 </button>
               </div>
-            )
-          })}
-        </div>
-      </section>
+            </Fragment>
+          )
+        })}
+      </div>
+    </section>
+  )
+  if (compact)
+    return (
+      <div className="rack-column" data-testid="rack-column">
+        {figure}
+        <p className="rack-hint" data-testid="rack-hint" ref={hintBox}>
+          Double-click a unit to open its page.
+        </p>
+      </div>
+    )
+  return (
+    <div className="rack-level" style={{ paddingBottom: 25 }}>
+      {figure}
       <aside className="rack-notes side-note">
         <div className="panel">
           <p>A 3U HDF is one object spanning its three units.</p>

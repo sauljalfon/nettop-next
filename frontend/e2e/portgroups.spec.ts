@@ -57,7 +57,7 @@ async function openSwitch(page: Page, planId: string, switchId: string) {
   await page.goto(`/?plan=${planId}`)
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator(`.rack-block[data-equipment-id="${switchId}"]`).click()
+  await page.locator(`.rack-block[data-equipment-id="${switchId}"]`).dblclick()
 }
 
 test('PG-06 the Add form: port group rows, a one-line summary, and the ports it makes', async ({
@@ -169,7 +169,7 @@ test('PG-04 the faceplate draws one bank per group with its caption; a switch wi
   // An installed switch made before groups is one bank, with no caption.
   await page.goto(`/?plan=${id}`)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block[data-equipment-id="edge-17"]').click()
+  await page.locator('.rack-block[data-equipment-id="edge-17"]').dblclick()
   await expect(page.getByTestId('port-bank')).toHaveCount(1)
   await expect(page.getByTestId('bank-caption')).toHaveCount(0)
   await shot(page, 'faceplate-plain')
@@ -320,7 +320,7 @@ test('PG-05 Duplicate keeps the groups and their port types, and never a serial 
   // Both banks show on the copy's faceplate.
   await page.goto(`/?plan=${id}`)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator(`.rack-block[data-equipment-id="${copy.id}"]`).click()
+  await page.locator(`.rack-block[data-equipment-id="${copy.id}"]`).dblclick()
   await expect(page.getByTestId('bank-caption')).toHaveText([
     'Gi1/0/1–Gi1/0/24 · copper · 1G',
     'Te1/1/1–Te1/1/4 · fiber · 10G',

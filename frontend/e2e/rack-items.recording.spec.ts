@@ -89,7 +89,7 @@ test('RI-13 a rack item is dragged in from the library, moved, recorded, and del
   await page.goto(`/?plan=${later}`)
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await block(page, added.id).click()
+  await block(page, added.id).dblclick()
   await page.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Delete…' }).click()
   await expect(

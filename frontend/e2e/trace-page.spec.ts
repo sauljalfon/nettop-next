@@ -508,7 +508,7 @@ test('TP-08 ← Back returns to the tree with its viewport and selection, and to
 
   // The equipment page and its jack.
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   const jack = page.locator(
     '[data-testid="face-endpoint"][data-endpoint-id="hdf-01:sp-3C:5:f"]',
   )
@@ -541,7 +541,7 @@ test('TP-09 Full page from a jack’s path traces from that jack and opens the p
   page,
 }) => {
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   // No jack, no path, no button.
   await expect(
     page.getByRole('button', { name: 'Open the Trace page', exact: true }),

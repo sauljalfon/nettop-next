@@ -39,7 +39,7 @@ async function openEquipment(
   id: string,
 ) {
   await openRackInPhysical(page, site, node, rack)
-  await page.locator(`.rack-block[data-equipment-id="${id}"]`).click()
+  await page.locator(`.rack-block[data-equipment-id="${id}"]`).dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
 }
 const openEdge17 = (page: Page) =>
@@ -148,7 +148,7 @@ test('D47-02 with a route selected, EDGE-17’s page in Physical has no trail an
 }) => {
   await traceFromEdge17(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block[data-equipment-id="edge-17"]').click()
+  await page.locator('.rack-block[data-equipment-id="edge-17"]').dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
   await expect(root(page)).toHaveAttribute('data-route-steps', '5') // the route is still selected
   await expect(page.getByRole('region', { name: 'EDGE-17 face' })).toBeVisible()

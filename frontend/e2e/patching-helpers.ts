@@ -117,7 +117,9 @@ export async function openPatching(
   await fitted(page)
   const [site, node, rack] = PLACES[where.equipment]
   await openRackInPhysical(page, site, node, rack)
-  await page.locator(`.rack-block[data-equipment-id="${equipmentId}"]`).click()
+  await page
+    .locator(`.rack-block[data-equipment-id="${equipmentId}"]`)
+    .dblclick()
   if (where.rear)
     await page.getByRole('button', { name: 'Rear', exact: true }).click()
   await page.locator(`[data-endpoint-id="${endpoint}"]`).click()

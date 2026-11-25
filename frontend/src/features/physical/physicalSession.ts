@@ -24,14 +24,50 @@ export interface PhysicalSession {
   /** The pan and zoom last used on a site's screen; absent until recorded. */
   viewport(siteId: string): Viewport | undefined
   setViewport(siteId: string, viewport: Viewport): void
+  /** The rack level's chosen unit and its selected jack; replaced on every change (a store snapshot). */
+  rackView(rackId: string): RackView
+  /** Choosing another unit drops the jack; the same unit keeps it. */
+  chooseUnit(rackId: string, equipmentId: string): void
+  selectJack(rackId: string, endpointId: string | undefined): void
   subscribe(listener: () => void): () => void
+}
+
+/** What the rack level shows beside the rack: absent until something is chosen. */
+export interface RackView {
+  equipmentId?: string
+  endpointId?: string
+}
+
+const NO_VIEW: RackView = {}
+
+/**
+ * The unit the rack level shows: the chosen one while it is still in the rack,
+ * else the topmost equipment that has ports, else none. A rack item can be
+ * chosen (it shows "No ports") but is never the default.
+ */
+export function chosenUnit(
+  view: RackView,
+  rows: readonly { kind: string; [key: string]: unknown }[],
+  hasPorts: (equipmentId: string) => boolean,
+): string | undefined {
+  const ids = rows.flatMap((r) =>
+    r.kind === 'equipment' && 'equipmentId' in r ? [String(r.equipmentId)] : [],
+  )
+  if (view.equipmentId && ids.includes(view.equipmentId))
+    return view.equipmentId
+  return ids.find(hasPorts)
 }
 
 export function createPhysicalSession(): PhysicalSession {
   let history = initialHistory()
   const fitted = new Set<string>()
   const viewports = new Map<string, Viewport>()
+  const racks = new Map<string, RackView>()
   const listeners = new Set<() => void>()
+  const setRack = (rackId: string, next: RackView) => {
+    racks.set(rackId, next)
+    for (const listener of listeners) listener()
+  }
   const set = (next: PhysicalHistory) => {
     if (next === history) return
     history = next
@@ -52,6 +88,22 @@ export function createPhysicalSession(): PhysicalSession {
     viewport: (siteId) => viewports.get(siteId),
     setViewport: (siteId, v) =>
       void viewports.set(siteId, { x: v.x, y: v.y, zoom: v.zoom }),
+    rackView: (rackId) => racks.get(rackId) ?? NO_VIEW,
+    chooseUnit(rackId, equipmentId) {
+      const now = racks.get(rackId)
+      if (now?.equipmentId === equipmentId) return
+      setRack(rackId, { equipmentId })
+    },
+    selectJack(rackId, endpointId) {
+      const now = racks.get(rackId)
+      if (!now?.equipmentId || now.endpointId === endpointId) return
+      setRack(
+        rackId,
+        endpointId
+          ? { equipmentId: now.equipmentId, endpointId }
+          : { equipmentId: now.equipmentId },
+      )
+    },
     subscribe(listener) {
       listeners.add(listener)
       return () => void listeners.delete(listener)

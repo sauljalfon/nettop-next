@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   blockDetail,
+  compactUnitPx,
   labelEvery,
   previewUnitPx,
   rackMetrics,
@@ -90,5 +91,17 @@ describe('node previews use a fixed small height', () => {
     expect(Math.round(previewUnitPx(42) * 42)).toBeGreaterThanOrEqual(255)
     expect(Math.round(previewUnitPx(42) * 42)).toBeLessThanOrEqual(262)
     expect(previewUnitPx(100) * 100).toBeLessThanOrEqual(262)
+  })
+})
+
+describe('D50 the compact rack fits its rows to the room, 12 to 26 px a unit', () => {
+  it('takes what fits, less the 2 px gaps', () => {
+    expect(compactUnitPx(500, 20)).toBe(Math.floor((500 - 19 * 2) / 20))
+  })
+  it('never goes above 26 or below 12', () => {
+    expect(compactUnitPx(2000, 12)).toBe(26)
+    expect(compactUnitPx(100, 44)).toBe(12)
+    expect(compactUnitPx(0, 10)).toBe(12)
+    expect(compactUnitPx(300, 0)).toBe(26)
   })
 })

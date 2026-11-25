@@ -40,7 +40,7 @@ async function openEquipment(
   id: string,
 ) {
   await openRackInPhysical(page, site, node, rack)
-  await block(page, id).click()
+  await block(page, id).dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
 }
 async function traceAgg03(page: Page) {
@@ -280,7 +280,7 @@ test('PB-06 every HDF draws its highest row at the top', async ({
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await page
     .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
-    .click()
+    .dblclick()
   await expectMark(page, 'data-face-positions', '768')
   await expect(page.locator('.hdf-row').first()).toHaveText('32')
   expect(await page.locator('.hdf-scroll').evaluate((e) => e.scrollTop)).toBe(0)
@@ -300,7 +300,7 @@ test('PB-05b (D50) a 32-row HDF is drawn in bands, its jacks are at least 18px i
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await page
     .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
-    .click()
+    .dblclick()
   await expectMark(page, 'data-face-positions', '768')
   const plate = page.locator('.faceplate[data-fit]')
   await expect

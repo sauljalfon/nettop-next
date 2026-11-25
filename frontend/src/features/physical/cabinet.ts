@@ -38,3 +38,19 @@ export function blockDetail(blockPx: number): 'full' | 'name' | 'none' {
 /** Node previews are a fixed small drawing: 11 px units, shrinking so a tall rack is about 260 px. */
 export const previewUnitPx = (units: number): number =>
   Math.min(11, 260 / Math.max(units, 1))
+
+export const COMPACT_MIN_UNIT_PX = 12
+export const COMPACT_MAX_UNIT_PX = 26
+
+/**
+ * The unit height of the rack level's slim rack (D50): what `rows` unit-high
+ * rows fit in `room` pixels with a 2 px gap between them, from 12 to 26 px.
+ */
+export function compactUnitPx(room: number, rows: number): number {
+  if (rows <= 0) return COMPACT_MAX_UNIT_PX
+  const fit = Math.floor((room - (rows - 1) * 2) / rows)
+  return Math.min(
+    COMPACT_MAX_UNIT_PX,
+    Math.max(COMPACT_MIN_UNIT_PX, Number.isFinite(fit) ? fit : 0),
+  )
+}

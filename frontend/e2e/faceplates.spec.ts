@@ -32,7 +32,7 @@ async function openEquipment(
   id: string,
 ) {
   await openRackInPhysical(page, site, node, rack)
-  await block(page, id).click()
+  await block(page, id).dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
 }
 async function traceAgg03(page: Page) {
@@ -46,16 +46,17 @@ test.beforeEach(async ({ page }) => {
   await fitted(page)
 })
 
-test('RK-01 a 12U rack labels every unit with every fifth bold, and a node preview of a 42U rack is a small fixed drawing', async ({
+test('RK-01 (D50) a 12U rack is compact with numbers without U and its free runs folded, and a node preview of a 42U rack is a small fixed drawing', async ({
   page,
 }) => {
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   const cabinet = page.locator('.rack-cabinet')
-  await expect(cabinet).toHaveAttribute('data-unit-px', '30')
-  await expect(cabinet.locator('.unit-label')).toHaveText(
-    Array.from({ length: 12 }, (_, i) => `U${12 - i}`),
-  )
-  await expect(cabinet.locator('.unit-label.strong')).toHaveText(['U10', 'U5'])
+  await expect(cabinet).toHaveAttribute('data-unit-px', '26')
+  // Compact rack (D50): numbers without "U", the free runs folded.
+  await expect(cabinet.locator('.unit-label')).toHaveText(['6–4'])
+  await expect(
+    page.locator('[data-testid^="rack-run-rack-sm01-"]'),
+  ).toHaveCount(2)
 
   // The annex has an empty 42U rack.
   await page
@@ -73,7 +74,7 @@ test('RK-01 a 12U rack labels every unit with every fifth bold, and a node previ
   // The 42U rack itself is VP-03 (visual-pass.spec.ts).
 })
 
-test('RK-02 each kind of equipment has its own faceplate; the name and the small line show when there is room', async ({
+test('RK-02 (D50) each kind of equipment has its own faceplate; the name shows and the small line is in the tooltip', async ({
   page,
 }) => {
   await openRackInPhysical(
@@ -91,10 +92,15 @@ test('RK-02 each kind of equipment has its own faceplate; the name and the small
     block(page, 'hdf-02').locator('.plate[data-plate="hdf"]'),
   ).toContainText('3 rows')
   await expect(block(page, 'agg-03')).toContainText('AGG-03')
-  await expect(block(page, 'agg-03')).toContainText(
-    'AGG · Network A · 1U at U8',
+  // The compact rack shows the name only; the small line is in the tooltip (D50).
+  await expect(block(page, 'agg-03')).toHaveAttribute(
+    'title',
+    /AGG · Network A · 1U at U8/,
   )
-  await expect(block(page, 'hdf-02')).toContainText('passive · 3U at U4–U6')
+  await expect(block(page, 'hdf-02')).toHaveAttribute(
+    'title',
+    /passive · 3U at U4–U6/,
+  )
   await page
     .getByRole('navigation', { name: 'Breadcrumbs' })
     .getByRole('button', { name: 'Main Distribution', exact: true })
@@ -110,7 +116,7 @@ test('RK-02 each kind of equipment has its own faceplate; the name and the small
   await page.setViewportSize({ width: 1440, height: 430 })
   await expect(page.locator('.rack-cabinet')).toHaveAttribute(
     'data-unit-px',
-    '26',
+    /^(1[2-9]|2[0-6])$/,
   )
   const edge = block(page, 'edge-17')
   await expect(edge).toContainText('EDGE-17')
@@ -118,7 +124,7 @@ test('RK-02 each kind of equipment has its own faceplate; the name and the small
   await expect(edge).toHaveAttribute('title', /access · Network A · 1U at U8/)
 })
 
-test('RK-02 states: route teal, selected paper ring, proposed dashed with a tag, other networks muted', async ({
+test('RK-02 (D50) states: route teal, selected paper ring, proposed dashed with a tag, other networks muted', async ({
   page,
 }) => {
   await traceAgg03(page)
@@ -131,7 +137,7 @@ test('RK-02 states: route teal, selected paper ring, proposed dashed with a tag,
     'border-top-color',
     'rgb(15, 139, 122)',
   )
-  await block(page, 'edge-17').click() // opens its page; Back returns with it selected
+  await block(page, 'edge-17').dblclick() // opens its page; Back returns with it selected
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expect(block(page, 'edge-17')).toHaveAttribute('data-selected', 'true')
   await expect(block(page, 'edge-17')).toHaveCSS(
@@ -143,7 +149,8 @@ test('RK-02 states: route teal, selected paper ring, proposed dashed with a tag,
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await expect(block(page, 'edge-18')).toHaveCSS('border-top-style', 'dashed')
-  await expect(block(page, 'edge-18')).toContainText('Proposed')
+  await expect(block(page, 'edge-18')).toHaveAttribute('data-proposed', 'true')
+  await expect(block(page, 'edge-18')).toHaveAttribute('title', /Proposed/)
   await page
     .getByRole('combobox', { name: 'Show network' })
     .selectOption({ label: 'Network B' })
@@ -339,7 +346,7 @@ test('PB-03 on an HDF the arrows cross blocks, and the whole grid is one tab sto
   expect(await stops.getAttribute('data-endpoint-id')).toBe('hdf-01:sp-3C:5:r')
 })
 
-test('RK-01 a 42U cabinet scrolls clear of the dock at the bottom of the page', async ({
+test('RK-01 (D50) an empty 42U rack is one free run in Installed, beside the dock, and nothing scrolls', async ({
   page,
 }) => {
   await traceAgg03(page)
@@ -348,43 +355,31 @@ test('RK-01 a 42U cabinet scrolls clear of the dock at the bottom of the page', 
   const dock = page.locator('.dock:not([hidden])')
   await openInspector(page)
   await expect(dock).toBeVisible()
-  // With the dock open beside the page, scrolled to the bottom every unit, the lowest
-  // included, is inside the rack panel and the window, and none is under the dock.
-  const bottomClear = async () => {
-    await page
-      .locator('.rack-level')
-      .evaluate((el) => (el.scrollTop = el.scrollHeight))
-    const level = (await page.locator('.rack-level').boundingBox())!
-    const dockLeft = (await dock.boundingBox())!.x
-    const windowBottom = page.viewportSize()!.height
-    let ok = true
-    for (const unit of [1, 2, 3, 4, 20, 42]) {
-      const slot = (await page
-        .getByTestId(`rack-slot-rack-t42-${unit}`)
-        .boundingBox())!
-      if (unit === 1 || unit === 2 || unit === 3 || unit === 4)
-        ok =
-          ok &&
-          slot.y + slot.height <= level.y + level.height + 1 &&
-          slot.y + slot.height <= windowBottom + 1
-      ok = ok && slot.x + slot.width <= dockLeft + 1
-    }
-    return ok
-  }
-  await expect.poll(bottomClear).toBe(true)
+  await expect(page.getByTestId('rack-run-rack-t42-42-1')).toContainText(
+    '42–1 · 42U free',
+  )
+  await expect
+    .poll(async () => {
+      const cab = (await page.locator('.rack-cabinet').boundingBox())!
+      const dockLeft = (await dock.boundingBox())!.x
+      const scrolls = await page
+        .locator('.rack-screen')
+        .evaluate((el) => el.scrollHeight > el.clientHeight + 1)
+      return cab.x + cab.width <= dockLeft + 1 && !scrolls
+    })
+    .toBe(true)
 })
 
 for (const size of [
   { width: 1440, height: 900 },
   { width: 1280, height: 720 },
 ]) {
-  test(`RK-01 at ${size.width}×${size.height} U1 of the 42U rack is fully visible beside the dock once scrolled to the bottom`, async ({
+  test(`RK-01 (D50) at ${size.width}×${size.height} in a plan U1 of the 42U rack is fully visible beside the dock once scrolled to the bottom`, async ({
     page,
   }) => {
     await page.setViewportSize(size)
-    await page.goto('/')
+    await page.goto('/?plan=expansion')
     await fitted(page)
-    await traceAgg03(page) // the route chip stays on the page
     await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
     await expectMark(page, 'data-physical-level', 'rack')
     const dock = page.locator('.dock:not([hidden])')
@@ -392,21 +387,20 @@ for (const size of [
     await expect(dock).toBeVisible()
     const check = async () => {
       await page
-        .locator('.rack-level')
+        .locator('.rack-screen')
         .evaluate((el) => (el.scrollTop = el.scrollHeight))
-      const level = (await page.locator('.rack-level').boundingBox())!
+      const level = (await page.locator('.rack-screen').boundingBox())!
       const dockLeft = (await dock.boundingBox())!.x
       const slot = (await page
         .getByTestId('rack-slot-rack-t42-1')
         .boundingBox())!
-      // The rack level scrolls, never the page around it.
+      // The rack screen scrolls, never the page around it.
       const pageScrolls = await page.evaluate(
         () => document.documentElement.scrollHeight > window.innerHeight + 1,
       )
-      const windowBottom = page.viewportSize()!.height
       return (
         slot.y + slot.height <= level.y + level.height + 1 &&
-        slot.y + slot.height <= windowBottom + 1 &&
+        slot.y + slot.height <= page.viewportSize()!.height + 1 &&
         slot.x + slot.width <= dockLeft + 1 &&
         !pageScrolls
       )

@@ -87,7 +87,7 @@ test('TR-05 the physical location is kept, and the route marks follow the rerun 
   await findFromEdge17(page) // AGG-03
   await leaveTrace(page)
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   await page
     .getByRole('group', { name: 'Side' })
     .getByRole('button', { name: 'Rear' })

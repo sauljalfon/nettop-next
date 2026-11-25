@@ -303,7 +303,7 @@ test('FR-10 (D50) a jack opens its card beside the face, not a Port tab in the d
   await page.goto(`/?plan=${id}`)
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   await expect(page.locator('.physical-explorer')).toHaveAttribute(
     'data-physical-level',
     'equipment',

@@ -26,7 +26,7 @@ async function openInRackA03(page: Page, planId: string, equipment: string) {
   await page.goto(`/?plan=${planId}`)
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator(`.rack-block[data-equipment-id="${equipment}"]`).click()
+  await page.locator(`.rack-block[data-equipment-id="${equipment}"]`).dblclick()
 }
 
 test('PT-06 one at a time: a click on a far jack makes the cable, then Enter makes the next ones; Undo last takes one back', async ({
@@ -264,7 +264,7 @@ test('PT-03 each face scrolls in its own pane and the page does not', async ({
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await page
     .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
-    .click()
+    .dblclick()
   await page.locator('.face-cell.hdf-jack:not(:disabled)').first().click()
   await page.getByRole('button', { name: 'Connect a range…' }).click()
   await expect(patching(page)).toBeVisible()
@@ -389,7 +389,7 @@ for (const size of [
     await page.reload()
     await fitted(page)
     await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-    await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+    await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
     await page.getByRole('button', { name: 'Rear', exact: true }).click()
     await page.locator('[data-endpoint-id="hdf-01:sp-2B:1:r"]').click()
     await page.getByRole('button', { name: 'Connect a range…' }).click()

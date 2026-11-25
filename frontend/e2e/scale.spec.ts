@@ -349,7 +349,7 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
       .getByRole('button', { name: 'Open racks of Sub-main 1', exact: true })
       .dispatchEvent('click') // the card may be outside the visible part of the canvas
     await page.getByRole('button', { name: 'Open SM1-R1', exact: true }).click()
-    await page.locator('.rack-block[data-equipment-id="hdf-sm1"]').click()
+    await page.locator('.rack-block[data-equipment-id="hdf-sm1"]').dblclick()
     await expectMark(page, 'data-physical-level', 'equipment')
     await expect(
       page.locator('[data-testid="face-block"]').first(),

@@ -83,6 +83,8 @@
   --work-side: 340px; /* the equipment page's side column (Connects to, the jack's card) */
   --work-side-wide: 400px; /* the same from 1700px of page width */
   --work-gap: 14px;
+  --rack-w: clamp(190px, 13vw, 250px); /* the rack level's slim rack */
+  --rack-unit-label: 26px; /* its unit-number column */
   --work-connects-max: 330px; /* Connects to scrolls inside itself past this */
 
   --r-drawer: 10px;

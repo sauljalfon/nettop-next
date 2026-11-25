@@ -92,7 +92,7 @@ test('D49-04 Find AGG / BB from a jack in Physical opens the page; ← Back retu
   page,
 }) => {
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   await page
     .locator(
       '[data-testid="face-endpoint"][data-endpoint-id="hdf-01:sp-3C:5:f"]',

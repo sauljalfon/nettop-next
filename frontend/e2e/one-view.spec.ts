@@ -136,7 +136,7 @@ test('OV-08 Show on map from a Physical endpoint selects the equipment, and HDF-
   page,
 }) => {
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   await page
     .locator(
       '[data-testid="face-endpoint"][data-endpoint-id="hdf-01:sp-3C:5:f"]',
@@ -218,7 +218,7 @@ test('OV-10 (D50) no Focus anywhere: no Focus button in the Inspector, and no Fo
   await expect(page.getByRole('button', { name: /Focus/ })).toHaveCount(0)
 
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01') // Physical
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   await page
     .locator(
       '[data-testid="face-endpoint"][data-endpoint-id="hdf-01:sp-3C:5:f"]',

@@ -7,7 +7,7 @@ const box = async (page: Page, selector: string) =>
 /** EDGE-17's page by the rack, so the dock stays closed. */
 async function openEdge17(page: Page) {
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block[data-equipment-id="edge-17"]').click()
+  await page.locator('.rack-block[data-equipment-id="edge-17"]').dblclick()
   await expect(page.locator('.physical-explorer')).toHaveAttribute(
     'data-physical-level',
     'equipment',
@@ -87,7 +87,7 @@ const emptyLine =
 
 async function openHdf01(page: Page) {
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   await expect(page.locator('.physical-explorer')).toHaveAttribute(
     'data-physical-level',
     'equipment',

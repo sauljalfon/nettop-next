@@ -155,7 +155,7 @@ test('PR-02 the HDF-01 sheet lists its four cabled positions, both sides, with c
   page,
 }) => {
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
   const { name, bytes } = await printSheet(page)
   expect(name).toBe('equipment-HDF-01.pdf')
@@ -188,7 +188,7 @@ test('PR-02 the sheet is the same from the selected side and for a switch', asyn
   page,
 }) => {
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block[data-equipment-id="edge-17"]').click()
+  await page.locator('.rack-block[data-equipment-id="edge-17"]').dblclick()
   const { name, bytes } = await printSheet(page)
   expect(name).toBe('equipment-EDGE-17.pdf')
   const text = bytes.toString('latin1')

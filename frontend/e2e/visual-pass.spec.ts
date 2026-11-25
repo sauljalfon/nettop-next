@@ -24,7 +24,7 @@ const inspector = (page: Page) =>
 
 async function openEdge17(page: Page) {
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block[data-equipment-id="edge-17"]').click()
+  await page.locator('.rack-block[data-equipment-id="edge-17"]').dblclick()
   await expect(page.locator('.equipment-page')).toBeVisible()
 }
 
@@ -90,7 +90,7 @@ test('VP-02 the rack keeps clear of the Changes drawer', async ({ page }) => {
   const cabinet = (await page.locator('.rack-cabinet').boundingBox())!
   expect(cabinet.x + cabinet.width).toBeLessThanOrEqual(box.x)
   // Nothing else on the rack page (the notes beside it) reaches under it either.
-  const rights = await page.locator('.rack-level > *').evaluateAll((els) =>
+  const rights = await page.locator('.rack-work > *').evaluateAll((els) =>
     els
       .map((e) => e.getBoundingClientRect())
       .filter((r) => r.width > 0)
@@ -122,41 +122,38 @@ test('VP-02 on the map the inspector sits beside the canvas, on the right, and n
   expect(drawer.x).toBeGreaterThanOrEqual(canvas.x + canvas.width - 1)
 })
 
-// VP-03 (D33): a 1U row is never below 26px; a tall rack scrolls and never clips a name.
-test('VP-03 Rack T42 keeps 26px rows, scrolls, and labels every unit', async ({
+// VP-03 (D33, D50): in a plan every free unit of Rack T42 is its own row, 12px or more; the rack screen scrolls when they do not fit.
+test('VP-03 (D50) Rack T42 in a plan keeps rows of 12px or more and labels every unit without U', async ({
   page,
 }) => {
+  await page.goto('/?plan=expansion')
+  await fitted(page)
   await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
   const cabinet = page.locator('.rack-cabinet')
   expect(
     Number(await cabinet.getAttribute('data-unit-px')),
-  ).toBeGreaterThanOrEqual(26)
+  ).toBeGreaterThanOrEqual(12)
   for (let unit = 1; unit <= 42; unit++) {
     const slot = (await page
       .getByTestId(`rack-slot-rack-t42-${unit}`)
       .boundingBox())!
-    expect(slot.height, `U${unit}`).toBeGreaterThanOrEqual(26)
+    expect(slot.height, `U${unit}`).toBeGreaterThanOrEqual(12)
   }
-  const scrolls = await page
-    .locator('.rack-level')
-    .evaluate((el) => el.scrollHeight > el.clientHeight + 1)
-  expect(scrolls).toBe(true)
   await expect(cabinet.locator('.unit-label')).toHaveText(
-    Array.from({ length: 42 }, (_, i) => `U${42 - i}`),
+    Array.from({ length: 42 }, (_, i) => `${42 - i}`),
   )
 })
 
-test('VP-03 scrolled to the bottom, U1 is fully visible beside the dock', async ({
+test('VP-03 (D50) scrolled to the bottom in a plan, U1 is fully visible beside the dock', async ({
   page,
 }) => {
-  await findAggBb(page)
-  await expect(traceRoutes(page)).toHaveCount(3)
-  await leaveTrace(page)
+  await page.goto('/?plan=expansion')
+  await fitted(page)
   await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
   await openInspector(page)
   const dock = page.locator('.dock:not([hidden])')
   await expect(dock).toBeVisible()
-  const level = page.locator('.rack-level')
+  const level = page.locator('.rack-screen')
   await level.evaluate((el) => (el.scrollTop = el.scrollHeight))
   await expect
     .poll(async () => {
@@ -212,7 +209,7 @@ async function openEquipmentPage(
   id: string,
 ) {
   await openRackInPhysical(page, 'Main Campus', node, rack)
-  await page.locator(`.rack-block[data-equipment-id="${id}"]`).click()
+  await page.locator(`.rack-block[data-equipment-id="${id}"]`).dblclick()
   await expect(page.locator('.equipment-page')).toBeVisible()
 }
 
@@ -444,7 +441,7 @@ test('VP-04 the patching screen: the far end Site, Node and Rack share a row, Eq
 }) => {
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block[data-equipment-id="edge-17"]').click()
+  await page.locator('.rack-block[data-equipment-id="edge-17"]').dblclick()
   await page.locator('[data-endpoint-id="edge-17:p4"]').click()
   await page
     .getByTestId('connect-popover')

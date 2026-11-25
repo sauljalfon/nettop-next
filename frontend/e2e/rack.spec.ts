@@ -51,7 +51,7 @@ async function traceAgg03(page: Page) {
   await leaveTrace(page)
 }
 
-test('F04 a 3U HDF is one object over U4–U6, with real unit numbers and free units marked', async ({
+test('F04 (D50) a 3U HDF is one object over U4–U6, with real unit numbers and free runs folded', async ({
   page,
 }) => {
   await page.goto('/')
@@ -65,12 +65,15 @@ test('F04 a 3U HDF is one object over U4–U6, with real unit numbers and free u
   await expect(hdf).toHaveAttribute('data-unit', '4')
   await expect(hdf).toHaveAttribute('data-height', '3')
   await expect(hdf).toContainText('HDF-01')
-  await expect(hdf).toContainText('passive · 3U at U4–U6')
-  // Unit labels run from the top down; free units say Available.
-  await expect(page.locator('.rack-cabinet .unit-label')).toHaveText(
-    Array.from({ length: 12 }, (_, i) => `U${12 - i}`),
+  await expect(hdf).toHaveAttribute('title', /passive · 3U at U4–U6/)
+  // Unit labels run from the top down, without "U"; Installed folds a free run of 3 or more into one row (D50).
+  await expect(page.locator('.rack-cabinet .unit-label')).toHaveText(['6–4'])
+  await expect(page.getByTestId('rack-run-rack-sm01-12-7')).toContainText(
+    '12–7 · 6U free',
   )
-  await expect(slot(page, 'rack-sm01', 12)).toContainText('Available')
+  await expect(page.getByTestId('rack-run-rack-sm01-3-1')).toContainText(
+    '3–1 · 3U free',
+  )
   await expect(slot(page, 'rack-sm01', 4)).toContainText('HDF-01')
   // Only this rack.
   await expect(slot(page, 'rack-core-01', 8)).toHaveCount(0)
@@ -87,7 +90,7 @@ test('clicking equipment opens its page without the inspector; Back returns to t
     'Main Distribution',
     'Rack Core 01',
   )
-  await block(page, 'agg-03').click()
+  await block(page, 'agg-03').dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
   await expectMark(page, 'data-selected-equipment', 'agg-03')
   await expect(inspector(page)).toHaveCount(0)
@@ -182,7 +185,7 @@ test('PHY-06 a library drop and a move between two racks of Main Distribution pr
   await expect(inPreview('rack-core-03', 'agg-15')).toHaveCount(0)
 })
 
-test('PHY-06 at rack level a drop on a free unit moves equipment inside the rack, and installed drops are refused', async ({
+test('PHY-06 (D50) at rack level a drop on a free unit moves equipment inside the rack, and installed drops are refused', async ({
   page,
   request,
 }) => {
@@ -195,10 +198,16 @@ test('PHY-06 at rack level a drop on a free unit moves equipment inside the rack
     'Main Distribution',
     'Rack Core 02',
   )
-  await expect(slot(page, 'rack-core-02', 3)).toContainText('Available')
+  await expect(slot(page, 'rack-core-02', 3)).toHaveAttribute(
+    'data-drop-target',
+    'true',
+  )
   await block(page, 'agg-15').dragTo(slot(page, 'rack-core-02', 3))
   await expect(slot(page, 'rack-core-02', 3)).toContainText('AGG-15')
-  await expect(slot(page, 'rack-core-02', 6)).toContainText('Available')
+  await expect(slot(page, 'rack-core-02', 6)).toHaveAttribute(
+    'data-drop-target',
+    'true',
+  )
   await expectMark(page, 'data-rack-equipment', 'agg-08 agg-15')
   const plan = await (await request.get(`/api/plans/${id}`)).json()
   expect(plan.placements).toEqual([
@@ -217,13 +226,10 @@ test('PHY-06 at rack level a drop on a free unit moves equipment inside the rack
     'Rack Core 02',
   )
   await expect(slot(page, 'rack-core-02', 6)).toContainText('AGG-15')
-  await expect(slot(page, 'rack-core-02', 3)).toHaveAttribute(
-    'data-drop-target',
-    'false',
-  )
+  await expect(page.locator('[data-drop-target="true"]')).toHaveCount(0)
 })
 
-test('PHY-07 proposed equipment is marked PROPOSED at node and rack level, and absent from Installed', async ({
+test('PHY-07 (D50) proposed equipment is marked PROPOSED at node and rack level, and absent from Installed', async ({
   page,
 }) => {
   await page.goto('/?plan=expansion')
@@ -249,9 +255,9 @@ test('PHY-07 proposed equipment is marked PROPOSED at node and rack level, and a
   )
   await page.getByRole('button', { name: 'Open Rack A03', exact: true }).click()
   await expect(block(page, 'edge-18')).toHaveAttribute('data-proposed', 'true')
-  await expect(block(page, 'edge-18')).toContainText('Proposed')
+  await expect(block(page, 'edge-18')).toHaveAttribute('title', /Proposed/)
   await expect(block(page, 'edge-17')).toHaveAttribute('data-proposed', 'false')
-  await expect(block(page, 'edge-17')).not.toContainText('Proposed')
+  await expect(block(page, 'edge-17')).not.toHaveAttribute('title', /Proposed/)
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await expect(block(page, 'edge-18')).toHaveCount(0)
   await expectMark(

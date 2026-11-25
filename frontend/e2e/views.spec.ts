@@ -120,7 +120,7 @@ for (const w of WALKS)
 
     // a. Physical → Main Campus → North Sub-main → SM01 → HDF-01.
     await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-    await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+    await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
     await expectMark(page, 'data-physical-level', 'equipment')
     await expect(root(page)).toHaveAttribute(
       'data-location',
@@ -193,7 +193,7 @@ test('PHY-11 the same walkthrough with Network B and AGG-12: 3C/2 is selected, a
   expect(before.state.lines).toEqual(['group:agg-12|node-dr-access'])
 
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
+  await page.locator('.rack-block[data-equipment-id="hdf-01"]').dblclick()
   await side(page).getByRole('button', { name: 'Rear' }).click()
   await endpoint(page, 'hdf-01:sp-3C:2:r').click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:2:r')
@@ -277,7 +277,7 @@ test('F11 Installed/Plan keeps the physical location, falling back to the neares
   await fitted(page)
   // EDGE-18 is proposed in the plan, in Rack A03.
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.locator('.rack-block[data-equipment-id="edge-18"]').click()
+  await page.locator('.rack-block[data-equipment-id="edge-18"]').dblclick()
   await expect(root(page)).toHaveAttribute(
     'data-location',
     /rack:rack-a03\/equipment:edge-18$/,
@@ -290,7 +290,7 @@ test('F11 Installed/Plan keeps the physical location, falling back to the neares
     /node:node-building-a\/rack:rack-a03$/,
   )
   // Where it exists in both, the place is kept.
-  await page.locator('.rack-block[data-equipment-id="edge-17"]').click()
+  await page.locator('.rack-block[data-equipment-id="edge-17"]').dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
   await page.getByRole('button', { name: /^Plan: / }).click()
   await expect(root(page)).toHaveAttribute(

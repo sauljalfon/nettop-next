@@ -134,7 +134,6 @@ export default function PrintSheet({
               rows={rackElevation(inv, rackId, { installedIds })}
               colors={colors}
               canEdit={false}
-              onSelect={() => undefined}
               fixedUnitPx={22}
               printing
             />

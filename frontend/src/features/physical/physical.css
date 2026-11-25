@@ -1733,3 +1733,98 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- The rack level (D50): the slim rack | the chosen unit, the path card across both ---------- */
+.rack-screen {
+  height: 100%;
+  padding: 14px 25px 25px 100px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+.rack-work {
+  display: grid;
+  grid-template-columns: var(--rack-w) minmax(0, 1fr);
+  gap: var(--work-gap) 18px;
+  align-items: start;
+}
+.rack-work > .path-slot {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.rack-column {
+  min-width: 0;
+}
+.rack-column .rack-heading {
+  gap: 2px 8px;
+  margin-bottom: 8px;
+}
+.rack-column .rack-heading h2 {
+  font-size: var(--t-lg);
+}
+.rack-column .rack-heading .print-button {
+  margin-left: 0;
+}
+.rack-hint {
+  margin-top: 6px;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+.rack-cabinet.compact {
+  box-sizing: border-box;
+  grid-template-columns: var(--rack-unit-label) 1fr;
+  width: var(--rack-w);
+  padding: 6px 14px 6px 8px;
+}
+.rack-cabinet.compact .rail {
+  top: 6px;
+  bottom: 6px;
+}
+.rack-cabinet.compact .rail.right {
+  right: 2px;
+}
+.rack-cabinet.compact .rail.left {
+  display: none;
+}
+.rack-cabinet.compact .unit-label {
+  line-height: 1;
+}
+.rack-cabinet.compact .rack-slot.free {
+  padding: 0 6px;
+  line-height: 1;
+}
+.rack-slot.free.run {
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: var(--t-min);
+  line-height: 1;
+}
+.rack-cabinet.compact .rack-block {
+  gap: 6px;
+  padding: 0 6px 0 12px;
+  line-height: 1;
+}
+.rack-cabinet.compact .plate:not([data-plate='hdf']) {
+  display: none;
+}
+.rack-pick {
+  min-width: 0;
+  container: equipment-area / inline-size;
+}
+.rack-pick-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 10px;
+}
+.rack-pick-head h2 {
+  font-size: var(--t-xl);
+  letter-spacing: -0.01em;
+}
+.rack-pick-head .meta {
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+}
+.rack-pick-head .btn {
+  margin-left: auto;
+}

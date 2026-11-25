@@ -109,7 +109,7 @@ test('ED-08 deleting proposed equipment says its addition is dropped; the equipm
 
   // The equipment page of EDGE-17 offers it too, with that switch's three circuits.
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await block(page, 'edge-17').click()
+  await block(page, 'edge-17').dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
   await page.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Delete…' }).click()
@@ -145,7 +145,7 @@ test('ED-09 disconnect, connect and disconnect again from the endpoint detail on
     'Main Distribution',
     'Rack Core 01',
   )
-  await block(page, 'agg-03').click()
+  await block(page, 'agg-03').dblclick()
   await page.locator('[data-endpoint-id="agg-03:p1"]').click()
   await expectMark(page, 'data-selected-endpoint', 'agg-03:p1')
   await page.getByRole('button', { name: 'Connect…' }).click()
@@ -464,7 +464,7 @@ test('ED-14 Escape closes each inline confirm and form, and focus returns to the
     'Main Distribution',
     'Rack Core 02',
   )
-  await block(page, 'agg-15').click()
+  await block(page, 'agg-15').dblclick()
   await page.locator('[data-endpoint-id="agg-15:p3"]').click()
   // A free jack in a plan also opens the popover; Escape closes it.
   await expect(page.getByTestId('connect-popover')).toBeVisible()
@@ -494,7 +494,7 @@ test('a wide HDF face (D50) is fitted to a narrow page: readable jacks, every bl
   await page.goto('/')
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
-  await block(page, 'hdf-01').click()
+  await block(page, 'hdf-01').dblclick()
   await expectMark(page, 'data-physical-level', 'equipment')
   await expect(page.locator('.faceplate[data-fit]')).toHaveCount(1)
   await expect(

@@ -26,7 +26,7 @@ import { breadcrumbs } from './history'
 import { buildInventory, routeMarks } from './inventory'
 import NodeLevel from './NodeLevel'
 import EquipmentPage from './EquipmentPage'
-import RackElevation from './RackElevation'
+import RackLevel from './RackLevel'
 import EquipmentBar from './EquipmentBar'
 import type { MenuItem } from './MoreMenu'
 import DeleteEquipment from '../planning/DeleteEquipment'
@@ -287,8 +287,16 @@ export default function PhysicalExplorer({
   }, [onPage, location.equipmentId, selectedEquipmentId, onSelectEquipment])
 
   const openEquipment = (equipmentId: string) => {
+    // The rack level shows this unit again when Back returns to its rack.
+    const rack = inv.equipment.get(equipmentId)?.rackId
+    if (rack) session.chooseUnit(rack, equipmentId)
     go({ equipmentId })
     onSelectEquipment(equipmentId)
+  }
+  const goToPeer = (endpointId: string) => {
+    go({ endpointId })
+    const owner = index.owner.get(endpointId)
+    if (owner) onSelectEquipment(owner)
   }
   // Selecting an endpoint, or its other side, replaces the location: no history entry.
   const selectEndpoint = (endpointId: string) =>
@@ -527,13 +535,28 @@ export default function PhysicalExplorer({
           />
         )}
         {location.level === 'rack' && (
-          <RackElevation
+          <RackLevel
             snapshot={snapshot}
+            index={index}
+            session={session}
             rackId={rackId}
             rows={rackRows}
+            marks={marks}
             colors={colors}
             canEdit={canEdit}
-            onSelect={openEquipment}
+            edit={edit}
+            planId={planId}
+            installedIds={installedIds}
+            installedLinkIds={installedLinkIDs}
+            routeName={
+              trailTitle.replace(/^Route ?/, '').replace(/:$/, '') || undefined
+            }
+            onOpenEquipment={openEquipment}
+            onGoToPeer={goToPeer}
+            onFind={onFindFromEndpoint}
+            onFullPage={onFullPage}
+            onShowOnMap={onShowOnMap}
+            onFixed={onFixed}
             onPrint={() => setSheet('rack')}
             onMoveEquipment={onMoveEquipment}
             onCreateEquipment={onCreateEquipment}
@@ -549,11 +572,7 @@ export default function PhysicalExplorer({
             onSelectEndpoint={selectEndpoint}
             onClearEndpoint={clearEndpoint}
             onSide={setSide}
-            onGoToPeer={(endpointId) => {
-              go({ endpointId })
-              const owner = index.owner.get(endpointId)
-              if (owner) onSelectEquipment(owner)
-            }}
+            onGoToPeer={goToPeer}
             onFind={onFindFromEndpoint}
             onFullPage={onFullPage}
             onShowOnMap={onShowOnMap}

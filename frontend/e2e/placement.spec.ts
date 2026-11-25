@@ -51,7 +51,7 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
     unit: string,
     back = true,
   ) => {
-    if (back) await page.getByTestId(from).locator('.rack-block').click() // opens its page
+    if (back) await page.getByTestId(from).locator('.rack-block').dblclick() // opens its page
     await chooseMore(page, 'Move to another rack…')
     const box = page.getByTestId('move-equipment')
     await chooseRack(box, 'Move to', where)
@@ -87,7 +87,7 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   await page
     .getByTestId('rack-slot-rack-core-02-4')
     .locator('.rack-block')
-    .click()
+    .dblclick()
   await moveWithForm(
     '',
     { site: 'Main Campus', node: 'Main Distribution', rack: 'Rack Core 02' },
