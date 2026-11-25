@@ -31,7 +31,7 @@ const SetSlotsContext = createContext<{
   setDetails: (el: HTMLElement | null) => void
 }>({ setBody: () => {}, setDetails: () => {} })
 
-/** The element the details tab's body is drawn into (Node on the tree, Port on an equipment page); null before the dock mounts. */
+/** The element the details tab's body is drawn into (Node on the tree); null before the dock mounts. */
 export const DockDetailsSlot = createContext<HTMLElement | null>(null)
 
 /** Holds the dock's two slot elements so the features can portal into them. Wrap the frame once. */

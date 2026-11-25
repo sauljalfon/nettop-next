@@ -189,7 +189,7 @@ test('Show on map for equipment of another network shows that network, lit', asy
   await expect(card(page, 'agg-12')).toHaveAttribute('data-lit', 'true')
 })
 
-test('OV-10 no Focus anywhere: no Focus button in the Inspector, and no Focus view after Show on map, Explore, Inventory or Physical', async ({
+test('OV-10 (D50) no Focus anywhere: no Focus button in the Inspector, and no Focus view after Show on map, Explore, Inventory or Physical', async ({
   page,
 }) => {
   const focus = page.locator('[data-view="focus"]')
@@ -224,7 +224,11 @@ test('OV-10 no Focus anywhere: no Focus button in the Inspector, and no Focus vi
       '[data-testid="face-endpoint"][data-endpoint-id="hdf-01:sp-3C:5:f"]',
     )
     .click()
-  await page.getByRole('button', { name: 'Show on map' }).click()
+  // The jack's card is on the page; the inspector tab (still open) has its own Show on map.
+  await page
+    .getByTestId('endpoint-detail')
+    .getByRole('button', { name: 'Show on map' })
+    .click()
   await fitted(page)
   await expect(focus).toHaveCount(0)
 })

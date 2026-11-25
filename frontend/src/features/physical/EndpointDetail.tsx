@@ -1,15 +1,12 @@
-import { Crosshair, GitFork } from 'lucide-react'
-import { useContext, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
-import { useDetailsTab } from '../frame/useDetailsTab'
-import { DockDetailsSlot } from '../frame/DockView'
+import { Crosshair, GitFork, X } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { ChainItem, DetailModel } from './equipmentModel'
 import Name from '../../shared/ui/Name'
 import PlacePath from '../../shared/ui/PlacePath'
 import Chip from '../../shared/ui/Chip'
 
 /**
- * The selected endpoint as one white card: its label, the network and route
+ * The selected endpoint as one white card in the page's side column (D50): its label, the network and route
  * chips, three icon actions, and the two ways to move: Go to peer (this side's
  * far end) and Switch to the other side. The connection itself is the path
  * bar's, along the bottom of the page.
@@ -29,7 +26,7 @@ export default function EndpointDetail({
 }: {
   /** Plan editing for the selected endpoint (Connect / Disconnect), at the top of the panel. */
   actions?: ReactNode
-  /** Clears the selection: the panel closes. */
+  /** Clears the selection: the card's ×, Esc. */
   onClose: () => void
   /** The rest below the chain (details, the installed hint). */
   children?: ReactNode
@@ -43,10 +40,12 @@ export default function EndpointDetail({
   onFind: (endpointId: string) => void
   onShowOnMap: () => void
 }) {
-  const slot = useContext(DockDetailsSlot)
-  // The details tab belongs to the selected jack; the dock's × and Esc do what "Close port" did.
-  useDetailsTab('Port', !!model, onClose, model?.endpointId)
-  if (!model || !slot) return null
+  if (!model)
+    return (
+      <p className="work-empty" data-testid="endpoint-empty">
+        Select a jack on the face to see where it goes.
+      </p>
+    )
   const boxes = chain.filter(
     (i): i is Extract<ChainItem, { kind: 'box' }> => i.kind === 'box',
   )
@@ -54,7 +53,7 @@ export default function EndpointDetail({
   // The path bar draws the connection; the panel keeps the two ways to move.
   const far = boxes.find((i) => i.role === 'far' && i.action)
   const other = boxes.find((i) => i.role === 'other' && i.action)
-  return createPortal(
+  return (
     <div
       className="endpoint-detail endpoint"
       data-testid="endpoint-detail"
@@ -94,6 +93,14 @@ export default function EndpointDetail({
           >
             <Crosshair size={14} />
           </button>
+          <button
+            className="btn quiet detail-icon"
+            aria-label="Close Port details"
+            title="Close"
+            onClick={onClose}
+          >
+            <X size={14} />
+          </button>
         </div>
       </header>
       <div className="detail-chips">
@@ -129,8 +136,7 @@ export default function EndpointDetail({
         </div>
       )}
       {children}
-    </div>,
-    slot,
+    </div>
   )
 }
 

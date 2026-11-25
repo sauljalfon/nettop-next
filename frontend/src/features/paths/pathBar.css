@@ -1,24 +1,33 @@
-/* The path of the selected jack: one line of hardware along the bottom of the equipment page.
-   Look: docs/history/demos/workbench-demo.html (.pathbar). */
+/* The path card (D50): the selected jack's path as one line of hardware under the face and the side column.
+   The card is a size container; its line sets --pj (a jack) and everything in it scales from that.
+   The shared .pcell/.pn rules below also draw the Trace page; the scaling is scoped to .pathbar. */
 .pathbar,
 .trace-line {
   --plate: 84px;
   --jack-y: 47px;
 }
 .pathbar {
-  flex: none;
-  height: var(--pathbar-h);
+  container-type: inline-size;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
   background: var(--paper);
-  border-top: 1px solid var(--rule);
+}
+.pathbar.empty {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 16px;
+}
+.pathbar.empty .sub {
+  color: var(--ink-soft);
 }
 .pathbar-head {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 7px 12px 0 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 10px 12px 0 16px;
   min-width: 0;
 }
 .pathbar-head h3 {
@@ -34,18 +43,18 @@
   color: var(--ink-soft);
 }
 .pathbar-head .path-close {
-  margin-left: auto;
-  align-self: center;
   width: 26px;
   height: 26px;
   padding: 0;
 }
 .pathbar-head .path-full {
   margin-left: auto;
-  align-self: center;
   height: 24px;
   padding: 0 8px;
   font-size: var(--t-sm);
+}
+.pathbar-head .path-close {
+  margin-left: auto;
 }
 .pathbar-head .path-full + .path-close {
   margin-left: 0;
@@ -53,10 +62,8 @@
 .pathline {
   display: flex;
   align-items: flex-start; /* the rack bands hug their plates */
-  flex: 1;
-  min-height: 0;
   padding: 4px 16px 0;
-  overflow-x: auto;
+  overflow-x: auto; /* the last resort: a path too long for the card */
   overflow-y: hidden;
 }
 .pcell {
@@ -252,4 +259,120 @@ button.pn:hover {
   font-size: var(--t-xs);
   color: var(--ink-soft);
   white-space: nowrap;
+}
+
+/* ---- The card's scaling: --pj is a jack; plates, cables and labels follow it. ---- */
+.pathbar .pathline {
+  --pj: clamp(24px, 2.6cqw, 52px);
+  --pad: calc(var(--pj) * 0.3);
+  --pn-gap: calc(var(--pj) * 0.2);
+  --pn-top: calc(var(--pj) * 0.7);
+  --pn-caps: calc(var(--pj) * 0.42);
+  --rack-h: calc(var(--pj) * 0.7);
+  --plate: calc(var(--pj) * 3.12);
+  --jack-y: calc(var(--pj) * 1.7);
+  --fs: max(var(--t-min), calc(var(--pj) * 0.3));
+  padding: 8px 18px 16px;
+}
+.pathbar .pcell {
+  grid-template-rows: var(--rack-h) var(--plate);
+}
+.pathbar .pcell .rack {
+  padding: 0 calc(var(--pj) * 0.3);
+  font-size: var(--fs);
+  line-height: var(--rack-h);
+}
+.pathbar .pcell.node {
+  padding: 0 calc(var(--pj) * 0.2) calc(var(--pj) * 0.2);
+}
+.pathbar .pn {
+  grid-template-rows: var(--pn-top) var(--pj) var(--pn-caps);
+  row-gap: var(--pn-gap);
+  min-width: calc(var(--pj) * 4.4);
+  padding: var(--pad) calc(var(--pj) * 0.34);
+  border-radius: calc(var(--pj) * 0.2);
+}
+.pathbar .pn-top .tape {
+  max-width: calc(var(--pj) * 4.6);
+  font-size: var(--fs);
+  line-height: var(--pn-top);
+}
+.pathbar .pn-top .kind {
+  font-size: var(--fs);
+}
+.pathbar .pn-jacks .pj {
+  width: var(--pj);
+  height: var(--pj);
+  font-size: max(var(--t-min), calc(var(--pj) * 0.34));
+}
+.pathbar .pn-jacks .bridge {
+  margin: 0 calc(var(--pj) * 0.2);
+}
+.pathbar .pn-caps {
+  font-size: var(--fs);
+  line-height: var(--pn-caps);
+}
+.pathbar .pn[data-destination] {
+  box-shadow: 0 0 0 3px var(--route);
+}
+.pathbar .pn[data-destination].here {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--ink),
+    0 0 0 7px var(--route);
+}
+.pathbar .pn-reach {
+  justify-self: start;
+  margin: calc(var(--pj) * 0.25) 0 0 calc(var(--pj) * 0.1);
+  padding: 1px 9px;
+  border-radius: 10px;
+  background: var(--route-soft);
+  color: var(--route);
+  font-size: var(--fs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pathbar .pcell.link {
+  flex: 1 1 0; /* the cables take the width the plates leave */
+  min-width: calc(var(--pj) * 2.7);
+  padding: 0 2px;
+}
+.pathbar .pcell.link .cable-line {
+  top: calc(var(--rack-h) + var(--jack-y));
+}
+/* A connector at each end of the line. */
+.pathbar .pcell.link .cable-line::before,
+.pathbar .pcell.link .cable-line::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--pj) * -0.22);
+  width: 6px;
+  height: calc(var(--pj) * 0.44);
+  border-radius: 2px;
+  background: var(--net);
+}
+.pathbar .pcell.link .cable-line::before {
+  left: 0;
+}
+.pathbar .pcell.link .cable-line::after {
+  right: 0;
+}
+.pathbar .pcell.link[data-proposed='true'] .cable-line::before,
+.pathbar .pcell.link[data-proposed='true'] .cable-line::after {
+  background: var(--proposed);
+}
+.pathbar .pcell.link .cable-id {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - var(--rack-h) - var(--jack-y) + var(--pj) * 0.3);
+  grid-row: auto;
+  margin: 0;
+  max-width: 100%;
+  padding: 1px 3px;
+  transform: translateX(-50%);
+  font-size: max(var(--t-min), calc(var(--pj) * 0.26));
+}
+.pathbar .pcell.stub span:last-child {
+  margin-top: calc(var(--jack-y) - 9px);
+  font-size: var(--fs);
 }

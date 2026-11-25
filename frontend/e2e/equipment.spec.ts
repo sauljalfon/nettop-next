@@ -295,9 +295,9 @@ test('F10 a switch shows its port bank in rows of 12, with cabled and free ports
   await expect(detail(page).getByTestId('chain')).toHaveCount(0)
   await expect(detail(page).getByTestId('walk-sheet')).toHaveCount(0)
   await port(4).click()
-  // A free port has no cable.
+  // A free port has no cable: the path card is its one line (D50).
   await expect(page.getByRole('region', { name: 'Path' })).toContainText(
-    'No cable on this jack',
+    'Select a cabled jack on the face',
   )
 })
 

@@ -103,3 +103,39 @@ export function rackNeighbours(
   if (at < 0) return {}
   return { previous: ids[at - 1], next: ids[at + 1] }
 }
+
+export type RackRow =
+  ElevationRow | { kind: 'run'; top: number; bottom: number }
+
+/**
+ * With `collapse`, every run of three or more consecutive free rows becomes one
+ * `run` row (top = highest unit); shorter runs and all equipment stay in
+ * order. Without it the rows come back unchanged.
+ */
+export function compactRack(
+  rows: ElevationRow[],
+  collapse: boolean,
+): RackRow[] {
+  if (!collapse) return rows
+  const out: RackRow[] = []
+  let i = 0
+  while (i < rows.length) {
+    const row = rows[i]
+    if (row.kind !== 'free') {
+      out.push(row)
+      i++
+      continue
+    }
+    let j = i
+    while (j < rows.length && rows[j].kind === 'free') j++
+    if (j - i >= 3) {
+      out.push({
+        kind: 'run',
+        top: (rows[i] as { unit: number }).unit,
+        bottom: (rows[j - 1] as { unit: number }).unit,
+      })
+    } else out.push(...rows.slice(i, j))
+    i = j
+  }
+  return out
+}

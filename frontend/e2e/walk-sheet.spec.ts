@@ -71,14 +71,14 @@ test('WS-02 a selected switch port’s path is in the Path bar, not the panel', 
   ).toBeVisible()
 })
 
-test('WS-02 a port with no cable says so and shows only its own plate', async ({
+test('WS-02 (D50) a port with no cable leaves the path card as its one line, no plate', async ({
   page,
 }) => {
   await openEdge17(page)
   await endpoint(page, 'edge-17:p4').click()
-  await expect(plates(page)).toHaveCount(1)
-  await expect(pathBar(page)).toContainText('No cable on this jack')
-  await expect(pathBar(page).getByTestId('path-gap')).toHaveCount(1)
+  await expect(plates(page)).toHaveCount(0)
+  await expect(pathBar(page)).toContainText('Select a cabled jack on the face')
+  await expect(pathBar(page).getByTestId('path-gap')).toHaveCount(0)
 })
 
 test('WS-02 a plate opens that equipment’s jack; the switch’s own plate stays on its port', async ({

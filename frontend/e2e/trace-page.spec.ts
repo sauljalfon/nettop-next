@@ -518,17 +518,15 @@ test('TP-08 ← Back returns to the tree with its viewport and selection, and to
     'data-selected-endpoint',
     'hdf-01:sp-3C:5:f',
   )
-  await expect(
-    dockOpen(page).getByRole('tab', { name: 'Port', selected: true }),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Full page ⤢', exact: true }).click()
+  await expect(page.getByTestId('endpoint-detail')).toBeVisible()
+  await page
+    .getByRole('button', { name: 'Open the Trace page', exact: true })
+    .click()
   await expect(tp(page)).toBeVisible()
   await backButton(page).click()
   await expect(tp(page)).toHaveCount(0)
-  // The dock is as it was: the Port tab it came from.
-  await expect(
-    dockOpen(page).getByRole('tab', { name: 'Port', selected: true }),
-  ).toBeVisible()
+  // The page is as it was: the jack's card (D50: there is no Port tab).
+  await expect(page.getByTestId('endpoint-detail')).toBeVisible()
   await expect(root).toHaveAttribute('data-physical-level', 'equipment')
   await expect(root).toHaveAttribute(
     'data-selected-endpoint',
@@ -546,14 +544,17 @@ test('TP-09 Full page from a jack’s path traces from that jack and opens the p
   await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
   // No jack, no path, no button.
   await expect(
-    page.getByRole('button', { name: 'Full page ⤢', exact: true }),
+    page.getByRole('button', { name: 'Open the Trace page', exact: true }),
   ).toHaveCount(0)
   await page
     .locator(
       '[data-testid="face-endpoint"][data-endpoint-id="hdf-01:sp-3C:5:f"]',
     )
     .click()
-  const full = page.getByRole('button', { name: 'Full page ⤢', exact: true })
+  const full = page.getByRole('button', {
+    name: 'Open the Trace page',
+    exact: true,
+  })
   await expect(full).toBeVisible()
   await full.click()
   await expect(tp(page)).toBeVisible()

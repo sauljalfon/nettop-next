@@ -487,7 +487,7 @@ test('ED-14 Escape closes each inline confirm and form, and focus returns to the
   await expect(hdf).toBeFocused()
 })
 
-test('a wide HDF face scrolls sideways, with a visible scrollbar, when the page is narrow', async ({
+test('a wide HDF face (D50) is fitted to a narrow page: readable jacks, every block inside its plate, the card scrolls only if it must', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 600, height: 900 })
@@ -496,24 +496,32 @@ test('a wide HDF face scrolls sideways, with a visible scrollbar, when the page 
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await block(page, 'hdf-01').click()
   await expectMark(page, 'data-physical-level', 'equipment')
-  const scroller = page.locator('.hdf-scroll')
-  const sizes = await scroller.evaluate((el) => ({
-    wide: el.scrollWidth > el.clientWidth,
-    // Playwright hides native scrollbars, so ask for the styled one.
-    bar: getComputedStyle(el, '::-webkit-scrollbar').height,
-  }))
-  expect(sizes.wide).toBe(true)
-  expect(sizes.bar).toBe('12px')
-  await scroller.evaluate((el) => (el.scrollLeft = el.scrollWidth))
-  // Blocks C–D come into view: the last column's block is inside the visible box.
-  const last = page.locator('[data-testid="face-block"][data-block="4D"]')
-  await expect(last).toBeVisible()
-  const inside = await last.evaluate((el) => {
-    const box = el.getBoundingClientRect()
-    const area = el.closest('.hdf-scroll')!.getBoundingClientRect()
-    return box.right <= area.right + 1 && box.left >= area.left
+  await expect(page.locator('.faceplate[data-fit]')).toHaveCount(1)
+  await expect(
+    page.locator('[data-testid="face-block"][data-block="4D"]'),
+  ).toBeVisible()
+  const m = await page.locator('.faceplate[data-fit]').evaluate((plate) => {
+    const card = plate.closest('.face-card')!
+    const p = plate.getBoundingClientRect()
+    const blocks = [
+      ...plate.querySelectorAll('[data-testid="face-block"]'),
+    ].map((b) => b.getBoundingClientRect())
+    const jack = plate
+      .querySelector('[data-testid="face-endpoint"]')!
+      .getBoundingClientRect().width
+    return {
+      jack,
+      blocksOutside: blocks.filter((r) => r.left < p.left || r.right > p.right)
+        .length,
+      // Either the plate fits the card, or the card scrolls sideways.
+      fitsOrScrolls:
+        card.scrollWidth <= card.clientWidth + 1 ||
+        getComputedStyle(card).overflowX === 'auto',
+    }
   })
-  expect(inside).toBe(true)
+  expect(m.jack).toBeGreaterThanOrEqual(17.5)
+  expect(m.blocksOutside).toBe(0)
+  expect(m.fitsOrScrolls).toBe(true)
 })
 
 test('ED-16 the library Add… form adds a patch panel, and answers a clash in names', async ({

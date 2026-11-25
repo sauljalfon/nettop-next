@@ -1,6 +1,8 @@
 import { X } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 import Name from '../../shared/ui/Name'
+import NetworkBadge from '../map/NetworkBadge'
+import { colorOf } from '../map/networkColors'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import type { HdfNumbering } from '../physical/hdfNumbering'
 import { pathLine, type PathPlate } from './pathLine'
@@ -13,11 +15,14 @@ type Installed = {
 }
 
 /**
- * The selected jack's whole path as one line of hardware along the bottom of
- * the equipment page: a steel plate per equipment with the jacks the path
- * uses, a cable between plates in its network's colour, one band per rack.
- * Every plate but the selected one opens that equipment on the jack nearest
- * the selected plate. A path too long for the width scrolls inside the line.
+ * The path card (D50): under the face and the side column, the selected jack's
+ * whole path as one line of hardware: a steel plate per equipment with the
+ * jacks the path uses, a cable between plates in its network's colour with a
+ * connector at each end, one band per rack, the end ringed when it is an AGG
+ * or BB. Plates and jacks scale with the card's width. Every plate but the
+ * selected one opens that equipment on the jack nearest the selected plate. A
+ * path too long for the card scrolls sideways inside it. Without a selected
+ * jack, or with a free one, it is one line asking for a cabled jack.
  */
 export default function PathBar({
   index,
@@ -30,7 +35,8 @@ export default function PathBar({
   onFullPage,
 }: {
   index: SnapshotIndex
-  endpointId: string
+  /** The selected jack; absent: the card is one line asking for one. */
+  endpointId?: string
   /** In a plan: what is installed, so proposed plates and cables are dashed. */
   installed?: Installed
   colors: ReadonlyMap<string, string>
@@ -39,11 +45,14 @@ export default function PathBar({
   onOpen: (endpointId: string) => void
   /** Clears the selection, like Close port. */
   onClose: () => void
-  /** Full page ⤢ (cabled jacks only): traces from this jack and opens the Trace page. */
+  /** Open the Trace page (cabled jacks only): traces from this jack and opens the page. */
   onFullPage?: (endpointId: string) => void
 }) {
   const { steps, cables } = useMemo(
-    () => pathLine(index, endpointId, installed),
+    () =>
+      endpointId
+        ? pathLine(index, endpointId, installed)
+        : { steps: [], cables: 0 },
     [index, endpointId, installed],
   )
   const line = useRef<HTMLDivElement>(null)
@@ -65,36 +74,54 @@ export default function PathBar({
   const hereJack = here?.jacks.find((j) => j.selected)
   const title =
     here && hereJack ? jackName(index, here, hereJack, numbering) : ''
-  const env: PathEnv = { index, steps, colors, numbering, onOpen }
+  const env: PathEnv = { index, steps, colors, numbering, onOpen, reach: true }
+  const networkId = steps.find(
+    (s): s is Extract<typeof s, { kind: 'cable' }> =>
+      s.kind === 'cable' && !!s.networkId,
+  )?.networkId
+  if (!endpointId || cables === 0)
+    return (
+      <section
+        className="pathbar empty"
+        aria-label="Path"
+        data-testid="path-bar"
+      >
+        <b>Path</b>
+        <span className="sub">
+          Select a cabled jack on the face to draw its path to the AGG or BB.
+        </span>
+      </section>
+    )
   return (
     <section className="pathbar" aria-label="Path" data-testid="path-bar">
       <div className="pathbar-head">
         <h3>
           Path of <Name text={title} />
         </h3>
+        {networkId && (
+          <NetworkBadge
+            name={index.networkNames.get(networkId) ?? networkId}
+            color={colorOf(colors, networkId)}
+          />
+        )}
         <span className="sub" data-testid="path-summary">
-          {cables === 0 ? (
-            'No cable on this jack'
-          ) : (
+          {cables} {cables === 1 ? 'cable' : 'cables'} · {plates.length}{' '}
+          {plates.length === 1 ? 'place' : 'places'}
+          {first && last && first !== last && (
             <>
-              {cables} {cables === 1 ? 'cable' : 'cables'}
-              {first && last && first !== last && (
-                <>
-                  {' · '}
-                  <Name text={first.name} /> → <Name text={last.name} />
-                </>
-              )}
+              {' · '}
+              <Name text={first.name} /> → <Name text={last.name} />
             </>
           )}
         </span>
-        {cables > 0 && onFullPage && (
+        {onFullPage && (
           <button
             type="button"
             className="btn quiet path-full"
             title="Trace this jack on its own page"
             onClick={() => onFullPage(endpointId)}
           >
-            Full page ⤢
+            Open the Trace page
           </button>
         )}
         <button

@@ -77,7 +77,13 @@
   --jack-w: 28px; /* a switch or panel jack */
   --jack-h: 30px;
   --jack-gap: 2px;
-  --pathbar-h: 154px; /* the path of the selected jack, along the bottom of an equipment page */
+  --jack-max-hdf: 60px; /* the biggest an HDF jack grows on a fitted face */
+  --jack-max: 56px; /* the same for a switch or panel jack */
+  --jack-readable: 18px; /* the smallest a fitted jack shrinks to before the page scrolls */
+  --work-side: 340px; /* the equipment page's side column (Connects to, the jack's card) */
+  --work-side-wide: 400px; /* the same from 1700px of page width */
+  --work-gap: 14px;
+  --work-connects-max: 330px; /* Connects to scrolls inside itself past this */
 
   --r-drawer: 10px;
   --r-control: 6px;

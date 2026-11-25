@@ -13,8 +13,8 @@ export type DockTab =
 export interface DockState {
   open: boolean
   tab: DockTab
-  /** Set while the view has something selected: Node on the tree, Port on an equipment page. */
-  details?: 'Node' | 'Port'
+  /** Set while the tree has something selected (Node). A jack on an equipment page never adds a tab (D50): its card is on the page. */
+  details?: 'Node'
   /** The last tab other than details and networks that was open, for `detailsGone`. */
   last?: DockTab
   /** The equipment whose History tab is open (set while `tab` is `history`). */
@@ -47,7 +47,7 @@ export function close(s: DockState): DockState {
 }
 
 /** Something was selected: the dock opens on the details tab. */
-export function detailsShown(s: DockState, label: 'Node' | 'Port'): DockState {
+export function detailsShown(s: DockState, label: 'Node'): DockState {
   return { ...s, open: true, tab: 'details', details: label }
 }
 
@@ -56,10 +56,7 @@ export function detailsShown(s: DockState, label: 'Node' | 'Port'): DockState {
  * deep link): the details tab is there, but the dock stays on the tab it is on; closed, it
  * opens on the details.
  */
-export function detailsAvailable(
-  s: DockState,
-  label: 'Node' | 'Port',
-): DockState {
+export function detailsAvailable(s: DockState, label: 'Node'): DockState {
   if (!s.open) return detailsShown(s, label)
   if (s.details === label) return s
   if (s.tab === 'details' && s.details) {
@@ -118,7 +115,7 @@ export function tabLabel(s: DockState, tab: DockTab): string {
 /** The dock's accessible name for the open tab (the old drawers' titles). */
 export function tabTitle(s: DockState, tab: DockTab): string {
   const titles: Record<DockTab, string> = {
-    details: s.details === 'Port' ? 'Port details' : 'Node details',
+    details: 'Node details',
     inspector: 'Equipment inspector',
     explore: 'Explore infrastructure',
     add: 'Equipment library',
@@ -167,10 +164,9 @@ function createDockSession() {
     /** The equipment page's ⋯ History: the tab opens on that equipment. */
     openHistory: (equipmentId: string) => set(openHistory(state, equipmentId)),
     close: () => set(close(state)),
-    showDetails: (label: 'Node' | 'Port') => set(detailsShown(state, label)),
+    showDetails: (label: 'Node') => set(detailsShown(state, label)),
     /** Selected from elsewhere: the tab exists, the dock keeps its tab (opens on it when closed). */
-    availableDetails: (label: 'Node' | 'Port') =>
-      set(detailsAvailable(state, label)),
+    availableDetails: (label: 'Node') => set(detailsAvailable(state, label)),
     hideDetails: () => set(detailsGone(state)),
     /** The feature that shows the details registers its close (the tree's clear, the page's close port); pass undefined to drop it. */
     setDetailsCloser(fn: (() => void) | undefined) {

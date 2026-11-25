@@ -600,8 +600,10 @@
 }
 
 /* Equipment page */
-/* The page's area: the page above (it scrolls inside itself), the path bar as its last row. */
+/* The page's area: the page (it scrolls inside itself).
+   It is the container the work grid asks about: its width is the page's, the dock already taken off. */
 .equipment-area {
+  container: equipment-area / inline-size;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -702,9 +704,20 @@
     0 0 0 2px var(--paper),
     0 0 0 3px var(--ink);
 }
-/* The Port tab's body, drawn into the dock (which has its own edge). */
+/* The selected jack's card, in the side column. */
 .endpoint-detail {
   padding: 14px 16px 20px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.work-empty {
+  margin: 0;
+  padding: 14px 16px;
+  font-size: var(--t-sm);
+  color: var(--ink-soft);
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
 }
 .detail-label {
   margin-top: 4px;
@@ -1173,10 +1186,6 @@
   scrollbar-color: var(--steel-ink-soft) var(--steel-2);
 }
 /* Always-visible scrollbars: C–D are reached by scrolling when the area is narrow. */
-/* With the path bar shown the page above is shorter by its height. */
-.equipment-area.has-path .hdf-scroll {
-  max-height: calc(100vh - 315px - var(--pathbar-h));
-}
 .hdf-scroll::-webkit-scrollbar {
   width: 12px;
   height: 12px;
@@ -1438,28 +1447,15 @@
 
 /* Connects to: one 30px line per far equipment; a click lights its jacks. */
 .connects-to {
-  width: 300px;
-  max-width: 100%;
+  width: 100%;
   align-self: start;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  max-height: calc(100vh - 250px);
+  max-height: var(--work-connects-max);
   border: 1px solid var(--rule);
   border-radius: 6px;
   background: var(--paper);
   overflow: hidden;
-}
-.equipment-area.has-path .connects-to {
-  max-height: calc(100vh - 250px - var(--pathbar-h));
-}
-.connects-to.under {
-  max-height: 330px;
-}
-.connects-to.under.fixed-height {
-  max-height: var(--links-h);
-}
-.equipment-area.has-path.links-under .hdf-scroll {
-  max-height: calc(100vh - 315px - var(--pathbar-h) - var(--links-h) - 12px);
 }
 .connects-head {
   display: flex;
@@ -1570,16 +1566,6 @@
   outline: 2px solid var(--amber);
   outline-offset: 1px;
 }
-/* Beside an HDF's or a panel's face when nothing else needs the place. */
-.equipment-layout.no-strip.no-detail.has-links {
-  grid-template-columns: fit-content(900px) 300px;
-}
-/* An HDF or panel face is at most about 600px wide: face + gap + card. */
-@container (max-width: 940px) {
-  .equipment-layout.no-strip.no-detail.has-links {
-    grid-template-columns: fit-content(900px);
-  }
-}
 
 /* In the dock the port's plan actions start at the body's top padding. */
 .endpoint-detail > .endpoint-edit:first-child {
@@ -1597,4 +1583,153 @@
   color: var(--ink);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* ---------- A fitted face (D50): the jack is --j, set by useFaceFit from the room the card has ---------- */
+.face-card.face-fit {
+  max-width: none;
+  overflow: auto; /* only as a last resort: the plate is sized to fit */
+}
+.equipment-main:has(.face-fit) {
+  max-width: none;
+}
+/* The face's column takes the room the page has; the plate is sized to it, never the other way round. */
+.equipment-layout.no-strip:has(.face-fit) {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* Opening a jack must not shift the width the face was sized to. */
+.equipment-page:has(.face-fit) {
+  scrollbar-gutter: stable;
+}
+.faceplate[data-fit] {
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  max-width: none;
+  margin: 0 auto;
+  overflow: visible;
+  box-sizing: border-box;
+}
+.faceplate[data-fit][data-kind='hdf'] {
+  display: block;
+}
+.faceplate[data-fit] .plate-ports {
+  grid-auto-columns: var(--j);
+  grid-template-rows: repeat(2, var(--j));
+}
+.faceplate[data-fit] .plate-strip {
+  grid-template-columns: repeat(12, var(--j));
+}
+.faceplate[data-fit] .hdf-positions {
+  grid-template-columns: repeat(3, var(--j));
+}
+.faceplate[data-fit] .face-cell.jack,
+.faceplate[data-fit] .face-cell.jack.hdf-jack {
+  width: var(--j);
+  height: var(--j);
+  place-items: center;
+  padding: 0;
+  font-size: calc(var(--j) * 0.38);
+  line-height: 1;
+}
+.faceplate[data-fit] .face-cell.jack .jack-line {
+  font-size: calc(var(--j) * 0.3);
+  line-height: 1.1;
+}
+.faceplate[data-fit] .face-cell.jack .jack-number {
+  padding: 0 1px;
+}
+.faceplate[data-fit] .plate-bank-row {
+  flex-wrap: nowrap;
+  gap: 0 calc(var(--j) * 0.5);
+}
+.faceplate[data-fit][data-banks]:not([data-banks='1']) {
+  display: flex;
+  width: max-content;
+}
+.faceplate[data-fit] .bank-caption {
+  width: 0;
+  min-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.faceplate[data-fit] .plate-bank:last-child:not(:first-child) .bank-caption {
+  overflow: visible;
+}
+.hdf-scroll.fit {
+  max-height: none;
+  min-height: 0;
+  overflow: visible;
+}
+.hdf-bands {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--j) * 0.7);
+  width: max-content;
+}
+.band-gap {
+  align-self: stretch;
+  width: 1px;
+  background: var(--steel-line);
+}
+.faceplate[data-fit] .hdf-grid {
+  grid-template-columns: calc(var(--j) * 0.8) repeat(4, max-content);
+  gap: calc(var(--j) * 0.28) calc(var(--j) * 0.3);
+  align-items: center;
+}
+.faceplate[data-fit] .hdf-col,
+.faceplate[data-fit] .hdf-row {
+  position: static;
+  font-size: max(var(--t-xs), calc(var(--j) * 0.4));
+}
+
+/* ---------- The work area (D50): the face, and the side column beside it ---------- */
+.equipment-work {
+  --side-w: var(--work-side);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--side-w);
+  gap: var(--work-gap);
+  align-items: start;
+  min-width: 0;
+}
+.work-face {
+  min-width: 0;
+}
+.work-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--work-gap);
+  min-width: 0;
+  /* Two columns: as tall as its content up to the larger of the face's card and the room above the path card; it scrolls inside itself beyond that. */
+  align-self: start;
+  max-height: var(--side-limit, none);
+  overflow-y: auto;
+}
+.work-side > * {
+  flex: none; /* the cards keep their height; the column scrolls */
+}
+/* From 1700px of page width the column is wider. */
+@container equipment-area (min-width: 1700px) {
+  .equipment-work {
+    --side-w: var(--work-side-wide);
+  }
+}
+/* Under 1080px the column goes under the face, its two cards side by side. */
+@container equipment-area (max-width: 1080px) {
+  .equipment-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .work-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    max-height: none;
+    overflow: visible;
+  }
+}
+@container equipment-area (max-width: 640px) {
+  .work-side {
+    grid-template-columns: 1fr;
+  }
 }

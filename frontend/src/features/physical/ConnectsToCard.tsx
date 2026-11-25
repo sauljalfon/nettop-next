@@ -15,8 +15,6 @@ export default function ConnectsTo({
   colors,
   networkNames,
   hint,
-  under,
-  fixedHeight,
 }: {
   far: readonly FarEquipment[]
   /** The chosen far equipment's ID. */
@@ -27,16 +25,12 @@ export default function ConnectsTo({
   networkNames: ReadonlyMap<string, string>
   /** Said under the head: where the chosen jacks are when not on this side. */
   hint?: string
-  /** Placed under the face (the card is then limited to a shorter height). */
-  under?: boolean
-  /** Its height is the page's `--links-h` (the face leaves room for it). */
-  fixedHeight?: boolean
 }) {
   const total = far.reduce((n, f) => n + f.cables, 0)
   const max = far[0]?.cables ?? 1
   return (
     <section
-      className={`connects-to${under ? ' under' : ''}${fixedHeight ? ' fixed-height' : ''}`}
+      className="connects-to"
       aria-label="Connects to"
       data-testid="connects-to"
     >

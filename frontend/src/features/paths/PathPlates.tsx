@@ -55,6 +55,8 @@ export interface PathEnv {
   shared?: ReadonlySet<string>
   /** Inside a node's frame the label is the rack only: the frame names the place. */
   framed?: boolean
+  /** The path card: the plate that reaches an AGG or BB says so under it. */
+  reach?: boolean
 }
 
 const rackKey = (p: PathPlate) => p.rackId ?? p.place.join('/')
@@ -228,6 +230,11 @@ export function PathStepCell({ env, i }: { env: PathEnv; i: number }) {
         >
           {content}
         </button>
+      )}
+      {env.reach && p.destination && (
+        <span className="pn-reach" data-testid="path-reach">
+          ↑ reaches the {p.destination === 'aggregation' ? 'AGG' : 'BB'}
+        </span>
       )}
     </div>
   )

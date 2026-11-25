@@ -295,7 +295,10 @@ test('FR-09 × and Esc clear the selection', async ({ page }) => {
   await expect(page.getByTestId('hierarchy-drawer')).toHaveCount(0)
 })
 
-test('FR-10 a jack opens Port in the dock', async ({ page, request }) => {
+test('FR-10 (D50) a jack opens its card beside the face, not a Port tab in the dock', async ({
+  page,
+  request,
+}) => {
   const id = await newPlan(request, 'FR-10 jack')
   await page.goto(`/?plan=${id}`)
   await fitted(page)
@@ -311,22 +314,17 @@ test('FR-10 a jack opens Port in the dock', async ({ page, request }) => {
     '[data-testid="face-endpoint"][data-endpoint-id="hdf-01:sp-1D:1:f"]',
   )
   await free.click()
-  const port = dock(page, 'Port details')
-  await expect(port).toBeVisible()
-  await expect(page.getByRole('tab', { name: 'Port' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
-  const panel = port.getByTestId('endpoint-detail')
+  // The dock stays closed: no Port tab, no dock.
+  await expect(page.getByRole('complementary')).toHaveCount(0)
+  await expect(page.getByRole('tab', { name: 'Port' })).toHaveCount(0)
+  const panel = page.getByTestId('work-side').getByTestId('endpoint-detail')
   await expect(panel.getByRole('button', { name: 'Connect…' })).toBeVisible()
   await expect(
     panel.getByRole('button', { name: 'Connect a range…' }),
   ).toBeVisible()
-  // The page narrows by the dock only: the face does not move sideways more than the dock's width.
+  // The face does not move sideways: nothing opened beside the page.
   const after = (await faceCard.boundingBox())!
-  expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(380)
-  // No second column for the port: the dock is the only thing right of the face.
-  await expect(page.locator('.equipment-layout.has-detail')).toHaveCount(0)
+  expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(1)
   await page.getByRole('button', { name: 'Close Port details' }).click()
   await expect(page.getByRole('complementary')).toHaveCount(0)
   await expect(page.locator('[data-selected="true"]')).toHaveCount(0)
@@ -350,7 +348,7 @@ test('FR-11 selecting nothing closes the details tab, not the dock’s other tab
   )
 })
 
-test('FR-11b a jack opened from the Changes list adds Port and keeps Changes', async ({
+test('FR-11b (D50) a jack opened from the Changes list keeps Changes and adds no Port tab', async ({
   page,
 }) => {
   await page.goto('/')
@@ -364,15 +362,13 @@ test('FR-11b a jack opened from the Changes list adds Port and keeps Changes', a
     .first()
     .click()
   await expect(page.locator('.physical-explorer')).toBeVisible()
-  // The Port tab exists, the dock stays on Changes with its list.
-  await expect(page.getByRole('tab', { name: 'Port' })).toHaveAttribute(
-    'aria-selected',
-    'false',
-  )
+  // No Port tab (D50); the dock stays on Changes with its list, and the card is on the page.
+  await expect(page.getByRole('tab', { name: 'Port' })).toHaveCount(0)
   await expect(dock(page, 'Changes & plans')).toBeVisible()
   await expect(page.getByTestId('change-line').first()).toBeVisible()
-  await page.getByRole('tab', { name: 'Port' }).click()
-  await expect(dock(page, 'Port details')).toBeVisible()
+  await expect(
+    page.getByTestId('work-side').getByTestId('endpoint-detail'),
+  ).toBeVisible()
 })
 
 test('FR-12 Key shows and hides the legend', async ({ page }) => {

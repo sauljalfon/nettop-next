@@ -9,6 +9,7 @@ import {
   traceRoutes,
 } from './helpers'
 import { planWith32RowHdf } from './plan-api'
+import { openPatching, patching } from './patching-helpers'
 
 const root = (page: Page) => page.locator('.physical-explorer')
 const mark = (page: Page, name: string) =>
@@ -180,21 +181,44 @@ test('PB-07 Pairs | Pigtails changes the numbers and is remembered', async ({
   await expect(page.getByRole('group', { name: 'Numbers' })).toHaveCount(0)
 })
 
-test('PB-05 jacks are 28×30 on a switch and a panel and 32×32 on an HDF, numbers at least 11px', async ({
+/** Every jack of the face is square, at least `min` and at most `max` wide, inside its plate. */
+const fittedJacks = (page: Page, max: number, min = 18) =>
+  page.locator('.faceplate[data-fit]').evaluate(
+    (plate, [lo, hi]) => {
+      const p = plate.getBoundingClientRect()
+      const jacks = [
+        ...plate.querySelectorAll<HTMLElement>('[data-testid="face-endpoint"]'),
+      ].map((j) => j.getBoundingClientRect())
+      return {
+        count: jacks.length,
+        square: jacks.every((r) => Math.abs(r.width - r.height) <= 1),
+        small: jacks.filter((r) => r.width < lo - 0.5).length,
+        big: jacks.filter((r) => r.width > hi + 0.5).length,
+        outside: jacks.filter(
+          (r) =>
+            r.left < p.left - 0.5 ||
+            r.right > p.right + 0.5 ||
+            r.top < p.top - 0.5 ||
+            r.bottom > p.bottom + 0.5,
+        ).length,
+      }
+    },
+    [min, max],
+  )
+const fittedOk = { square: true, small: 0, big: 0, outside: 0 }
+
+test('PB-05 (D50) fitted jacks are square, 18px up to 56 (switch, panel) or 60 (HDF), inside their plate, numbers at least 11px; a switch on the patching screen keeps 28×30', async ({
   page,
+  request,
 }) => {
   await page.setViewportSize({ width: 1536, height: 864 })
   const fontOf = (id: string) =>
     endpoint(page, id).evaluate((e) => parseFloat(getComputedStyle(e).fontSize))
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'edge-17')
-  const port = await box(page, 'edge-17:p1')
-  expect(Math.abs(port.width - 28)).toBeLessThanOrEqual(1)
-  expect(Math.abs(port.height - 30)).toBeLessThanOrEqual(1)
+  expect(await fittedJacks(page, 56)).toMatchObject({ ...fittedOk })
   expect(await fontOf('edge-17:p1')).toBeGreaterThanOrEqual(11)
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'panel-a')
-  expect(
-    Math.abs((await box(page, 'panel-a:1:f')).width - 28),
-  ).toBeLessThanOrEqual(1)
+  expect(await fittedJacks(page, 56)).toMatchObject({ ...fittedOk })
   await openEquipment(
     page,
     'Main Campus',
@@ -202,10 +226,25 @@ test('PB-05 jacks are 28×30 on a switch and a panel and 32×32 on an HDF, numbe
     'Rack SM01',
     'hdf-01',
   )
-  const jack = await box(page, 'hdf-01:sp-3C:5:f')
-  expect(Math.abs(jack.width - 32)).toBeLessThanOrEqual(1)
-  expect(Math.abs(jack.height - 32)).toBeLessThanOrEqual(1)
-  expect(await fontOf('hdf-01:sp-3C:5:f')).toBe(13)
+  expect(await fittedJacks(page, 60)).toMatchObject({ ...fittedOk })
+  expect(await fontOf('hdf-01:sp-3C:5:f')).toBeGreaterThanOrEqual(11)
+  // Unfitted places keep the fixed sizes (the HDF's 32px is D50-03's).
+  await openPatching(page, request, {
+    equipment: 'EDGE-19',
+    endpoint: '1',
+    mode: 'range',
+  })
+  const sizes = await patching(page)
+    .locator('.face-cell.jack')
+    .evaluateAll((els) => [
+      ...new Set(
+        els.map((e) => {
+          const r = e.getBoundingClientRect()
+          return `${Math.round(r.width)}×${Math.round(r.height)}`
+        }),
+      ),
+    ])
+  expect(sizes).toEqual(['28×30'])
 })
 
 test('PB-06 every HDF draws its highest row at the top', async ({
@@ -250,7 +289,7 @@ test('PB-06 every HDF draws its highest row at the top', async ({
   })
 })
 
-test('PB-05b a 32-row HDF scrolls inside its face and keeps its letters and row numbers in view', async ({
+test('PB-05b (D50) a 32-row HDF is drawn in bands, its jacks are at least 18px inside the plate, and the page scrolls, not the plate', async ({
   page,
   request,
 }) => {
@@ -263,56 +302,33 @@ test('PB-05b a 32-row HDF scrolls inside its face and keeps its letters and row 
     .locator('.rack-block[data-kind="hdf"]', { hasText: 'HDF-BIG' })
     .click()
   await expectMark(page, 'data-face-positions', '768')
-  const scroller = page.locator('.hdf-scroll')
-  expect(
-    await scroller.evaluate((e) => e.scrollHeight > e.clientHeight + 1),
-  ).toBe(true)
-  await scroller.evaluate((e) => {
-    e.scrollTop = 600
-  })
+  const plate = page.locator('.faceplate[data-fit]')
   await expect
-    .poll(() => scroller.evaluate((e) => e.scrollTop))
-    .toBeGreaterThan(500)
-  const area = (await scroller.boundingBox())!
-  const letter = (await page
-    .locator('.hdf-col', { hasText: 'A' })
-    .boundingBox())!
-  expect(letter.y).toBeGreaterThanOrEqual(area.y - 1)
-  expect(letter.y).toBeLessThan(area.y + 40)
-  const visible = await page.evaluate(() => {
-    const area = document.querySelector('.hdf-scroll')!.getBoundingClientRect()
-    const rows = [...document.querySelectorAll('.hdf-row')]
-    const shown = (n: number) => {
-      const r = rows
-        .find((e) => e.textContent === String(n))!
-        .getBoundingClientRect()
-      // Below the sticky letters (about 20px) and inside the scroller.
-      return r.bottom > area.top + 24 && r.top < area.bottom
-    }
-    return {
-      first: shown(32),
-      later: rows.some(
-        (e) => Number(e.textContent) <= 22 && shown(Number(e.textContent)),
-      ),
-      pageScroll: document.scrollingElement!.scrollTop,
-    }
+    .poll(async () => Number(await plate.getAttribute('data-fit')))
+    .toBeGreaterThan(1)
+  await expect(plate.locator('.hdf-grid')).toHaveCount(
+    Number(await plate.getAttribute('data-fit')),
+  )
+  expect(await fittedJacks(page, 60)).toMatchObject({ ...fittedOk })
+  // The plate does not scroll inside itself; when it is taller than the window the page does.
+  expect(
+    await page
+      .locator('.hdf-scroll')
+      .evaluate((e) => e.scrollHeight <= e.clientHeight + 1),
+  ).toBe(true)
+  const over = await page.evaluate(() => {
+    const area = document.querySelector('.equipment-page')!
+    return { tall: area.scrollHeight - area.clientHeight, top: area.scrollTop }
   })
-  expect(visible).toEqual({ first: false, later: true, pageScroll: 0 })
-  const metrics = await page.evaluate(() => {
-    const s = document.querySelector('.hdf-scroll') as HTMLElement
-    const pageEl = document.querySelector('.equipment-page') as HTMLElement
-    return {
-      overflowY: getComputedStyle(s).overflowY,
-      pageScrolls: pageEl.scrollHeight > pageEl.clientHeight + 1,
-      windowScrolls:
-        document.documentElement.scrollHeight > window.innerHeight + 1,
-    }
-  })
-  expect(metrics).toEqual({
-    overflowY: expect.stringMatching(/auto|scroll/),
-    pageScrolls: false,
-    windowScrolls: false,
-  })
+  expect(over.top).toBe(0)
+  if (over.tall > 1) {
+    const scrolled = await page.evaluate(() => {
+      const area = document.querySelector('.equipment-page')!
+      area.scrollTop = 200
+      return area.scrollTop
+    })
+    expect(scrolled).toBeGreaterThan(0)
+  }
 })
 
 test('PD-01 the HDF-01 3C/5 rear card draws the connection top to bottom, and each box opens its place', async ({
@@ -406,7 +422,7 @@ test('PD-01 the HDF-01 3C/5 rear card draws the connection top to bottom, and ea
   await expect(detail(page).getByTestId('chain')).toHaveCount(0)
 })
 
-test('PD-02 a switch port is port → cable → far end; a side with no cable is a dashed "no cable" box', async ({
+test('PD-02 (D50) a switch port is port → cable → far end; a side with no cable is a dashed "no cable" box', async ({
   page,
 }) => {
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'edge-17')
@@ -426,15 +442,14 @@ test('PD-02 a switch port is port → cable → far end; a side with no cable is
 
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await endpoint(page, 'edge-17:p4').click()
-  await expect(pathBar(page)).toContainText('No cable on this jack')
-  await expect(plates(page)).toHaveCount(1)
+  await expect(pathBar(page)).toContainText('Select a cabled jack on the face')
+  await expect(plates(page)).toHaveCount(0)
 
-  // A free position: no cable on either side, the bridge between them.
+  // A free position: no cable on either side, the path card is its one line.
   await openEquipment(page, 'Main Campus', 'Building A', 'Rack A03', 'panel-a')
   await endpoint(page, 'panel-a:10:f').click()
-  await expect(pathBar(page).getByTestId('path-gap')).toHaveCount(2)
-  await expect(plates(page)).toHaveCount(1)
-  await expect(plates(page).first()).toContainText('rear')
+  await expect(pathBar(page)).toContainText('Select a cabled jack on the face')
+  await expect(plates(page)).toHaveCount(0)
   await peers(page)
     .getByRole('button', { name: /^Switch to rear/ })
     .click()
@@ -464,8 +479,8 @@ test('D48-01 Pairs | Pigtails is on every panel and is the same choice as the HD
     '6',
   ])
   const j = (await jack.boundingBox())!
-  expect(j.width).toBeCloseTo(28, 0)
-  expect(j.height).toBeCloseTo(30, 0)
+  expect(Math.abs(j.width - j.height)).toBeLessThanOrEqual(1) // fitted: square (D50)
+  expect(j.width).toBeGreaterThanOrEqual(18)
   const lines = jack.locator('.jack-line')
   for (let i = 0; i < 2; i++) {
     const l = (await lines.nth(i).boundingBox())!

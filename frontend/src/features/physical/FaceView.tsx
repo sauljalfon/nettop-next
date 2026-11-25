@@ -18,6 +18,8 @@ import {
   type Face,
 } from './equipmentModel'
 import { moveFocus, navCells } from './faceNav'
+import { bandRows, hdfHead } from './faceFit'
+import { useFaceFit, type FaceFit } from './useFaceFit'
 import type { FaceEndpoint } from './faces'
 import Name from '../../shared/ui/Name'
 import PlacePath from '../../shared/ui/PlacePath'
@@ -105,6 +107,13 @@ interface Props {
   bare?: boolean
   /** No face-card header and no buttons (the page's bar and details line say it); the legend stays. */
   headless?: boolean
+  /**
+   * Size the face to its card: the biggest jack (up to `maxJack`) that keeps the
+   * plate in the card's width and above the fold, an HDF in side-by-side bands
+   * of rows when that makes the jacks bigger. Absent (the patching screen, a
+   * printed sheet): the fixed sizes.
+   */
+  fit?: FaceFit
 }
 
 /**
@@ -139,11 +148,24 @@ export default function FaceView({
   columns = FACE_COLUMNS,
   bare,
   headless,
+  fit,
 }: Props) {
   const numbering = useHdfNumbering()
   const networkName = (id?: string) => networks.find((n) => n.id === id)?.name
   const cells = navCells(face, columns)
   const container = useRef<HTMLDivElement>(null)
+  const card = useRef<HTMLElement>(null)
+  const hdfRows = face.kind === 'hdf' ? face.face.rows : 0
+  const fitted = useFaceFit({
+    fit,
+    card,
+    host: container,
+    rows: hdfRows,
+    resetKey: `${equipment.id}|${side ?? ''}|${numbering}|${face.kind}|${hdfRows}|${cells.length}|${columns}`,
+  })
+  const fitProps = fit
+    ? { 'data-fit': fitted.bands, style: fitted.style }
+    : undefined
   const [focusId, setFocusId] = useState<string>()
   const selected = [
     ...(face.kind === 'switch'
@@ -264,9 +286,55 @@ export default function FaceView({
   }
   const legend = legendNetworks(face, networks)
 
+  /** One grid of an HDF: the letters, then each of `runRows` (highest first) with its four modules. */
+  const hdfGrid = (runRows: number[], key: string) =>
+    face.kind !== 'hdf' ? null : (
+      <div key={key} className="hdf-grid">
+        <span className="hdf-corner" />
+        {['A', 'B', 'C', 'D'].map((c) => (
+          <span key={c} className="hdf-col">
+            {c}
+          </span>
+        ))}
+        {runRows.flatMap((row) => [
+          <span key={`row-${row}`} className="hdf-row">
+            {row}
+          </span>,
+          ...face.face.blocks
+            .filter((b) => b.row === row)
+            .map((b) => (
+              <div
+                key={b.label}
+                className="hdf-module"
+                data-testid="face-block"
+                data-block={b.label}
+                title={b.label}
+                data-on-route={blockOnRoute(b)}
+              >
+                <div className="hdf-positions">
+                  {b.positions.map((p) =>
+                    button(
+                      p,
+                      hdfJackText(p.position, numbering),
+                      'jack hdf-jack',
+                      { 'data-block': b.label, 'data-position': p.position },
+                      undefined,
+                      numbering === 'pigtails'
+                        ? `pigtails ${p.fiberPair}`
+                        : undefined,
+                    ),
+                  )}
+                </div>
+              </div>
+            )),
+        ])}
+      </div>
+    )
+
   return (
     <section
-      className={bare ? 'face-card face-bare' : 'face-card'}
+      ref={card}
+      className={`${bare ? 'face-card face-bare' : 'face-card'}${fit ? ' face-fit' : ''}`}
       aria-label={`${equipment.name} face`}
     >
       {!bare && !headless && (
@@ -338,6 +406,7 @@ export default function FaceView({
             className="faceplate"
             data-kind="switch"
             data-banks={face.banks.length}
+            {...fitProps}
           >
             <PlateHead
               name={equipment.name}
@@ -387,7 +456,7 @@ export default function FaceView({
         )}
 
         {face.kind === 'panel' && (
-          <div className="faceplate" data-kind="panel">
+          <div className="faceplate" data-kind="panel" {...fitProps}>
             <PlateHead
               name={equipment.name}
               meta={`${face.face.positions.length} positions`}
@@ -415,55 +484,44 @@ export default function FaceView({
         )}
 
         {face.kind === 'hdf' && (
-          <div className="faceplate" data-kind="hdf">
-            <PlateHead name={equipment.name} meta={side ?? 'front'} />
-            <div className={bare ? 'hdf-scroll bare' : 'hdf-scroll'}>
-              <div className="hdf-grid">
-                <span className="hdf-corner" />
-                {['A', 'B', 'C', 'D'].map((c) => (
-                  <span key={c} className="hdf-col">
-                    {c}
-                  </span>
-                ))}
-                {Array.from(
-                  { length: face.face.rows },
-                  (_, i) => face.face.rows - i,
-                ).flatMap((row) => [
-                  <span key={`row-${row}`} className="hdf-row">
-                    {row}
-                  </span>,
-                  ...face.face.blocks
-                    .filter((b) => b.row === row)
-                    .map((b) => (
-                      <div
-                        key={b.label}
-                        className="hdf-module"
-                        data-testid="face-block"
-                        data-block={b.label}
-                        title={b.label}
-                        data-on-route={blockOnRoute(b)}
-                      >
-                        <div className="hdf-positions">
-                          {b.positions.map((p) =>
-                            button(
-                              p,
-                              hdfJackText(p.position, numbering),
-                              'jack hdf-jack',
-                              {
-                                'data-block': b.label,
-                                'data-position': p.position,
-                              },
-                              undefined,
-                              numbering === 'pigtails'
-                                ? `pigtails ${p.fiberPair}`
-                                : undefined,
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    )),
-                ])}
-              </div>
+          <div className="faceplate" data-kind="hdf" {...fitProps}>
+            <PlateHead
+              name={equipment.name}
+              meta={
+                fit
+                  ? hdfHead(side ?? 'front', face.face.rows, fitted.bands)
+                  : (side ?? 'front')
+              }
+            />
+            <div
+              className={
+                fit ? 'hdf-scroll fit' : bare ? 'hdf-scroll bare' : 'hdf-scroll'
+              }
+            >
+              {fit ? (
+                <div className="hdf-bands">
+                  {bandRows(face.face.rows, fitted.bands).flatMap((run, i) => [
+                    ...(i > 0
+                      ? [
+                          <i
+                            key={`gap-${i}`}
+                            className="band-gap"
+                            aria-hidden="true"
+                          />,
+                        ]
+                      : []),
+                    hdfGrid(run, `band-${i}`),
+                  ])}
+                </div>
+              ) : (
+                hdfGrid(
+                  Array.from(
+                    { length: face.face.rows },
+                    (_, i) => face.face.rows - i,
+                  ),
+                  'all',
+                )
+              )}
             </div>
           </div>
         )}

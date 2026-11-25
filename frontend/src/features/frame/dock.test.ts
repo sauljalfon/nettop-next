@@ -11,6 +11,7 @@ import {
   openTab,
   railClick,
   tabLabel,
+  tabTitle,
   tabsFor,
   type DockState,
 } from './dock'
@@ -47,7 +48,7 @@ describe('dock transitions', () => {
     expect(tabsFor(s, false)[0]).toBe('details')
   })
   it('details gone returns to the last other tab', () => {
-    const s = detailsShown(openTab(initialDock, 'explore'), 'Port')
+    const s = detailsShown(openTab(initialDock, 'explore'), 'Node')
     const gone = detailsGone(s)
     expect(gone).toMatchObject({ open: true, tab: 'explore' })
     expect(gone.details).toBeUndefined()
@@ -119,8 +120,19 @@ describe('the History tab (D49)', () => {
     expect(tabsFor(initialDock, true)).not.toContain('history')
   })
   it('is never the tab that closing the details returns to', () => {
-    const s = detailsShown(openHistory(initialDock, 'edge-17'), 'Port')
+    const s = detailsShown(openHistory(initialDock, 'edge-17'), 'Node')
     expect(detailsGone(s).open).toBe(false)
+  })
+})
+
+describe('details (D50)', () => {
+  it('are the tree’s Node only: a jack never gives the dock a Port tab', () => {
+    // @ts-expect-error Port is not a details label any more
+    detailsShown(initialDock, 'Port')
+    const s = detailsShown(initialDock, 'Node')
+    expect(tabLabel(s, 'details')).toBe('Node')
+    expect(tabTitle(s, 'details')).toBe('Node details')
+    expect(tabLabel({ ...s, details: undefined }, 'details')).toBe('Node')
   })
 })
 
@@ -131,18 +143,14 @@ describe('detailsAvailable', () => {
       tab: 'details',
       details: 'Node',
     })
-    // One view's details giving way to another's returns to the tab before them.
-    const port = detailsShown(openTab(initialDock, 'inspector'), 'Port')
-    expect(detailsAvailable(port, 'Node')).toMatchObject({
-      open: true,
-      tab: 'inspector',
-      details: 'Node',
-    })
+    // Already there: nothing changes.
+    const there = detailsShown(openTab(initialDock, 'inspector'), 'Node')
+    expect(detailsAvailable(there, 'Node')).toBe(there)
     const explore = openTab(initialDock, 'explore')
-    expect(detailsAvailable(explore, 'Port')).toMatchObject({
+    expect(detailsAvailable(explore, 'Node')).toMatchObject({
       open: true,
       tab: 'explore',
-      details: 'Port',
+      details: 'Node',
     })
   })
 })
@@ -173,7 +181,7 @@ describe('dockSession', () => {
     expect(dockSession.get()).toMatchObject({ open: true, tab: 'explore' })
     expect(dockSession.get().details).toBeUndefined()
     let closed = 0
-    dockSession.showDetails('Port')
+    dockSession.showDetails('Node')
     dockSession.setDetailsCloser(() => {
       closed++
       dockSession.hideDetails()

@@ -2,17 +2,17 @@ import { useEffect } from 'react'
 import { dockSession } from './dock'
 
 /** How many views hold a details tab right now (one at a time; a view change swaps owners in one commit). */
-const owners: Record<'Node' | 'Port', number> = { Node: 0, Port: 0 }
+const owners: Record<'Node', number> = { Node: 0 }
 
 /**
- * The details tab of a view (Node on the tree, Port on an equipment page): while `active`
+ * The details tab of a view (Node on the tree): while `active`
  * the tab exists and `onClose` is what the dock's × and Esc call. A click in the view opens
  * the tab itself (`dockSession.showDetails`); a selection made elsewhere leaves the dock on
  * its tab. When the view lets go the tab leaves, unless another view took over in the same
  * commit (also React's StrictMode rehearsal, which unmounts and mounts at once).
  */
 export function useDetailsTab(
-  label: 'Node' | 'Port',
+  label: 'Node',
   active: boolean,
   onClose: () => void,
   /** What is selected: a new one gives the tab again. */

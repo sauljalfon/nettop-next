@@ -98,7 +98,9 @@ test('D49-04 Find AGG / BB from a jack in Physical opens the page; ← Back retu
       '[data-testid="face-endpoint"][data-endpoint-id="hdf-01:sp-3C:5:f"]',
     )
     .click()
-  await page.getByRole('button', { name: 'Full page ⤢', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Open the Trace page', exact: true })
+    .click()
   await expect(tp(page)).toBeVisible()
   await expect(tp(page)).toHaveAttribute('data-view', 'all')
   await back(page).click()

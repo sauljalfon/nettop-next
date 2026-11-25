@@ -1,37 +1,33 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
-import ConnectPopover from '../patching/ConnectPopover'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Snapshot } from '../../shared/types'
 import Pieces from '../../shared/ui/Pieces'
 import PlacePath from '../../shared/ui/PlacePath'
 import { editMode } from '../details/model'
 import EquipmentDetails from '../details/EquipmentDetails'
 import type { SnapshotIndex } from '../map/snapshotIndex'
-import EndpointEdit from '../planning/EndpointEdit'
 import type { PlanEdit } from '../planning/editing'
-import PortDetails from '../details/PortDetails'
 import PathBar from '../paths/PathBar'
 import { useUplinks } from '../paths/useUplinks'
-import ConnectsTo from './ConnectsToCard'
-import { connectsTo } from './connectsTo'
-import { dockSession } from '../frame/dock'
-import EndpointDetail from './EndpointDetail'
 import {
   cellLook,
   connectionChain,
   detailModel,
-  endpointTooltip,
   equipmentSubtitle,
   faceMeta,
   type Face,
 } from './equipmentModel'
-import FaceView from './FaceView'
+import EquipmentWork, { faceCellsOf } from './EquipmentWork'
 import { useHdfNumbering } from './hdfNumbering'
 import type { PhysicalLocation } from './location'
 import type { RouteMarks } from './inventory'
 
+/** The gap of `.equipment-main`'s grid: between the work area and the path card. */
+const MAIN_GAP = 12
+
 /**
- * The equipment page: its rack on the left (this equipment marked), the face in
- * the middle, and the selected endpoint's cable and peer on the right.
+ * The equipment page: the details line, then the work area (`EquipmentWork`: the
+ * face and, beside it, Connects to and the selected jack's card), and the path
+ * card under both (one line while no jack is selected).
  */
 export default function EquipmentPage({
   snapshot,
@@ -74,7 +70,7 @@ export default function EquipmentPage({
   onSide: (side: 'front' | 'rear') => void
   onGoToPeer: (endpointId: string) => void
   onFind: (endpointId: string) => void
-  /** Full page ⤢ on the path bar. */
+  /** Open the Trace page on the path card. */
   onFullPage: (endpointId: string) => void
   onShowOnMap: (equipmentId: string) => void
   /** The selected route's marks and its destination's name. */
@@ -87,11 +83,6 @@ export default function EquipmentPage({
     () => new Set(uplinks.data?.lines.map((l) => l.startEndpointId)),
     [uplinks.data],
   )
-  // In a plan, a click on a free jack also asks where its cable goes.
-  const [popover, setPopover] = useState<{
-    endpointId: string
-    anchor: DOMRect
-  }>()
   const detail = useMemo(
     () =>
       location.endpointId
@@ -115,16 +106,20 @@ export default function EquipmentPage({
     [snapshot.context, installedIds, installedLinkIds],
   )
   const numbering = useHdfNumbering()
-  // Connects to: the far equipment whose jacks are lit; a view state of this
-  // equipment only, so a choice made on another one is ignored.
-  const [pick, setPick] = useState<{ from: string; far: string }>()
+  // The path card's height : the room the face keeps free under itself.
+  const slot = useRef<HTMLDivElement>(null)
+  const [pathH, setPathH] = useState(0)
+  useLayoutEffect(() => {
+    const el = slot.current
+    if (!el) return
+    const read = () => setPathH(Math.ceil(el.getBoundingClientRect().height))
+    read()
+    const observer = new ResizeObserver(read)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [equipment?.id, face])
   const [editing, setEditing] = useState(false)
   useEffect(() => setEditing(false), [equipment?.id])
-  if (pick && pick.from !== equipment?.id) setPick(undefined)
-  const far = useMemo(
-    () => (equipment ? connectsTo(index, equipment.id) : []),
-    [index, equipment],
-  )
   // Closing the panel puts focus back on the jack that was selected (or the face).
   const returnFocus = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -142,18 +137,8 @@ export default function EquipmentPage({
       )
     target?.focus()
   }, [location.endpointId])
-  // A click on a jack in this page opens the Port tab, whichever tab the dock was on.
-  const selectJack = (id: string) => {
-    onSelectEndpoint(id)
-    dockSession.showDetails('Port')
-  }
-  const goToJack = (id: string) => {
-    onGoToPeer(id)
-    dockSession.showDetails('Port')
-  }
   const closePort = () => {
     returnFocus.current = location.endpointId ?? ''
-    setPopover(undefined)
     onClearEndpoint()
   }
   if (!equipment) return null
@@ -204,60 +189,12 @@ export default function EquipmentPage({
     side,
     networks: snapshot.networks,
   })
-  const faceCells =
-    face.kind === 'switch'
-      ? face.rows.flat()
-      : face.kind === 'panel'
-        ? face.face.positions
-        : face.face.blocks.flatMap((b) => b.positions)
-  const chosen =
-    pick?.from === equipment.id
-      ? far.find((f) => f.equipmentId === pick.far)
-      : undefined
-  const faceIds = new Set(faceCells.map((c) => c.endpointId))
-  const lit = chosen
-    ? new Set(chosen.endpointIds.filter((id) => faceIds.has(id)))
-    : undefined
-  const otherSide =
-    chosen && lit && side && lit.size < chosen.endpointIds.length
-      ? `${chosen.endpointIds.length - lit.size} on the ${side === 'front' ? 'rear' : 'front'}`
-      : undefined
-  const isSwitch = face.kind === 'switch'
-  const links = (under: boolean) => (
-    <ConnectsTo
-      far={far}
-      chosen={chosen?.equipmentId}
-      onChoose={(id) =>
-        setPick(id ? { from: equipment.id, far: id } : undefined)
-      }
-      colors={colors}
-      networkNames={index.networkNames}
-      hint={otherSide}
-      under={under}
-      fixedHeight={under && linksUnderTall}
-    />
-  )
-  // A switch has it under the face; an HDF or a panel beside it, or under it
-  // while the port panel takes the place beside.
-  const linksBeside = !isSwitch && !detail
-  // Under an HDF's or a panel's face (a port is selected): the face's scroll box
-  // gives up this height so the page itself never scrolls.
-  const linksUnderTall = !isSwitch && !!detail
-  const linksHeight = 33 + 30 * Math.min(Math.max(far.length, 1), 4) + 2
+  const faceCells = faceCellsOf(face)
   const free = faceCells.filter((c) => cellLook(c).fill === 'free').length
   return (
-    <div
-      className={`equipment-area${detail ? ' has-path' : ''}${linksUnderTall ? ' links-under' : ''}`}
-      style={
-        linksUnderTall
-          ? ({ '--links-h': `${linksHeight}px` } as CSSProperties)
-          : undefined
-      }
-    >
+    <div className="equipment-area">
       <div className="equipment-page">
-        <div
-          className={`equipment-layout no-strip no-detail${linksBeside ? ' has-links' : ''}`}
-        >
+        <div className="equipment-layout no-strip no-detail">
           <div className="equipment-main" data-kind={equipment.kind}>
             <p className="equipment-details" data-testid="equipment-details">
               {meta}
@@ -294,111 +231,45 @@ export default function EquipmentPage({
                 onClosed={() => setEditing(false)}
               />
             )}
-            <FaceView
-              uplinkIds={uplinkIds}
-              lit={lit}
+            <EquipmentWork
+              snapshot={snapshot}
+              index={index}
               equipment={equipment}
               face={face}
               side={side}
               meta={meta}
-              headless
-              networks={snapshot.networks}
               colors={colors}
-              tooltip={(cell, ordinal) =>
-                endpointTooltip(index, equipment, cell, ordinal, side)
-              }
-              onSelect={(id, event) => {
-                selectJack(id)
-                setPopover(
-                  edit && event && !index.cabled.has(id)
-                    ? {
-                        endpointId: id,
-                        anchor: event.currentTarget.getBoundingClientRect(),
-                      }
-                    : undefined,
-                )
-              }}
+              uplinkIds={uplinkIds}
+              detail={detail}
+              chain={chain}
+              routeName={routeName}
+              edit={edit}
+              onFixed={onFixed}
+              installedIds={installedIds}
+              installedLinkIds={installedLinkIds}
+              onSelectEndpoint={onSelectEndpoint}
+              onGoToPeer={onGoToPeer}
+              onFind={onFind}
+              onShowOnMap={onShowOnMap}
               onSide={onSide}
+              onClose={closePort}
+              keepBelow={pathH + MAIN_GAP}
             />
-            {!linksBeside && links(true)}
+            <div className="path-slot" ref={slot}>
+              <PathBar
+                index={index}
+                endpointId={detail?.endpointId}
+                installed={installed}
+                colors={colors}
+                numbering={numbering}
+                onOpen={onGoToPeer}
+                onClose={closePort}
+                onFullPage={onFullPage}
+              />
+            </div>
           </div>
-          {linksBeside && links(false)}
-          {popover && edit && (
-            <ConnectPopover
-              key={popover.endpointId}
-              index={index}
-              endpointId={popover.endpointId}
-              anchor={popover.anchor}
-              onClose={() => setPopover(undefined)}
-            />
-          )}
-          <EndpointDetail
-            onClose={closePort}
-            actions={
-              detail &&
-              snapshot.context !== 'installed' && (
-                <EndpointEdit
-                  key={detail.endpointId}
-                  snapshot={snapshot}
-                  index={index}
-                  endpointId={detail.endpointId}
-                  installedLinkIds={installedLinkIds}
-                  edit={edit}
-                />
-              )
-            }
-            model={detail}
-            chain={chain}
-            routeName={routeName}
-            networkColor={
-              detail?.networkId ? colors.get(detail.networkId) : undefined
-            }
-            onGoToPeer={goToJack}
-            onSwitch={selectJack}
-            onFind={onFind}
-            onShowOnMap={() => onShowOnMap(equipment.id)}
-          >
-            {detail && (
-              <>
-                <PortDetails
-                  key={`details:${detail.endpointId}`}
-                  snapshot={snapshot}
-                  index={index}
-                  endpointId={detail.endpointId}
-                  proposed={
-                    snapshot.context === 'planned' &&
-                    !installedIds.has(equipment.id)
-                  }
-                  edit={edit}
-                  onFixed={onFixed}
-                />
-                {snapshot.context === 'installed' && (
-                  <EndpointEdit
-                    key={detail.endpointId}
-                    snapshot={snapshot}
-                    index={index}
-                    endpointId={detail.endpointId}
-                    installedLinkIds={installedLinkIds}
-                    edit={edit}
-                  />
-                )}
-              </>
-            )}
-          </EndpointDetail>
         </div>
       </div>
-      {detail && (
-        <PathBar
-          index={index}
-          endpointId={detail.endpointId}
-          installed={installed}
-          colors={colors}
-          numbering={numbering}
-          onOpen={goToJack}
-          onClose={closePort}
-          onFullPage={onFullPage}
-        />
-      )}
     </div>
   )
 }

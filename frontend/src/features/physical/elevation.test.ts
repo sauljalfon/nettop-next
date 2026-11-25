@@ -3,7 +3,12 @@ import { agg03Route } from '../map/acceptanceFixture'
 import { indexSnapshot } from '../map/snapshotIndex'
 import { physicalSnapshot } from './testFixture'
 import { buildInventory, routeMarks } from './inventory'
-import { rackElevation, rackNeighbours } from './elevation'
+import {
+  compactRack,
+  rackElevation,
+  rackNeighbours,
+  type ElevationRow,
+} from './elevation'
 import type { Equipment } from '../../shared/types'
 import type { Inventory } from './inventory'
 
@@ -210,5 +215,65 @@ describe('rackNeighbours: the equipment drawn above and below in a rack', () => 
   it('in the test fixture, HDF-01 is alone in its rack', () => {
     const real = rackNeighbours(inv, 'rack-sm01', 'HDF-01')
     expect(real).toEqual({ previous: undefined, next: undefined })
+  })
+})
+
+describe('compactRack', () => {
+  const free = (unit: number): ElevationRow => ({ kind: 'free', unit })
+  const eq = (id: string, unit: number, height = 1): ElevationRow => ({
+    kind: 'equipment',
+    equipmentId: id,
+    unit,
+    height,
+    topUnit: unit + height - 1,
+    onRoute: false,
+    selected: false,
+    proposed: false,
+    muted: false,
+  })
+  const freeRange = (top: number, bottom: number) =>
+    Array.from({ length: top - bottom + 1 }, (_, i) => free(top - i))
+
+  const r12: ElevationRow[] = [
+    free(44),
+    eq('BLOCK', 40, 4),
+    free(39),
+    eq('A', 38),
+    eq('B', 37),
+    free(36),
+    free(35),
+    eq('C', 34),
+    eq('D', 26, 8), // units 26-33
+    ...freeRange(25, 1),
+  ]
+
+  it('collapses a run of three or more free rows, keeps the rest', () => {
+    const out = compactRack(r12, true)
+    expect(out.slice(0, 3)).toEqual([free(44), eq('BLOCK', 40, 4), free(39)])
+    expect(out.slice(5, 7)).toEqual([free(36), free(35)])
+    expect(out[out.length - 1]).toEqual({ kind: 'run', top: 25, bottom: 1 })
+    expect(out.filter((r) => r.kind === 'run')).toHaveLength(1)
+  })
+
+  it('collapses exactly three free rows', () => {
+    expect(compactRack([eq('X', 4), ...freeRange(3, 1)], true)).toEqual([
+      eq('X', 4),
+      { kind: 'run', top: 3, bottom: 1 },
+    ])
+  })
+
+  it('leaves two free rows alone', () => {
+    const rows = [free(2), free(1)]
+    expect(compactRack(rows, true)).toEqual(rows)
+  })
+
+  it('returns the rows unchanged without collapse', () => {
+    expect(compactRack(r12, false)).toEqual(r12)
+  })
+
+  it('makes an all-free rack one run', () => {
+    expect(compactRack(freeRange(12, 1), true)).toEqual([
+      { kind: 'run', top: 12, bottom: 1 },
+    ])
   })
 })
