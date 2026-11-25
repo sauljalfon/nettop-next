@@ -137,6 +137,12 @@ func Apply(s topology.Snapshot, f Fix) (topology.Snapshot, []Change, error) {
 
 // apply is Apply without the final Validate, which ApplyMany runs once.
 func apply(s topology.Snapshot, f Fix) (topology.Snapshot, []Change, error) {
+	return applyFix(s, f, true)
+}
+
+// applyFix is apply; uniquePort is false inside a batch, where a port may take
+// a name another port of the batch is giving up (ApplyMany checks the final names).
+func applyFix(s topology.Snapshot, f Fix, uniquePort bool) (topology.Snapshot, []Change, error) {
 	if utf8.RuneCountInString(strings.TrimSpace(f.Note)) > MaxNote {
 		return s, nil, invalid("a note has at most %d characters", MaxNote)
 	}
@@ -196,7 +202,7 @@ func apply(s topology.Snapshot, f Fix) (topology.Snapshot, []Change, error) {
 			if err := checkName(name, 64); err != nil {
 				return s, nil, err
 			}
-			if slices.ContainsFunc(s.Endpoints, func(x topology.Endpoint) bool {
+			if uniquePort && slices.ContainsFunc(s.Endpoints, func(x topology.Endpoint) bool {
 				return x.ID != f.ID && x.EquipmentID == p.EquipmentID && strings.EqualFold(x.Label, name)
 			}) {
 				return s, nil, duplicate("%s already has a port named %s", owner.Name, name)

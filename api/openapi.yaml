@@ -592,6 +592,7 @@ components:
             properties:
               kind: {type: string, enum: [equipment, endpoints, links, sites, nodes, racks]}
               id: {type: string}
+              name: {type: string, maxLength: 64, description: "Endpoint fixes only (a switch port with a position): its new name, one change each. Unique within its switch on the final names, so two ports can swap names in one request; a duplicate is 409 naming the fix. 422 on any other kind (those are renamed one at a time)."}
               details: {$ref: '#/components/schemas/Details'}
               portGroup: {type: integer, minimum: 1, maximum: 8, description: "Endpoint fixes only: a switch port's group (the port needs a position). 422 elsewhere or out of range."}
     ChangeLogEntry:

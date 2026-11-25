@@ -107,10 +107,12 @@ export interface DirectFix {
   note?: string
 }
 
-/** One fix of POST /installed/fixes: details only (names are changed one at a time). */
+/** One fix of POST /installed/fixes: details, and a switch port's name and group. */
 export interface DirectFixItem {
   kind: ChangeLogKind
   id: string
+  /** A switch port's new name: for ports (kind endpoint) only; other kinds are renamed one at a time. */
+  name?: string
   details?: Details
   /** A switch port's group, 1–8 (endpoints with a position only). */
   portGroup?: number

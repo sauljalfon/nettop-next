@@ -107,4 +107,27 @@ describe('PG-06 the Add form: port group rows', () => {
     ])
     expect(groupSummary(rowsFromCount('24'))).toBe('24 ports: Port 1 … Port 24')
   })
+
+  it('numbers a group from its From (the model editor), and sends it only when given', () => {
+    const from0 = row({ count: '2', names: 'Eth{n}', start: '0' })
+    expect(checkGroups([from0])).toEqual({
+      groups: [{ count: 2, names: 'Eth{n}', start: 0 }],
+    })
+    expect(groupSummary([from0])).toBe('2 ports: Eth0, Eth1')
+    expect(checkGroups([row({ count: '1', names: 'P{n}' })])).toEqual({
+      groups: [{ count: 1, names: 'P{n}' }],
+    })
+    expect(
+      checkGroups([row({ count: '1', names: 'P{n}', start: 'x' })]),
+    ).toEqual({
+      error: 'Port group 1: From must be a whole number, 0 or more.',
+    })
+    // The names come from the start: Gi1 and Gi0 + 2 share a name.
+    expect(
+      checkGroups([
+        row({ count: '2', names: 'G{n}' }),
+        row({ count: '1', names: 'G{n}', start: '2' }),
+      ]),
+    ).toEqual({ error: 'Port name "G2" is used twice.' })
+  })
 })

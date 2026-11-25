@@ -9,6 +9,8 @@ const MAX_LABEL = 64
 export interface GroupRow {
   count: string
   names: string
+  /** The number the first name gets (the model editor's From); blank means 1. */
+  start?: string
   portType: '' | 'copper' | 'fiber'
   connector: string
   speed: string
@@ -33,9 +35,9 @@ const whole = (text: string) =>
 
 const namesOk = (names: string) => names.split('{n}').length === 2
 
-const labelsOf = (count: number, names: string) =>
+const labelsOf = (count: number, names: string, start = 1) =>
   Array.from({ length: count }, (_, i) =>
-    names.trim().replace('{n}', String(i + 1)),
+    names.trim().replace('{n}', String(start + i)),
   )
 
 /**
@@ -59,12 +61,16 @@ export function checkGroups(
     if (!(count >= 1)) return { error: `${who}: Count must be at least 1.` }
     if (!namesOk(r.names))
       return { error: `${who}: Names must contain {n} once.` }
+    const startText = (r.start ?? '').trim()
+    const start = startText === '' ? undefined : whole(startText)
+    if (start !== undefined && Number.isNaN(start))
+      return { error: `${who}: From must be a whole number, 0 or more.` }
     total += count
     if (total > MAX_SWITCH_PORTS)
       return {
         error: `A switch has 1–${MAX_SWITCH_PORTS} ports, not ${total}.`,
       }
-    for (const label of labelsOf(count, r.names)) {
+    for (const label of labelsOf(count, r.names, start)) {
       if (label.length > MAX_LABEL)
         return {
           error: `${who}: port name "${label}" is longer than ${MAX_LABEL} characters.`,
@@ -80,6 +86,7 @@ export function checkGroups(
     groups.push({
       count,
       names: r.names.trim(),
+      ...(start !== undefined && { start }),
       ...(Object.keys(details).length > 0 && { details }),
     })
   }
@@ -94,9 +101,11 @@ export function groupSummary(rows: readonly GroupRow[]): string {
     const count = whole(r.count)
     if (!(count >= 1) || !namesOk(r.names)) continue
     total += count
+    const from = whole((r.start ?? '').trim() || '1')
+    const start = Number.isNaN(from) ? 1 : from
     const [first, last] = [
-      labelsOf(1, r.names)[0],
-      labelsOf(count, r.names)[count - 1],
+      labelsOf(1, r.names, start)[0],
+      labelsOf(count, r.names, start)[count - 1],
     ]
     parts.push(
       count === 1

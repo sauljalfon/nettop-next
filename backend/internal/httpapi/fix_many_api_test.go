@@ -111,12 +111,12 @@ func TestFixManyRegroupsAll52PortsInOneRequest(t *testing.T) {
 		if n > 48 {
 			group = 2
 		}
-		parts = append(parts, fmt.Sprintf(`{"kind":"endpoints","id":"sw-52:p%d","portGroup":%d,"details":{"speed":"1G"}}`, n, group))
+		parts = append(parts, fmt.Sprintf(`{"kind":"endpoints","id":"sw-52:p%d","name":"Gi1/0/%d","portGroup":%d,"details":{"speed":"1G"}}`, n, n, group))
 	}
 	call := newCaller(t, handlerFor(t, base))
 	before := decodeBody[topology.Snapshot](t, call("GET", "/api/topology?context=installed", "", 200)).Revision
 	got := decodeBody[fixAnswer](t, call("POST", "/api/installed/fixes", `{"note":"Set model","fixes":[`+strings.Join(parts, ",")+`]}`, 200))
-	if len(got.Changes) != 52+4 {
+	if len(got.Changes) != 52*2+4 {
 		t.Fatalf("changes = %d", len(got.Changes))
 	}
 	snap := decodeBody[topology.Snapshot](t, call("GET", "/api/topology?context=installed", "", 200))
@@ -127,7 +127,7 @@ func TestFixManyRegroupsAll52PortsInOneRequest(t *testing.T) {
 	for _, p := range snap.Endpoints {
 		if p.EquipmentID == "sw-52" {
 			groups[p.PortGroup]++
-			if p.Position == 0 || p.Label == "" {
+			if p.Position == 0 || p.Label != fmt.Sprintf("Gi1/0/%d", p.Position) {
 				t.Fatalf("port = %+v", p)
 			}
 		}
@@ -136,7 +136,7 @@ func TestFixManyRegroupsAll52PortsInOneRequest(t *testing.T) {
 		t.Fatalf("groups = %v", groups)
 	}
 	log := decodeBody[[]fixes.Entry](t, call("GET", "/api/change-log?entityKind=endpoint&entityId=sw-52:p49", "", 200))
-	if len(log) != 2 || (log[0].Field != "speed" && log[1].Field != "speed") {
+	if len(log) != 3 || (log[0].Field != "speed" && log[1].Field != "speed") {
 		t.Fatalf("log = %+v", log)
 	}
 	// A group on a cable, and a group out of range, are 422.
@@ -144,6 +144,9 @@ func TestFixManyRegroupsAll52PortsInOneRequest(t *testing.T) {
 		t.Fatalf("message = %q", msg)
 	}
 	call("POST", "/api/installed/fixes", `{"fixes":[{"kind":"endpoints","id":"sw-52:p1","portGroup":9}]}`, 422)
+	if msg := errorOf(t, call("POST", "/api/installed/fixes", `{"fixes":[{"kind":"endpoints","id":"sw-52:p1","name":"Gi1/0/2"}]}`, 409)); !strings.Contains(msg, "fix 1") {
+		t.Fatalf("message = %q", msg)
+	}
 	call("POST", "/api/installed/fixes", `{"fixes":[{"kind":"endpoints","id":"sw-52:p1","portGroup":"x"}]}`, 400)
 	call("PATCH", "/api/installed/endpoints/sw-52:p1", `{"portGroup":3}`, 200)
 }
