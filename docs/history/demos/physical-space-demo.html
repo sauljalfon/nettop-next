@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Physical space demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Hebrew:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --floor: #eef1f3; --paper: #ffffff; --paper-sunk: #f6f8f9; --ink: #1c2b3a; --ink-soft: #56636f;
+    --ink-faint: #7a8691; --rule: #d3dae1; --rule-soft: #e6ebef;
+    --steel: #1f2731; --steel-2: #2a3440; --steel-3: #3a4552; --steel-line: #36414d; --steel-edge: #4b5765;
+    --steel-ink: #a8b4c0; --steel-ink-soft: #8d9aa8; --steel-ink-strong: #c3ccd6; --steel-free: #6f7c8a;
+    --tape: #fbfbf8; --tape-ink: #15202b; --jack-free: #ffffff;
+    --route: #0f8b7a; --route-soft: #e2f3f0; --plan-edge: #e8cf8a;
+    --sans: 'IBM Plex Sans', 'IBM Plex Sans Hebrew', 'Segoe UI', Arial, sans-serif;
+    --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
+    --side-w: 340px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font: 13px/1.45 var(--sans); color: var(--ink); background: var(--floor); display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .mono { font-family: var(--mono); }
+  .muted { color: var(--ink-soft); }
+  .faint { color: var(--ink-faint); }
+  .spacer { flex: 1; }
+
+  /* The demo's own bar (not part of the app). */
+  .demo-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 7px 16px; background: #fff8e6; border-bottom: 1px solid var(--plan-edge); font-size: 12px; flex: none; }
+  .demo-bar .seg button { padding: 3px 10px; }
+  .demo-bar .note { color: var(--ink-soft); }
+
+  /* The frame, as the app draws it today. */
+  .top { height: 44px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--paper); border-bottom: 1px solid var(--rule); }
+  .brand { font-weight: 600; font-size: 15px; margin-right: 6px; }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--paper); }
+  .seg button { border: 0; background: none; padding: 5px 12px; color: var(--ink-soft); }
+  .seg button.on { background: var(--paper-sunk); color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--rule); }
+  .select { border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px; background: var(--paper); color: var(--ink-soft); min-width: 160px; }
+  .frame { flex: 1; min-height: 0; display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; }
+  .rail { background: var(--paper); border-right: 1px solid var(--rule); display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 10px; }
+  .rail button { width: 36px; height: 36px; border: 0; border-radius: 8px; background: none; color: var(--ink-faint); font-size: 16px; }
+  .rail button.on { background: var(--steel); color: #fff; }
+  .page { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .dock { width: 380px; background: var(--paper); border-left: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0; }
+  .dock-tabs { display: flex; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--rule); }
+  .dock-tabs button { border: 0; background: none; padding: 10px 2px; color: var(--ink-soft); border-bottom: 2px solid transparent; }
+  .dock-tabs button.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+  .dock-tabs .x { margin-left: auto; color: var(--ink-faint); }
+  .dock-body { padding: 16px; overflow: auto; }
+
+  .btn { border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 4px 10px; white-space: nowrap; }
+  .btn:hover { border-color: #b6c1cc; }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--rule); background: var(--paper-sunk); white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 2px; background: var(--c); display: inline-block; flex: none; }
+  .crumbs { color: var(--ink-soft); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; min-width: 0; }
+  .crumbs a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); }
+  .crumbs b { color: var(--ink); }
+  .link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); cursor: pointer; }
+  .card { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; min-width: 0; }
+
+  .eq-bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 20px 4px; }
+  .eq-meta { flex: none; padding: 0 20px 10px; color: var(--ink-soft); }
+
+  /* ---------- Proposed: the device, the cards beside it, the path across the bottom ---------- */
+  .work { flex: 1; min-height: 0; overflow: auto; container: work / inline-size; padding: 0 20px 14px; }
+  .work-in { display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w); grid-template-areas: "face side" "path path"; gap: 14px; align-items: start; }
+  .work-in > .facewrap { grid-area: face; }
+  .work-in > .pathcard { grid-area: path; }
+  .work-in > .side { grid-area: side; }
+  @container work (min-width: 1700px) { .work-in { --side-w: 400px; } }
+  @container work (max-width: 1080px) {
+    .work-in { grid-template-columns: minmax(0, 1fr); grid-template-areas: "face" "path" "side"; }
+    .work-in > .side { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  }
+  @container work (max-width: 640px) { .work-in > .side { grid-template-columns: 1fr; } }
+
+  /* The face: --j (a jack) is set by fitFaces() from the room the card has, in width and height.
+     The plate wraps its jacks, so a jack never leaves the black plate. */
+  .facewrap { overflow: auto; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 14px; }
+  .face { --j: 32px; width: max-content; margin: 0 auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; color: var(--ink-soft); font-size: 12px; justify-content: center; }
+  .legend span { display: inline-flex; gap: 6px; align-items: center; }
+  .legend .sw { width: 11px; height: 11px; border-radius: 2px; background: var(--c); border: 1px solid #0002; }
+
+  .plate { background: var(--steel); border-radius: 6px; padding: 10px 14px 14px; color: var(--steel-ink); box-shadow: inset 0 0 0 1px var(--steel-line); }
+  .plate-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .tape { background: var(--tape); color: var(--tape-ink); font-weight: 600; font-size: 12px; padding: 1px 8px; border-radius: 2px; white-space: nowrap; }
+  .plate-head .r { margin-left: auto; font: 12px var(--mono); white-space: nowrap; }
+  .jack { width: var(--j); height: var(--j); border: 1px solid #0003; border-radius: 3px; background: var(--jack-free); color: #2c3a48; font: 500 calc(var(--j) * .38) / 1 var(--mono); display: grid; place-items: center; padding: 0; position: relative; }
+  .jack.used { background: var(--c); color: #fff; border-color: #0004; }
+  .jack:hover { outline: 2px solid var(--steel-ink-strong); outline-offset: 1px; z-index: 1; }
+  .jack.sel { outline: 3px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 5px var(--ink); z-index: 2; }
+  .jack .up { position: absolute; top: 1px; font-size: 9px; line-height: 1; }
+  .bands { display: flex; gap: calc(var(--j) * .7); align-items: flex-start; }
+  .band-gap { width: 1px; align-self: stretch; background: var(--steel-line); }
+  .hdf-grid { display: grid; grid-template-columns: auto repeat(4, auto); gap: calc(var(--j) * .28) calc(var(--j) * .3); align-items: center; }
+  .hdf-grid .colh { text-align: center; font: 600 calc(var(--j) * .4) var(--sans); color: var(--steel-ink-strong); }
+  .hdf-grid .rowh { font: 600 calc(var(--j) * .4) var(--mono); color: var(--steel-ink-strong); text-align: right; min-width: 1.4em; }
+  .module { display: grid; grid-template-columns: repeat(3, var(--j)); gap: 3px; padding: 5px; background: var(--steel-2); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--steel-line); }
+  .sw-body { display: flex; gap: calc(var(--j) * .5); align-items: flex-end; }
+  .sw-group .lbl { font: 11px var(--mono); margin-bottom: 4px; color: var(--steel-ink-soft); white-space: nowrap; width: 0; min-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .sw-cols { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, var(--j)); gap: 3px; }
+  .pn-row { display: flex; gap: 3px; }
+
+  /* The cards beside the device. */
+  .side { display: flex; flex-direction: column; gap: 14px; }
+  .side h3 { margin: 0; font-size: 14px; }
+  .sec { padding: 12px 14px; }
+  .sec-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .conn { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--rule-soft); cursor: pointer; }
+  .conn:hover { background: var(--paper-sunk); }
+  .conn .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conn .p { color: var(--ink-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conn .c { font-family: var(--mono); font-weight: 500; }
+  dl.facts { display: grid; grid-template-columns: 96px 1fr; gap: 6px 10px; margin: 10px 0 12px; }
+  dl.facts dt { color: var(--ink-soft); }
+  dl.facts dd { margin: 0; min-width: 0; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .hint { color: var(--ink-faint); font-size: 12px; margin-top: 8px; }
+  .empty-sel { color: var(--ink-soft); padding: 18px 4px 6px; text-align: center; }
+
+  /* ---------- The path: one strip across the page ---------- */
+  .pathcard { container-type: inline-size; overflow: hidden; }
+  .path-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px 0; flex-wrap: wrap; }
+  .path-head b { font-size: 15px; }
+  .path-head .end { color: var(--ink); font-weight: 600; }
+  .iconx { border: 0; background: none; color: var(--ink-faint); font-size: 16px; padding: 2px 6px; }
+  .pathcard.empty { display: flex; gap: 12px; align-items: baseline; padding: 12px 18px; }
+  /* --pj: a jack on a plate; everything in the strip scales from it. */
+  .route { --pj: clamp(24px, 2.6cqw, 52px); display: flex; align-items: flex-start; padding: 14px 18px 20px; overflow-x: auto; }
+  .hop { flex: none; width: calc(var(--pj) * 5.4); }
+  .hop-place { font-size: calc(var(--pj) * .3); line-height: 1.4; color: var(--ink-faint); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hop-plate { background: var(--steel); border-radius: 8px; padding: calc(var(--pj) * .3) calc(var(--pj) * .34); box-shadow: inset 0 0 0 1px var(--steel-line); }
+  .hop.end .hop-plate { box-shadow: inset 0 0 0 1px var(--steel-line), 0 0 0 3px var(--route); }
+  .hop-top { display: flex; align-items: center; gap: 8px; }
+  .hop-top .tape { font-size: calc(var(--pj) * .36); padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .hop-kind { margin-left: auto; font: calc(var(--pj) * .28) var(--mono); color: var(--steel-ink-soft); }
+  .hop-jacks { display: flex; align-items: center; margin-top: calc(var(--pj) * .3); }
+  .hj { width: var(--pj); height: var(--pj); border-radius: 4px; background: var(--c); color: #fff; font: 500 calc(var(--pj) * .32) / 1 var(--mono); display: grid; place-items: center; flex: none; }
+  .hop-bridge { flex: 1; height: 0; border-top: 2px dotted var(--steel-ink-soft); margin: 0 8px; opacity: .7; }
+  .hop-sides { display: flex; justify-content: space-between; font: calc(var(--pj) * .24) var(--mono); color: var(--steel-ink-soft); margin-top: 3px; }
+  .hop-reach { margin-top: 8px; display: inline-flex; gap: 6px; align-items: center; font-size: calc(var(--pj) * .28); color: var(--route); background: var(--route-soft); border-radius: 10px; padding: 1px 9px; font-weight: 500; }
+  /* A cable: a line in the network's colour, a connector at each end, its ID above it. */
+  .wire { flex: 1 1 0; min-width: calc(var(--pj) * 1.8); padding-top: calc(var(--pj) * 1.72 - 2px); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .wire-id { font: calc(var(--pj) * .26) / 1.5 var(--mono); color: var(--ink-soft); background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 0 8px; max-width: 94%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wire-line { position: relative; width: 100%; height: 4px; background: var(--c); border-radius: 2px; }
+  .wire-line::before, .wire-line::after { content: ''; position: absolute; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; background: var(--paper); border: 2.5px solid var(--c); box-sizing: border-box; }
+  .wire-line::before { left: -1px; }
+  .wire-line::after { right: -1px; }
+
+  /* ---------- The rack screen: rack | device | cards, the path across all three ---------- */
+  .rackwork { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "rack main" "path path"; gap: 14px 16px; padding: 4px 20px 14px; }
+  .rackwork > .rackcol { grid-area: rack; display: flex; flex-direction: column; min-height: 0; }
+  .rackwork > .preview { grid-area: main; min-height: 0; display: flex; flex-direction: column; }
+  .rackwork > .pathcard { grid-area: path; }
+  .preview .work { padding: 0; }
+  .preview-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .preview-head h2 { margin: 0; font-size: 18px; }
+  .rack-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; row-gap: 0; }
+  .rack-head h2 { margin: 0; font-size: 18px; }
+  .cab { --u: 14px; background: var(--steel); border-radius: 6px; padding: 6px 8px; width: clamp(190px, 13vw, 250px); box-shadow: inset 0 0 0 1px var(--steel-line); overflow: hidden; flex: none; }
+  .urow { display: grid; grid-template-columns: 38px 1fr; height: var(--u); align-items: stretch; }
+  .urow .un { font: 500 clamp(7px, calc(var(--u) * .55), 11px) var(--mono); color: var(--steel-ink-soft); display: flex; align-items: center; }
+  .urow .un.five { color: var(--steel-ink-strong); }
+  .slot { border-top: 1px dashed var(--steel-line); }
+  .slot.run { display: flex; align-items: center; justify-content: center; font: clamp(9px, calc(var(--u) * .5), 11px) var(--mono); color: var(--steel-free); border: 1px dashed var(--steel-line); border-radius: 3px; margin: 2px 0; }
+  .urow.run .un { font-size: clamp(7px, calc(var(--u) * .45), 10px); }
+  .blk { margin: 1px 0; border: 1px solid var(--steel-edge); border-left: 4px solid var(--c, var(--steel-ink-soft)); border-radius: 3px; background: var(--steel-2); display: flex; align-items: center; gap: 4px; padding: 0 4px; cursor: pointer; min-height: 0; overflow: hidden; }
+  .blk:hover { border-color: #7d8a98; }
+  .blk.sel { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ink); }
+  .blk .tape { font-size: clamp(8px, calc(var(--u) * .6), 12px); line-height: 1.1; padding: 0 5px; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .blk .rows { margin-left: auto; font: 10px var(--mono); color: var(--steel-ink-soft); white-space: nowrap; }
+  .rack-note { color: var(--ink-faint); font-size: 12px; margin-top: 6px; }
+
+  /* ---------- Today: the layout as it is now ---------- */
+  .today-page { flex: 1; min-height: 0; overflow: auto; padding: 0 20px 14px; }
+  .today-row { display: flex; gap: 16px; align-items: flex-start; }
+  .today-row .face { --j: var(--jfix) !important; }
+  .today-row .cab { width: 520px; --u: 26px; }
+  .today-row .slot { font-size: 11px; color: var(--steel-free); display: flex; align-items: center; padding-left: 8px; }
+  .tipbox { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 14px; color: var(--ink-soft); max-width: 320px; }
+  .tconn { width: 320px; }
+  .pathbar { flex: none; background: var(--paper); border-top: 1px solid var(--rule); }
+  .pathbar .route { --pj: 24px; padding-top: 8px; }
+
+  @media (max-width: 900px) {
+    .rackwork { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; grid-template-areas: "rack" "main" "path"; overflow: auto; }
+    .cab { width: 100%; }
+    .dock { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="demo-bar">
+  <b>Demo: using the space in Physical</b>
+  <span class="seg" id="screens"></span>
+  <span class="seg" id="modes"></span>
+  <span class="note">Click a jack or a unit. Resize the window: the device and the path size to the screen.</span>
+</div>
+<header class="top">
+  <span class="brand">⌘ nettop</span>
+  <span class="seg"><button>Conceptual</button><button class="on">Physical</button><button>Inventory</button></span>
+  <span class="muted">Network</span><span class="select">All networks ▾</span>
+  <span class="spacer"></span>
+  <span class="seg"><button class="on">Installed</button><button>Plan: Floor 2 refresh</button></span>
+  <button class="btn">Changes</button>
+</header>
+<div class="frame">
+  <nav class="rail"><button title="Add">＋</button><button title="Explore">⌕</button><button id="dockBtn" title="Inspector">☰</button></nav>
+  <main class="page" id="page"></main>
+  <aside class="dock" id="dock"></aside>
+</div>
+
+<script>
+// ---------- Fictional data, in the shapes of the owner's screenshots ----------
+const NETS = {
+  A: { name: 'Network A', c: '#3b6fd8' },
+  B: { name: 'Network B', c: '#a23b72' },
+  C: { name: 'Network C', c: '#4f7a2a' },
+  D: { name: 'Network D', c: '#7a4fc0' },
+}
+function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+const pick = (r, a) => a[Math.floor(r() * a.length)]
+const B32 = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+const cableId = r => 'cable-' + Array.from({ length: 10 }, () => pick(r, B32)).join('')
+const FARS = [
+  { eq: 'HDF-05 MDF', place: 'North campus › MDF › MDF-1' },
+  { eq: 'HDF-01 R-08', place: 'North campus › Core › R-08' },
+  { eq: 'PNL-RJ45 R-12', place: 'North campus › Core › R-12' },
+  { eq: 'HDF-02 Lab', place: 'North campus › Building 2 › Lab rack' },
+]
+const AGGS = ['AGG-253', 'AGG-254 A', 'AGG-254 B', 'BB-01']
+const farJack = r => `${1 + Math.floor(r() * 3)}${pick(r, 'ABCD')}/${1 + Math.floor(r() * 6)}`
+
+function hdf(id, name, seed, fill, rows = 3, units = 1) {
+  const r = rng(seed), ports = []
+  for (let row = rows; row >= 1; row--) for (const col of 'ABCD') for (let p = 1; p <= 6; p++) {
+    const used = r() < fill, far = used ? pick(r, FARS) : null
+    ports.push({ id: `${row}${col}/${p}`, label: String(p), row, col, net: used ? pick(r, ['A', 'A', 'B', 'B', 'C']) : null,
+      far: used ? { eq: far.eq, jack: farJack(r), place: far.place } : null, cable: used ? cableId(r) : null, reaches: used && r() < .7 ? pick(r, AGGS) : null })
+  }
+  return { id, name, kind: 'hdf', rows, units, meta: `HDF · ${rows} rows × A–D · ${rows * 24} positions · ${units}U`, ports }
+}
+function panel(id, name, n, seed, nets) {
+  const r = rng(seed), ports = []
+  for (let p = 1; p <= n; p++) {
+    const net = nets[p - 1] ?? null, far = net ? pick(r, FARS) : null
+    ports.push({ id: String(p), label: String(p), net, far: net ? { eq: far.eq, jack: farJack(r), place: far.place } : null, cable: net ? cableId(r) : null, reaches: net ? pick(r, AGGS) : null })
+  }
+  return { id, name, kind: 'panel', units: 1, meta: `Panel · ${n} positions · 1U`, ports }
+}
+function sw(id, name, role, net, seed, fill) {
+  const r = rng(seed), ports = []
+  for (let p = 1; p <= 48; p++) {
+    const used = r() < fill
+    ports.push({ id: `Gi${p}`, label: String(p), group: 'copper', net: used ? net : null,
+      far: used ? { eq: pick(r, ['PNL-RJ45 R-12', 'PNL-02 Lab', 'PNL-SM Lab']), jack: String(1 + Math.floor(r() * 24)), place: pick(r, ['North campus › Core › R-12', 'North campus › Building 2 › Lab rack']) } : null,
+      cable: used ? cableId(r) : null, reaches: null })
+  }
+  for (let p = 1; p <= 4; p++) {
+    const used = p === 1 || (role !== 'Access' && p === 2)
+    ports.push({ id: `Te${p}`, label: String(p), group: 'fiber', net: used ? net : null,
+      far: used ? { eq: 'PNL-SM Lab', jack: String(p), place: 'North campus › Building 2 › Lab rack' } : null,
+      cable: used ? cableId(r) : null, reaches: used ? (role === 'Access' ? 'AGG-254 A' : 'BB-01') : null })
+  }
+  const free = ports.filter(p => !p.net).length
+  return { id, name, kind: 'switch', units: 1, meta: `Switch · 52 ports · 1U · ${role.toLowerCase()} · ${NETS[net].name} · ${free} free`, ports, net }
+}
+
+const EQ = {
+  'hdf-07': hdf('hdf-07', 'HDF-07 R-12', 53, .6, 12, 4),
+  'hdf-01': hdf('hdf-01', 'HDF-01 R-12', 11, .85),
+  'hdf-02': hdf('hdf-02', 'HDF-02 R-12', 7, .75),
+  'hdf-03': hdf('hdf-03', 'HDF-03 R-12', 23, .4),
+  'pnl-rj45': panel('pnl-rj45', 'PNL-RJ45 R-12', 24, 5, ['A', 'A', 'B', null, 'A', null, 'C', 'C', null, null, 'A', 'B', null, 'B', 'A', null, null, 'C', null, null, 'A', null, null, null]),
+  'agg-a': sw('agg-a', 'AGG-254 A', 'Aggregation', 'B', 31, .55),
+  'agg-b': sw('agg-b', 'AGG-254 B', 'Aggregation', 'A', 37, .5),
+  'agg-253': sw('agg-253', 'AGG-253', 'Aggregation', 'A', 41, .3),
+  'agg-c': sw('agg-c', 'AGG-254 C', 'Aggregation', 'C', 43, .2),
+  'hdf-32': hdf('hdf-32', 'HDF-32 MDF', 61, .55, 32, 8),
+  'pnl-sm': panel('pnl-sm', 'PNL-SM Lab', 3, 3, ['B', 'B', 'C']),
+  'sw-2': sw('sw-2', 'מתג קומה 2', 'Access', 'D', 17, .12),
+}
+const PLACE = { 'pnl-sm': ['North campus', 'Building 2', 'Lab rack'], 'sw-2': ['North campus', 'Building 2', 'Lab rack'], 'hdf-32': ['North campus', 'MDF', 'MDF-1'] }
+const placeOf = id => PLACE[id] ?? ['North campus', 'Core', 'R-12']
+const RACK = { name: 'R-12', height: 44, items: [
+  { u: 43, id: 'hdf-07' }, { u: 38, id: 'hdf-01' }, { u: 37, id: 'hdf-02' }, { u: 36, id: 'hdf-03' },
+  { u: 34, id: 'pnl-rj45' }, { u: 32, id: 'agg-a' }, { u: 30, id: 'agg-b' }, { u: 28, id: 'agg-253' }, { u: 26, id: 'agg-c' },
+] }
+
+// ---------- State ----------
+const S = { screen: 'rack', mode: 'proposed', eq: 'hdf-02', sel: null, dock: false, rackSel: 'hdf-07', bands: {} }
+const SCREENS = [['rack', 'Rack R-12'], ['hdf-02', 'HDF 3 rows'], ['hdf-07', 'HDF 12 rows'], ['hdf-32', 'HDF 32 rows'], ['pnl-sm', 'Panel 3'], ['sw-2', 'Switch 52']]
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+const bdi = s => `<bdi>${esc(s)}</bdi>`
+const netChip = n => n ? `<span class="chip"><i class="dot" style="--c:${NETS[n].c}"></i>${esc(NETS[n].name)}</span>` : '<span class="faint">—</span>'
+const kindName = eq => eq.kind === 'hdf' ? 'HDF' : eq.kind === 'panel' ? 'Panel' : 'Switch'
+
+// ---------- Faces ----------
+function jack(eq, p) {
+  const cls = ['jack', p.net ? 'used' : '', S.sel === p.id && S.eq === eq.id ? 'sel' : ''].join(' ')
+  const up = p.reaches && eq.kind === 'switch' ? '<span class="up">↑</span>' : ''
+  return `<button class="${cls}" style="${p.net ? `--c:${NETS[p.net].c}` : ''}" data-jack="${esc(p.id)}" data-eq="${eq.id}" title="${esc(p.id)} · ${p.net ? 'cabled' : 'free'}">${up}${esc(p.label)}</button>`
+}
+// An HDF's rows, highest first, in `bands` side-by-side bands (band 1 holds the highest rows).
+function hdfBody(eq, bands) {
+  const rows = Array.from({ length: eq.rows }, (_, i) => eq.rows - i), per = Math.ceil(eq.rows / bands), out = []
+  for (let b = 0; b < bands; b++) {
+    const mine = rows.slice(b * per, b * per + per)
+    if (!mine.length) continue
+    let g = '<div class="hdf-grid"><span></span>' + [...'ABCD'].map(c => `<span class="colh">${c}</span>`).join('')
+    for (const row of mine) {
+      g += `<span class="rowh">${row}</span>`
+      for (const col of 'ABCD') g += `<div class="module">${eq.ports.filter(p => p.row === row && p.col === col).map(p => jack(eq, p)).join('')}</div>`
+    }
+    out.push(g + '</div>')
+  }
+  return `<div class="bands">${out.join('<i class="band-gap"></i>')}</div>`
+}
+function faceInner(eq, bands = 1) {
+  const right = eq.kind === 'hdf' ? `front${bands > 1 ? ` · rows ${eq.rows}–1, left to right` : ''}` : eq.ports.length + (eq.kind === 'switch' ? ' ports' : ' positions')
+  const head = `<div class="plate-head"><span class="tape">${bdi(eq.name)}</span><span class="r">${right}</span></div>`
+  if (eq.kind === 'hdf') return `<div class="plate">${head}${hdfBody(eq, bands)}</div>`
+  if (eq.kind === 'panel') return `<div class="plate">${head}<div class="pn-row">${eq.ports.map(p => jack(eq, p)).join('')}</div></div>`
+  const cu = eq.ports.filter(p => p.group === 'copper'), fi = eq.ports.filter(p => p.group === 'fiber')
+  const cols = list => list.map(p => jack(eq, p)).join('')
+  return `<div class="plate">${head}<div class="sw-body">
+      <div class="sw-group"><div class="lbl">Gi1–Gi24 · copper</div><div class="sw-cols">${cols(cu.slice(0, 24))}</div></div>
+      <div class="sw-group"><div class="lbl">Gi25–Gi48</div><div class="sw-cols">${cols(cu.slice(24))}</div></div>
+      <div class="sw-group"><div class="lbl">Te1–Te4 · fiber</div><div class="sw-cols">${cols(fi)}</div></div></div></div>`
+}
+const JMAX = { hdf: 60, panel: 56, switch: 56 }
+const JFIX = { hdf: 32, panel: 28, switch: 28 }
+function face(eq) {
+  return `<div class="face" data-face="${eq.id}" style="--jfix:${JFIX[eq.kind]}px">${faceInner(eq, S.bands[eq.id] ?? 1)}</div>`
+}
+function legend(eq) {
+  const nets = [...new Set(eq.ports.map(p => p.net).filter(Boolean))]
+  return `<div class="legend"><span><i class="sw" style="--c:#fff"></i>free</span>${nets.map(n => `<span><i class="sw" style="--c:${NETS[n].c}"></i>${esc(NETS[n].name)}</span>`).join('')}<span><i class="sw" style="--c:var(--route)"></i>on the selected route</span>${eq.kind === 'switch' ? '<span>↑ reaches an AGG or BB</span>' : ''}</div>`
+}
+
+// Size each face to its card: measure the plate at two jack sizes (its size is linear in the jack),
+// then take the biggest jack that fits the width and the height left above the fold.
+// A tall HDF also tries 2, 3, 4, 6 or 8 bands of rows and keeps the one with the biggest jacks.
+function fitFaces() {
+  if (S.mode === 'today') return
+  for (const f of document.querySelectorAll('.work .face')) {
+    const eq = EQ[f.dataset.face], wrap = f.closest('.facewrap'), scroller = f.closest('.work')
+    const legendH = wrap.querySelector('.legend').offsetHeight + 10
+    const pathIn = wrap.parentElement.querySelector(':scope > .pathcard')
+    const stacked = getComputedStyle(wrap.parentElement).gridTemplateColumns.split(' ').length === 1
+    const availW = wrap.clientWidth - 28
+    let availH = scroller.getBoundingClientRect().bottom - wrap.getBoundingClientRect().top - 28 - legendH - 16
+    if (pathIn && !stacked) availH -= pathIn.offsetHeight + 14
+    availH = Math.max(availH, 220)
+    const tries = eq.kind === 'hdf' ? [1, 2, 3, 4, 6, 8].filter(b => b === 1 || b <= eq.rows / 2) : [1]
+    let best = null
+    for (const b of tries) {
+      f.innerHTML = faceInner(eq, b)
+      const size = j => { f.style.setProperty('--j', j + 'px'); return [f.offsetWidth, f.offsetHeight] }
+      const [w1, h1] = size(20), [w2, h2] = size(40)
+      const bw = (w2 - w1) / 20, bh = (h2 - h1) / 20
+      const jw = (availW - (w1 - 20 * bw)) / bw, jh = (availH - (h1 - 20 * bh)) / bh
+      // Never wider than the card (no jack leaves its plate, no plate leaves its card). When the height
+      // would make the jacks tiny, keep them readable (18px) and let the page scroll down instead.
+      const j = Math.min(jw, JMAX[eq.kind], Math.max(Math.min(jh, jw), 18))
+      if (!best || j > best.j + 0.5) best = { b, j }
+    }
+    S.bands[eq.id] = best.b
+    f.innerHTML = faceInner(eq, best.b)
+    f.style.setProperty('--j', Math.floor(best.j) + 'px')
+  }
+}
+
+// ---------- The cards beside the device ----------
+function connects(eq) {
+  const m = new Map()
+  for (const p of eq.ports) if (p.far) { const k = p.far.eq; const v = m.get(k) ?? { eq: k, place: p.far.place, n: 0, nets: new Set() }; v.n++; v.nets.add(p.net); m.set(k, v) }
+  const list = [...m.values()].sort((a, b) => b.n - a.n)
+  const cables = list.reduce((s, v) => s + v.n, 0)
+  return `<section class="card sec"><div class="sec-head"><h3>Connects to</h3><span class="muted">${list.length} places · ${cables} cables</span></div>
+    ${list.map(v => `<div class="conn"><span>${[...v.nets].map(n => `<i class="dot" style="--c:${NETS[n].c}"></i>`).join(' ')}</span><div style="min-width:0"><div class="n">${bdi(v.eq)}</div><div class="p">${bdi(v.place.split(' › ').slice(1).join(' › '))}</div></div><span class="c">${v.n}</span></div>`).join('') || '<div class="muted">No cables yet.</div>'}</section>`
+}
+function selected(eq) {
+  const p = S.eq === eq.id && eq.ports.find(x => x.id === S.sel)
+  if (!p) return `<section class="card sec"><h3>Selected jack</h3><div class="empty-sel">Select a jack on the face to see where it goes.</div></section>`
+  return `<section class="card sec"><div class="sec-head"><h3 class="mono">${esc(p.id)}</h3><span class="muted">${p.net ? 'cabled' : 'free'} · front</span></div>
+    <dl class="facts">
+      <dt>Network</dt><dd>${netChip(p.net)}</dd>
+      <dt>Far end</dt><dd>${p.far ? `<b>${bdi(p.far.eq)}</b> <span class="mono">${esc(p.far.jack)}</span>` : '<span class="faint">—</span>'}</dd>
+      <dt>Where</dt><dd>${p.far ? bdi(p.far.place) : '<span class="faint">—</span>'}</dd>
+      <dt>Cable</dt><dd class="mono">${p.cable ? esc(p.cable) : '<span class="faint">—</span>'}</dd>
+      <dt>Reaches</dt><dd>${p.reaches ? `↑ ${bdi(p.reaches)}` : '<span class="faint">—</span>'}</dd>
+    </dl>
+    <div class="actions">${p.net ? '<button class="btn primary">Find AGG / BB</button><button class="btn" disabled>Disconnect…</button>' : '<button class="btn" disabled>Connect…</button>'}<button class="btn">Edit port details</button></div>
+    <div class="hint">Open a plan to connect or disconnect.</div></section>`
+}
+
+// ---------- The path ----------
+function pathOf(eq) {
+  const p = S.eq === eq.id && eq.ports.find(x => x.id === S.sel)
+  if (!p || !p.net) return null
+  const r = rng(p.id.length * 97 + p.id.charCodeAt(0) + p.id.charCodeAt(p.id.length - 1))
+  const end = p.reaches ?? 'AGG-254 A'
+  const hops = [
+    { eq: eq.name, kind: kindName(eq), a: eq.kind === 'switch' ? p.id : p.label, b: eq.kind === 'switch' ? null : p.label, place: placeOf(eq.id).slice(1).join(' › ') },
+    { eq: p.far.eq, kind: p.far.eq.startsWith('HDF') ? 'HDF' : 'Panel', a: p.far.jack, b: p.far.jack, place: p.far.place.split(' › ').slice(1).join(' › ') },
+    { eq: 'HDF-01 R-08', kind: 'HDF', a: '2B/4', b: '2B/4', place: 'Core › R-08' },
+    { eq: end, kind: 'Switch', a: 'Te' + (1 + Math.floor(r() * 4)), b: null, place: 'Core › R-12', end: true, role: end.startsWith('BB') ? 'BB' : 'AGG' },
+  ]
+  return { p, hops, cables: hops.slice(1).map(() => cableId(r)), c: NETS[p.net].c }
+}
+function routeHtml(x) {
+  const hop = h => `<div class="hop ${h.end ? 'end' : ''}"><div class="hop-place">${bdi(h.place)}</div>
+      <div class="hop-plate"><div class="hop-top"><span class="tape">${bdi(h.eq)}</span><span class="hop-kind">${h.kind}</span></div>
+      <div class="hop-jacks"><span class="hj">${esc(h.a)}</span>${h.b ? `<span class="hop-bridge"></span><span class="hj">${esc(h.b)}</span>` : ''}</div>
+      ${h.b ? '<div class="hop-sides"><span>front</span><span>rear</span></div>' : ''}</div>
+      ${h.end ? `<div class="hop-reach">↑ reaches the ${h.role}</div>` : ''}</div>`
+  let out = ''
+  x.hops.forEach((h, i) => { if (i) out += `<div class="wire"><span class="wire-id">${x.cables[i - 1]}</span><i class="wire-line"></i></div>`; out += hop(h) })
+  return `<div class="route" style="--c:${x.c}">${out}</div>`
+}
+function pathcard(eq) {
+  const x = pathOf(eq)
+  if (!x) return `<section class="card pathcard empty"><b>Path</b><span class="muted">Select a cabled jack on the face to draw its path to the AGG or BB.</span></section>`
+  const last = x.hops[x.hops.length - 1]
+  return `<section class="card pathcard"><div class="path-head"><b>Path of <span class="mono">${esc(x.p.id)}</span></b>${netChip(x.p.net)}
+      <span class="muted">${x.cables.length} cables · ${x.hops.length} places · ${bdi(eq.name)} → <span class="end">${bdi(last.eq)}</span></span>
+      <span class="spacer"></span><button class="btn">Open the Trace page</button><button class="iconx" data-act="clearsel" title="Clear">×</button></div>
+    ${routeHtml(x)}</section>`
+}
+function pathbarToday(eq) {
+  const x = pathOf(eq)
+  return x ? `<section class="pathbar"><div class="path-head"><b>Path of ${esc(x.p.id)}</b><span class="spacer"></span><button class="iconx" data-act="clearsel">Full page ⤢ ×</button></div>${routeHtml(x)}</section>` : ''
+}
+
+// ---------- Screens ----------
+function crumbs(id) {
+  const [site, node, rack] = placeOf(id)
+  return `<button class="btn">← Back</button><span class="crumbs"><a>Sites</a>›<a>${bdi(site)}</a>›<a>${bdi(node)}</a>›<a>${bdi(rack)}</a>›<b>${bdi(EQ[id].name)}</b></span>`
+}
+function eqTools(eq) {
+  return `<span class="spacer"></span>${eq.kind !== 'switch' ? '<span class="seg"><button class="on">Front</button><button>Rear</button></span><span class="seg"><button class="on">Pairs</button><button>Pigtails</button></span>' : ''}<button class="btn">Open in inventory</button><button class="btn">⋯</button>`
+}
+const deviceAndCards = eq => `<div class="facewrap">${face(eq)}${legend(eq)}</div><div class="side">${connects(eq)}${selected(eq)}</div>`
+function equipmentPage(id) {
+  const eq = EQ[id]
+  const meta = `<div class="eq-meta">${esc(eq.meta)} · ${bdi(placeOf(id).join(' › '))} · <span class="link">Edit details</span></div>`
+  if (S.mode === 'today') {
+    return `<div class="eq-bar">${crumbs(id)}${eqTools(eq)}</div>${meta}
+      <div class="today-page"><div class="today-row"><div class="facewrap">${face(eq)}${legend(eq)}</div><div class="tconn">${connects(eq)}</div></div></div>${pathbarToday(eq)}`
+  }
+  return `<div class="eq-bar">${crumbs(id)}${eqTools(eq)}</div>${meta}<div class="work"><div class="work-in">${deviceAndCards(eq)}${pathcard(eq)}</div></div>`
+}
+// The rack. Today draws every unit; Proposed collapses each run of 3 or more free units into one row,
+// so the equipment gets the height and the rack is no taller than it needs to be.
+function cabinet(today) {
+  const at = new Map(RACK.items.map(it => [it.u, it]))
+  const rows = []
+  for (let u = RACK.height; u >= 1; u--) {
+    const it = at.get(u)
+    if (it) { rows.push({ it, u }); u -= EQ[it.id].units - 1; continue }
+    let v = u; while (v - 1 >= 1 && !at.get(v - 1) && !RACK.items.some(i => v - 1 <= i.u && v - 1 > i.u - EQ[i.id].units)) v--
+    const n = u - v + 1
+    if (today || n < 3) for (let k = u; k >= v; k--) rows.push({ free: k })
+    else rows.push({ run: [u, v] })
+    u = v
+  }
+  return rows.map(r => {
+    if (r.free) return `<div class="urow"><span class="un ${r.free % 5 === 0 ? 'five' : ''}">${r.free}</span><div class="slot">${today ? 'Available' : ''}</div></div>`
+    if (r.run) return `<div class="urow run"><span class="un">${r.run[0]}–${r.run[1]}</span><div class="slot run">${r.run[0] - r.run[1] + 1}U free</div></div>`
+    const eq = EQ[r.it.id], h = eq.units, c = eq.kind === 'switch' ? NETS[eq.net].c : '#7d8a98'
+    return `<div class="urow" style="height:calc(var(--u) * ${h})"><span class="un">${h > 1 ? `${r.u}–${r.u - h + 1}` : r.u}</span><div class="blk ${S.rackSel === r.it.id ? 'sel' : ''}" style="--c:${c}" data-unit="${r.it.id}" title="${esc(eq.name)}"><span class="tape">${bdi(eq.name)}</span>${eq.kind === 'hdf' ? `<span class="rows">${eq.rows} rows</span>` : ''}</div></div>`
+  }).join('')
+}
+// How many --u tall the proposed rack is (a collapsed run counts as one unit).
+const rackRows = () => { const d = document.createElement('div'); d.innerHTML = cabinet(false); return [...d.children].reduce((n, r) => n + (parseFloat((r.style.height.match(/\* (\d+)/) || [])[1]) || 1), 0) }
+function rackPage() {
+  const bar = `<div class="eq-bar"><button class="btn">← Back</button><span class="crumbs"><a>Sites</a>›<a>North campus</a>›<a>Core</a>›<b>R-12</b></span><span class="spacer"></span><button class="btn">Print sheet</button><button class="btn">⋯</button></div>`
+  if (S.mode === 'today') {
+    return `${bar}<div class="eq-meta">Complete physical inventory. All networks are shown.</div>
+      <div class="today-page"><div class="today-row"><div><div class="rack-head"><h2>R-12</h2><span class="muted">44U · front elevation</span></div><div class="cab">${cabinet(true)}</div></div>
+      <div class="tipbox">A 3U HDF is one object spanning its three units.<br>Teal = equipment on the selected route.</div></div></div>`
+  }
+  const eq = EQ[S.rackSel], it = RACK.items.find(i => i.id === eq.id)
+  return `${bar}<div class="rackwork">
+    <div class="rackcol"><div class="rack-head"><h2>R-12</h2><span class="muted">44U · 30U free</span></div>
+      <div class="cab" id="cab">${cabinet(false)}</div><div class="rack-note">Double-click a unit to open its page.</div></div>
+    <div class="preview">
+      <div class="preview-head"><h2>${bdi(eq.name)}</h2><span class="muted">${esc(eq.meta)} · U${it.u}</span><span class="spacer"></span><button class="btn primary" data-open="${eq.id}">Open page</button></div>
+      <div class="work"><div class="work-in">${deviceAndCards(eq)}</div></div>
+    </div>
+    ${pathcard(eq)}</div>`
+}
+function dock() {
+  const eq = EQ[S.screen === 'rack' ? S.rackSel : S.screen]
+  const used = eq.ports.filter(p => p.net).length
+  return `<div class="dock-tabs"><button class="on">Inspector</button><button>Explore</button><button>Changes</button><button class="x" data-act="dock">×</button></div>
+    <div class="dock-body"><h3 style="margin:0 0 6px">${bdi(eq.name)}</h3><span class="chip">${kindName(eq)}</span> <span class="chip">Installed</span>
+    <dl class="facts"><dt>Where</dt><dd>${bdi(placeOf(eq.id).join(' › '))}</dd><dt>Ports</dt><dd>${used} of ${eq.ports.length} cabled</dd><dt>Way up</dt><dd>3 circuits run through it.</dd></dl>
+    <div class="actions"><button class="btn">Open in Physical</button><button class="btn">Show on map</button><button class="btn">Open in inventory</button></div></div>`
+}
+
+// ---------- Render and events ----------
+function render() {
+  document.getElementById('screens').innerHTML = SCREENS.map(([k, t]) => `<button data-screen="${k}" class="${S.screen === k ? 'on' : ''}">${bdi(t)}</button>`).join('')
+  document.getElementById('modes').innerHTML = [['today', 'Today'], ['proposed', 'Proposed']].map(([k, t]) => `<button data-mode="${k}" class="${S.mode === k ? 'on' : ''}">${t}</button>`).join('')
+  document.getElementById('page').innerHTML = S.screen === 'rack' ? rackPage() : equipmentPage(S.screen)
+  const showDock = S.mode === 'today' ? true : S.dock
+  const d = document.getElementById('dock')
+  d.style.display = showDock ? '' : 'none'
+  d.innerHTML = showDock ? dock() : ''
+  document.getElementById('dockBtn').classList.toggle('on', showDock)
+  layout()
+}
+function fitCabinet() {
+  const cab = document.getElementById('cab')
+  if (!cab) return
+  const col = cab.parentElement
+  const h = col.getBoundingClientRect().bottom - cab.getBoundingClientRect().top - col.querySelector('.rack-note').offsetHeight - 10
+  cab.style.setProperty('--u', Math.max(12, Math.min(26, Math.floor((h - 12) / rackRows()))) + 'px')
+}
+function layout() { fitCabinet(); fitFaces() }
+let raf = 0
+addEventListener('resize', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(layout) })
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-screen],[data-mode],[data-jack],[data-unit],[data-open],[data-act],#dockBtn')
+  if (!t) return
+  if (t.dataset.screen) { S.screen = t.dataset.screen; S.sel = null; if (S.screen !== 'rack') S.eq = S.screen }
+  else if (t.dataset.mode) S.mode = t.dataset.mode
+  else if (t.dataset.jack) { S.eq = t.dataset.eq; S.sel = S.sel === t.dataset.jack ? null : t.dataset.jack }
+  else if (t.dataset.unit) { S.rackSel = t.dataset.unit; S.eq = t.dataset.unit; S.sel = null }
+  else if (t.dataset.open) { const id = t.dataset.open; if (!SCREENS.some(s => s[0] === id)) return alert('In the app, Open page goes to this equipment\'s page.'); S.screen = id; S.eq = id }
+  else if (t.dataset.act === 'clearsel') S.sel = null
+  else if (t.dataset.act === 'dock' || t.id === 'dockBtn') { if (S.mode === 'today') return; S.dock = !S.dock }
+  render()
+})
+document.addEventListener('dblclick', e => {
+  const t = e.target.closest('[data-unit]')
+  if (!t) return
+  if (SCREENS.some(s => s[0] === t.dataset.unit)) { S.screen = t.dataset.unit; S.eq = S.screen; S.sel = null; render() }
+  else alert('In the app, double-click opens this equipment\'s page.')
+})
+render()
+</script>
+</body>
+</html>
