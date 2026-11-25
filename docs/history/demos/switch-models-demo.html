@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Switch models demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Hebrew:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --floor: #eef1f3; --paper: #ffffff; --paper-sunk: #f6f8f9; --ink: #1c2b3a; --ink-soft: #56636f;
+    --ink-faint: #7a8691; --rule: #d3dae1; --rule-soft: #e6ebef;
+    --steel: #1f2731; --steel-2: #2a3440; --steel-3: #3a4552; --steel-line: #36414d; --steel-ink: #a8b4c0;
+    --tape: #fbfbf8; --tape-ink: #15202b;
+    --plan: #fff4d6; --plan-edge: #e8cf8a; --plan-ink: #7a5a00;
+    --netA: #2f6fd6; --netB: #8a4fc9; --ok: #0f8b7a; --ok-soft: #e2f3f0; --warn: #b5541c; --warn-soft: #fbeee6;
+    --sans: 'IBM Plex Sans', 'IBM Plex Sans Hebrew', 'Segoe UI', Arial, sans-serif;
+    --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
+    --u: 22px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font: 13px/1.45 var(--sans); color: var(--ink); background: var(--floor); display: flex; flex-direction: column; overflow: hidden; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .mono { font-family: var(--mono); }
+  .muted { color: var(--ink-soft); }
+  .faint { color: var(--ink-faint); }
+  .spacer { flex: 1; }
+
+  .demo-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 7px 16px; background: #eef6ff; border-bottom: 1px solid #c9dcf3; font-size: 12px; flex: none; }
+  .demo-bar b { font-weight: 600; }
+
+  .top { height: 44px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--plan); border-bottom: 1px solid var(--plan-edge); }
+  .brand { font-weight: 600; font-size: 15px; margin-right: 6px; }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--paper); }
+  .seg button { border: 0; background: none; padding: 5px 12px; color: var(--ink-soft); }
+  .seg button.on { background: var(--paper-sunk); color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--rule); }
+  .plan-name { color: var(--plan-ink); font-weight: 600; }
+  .count { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--ink); color: #fff; font-size: 11px; text-align: center; }
+  .frame { flex: 1; min-height: 0; display: grid; grid-template-columns: 48px minmax(0, 1fr) 360px; }
+  .rail { background: var(--paper); border-right: 1px solid var(--rule); display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 10px; }
+  .rail button { width: 36px; height: 36px; border: 0; border-radius: 8px; background: none; color: var(--ink-faint); font-size: 16px; }
+  .rail button.on { background: var(--steel); color: #fff; }
+  .page { min-width: 0; min-height: 0; overflow: auto; padding: 14px 22px 30px; }
+  .dock { background: var(--paper); border-left: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0; }
+  .dock-tabs { display: flex; gap: 14px; padding: 0 14px; border-bottom: 1px solid var(--rule); flex: none; }
+  .dock-tabs button { border: 0; background: none; padding: 10px 2px; color: var(--ink-soft); border-bottom: 2px solid transparent; }
+  .dock-tabs button.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+  .dock-body { padding: 14px; overflow: auto; flex: 1; }
+
+  .btn { border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 5px 12px; white-space: nowrap; }
+  .btn:hover { border-color: #b6c1cc; }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .btn.danger { color: #a3261b; }
+  .btn.sm { padding: 2px 8px; font-size: 12px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .link { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); }
+  .card { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; }
+  .crumbs { color: var(--ink-soft); display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .crumbs b { color: var(--ink); }
+  h2 { font-size: 17px; margin: 0; }
+  h3 { font-size: 13px; margin: 0 0 8px; }
+  label.f { display: grid; gap: 3px; font-size: 12px; color: var(--ink-soft); }
+  label.f > span { font-weight: 500; }
+  input.in, select.in { border: 1px solid var(--rule); border-radius: 6px; padding: 5px 8px; background: var(--paper); color: var(--ink); min-width: 0; }
+  input.in:focus, select.in:focus { outline: 2px solid #9cc1f5; outline-offset: 0; border-color: #6d9de0; }
+  .hint { font-size: 11.5px; color: var(--ink-faint); }
+  .err { font-size: 12px; color: #a3261b; }
+
+  /* ---------- The library (dock, Add tab) ---------- */
+  .lib-group { margin-bottom: 16px; }
+  .lib-group > .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .lib-group > .head h3 { margin: 0; }
+  .lib-group > .head .link { margin-left: auto; font-size: 12px; }
+  .lib-item { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--rule); border-radius: 7px; background: var(--paper); margin-bottom: 6px; cursor: grab; user-select: none; }
+  .lib-item:hover { border-color: #9fb0c2; }
+  .lib-item.picked { border-color: var(--ink); box-shadow: 0 0 0 2px #c9d6e6; }
+  .lib-item .ico { width: 54px; height: 18px; border-radius: 3px; background: var(--steel); flex: none; display: flex; align-items: center; justify-content: center; gap: 1px; padding: 0 3px; }
+  .lib-item .ico i { flex: 1; height: 8px; background: #e9eef2; border-radius: 1px; }
+  .lib-item .ico.panel i { background: #cfd8e0; }
+  .lib-item .ico.item { background: #5a6673; }
+  .lib-item .t { min-width: 0; }
+  .lib-item .t b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lib-item .t span { font-size: 11.5px; color: var(--ink-faint); }
+  .lib-empty { border: 1px dashed var(--rule); border-radius: 7px; padding: 12px; color: var(--ink-soft); font-size: 12px; }
+  .pick-note { background: var(--paper-sunk); border: 1px solid var(--rule-soft); border-radius: 7px; padding: 8px 10px; font-size: 12px; color: var(--ink-soft); margin-bottom: 12px; }
+
+  /* ---------- The rack level ---------- */
+  .rack-wrap { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: start; }
+  .rack-head { margin-bottom: 8px; }
+  .rack { background: var(--steel); border-radius: 6px; padding: 8px 8px 8px 30px; position: relative; }
+  .u { height: var(--u); position: relative; }
+  .u .n { position: absolute; left: -26px; width: 20px; text-align: right; top: 3px; font: 10.5px var(--mono); color: var(--steel-ink); }
+  .u.free { border-top: 1px dashed var(--steel-line); }
+  .u.free.target { background: rgba(255,255,255,.05); }
+  .u.free.target:hover, .u.free.over { background: rgba(156,193,245,.28); outline: 1px solid #9cc1f5; }
+  .u.free.preview { background: rgba(232,207,138,.25); outline: 1px dashed var(--plan-edge); }
+  .blk { position: absolute; left: 0; right: 0; top: 1px; border-radius: 3px; background: var(--steel-3); border: 1px solid #55616e; display: flex; align-items: center; gap: 6px; padding: 0 6px; cursor: pointer; z-index: 1; }
+  .blk .tape { background: var(--tape); color: var(--tape-ink); font: 500 10.5px var(--mono); padding: 0 5px; border-radius: 2px; white-space: nowrap; }
+  .blk .sub { font: 10px var(--mono); color: var(--steel-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .blk.proposed { border: 1.5px dashed var(--plan-edge); background: #3b3a2e; }
+  .blk.chosen { box-shadow: 0 0 0 2px #fff; }
+  .blk.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { 0% { box-shadow: 0 0 0 3px #f5c84c; } 100% { box-shadow: 0 0 0 0 transparent; } }
+  .rack-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 6px; }
+
+  /* the small box at the unit */
+  .pop { position: absolute; left: calc(100% + 14px); top: -8px; width: 330px; z-index: 5; background: var(--paper); border: 1px solid #b9c5d1; border-radius: 9px; box-shadow: 0 10px 30px rgba(20,30,45,.18); padding: 12px; }
+  .pop::before { content: ''; position: absolute; left: -7px; top: 14px; width: 12px; height: 12px; background: var(--paper); border-left: 1px solid #b9c5d1; border-bottom: 1px solid #b9c5d1; transform: rotate(45deg); }
+  .pop .ttl { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .pop .ttl b { font-size: 13.5px; }
+  .pop .grid { display: grid; gap: 9px; }
+  .pop .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .pop .acts { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+  .pop .acts .hint { margin-left: auto; }
+  .stepper { display: inline-flex; align-items: center; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .stepper button { border: 0; background: var(--paper-sunk); width: 26px; height: 28px; }
+  .stepper input { width: 40px; border: 0; text-align: center; height: 28px; }
+  .why { font-size: 11.5px; color: var(--ink-faint); }
+  .names-preview { font: 11.5px var(--mono); color: var(--ink-soft); background: var(--paper-sunk); border-radius: 5px; padding: 4px 7px; }
+
+  /* chosen unit beside the rack */
+  .chosen-card { padding: 14px; }
+  .chosen-card .bar { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .menu { position: relative; }
+  .menu-list { position: absolute; right: 0; top: calc(100% + 4px); background: var(--paper); border: 1px solid var(--rule); border-radius: 7px; box-shadow: 0 8px 22px rgba(20,30,45,.14); min-width: 200px; z-index: 6; padding: 4px; }
+  .menu-list button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 6px 10px; border-radius: 5px; }
+  .menu-list button:hover { background: var(--paper-sunk); }
+  .menu-list button:disabled { color: var(--ink-faint); }
+
+  /* faceplate preview */
+  .plate { background: var(--steel); border-radius: 6px; padding: 8px 10px 10px; display: inline-block; max-width: 100%; overflow-x: auto; }
+  .plate .ph { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .plate .ph .tape { background: var(--tape); color: var(--tape-ink); font: 500 11px var(--mono); padding: 0 6px; border-radius: 2px; }
+  .plate .ph .m { font: 10.5px var(--mono); color: var(--steel-ink); }
+  .banks { display: flex; gap: 10px; align-items: flex-end; }
+  .bank .cap { font: 10px var(--mono); color: var(--steel-ink); margin-bottom: 3px; white-space: nowrap; }
+  .bank .cols { display: grid; grid-auto-flow: column; grid-auto-columns: var(--pj, 18px); justify-content: start; grid-template-rows: repeat(2, var(--pj, 18px)); gap: 2px; }
+  .bank .cols.one { grid-template-rows: var(--pj, 18px); }
+  .jk { width: var(--pj, 18px); height: var(--pj, 18px); background: #fff; border-radius: 2px; font: 500 calc(var(--pj, 18px) * .45) var(--mono); color: var(--tape-ink); display: flex; align-items: center; justify-content: center; }
+  .jk.fiber { background: #e9f1fb; }
+  .jk.used { background: var(--netA); color: #fff; }
+
+  /* ---------- Switch models page ---------- */
+  .models { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 18px; align-items: start; }
+  .mlist .mi { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--rule-soft); background: none; padding: 9px 12px; }
+  .mlist .mi:last-child { border-bottom: 0; }
+  .mlist .mi.on { background: var(--paper-sunk); box-shadow: inset 3px 0 0 var(--ink); }
+  .mlist .mi b { display: block; }
+  .mlist .mi span { font-size: 11.5px; color: var(--ink-faint); }
+  .editor { padding: 16px; }
+  .editor .basic { display: grid; grid-template-columns: 2fr 1.4fr 90px; gap: 10px; margin-bottom: 16px; }
+  .groups { border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+  .groups table { width: 100%; border-collapse: collapse; }
+  .groups th { text-align: left; font-weight: 500; font-size: 11.5px; color: var(--ink-faint); padding: 6px 8px; background: var(--paper-sunk); border-bottom: 1px solid var(--rule); }
+  .groups td { padding: 5px 6px; border-bottom: 1px solid var(--rule-soft); }
+  .groups tr:last-child td { border-bottom: 0; }
+  .groups input.in, .groups select.in { width: 100%; padding: 4px 6px; }
+  .groups select.in { min-width: 86px; }
+  .groups .num { width: 64px; }
+  .groups .x { border: 0; background: none; color: var(--ink-faint); font-size: 15px; }
+  .total { font-size: 12px; color: var(--ink-soft); margin: 4px 0 14px; }
+  .preview-box { background: var(--paper-sunk); border: 1px solid var(--rule-soft); border-radius: 8px; padding: 12px; margin-bottom: 14px; }
+  .preview-box h3 { display: flex; gap: 8px; }
+  .edit-acts { display: flex; gap: 8px; align-items: center; }
+  .edit-acts .used { margin-left: auto; font-size: 12px; color: var(--ink-soft); }
+
+  /* ---------- Set model dialog ---------- */
+  .scrim { position: fixed; inset: 0; background: rgba(20,30,45,.28); display: flex; align-items: flex-start; justify-content: center; padding-top: 90px; z-index: 20; }
+  .dialog { width: 620px; max-width: calc(100vw - 32px); background: var(--paper); border-radius: 10px; box-shadow: 0 20px 50px rgba(20,30,45,.3); padding: 18px; }
+  .dialog h2 { margin-bottom: 4px; }
+  .changes { border: 1px solid var(--rule); border-radius: 8px; margin: 12px 0; max-height: 300px; overflow: auto; }
+  .changes .sec { padding: 8px 12px; border-bottom: 1px solid var(--rule-soft); }
+  .changes .sec:last-child { border-bottom: 0; }
+  .changes .sec h4 { margin: 0 0 4px; font-size: 12px; }
+  .changes .ln { font-size: 12px; display: flex; gap: 6px; padding: 1px 0; }
+  .changes .ln .from { color: var(--ink-faint); text-decoration: line-through; }
+  .changes .sec.kept { background: var(--warn-soft); }
+  .tag { font-size: 11px; padding: 0 6px; border-radius: 8px; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: #fff; color: var(--warn); border: 1px solid #efc7b0; }
+
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.2); z-index: 30; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="demo-bar">
+  <b>Demo: switch models and adding devices</b>
+  <span class="muted">Drag a model from the Add tab onto a free unit (or click it, then click a unit). Try "Manage models…", and ⋯ → Set model… on EDGE-31.</span>
+  <span class="spacer"></span>
+  <button class="btn sm" id="reset">Reset demo</button>
+</div>
+<div class="top">
+  <span class="brand">nettop</span>
+  <div class="seg"><button>Conceptual</button><button class="on">Physical</button><button>Inventory</button></div>
+  <span class="muted">Network</span><span class="btn" style="color:var(--ink-soft)">All networks ▾</span>
+  <span class="spacer"></span>
+  <div class="seg"><button>Installed</button><button class="on">Plan: <span class="plan-name">Building 05 refresh</span></button></div>
+  <span>Changes <span class="count" id="changes">0</span></span>
+</div>
+<div class="frame">
+  <div class="rail"><button class="on" title="Add">＋</button><button title="Explore">⌕</button><button title="Inspector">☰</button></div>
+  <main class="page" id="page"></main>
+  <aside class="dock">
+    <div class="dock-tabs"><button class="on">Add</button><button>Explore</button><button>Changes</button></div>
+    <div class="dock-body" id="dock"></div>
+  </aside>
+</div>
+<div id="overlay"></div>
+
+<script>
+// ---------------- state ----------------
+const NETS = { A: { name: 'Network A', c: 'var(--netA)' }, B: { name: 'Network B', c: 'var(--netB)' } }
+function initial() {
+  return {
+    view: 'rack',          // 'rack' | 'models'
+    picked: null,          // library item picked by click
+    pop: null,             // { item, unit } the small box
+    chosen: 'EDGE-31',
+    menu: false,
+    editing: 'm1',
+    changes: 0,
+    models: [
+      { id: 'm1', name: 'C9300-48P', maker: 'Cisco', height: 1, groups: [
+        { count: 48, names: 'Gi1/0/{n}', start: 1, type: 'copper', connector: 'RJ45', speed: '1G' },
+        { count: 4, names: 'Te1/1/{n}', start: 1, type: 'fiber', connector: 'SFP+', speed: '10G' } ] },
+      { id: 'm2', name: 'C9200L-24T', maker: 'Cisco', height: 1, groups: [
+        { count: 24, names: 'Gi1/0/{n}', start: 1, type: 'copper', connector: 'RJ45', speed: '1G' },
+        { count: 4, names: 'Gi1/1/{n}', start: 1, type: 'fiber', connector: 'SFP', speed: '1G' } ] },
+    ],
+    // rack B05-1, 24U; unit -> equipment
+    rack: [
+      { name: 'PANEL-B05', kind: 'panel', unit: 24, height: 1, sub: '24 positions' },
+      { name: 'EDGE-31', kind: 'switch', unit: 23, height: 1, sub: '52 ports · Access · Network A', net: 'A', model: null, ports: 52,
+        details: { manufacturer: '', model: '' }, portSpeed: { 1: '100M' } },
+      { name: 'EDGE-32', kind: 'switch', unit: 22, height: 1, sub: '52 ports · Access · Network A', net: 'A', model: 'C9300-48P', ports: 52 },
+      { name: 'UPS-B05', kind: 'item', unit: 2, height: 2, sub: 'UPS · 2U' },
+    ],
+  }
+}
+let S = initial()
+const $ = (s, r = document) => r.querySelector(s)
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const total = (m) => m.groups.reduce((n, g) => n + (Number(g.count) || 0), 0)
+const groupsLine = (m) => m.groups.map((g) => `${g.count} × ${g.connector || g.type}`).join(' + ')
+
+function toast(t) {
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = t
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2200)
+}
+
+// ---------------- library (dock) ----------------
+const FIXED = [
+  { key: 'panel', kind: 'panel', name: 'Patch panel', sub: '1U · 3, 6, 12, 24 or any count', height: 1 },
+  { key: 'hdf', kind: 'hdf', name: 'HDF', sub: 'rows × A–D, its own height', height: 4 },
+]
+const ITEMS = [
+  { key: 'ups', kind: 'item', name: 'UPS', sub: '2U', height: 2 },
+  { key: 'pdu', kind: 'item', name: 'PDU', sub: '1U', height: 1 },
+  { key: 'shelf', kind: 'item', name: 'Shelf', sub: '1U', height: 1 },
+  { key: 'cm', kind: 'item', name: 'Cable manager', sub: '1U', height: 1 },
+]
+function libItem(it) {
+  const ico = it.kind === 'switch' ? `<span class="ico">${'<i></i>'.repeat(8)}</span>`
+    : it.kind === 'item' ? '<span class="ico item"></span>' : `<span class="ico panel">${'<i></i>'.repeat(6)}</span>`
+  const picked = S.picked && S.picked.key === it.key ? ' picked' : ''
+  return `<div class="lib-item${picked}" draggable="true" data-key="${it.key}">${ico}<div class="t"><b>${esc(it.name)}</b><span>${esc(it.sub)}</span></div></div>`
+}
+function libraryItems() {
+  return [
+    ...S.models.map((m) => ({ key: 'model:' + m.id, kind: 'switch', model: m, name: m.name, sub: `${m.height}U · ${groupsLine(m)}`, height: m.height })),
+    ...FIXED, ...ITEMS,
+  ]
+}
+const itemByKey = (k) => libraryItems().find((i) => i.key === k)
+
+function renderDock() {
+  const models = S.models.map((m) => libItem(itemByKey('model:' + m.id))).join('')
+  $('#dock').innerHTML = `
+    ${S.picked ? `<div class="pick-note"><b>${esc(S.picked.name)}</b> picked: click a free unit in the rack. <button class="link" data-act="unpick">Cancel</button></div>`
+      : `<div class="pick-note">Drag onto a free unit, or click one here and then a unit.</div>`}
+    <div class="lib-group">
+      <div class="head"><h3>Switches</h3><span class="faint">by model</span><button class="link" data-act="models">Manage models…</button></div>
+      ${models || '<div class="lib-empty">No switch models yet. <button class="link" data-act="newmodel">New model…</button></div>'}
+      ${S.models.length ? '<button class="link" data-act="newmodel" style="font-size:12px">+ New model…</button>' : ''}
+    </div>
+    <div class="lib-group"><div class="head"><h3>Passive</h3></div>${FIXED.map(libItem).join('')}</div>
+    <div class="lib-group"><div class="head"><h3>Rack items</h3><span class="faint">no ports</span></div>${ITEMS.map(libItem).join('')}</div>`
+}
+
+// ---------------- rack ----------------
+const RACK_U = 24
+function occupant(u) { return S.rack.find((e) => u >= e.unit && u < e.unit + e.height) }
+function freeRun(fromUnit, height, n) {
+  // n devices of `height`, stacked downward from fromUnit (its top unit); returns the units or null
+  const tops = []
+  let top = fromUnit
+  for (let i = 0; i < n; i++) {
+    const bottom = top - height + 1
+    if (bottom < 1) return null
+    for (let u = bottom; u <= top; u++) if (occupant(u)) return null
+    tops.push(top); top = bottom - 1
+  }
+  return tops
+}
+function nextName(prefix) {
+  let max = 0
+  for (const e of S.rack) { const m = e.name.match(new RegExp('^' + prefix + '-(\\d+)$')); if (m) max = Math.max(max, +m[1]) }
+  // the node has more; the demo keeps it to the rack
+  return { prefix, n: max + 1 }
+}
+const pad = (n) => String(n).padStart(2, '0')
+function rackHtml() {
+  const rows = []
+  const previewUnits = new Set()
+  if (S.pop) {
+    const tops = freeRun(S.pop.unit, S.pop.item.height, S.pop.count || 1) || []
+    for (const t of tops) for (let u = t - S.pop.item.height + 1; u <= t; u++) previewUnits.add(u)
+  }
+  for (let u = RACK_U; u >= 1; u--) {
+    const e = occupant(u)
+    let blk = ''
+    if (e && e.unit + e.height - 1 === u) {
+      const h = e.height * 22 - 2
+      blk = `<div class="blk${e.proposed ? ' proposed' : ''}${S.chosen === e.name ? ' chosen' : ''}${e.flash ? ' flash' : ''}" style="height:${h}px" data-eq="${esc(e.name)}" title="${esc(e.name)} · ${esc(e.sub)}"><span class="tape">${esc(e.name)}</span><span class="sub">${esc(e.sub)}</span></div>`
+    }
+    const free = !e
+    const cls = free ? `u free${S.picked || S.dragging ? ' target' : ''}${previewUnits.has(u) ? ' preview' : ''}` : 'u'
+    const pop = S.pop && S.pop.unit === u ? popHtml() : ''
+    rows.push(`<div class="${cls}" data-u="${u}"><span class="n">${u}</span>${blk}${pop}</div>`)
+  }
+  return rows.join('')
+}
+
+// ---------------- the small box ----------------
+function openPop(key, unit) {
+  const item = itemByKey(key)
+  if (!item) return
+  const base = { item, unit, count: 1, err: '' }
+  if (item.kind === 'switch') {
+    const sameNet = S.rack.filter((e) => e.kind === 'switch').map((e) => e.net)
+    const net = sameNet.length && sameNet.every((n) => n === sameNet[0]) ? sameNet[0] : ''
+    Object.assign(base, { role: 'access', net, netWhy: net ? 'like the other switches in this rack' : '', nameEdited: false })
+    base.name = suggested(base)
+  } else if (item.kind === 'panel') {
+    Object.assign(base, { positions: S.lastPanel || 24, other: false, nameEdited: false })
+    base.name = suggested(base)
+  } else if (item.kind === 'hdf') {
+    Object.assign(base, { rows: S.lastHdf ? S.lastHdf.rows : 12, nameEdited: false })
+    base.item = { ...item, height: S.lastHdf ? S.lastHdf.height : 4 }
+    base.name = suggested(base)
+  } else {
+    base.name = `${item.name} B05${occupiedOfType(item.name) ? ' ' + (occupiedOfType(item.name) + 1) : ''}`
+  }
+  S.pop = base; S.picked = null
+  render()
+  const first = $('.pop input[name=name]'); if (first) { first.focus(); first.select() }
+}
+function occupiedOfType(t) { return S.rack.filter((e) => e.sub.startsWith(t)).length }
+function prefixFor(p) {
+  if (p.item.kind === 'switch') return p.role === 'aggregation' ? 'AGG' : p.role === 'backbone' ? 'BB' : 'EDGE'
+  if (p.item.kind === 'panel') return 'PANEL-B05'
+  if (p.item.kind === 'hdf') return 'HDF-B05'
+  return ''
+}
+function suggested(p) {
+  if (p.item.kind === 'panel' || p.item.kind === 'hdf') {
+    const base = prefixFor(p); const taken = S.rack.some((e) => e.name === base)
+    return taken ? base + '-2' : base
+  }
+  const { prefix, n } = nextName(prefixFor(p))
+  return `${prefix}-${pad(n)}`
+}
+function namesFor(p) {
+  if (p.count <= 1) return [p.name]
+  const m = p.name.match(/^(.*?)(\d+)$/)
+  if (!m) return Array.from({ length: p.count }, (_, i) => i === 0 ? p.name : `${p.name} ${i + 1}`)
+  return Array.from({ length: p.count }, (_, i) => m[1] + String(+m[2] + i).padStart(m[2].length, '0'))
+}
+function popHtml() {
+  const p = S.pop, it = p.item
+  const tops = freeRun(p.unit, it.height, p.count)
+  const where = tops ? (tops.length === 1 ? `U${tops[0]}` : `U${tops[0]} down to U${tops[tops.length - 1] - it.height + 1}`) : ''
+  const names = namesFor(p)
+  let body = ''
+  if (it.kind === 'switch') {
+    body = `
+      <label class="f"><span>Name</span><input class="in" name="name" value="${esc(p.name)}"></label>
+      <div class="row2">
+        <label class="f"><span>Role</span>
+          <div class="seg" style="width:max-content">${['access', 'aggregation', 'backbone'].map((r) => `<button type="button" data-role="${r}" class="${p.role === r ? 'on' : ''}">${{ access: 'Access', aggregation: 'AGG', backbone: 'BB' }[r]}</button>`).join('')}</div></label>
+        <label class="f"><span>Network</span>
+          <select class="in" name="net"><option value="" ${p.net ? '' : 'selected'} disabled>Choose…</option>${Object.entries(NETS).map(([k, n]) => `<option value="${k}" ${p.net === k ? 'selected' : ''}>${n.name}</option>`).join('')}</select>
+          ${p.netWhy ? `<span class="why">${esc(p.netWhy)}</span>` : ''}</label>
+      </div>`
+  } else if (it.kind === 'panel') {
+    body = `
+      <label class="f"><span>Name</span><input class="in" name="name" value="${esc(p.name)}"></label>
+      <label class="f"><span>Positions</span>
+        <span style="display:flex;gap:8px;align-items:center"><span class="seg">${[3, 6, 12, 24].map((n) => `<button type="button" data-pos="${n}" class="${!p.other && p.positions === n ? 'on' : ''}">${n}</button>`).join('')}<button type="button" data-pos="other" class="${p.other ? 'on' : ''}">Other…</button></span>
+        ${p.other ? `<input class="in" name="positions" type="number" min="1" max="48" value="${p.positions}" style="width:70px">` : ''}</span>
+        <span class="why">${p.other ? '1–48 positions' : 'front and rear, one bridge each'}</span></label>`
+  } else if (it.kind === 'hdf') {
+    body = `
+      <label class="f"><span>Name</span><input class="in" name="name" value="${esc(p.name)}"></label>
+      <div class="row2">
+        <label class="f"><span>Rows</span><input class="in" name="rows" type="number" min="1" max="32" value="${p.rows}"></label>
+        <label class="f"><span>Height (U)</span><input class="in" name="height" type="number" min="1" max="20" value="${it.height}"></label>
+      </div>
+      <span class="why">${p.rows} rows × A–D · ${p.rows * 24} positions · ${it.height}U${S.lastHdf ? ' · same as the last HDF you added' : ''}</span>`
+  } else {
+    body = `<label class="f"><span>Name</span><input class="in" name="name" value="${esc(p.name)}"></label>`
+  }
+  const many = it.kind === 'switch' || it.kind === 'panel'
+  return `<form class="pop" data-pop>
+    <div class="ttl"><b>Add ${esc(it.kind === 'switch' ? it.model.name : it.name)}</b><span class="faint">${where ? 'at ' + where : ''}</span></div>
+    <div class="grid">
+      ${body}
+      ${many ? `<label class="f"><span>How many</span>
+        <span style="display:flex;gap:10px;align-items:center"><span class="stepper"><button type="button" data-step="-1">−</button><input name="count" value="${p.count}"><button type="button" data-step="1">+</button></span>
+        <span class="why">stacked down from U${p.unit}</span></span></label>
+        ${p.count > 1 && tops ? `<div class="names-preview">${names.map(esc).join(' · ')}</div>` : ''}` : ''}
+      ${!tops ? `<div class="err">Not enough free units below U${p.unit} for ${p.count} × ${it.height}U. Choose fewer or a higher unit.</div>` : ''}
+      ${p.err ? `<div class="err">${esc(p.err)}</div>` : ''}
+    </div>
+    <div class="acts"><button class="btn primary" ${tops ? '' : 'disabled'}>Add${p.count > 1 ? ' ' + p.count : ''}</button><button type="button" class="btn" data-act="closepop">Cancel</button><span class="hint">Enter adds · Esc cancels</span></div>
+  </form>`
+}
+function addFromPop() {
+  const p = S.pop, it = p.item
+  if (!p.name.trim()) { p.err = 'Give it a name.'; render(); return }
+  if (it.kind === 'switch' && !p.net) { p.err = 'Choose its network.'; render(); return }
+  const tops = freeRun(p.unit, it.height, p.count); if (!tops) return
+  const names = namesFor(p)
+  const clash = names.find((n) => S.rack.some((e) => e.name.toLowerCase() === n.toLowerCase()))
+  if (clash) { p.err = `${clash} is already taken.`; render(); return }
+  S.rack.forEach((e) => (e.flash = false))
+  tops.forEach((top, i) => {
+    let sub = it.sub, kind = it.kind, extra = {}
+    if (it.kind === 'switch') {
+      sub = `${total(it.model)} ports · ${{ access: 'Access', aggregation: 'AGG', backbone: 'BB' }[p.role]} · ${NETS[p.net].name}`
+      extra = { net: p.net, model: it.model.name, ports: total(it.model) }
+    }
+    if (it.kind === 'panel') sub = `${p.positions} positions`
+    if (it.kind === 'hdf') { kind = 'hdf'; sub = `${p.rows} rows`; S.lastHdf = { rows: p.rows, height: it.height } }
+    if (it.kind === 'panel') S.lastPanel = p.positions
+    if (it.kind === 'item') sub = `${it.name} · ${it.height}U`
+    S.rack.push({ name: names[i], kind, unit: top - it.height + 1, height: it.height, sub, proposed: true, flash: true, ...extra })
+  })
+  S.changes += names.length
+  S.chosen = names[0]
+  toast(names.length === 1 ? `Added ${names[0]} at U${tops[0]}` : `Added ${names.length}: ${names[0]} … ${names[names.length - 1]}`)
+  S.pop = null
+  render()
+}
+
+// ---------------- chosen unit beside the rack ----------------
+function plateHtml(m, name, size = 18, used = new Set()) {
+  let n = 0
+  const banks = m.groups.filter((g) => Number(g.count) > 0).map((g) => {
+    const count = Math.min(Number(g.count) || 0, 96)
+    const jacks = []
+    for (let i = 0; i < count; i++) { n++; jacks.push(`<span class="jk ${g.type === 'fiber' ? 'fiber' : ''} ${used.has(n) ? 'used' : ''}">${n}</span>`) }
+    const first = g.names.replace('{n}', g.start), last = g.names.replace('{n}', Number(g.start) + count - 1)
+    return `<div class="bank"><div class="cap">${esc(first)}–${esc(last)} · ${esc(g.connector || g.type)} ${esc(g.speed)}</div><div class="cols ${count <= 4 ? 'one' : ''}">${jacks.join('')}</div></div>`
+  })
+  return `<div class="plate" style="--pj:${size}px"><div class="ph"><span class="tape">${esc(name)}</span><span class="m">${total(m)} ports</span></div><div class="banks">${banks.join('') || '<span class="m">no ports yet</span>'}</div></div>`
+}
+function chosenHtml() {
+  const e = S.rack.find((x) => x.name === S.chosen)
+  if (!e) return '<div class="card chosen-card muted">Click a unit to see it here. Double-click opens its page.</div>'
+  const model = e.model && S.models.find((m) => m.name === e.model)
+  const face = e.kind === 'switch'
+    ? (model ? plateHtml(model, e.name, 22, new Set(e.proposed ? [] : [1, 2, 3, 49])) : plateHtml({ groups: [{ count: 52, names: 'Port {n}', start: 1, type: 'copper', connector: '', speed: '' }] }, e.name, 22, new Set([1, 2, 3, 49])))
+    : `<div class="muted">${esc(e.sub)}</div>`
+  return `<div class="card chosen-card">
+    <div class="bar"><h2>${esc(e.name)}</h2>${e.proposed ? '<span class="tag warn">Proposed</span>' : ''}<span class="spacer"></span>
+      <button class="btn">Open page</button>
+      ${e.kind === 'switch' ? `<div class="menu"><button class="btn" data-act="menu">⋯</button>${S.menu ? `<div class="menu-list">
+        <button data-act="setmodel">Set model…</button><button disabled>Print sheet</button><button disabled>Duplicate…</button><button disabled>Delete…</button></div>` : ''}</div>` : ''}
+    </div>
+    <div class="muted" style="margin-bottom:12px">${esc(e.sub)} · U${e.unit}${e.kind === 'switch' ? ' · model: ' + (e.model ? `<b>${esc(e.model)}</b>` : '<span class="faint">none</span>') : ''}</div>
+    ${face}
+  </div>`
+}
+
+// ---------------- models page ----------------
+function modelsHtml() {
+  const m = S.models.find((x) => x.id === S.editing)
+  const used = m ? S.rack.filter((e) => e.model === m.name).length : 0
+  return `
+    <div class="crumbs"><button class="link" data-act="back">← Back</button><span>›</span><b>Switch models</b></div>
+    <div class="models">
+      <div>
+        <div class="card mlist">${S.models.map((x) => `<button class="mi ${x.id === S.editing ? 'on' : ''}" data-model="${x.id}"><b>${esc(x.name)}</b><span>${esc(x.maker || '—')} · ${x.height}U · ${total(x)} ports</span></button>`).join('') || '<div style="padding:12px" class="muted">No models yet.</div>'}</div>
+        <button class="btn" style="margin-top:10px" data-act="newmodel">+ New model</button>
+        <p class="hint" style="margin-top:10px">A switch copies its model's ports when it is added. Editing or deleting a model never changes switches already added.</p>
+      </div>
+      ${m ? `<form class="card editor" data-editor>
+        <div class="basic">
+          <label class="f"><span>Model name</span><input class="in" name="name" value="${esc(m.name)}" placeholder="e.g. C9300-48P"></label>
+          <label class="f"><span>Manufacturer</span><input class="in" name="maker" value="${esc(m.maker)}" placeholder="e.g. Cisco"></label>
+          <label class="f"><span>Height (U)</span><input class="in" name="height" type="number" min="1" max="10" value="${m.height}"></label>
+        </div>
+        <h3>Ports, in order</h3>
+        <div class="groups"><table>
+          <tr><th>Count</th><th>Names</th><th>From</th><th>Type</th><th>Connector</th><th>Speed</th><th></th></tr>
+          ${m.groups.map((g, i) => `<tr data-g="${i}">
+            <td class="num"><input class="in" name="count" type="number" min="1" value="${g.count}"></td>
+            <td><input class="in mono" name="names" value="${esc(g.names)}" placeholder="Gi1/0/{n}"></td>
+            <td class="num"><input class="in" name="start" type="number" min="0" value="${g.start}"></td>
+            <td><select class="in" name="type"><option value="copper" ${g.type === 'copper' ? 'selected' : ''}>Copper</option><option value="fiber" ${g.type === 'fiber' ? 'selected' : ''}>Fiber</option></select></td>
+            <td><input class="in" name="connector" value="${esc(g.connector)}" placeholder="RJ45"></td>
+            <td><input class="in" name="speed" value="${esc(g.speed)}" placeholder="1G"></td>
+            <td><button type="button" class="x" data-delg="${i}" title="Remove this group">×</button></td></tr>`).join('')}
+        </table></div>
+        <button type="button" class="link" data-act="addg" style="font-size:12px">+ Add a group of ports</button>
+        <div class="total">${total(m)} ports in ${m.groups.length} group${m.groups.length === 1 ? '' : 's'} · names must contain {n} once</div>
+        <div class="preview-box"><h3>How it will look <span class="faint" style="font-weight:400">updates as you type</span></h3>${plateHtml(m, m.name || 'MODEL', 20)}</div>
+        <div class="edit-acts"><button class="btn primary" data-act="savemodel" type="button">Save model</button><button class="btn danger" type="button" data-act="delmodel">Delete…</button>
+          <span class="used">${used ? `Used by ${used} switch${used === 1 ? '' : 'es'} in this rack (they keep their ports)` : 'Not used yet'}</span></div>
+      </form>` : '<div class="card editor muted">Choose a model or make a new one.</div>'}
+    </div>`
+}
+
+// ---------------- Set model dialog ----------------
+function setModelHtml() {
+  const e = S.rack.find((x) => x.name === S.chosen)
+  const pick = S.setModel.id && S.models.find((m) => m.id === S.setModel.id)
+  const opts = S.models.map((m) => {
+    const fits = total(m) === e.ports
+    return `<option value="${m.id}" ${fits ? '' : 'disabled'} ${pick && pick.id === m.id ? 'selected' : ''}>${esc(m.name)} · ${total(m)} ports${fits ? '' : ` (this switch has ${e.ports})`}</option>`
+  }).join('')
+  let changes = ''
+  if (pick) {
+    const lines = []
+    pick.groups.forEach((g, gi) => {
+      let first = pick.groups.slice(0, gi).reduce((n, x) => n + Number(x.count), 0)
+      for (let i = 0; i < g.count; i++) lines.push({ pos: first + i + 1, name: g.names.replace('{n}', Number(g.start) + i), g })
+    })
+    const sample = lines.slice(0, 3)
+    changes = `<div class="changes">
+      <div class="sec"><h4>Details <span class="tag ok">fills 2</span></h4>
+        <div class="ln">Manufacturer: <span class="faint">empty</span> → <b>${esc(pick.maker)}</b></div>
+        <div class="ln">Model: <span class="faint">empty</span> → <b>${esc(pick.name)}</b></div></div>
+      <div class="sec"><h4>Port names <span class="tag ok">fills ${lines.length}</span></h4>
+        ${sample.map((l) => `<div class="ln"><span class="from">Port ${l.pos}</span> → <span class="mono">${esc(l.name)}</span></div>`).join('')}
+        <div class="ln faint">… and ${lines.length - 3} more, in order (port 49 → ${esc(lines[48].name)})</div></div>
+      <div class="sec"><h4>Type, connector and speed <span class="tag ok">fills ${lines.length * 3 - 1}</span></h4>
+        <div class="ln">Ports 1–48: copper · RJ45 · 1G; ports 49–52: fiber · SFP+ · 10G</div></div>
+      <div class="sec kept"><h4>Left as typed <span class="tag warn">1 differs</span></h4>
+        <div class="ln">Port 1 speed is <b>100M</b>; the model says 1G. Kept. Fix it by hand if the model is right.</div></div>
+    </div>
+    <p class="hint">Ports, cables, network, role, height and place are not touched. Each change is written to EDGE-31's History.</p>`
+  }
+  return `<div class="scrim" data-act="closeset"><div class="dialog">
+    <h2>Set model of ${esc(e.name)}</h2>
+    <p class="muted" style="margin:0 0 12px">Fills what is empty from the model. Only models with the same number of ports (${e.ports}) can be chosen.</p>
+    <label class="f"><span>Model</span><select class="in" id="setmodel"><option value="" ${pick ? '' : 'selected'} disabled>Choose a model…</option>${opts}</select></label>
+    ${changes}
+    <div class="edit-acts" style="margin-top:12px"><button class="btn primary" data-act="applyset" ${pick ? '' : 'disabled'}>Apply</button><button class="btn" data-act="closeset">Cancel</button><span class="used">In Installed it applies at once, like Edit details.</span></div>
+  </div></div>`
+}
+
+// ---------------- render ----------------
+function render() {
+  renderDock()
+  $('#changes').textContent = S.changes
+  if (S.view === 'models') { $('#page').innerHTML = modelsHtml() }
+  else {
+    $('#page').innerHTML = `
+      <div class="crumbs"><span>Sites</span>›<span>Main Campus</span>›<span>Building 05</span>›<b>Rack B05-1</b></div>
+      <div class="rack-wrap">
+        <div><div class="rack-head"><h2>Rack B05-1</h2><span class="muted">24U · front</span></div>
+          <div class="rack" id="rack">${rackHtml()}</div>
+          <div class="rack-hint">Drop a model on a free unit. Double-click a unit to open its page.</div></div>
+        <div>${chosenHtml()}</div>
+      </div>`
+  }
+  $('#overlay').innerHTML = S.setModel ? setModelHtml() : ''
+}
+
+// ---------------- events ----------------
+document.addEventListener('dragstart', (ev) => {
+  const it = ev.target.closest && ev.target.closest('.lib-item'); if (!it) return
+  ev.dataTransfer.setData('text/plain', it.dataset.key); S.dragging = it.dataset.key; S.pop = null
+  requestAnimationFrame(() => { document.querySelectorAll('.u.free').forEach((u) => u.classList.add('target')) })
+})
+document.addEventListener('dragend', () => { S.dragging = null; document.querySelectorAll('.u.over').forEach((u) => u.classList.remove('over')) })
+document.addEventListener('dragover', (ev) => {
+  const u = ev.target.closest && ev.target.closest('.u.free'); if (!u) return
+  ev.preventDefault()
+  document.querySelectorAll('.u.over').forEach((x) => x !== u && x.classList.remove('over')); u.classList.add('over')
+})
+document.addEventListener('drop', (ev) => {
+  const u = ev.target.closest && ev.target.closest('.u.free'); if (!u) return
+  ev.preventDefault(); const key = ev.dataTransfer.getData('text/plain'); S.dragging = null
+  openPop(key, +u.dataset.u)
+})
+document.addEventListener('click', (ev) => {
+  const t = ev.target
+  const act = t.closest('[data-act]') && t.closest('[data-act]').dataset.act
+  if (t.closest('.lib-item')) { const it = itemByKey(t.closest('.lib-item').dataset.key); S.picked = S.picked && S.picked.key === it.key ? null : it; S.pop = null; S.view = 'rack'; render(); return }
+  if (act === 'unpick') { S.picked = null; render(); return }
+  if (t.closest('.pop')) {
+    const p = S.pop
+    if (t.dataset.role) { p.role = t.dataset.role; if (!p.nameEdited) p.name = suggested(p); render(); return }
+    if (t.dataset.pos) { if (t.dataset.pos === 'other') { p.other = true; render(); const el = $('.pop input[name=positions]'); el.focus(); el.select() } else { p.other = false; p.positions = +t.dataset.pos; render() } return }
+    if (t.dataset.step) { p.count = Math.max(1, Math.min(12, p.count + +t.dataset.step)); render(); return }
+    if (act === 'closepop') { S.pop = null; render(); return }
+    return
+  }
+  const free = t.closest('.u.free')
+  if (free && S.picked) { openPop(S.picked.key, +free.dataset.u); return }
+  const blk = t.closest('.blk')
+  if (blk) { S.chosen = blk.dataset.eq; S.menu = false; S.pop = null; render(); return }
+  if (act === 'menu') { S.menu = !S.menu; render(); return }
+  if (act === 'setmodel') { S.menu = false; S.setModel = { id: '' }; render(); return }
+  if (act === 'closeset' && (t.classList.contains('scrim') || t.closest('button'))) { S.setModel = null; render(); return }
+  if (act === 'applyset') {
+    const m = S.models.find((x) => x.id === S.setModel.id); const e = S.rack.find((x) => x.name === S.chosen)
+    e.model = m.name; S.setModel = null; toast(`${e.name}: model ${m.name} set · ${2 + total(m) * 4 - 1} fields filled · 1 left as typed`); render(); return
+  }
+  if (act === 'models') { S.view = 'models'; S.picked = null; S.pop = null; if (!S.editing && S.models[0]) S.editing = S.models[0].id; render(); return }
+  if (act === 'back') { S.view = 'rack'; render(); return }
+  if (act === 'newmodel') {
+    const id = 'm' + Date.now()
+    S.models.push({ id, name: '', maker: '', height: 1, groups: [{ count: 24, names: 'Gi1/0/{n}', start: 1, type: 'copper', connector: 'RJ45', speed: '1G' }] })
+    S.editing = id; S.view = 'models'; S.picked = null; S.pop = null; render(); $('.editor input[name=name]').focus(); return
+  }
+  if (t.dataset.model) { S.editing = t.dataset.model; render(); return }
+  if (act === 'addg') { const m = S.models.find((x) => x.id === S.editing); m.groups.push({ count: 4, names: 'Te1/1/{n}', start: 1, type: 'fiber', connector: 'SFP+', speed: '10G' }); render(); return }
+  if (t.dataset.delg) { const m = S.models.find((x) => x.id === S.editing); if (m.groups.length > 1) m.groups.splice(+t.dataset.delg, 1); render(); return }
+  if (act === 'savemodel') {
+    const m = S.models.find((x) => x.id === S.editing)
+    if (!m.name.trim()) { toast('Give the model a name.'); return }
+    toast(`Saved ${m.name}`); render(); return
+  }
+  if (act === 'delmodel') {
+    const m = S.models.find((x) => x.id === S.editing)
+    if (confirm(`Delete ${m.name || 'this model'}? Switches added from it keep their ports.`)) { S.models = S.models.filter((x) => x !== m); S.editing = S.models[0] && S.models[0].id; render() }
+    return
+  }
+  if (S.menu && !t.closest('.menu')) { S.menu = false; render() }
+})
+document.addEventListener('dblclick', (ev) => { const b = ev.target.closest('.blk'); if (b) toast(`Opens ${b.dataset.eq}'s page`) })
+document.addEventListener('input', (ev) => {
+  const t = ev.target
+  if (t.closest('.pop')) {
+    const p = S.pop
+    if (t.name === 'name') { p.name = t.value; p.nameEdited = true; p.err = ''; refreshPopPreview(); return }
+    if (t.name === 'count') { p.count = Math.max(1, Math.min(12, +t.value || 1)); keepFocus(() => render(), 'input[name=count]'); return }
+    if (t.name === 'rows') { p.rows = Math.max(1, Math.min(32, +t.value || 1)); keepFocus(() => render(), 'input[name=rows]'); return }
+    if (t.name === 'height') { p.item = { ...p.item, height: Math.max(1, Math.min(20, +t.value || 1)) }; keepFocus(() => render(), 'input[name=height]'); return }
+    if (t.name === 'positions') { p.positions = Math.max(1, Math.min(48, +t.value || 1)); keepFocus(() => render(), 'input[name=positions]'); return }
+  }
+  if (t.closest('[data-editor]')) {
+    const m = S.models.find((x) => x.id === S.editing)
+    const row = t.closest('tr[data-g]')
+    if (row) { const g = m.groups[+row.dataset.g]; g[t.name] = t.name === 'count' || t.name === 'start' ? t.value : t.value }
+    else if (t.name === 'height') m.height = Math.max(1, +t.value || 1)
+    else m[t.name] = t.value
+    const sel = row ? `tr[data-g="${row.dataset.g}"] [name=${t.name}]` : `[data-editor] [name=${t.name}]`
+    keepFocus(() => render(), sel)
+  }
+})
+document.addEventListener('change', (ev) => {
+  if (ev.target.id === 'setmodel') { S.setModel.id = ev.target.value; render(); return }
+  if (ev.target.closest('.pop') && ev.target.name === 'net') { S.pop.net = ev.target.value; S.pop.netWhy = ''; S.pop.err = ''; render(); return }
+  if (ev.target.closest('[data-editor]') && ev.target.tagName === 'SELECT') { const row = ev.target.closest('tr[data-g]'); S.models.find((x) => x.id === S.editing).groups[+row.dataset.g].type = ev.target.value; render() }
+})
+document.addEventListener('submit', (ev) => { if (ev.target.matches('[data-pop]')) { ev.preventDefault(); addFromPop() } })
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter' && S.pop && !S.setModel && !(document.activeElement && document.activeElement.tagName === 'SELECT')) { ev.preventDefault(); addFromPop(); return }
+  if (ev.key === 'Escape') { if (S.setModel) S.setModel = null; else if (S.pop) S.pop = null; else if (S.picked) S.picked = null; else return; render() }
+})
+function keepFocus(fn, sel) {
+  const a = document.activeElement, pos = a && a.selectionStart
+  fn()
+  const el = document.querySelector(sel); if (el) { el.focus(); try { el.setSelectionRange(pos, pos) } catch (e) {} }
+}
+function refreshPopPreview() { /* names preview follows the name */ const el = $('.pop .names-preview'); if (el && S.pop.count > 1) el.textContent = namesFor(S.pop).join(' · ') }
+$('#reset').addEventListener('click', () => { S = initial(); render() })
+render()
+</script>
+</body>
+</html>

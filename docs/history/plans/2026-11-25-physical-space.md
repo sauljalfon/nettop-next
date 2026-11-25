@@ -1,8 +1,8 @@
 # Physical uses the screen — Implementation Plan
 
-> **For agentic workers:** process in [way-of-work.md](../way-of-work.md): a Sonnet subagent implements one task at a time, test first, never commits; Opus reviews each task.
+> **For agentic workers:** process in [way-of-work.md](../../way-of-work.md): a Sonnet subagent implements one task at a time, test first, never commits; Opus reviews each task.
 
-**Goal:** D50 and [roadmap.md, "Physical uses the screen"](../roadmap.md), as in [the demo](../history/demos/physical-space-demo.html) (its `fitFaces`, `hdfBody`, `cabinet` and `.route` CSS are the reference). Frontend only; the API is unchanged.
+**Goal:** D50 and [roadmap.md, "Physical uses the screen"](../../roadmap.md), as in [the demo](../demos/physical-space-demo.html) (its `fitFaces`, `hdfBody`, `cabinet` and `.route` CSS are the reference). Frontend only; the API is unchanged.
 
 ## Global constraints
 
@@ -55,3 +55,16 @@ Split in two (owner, 2026-11-25), each reviewed on its own; the files and tests 
 
 - Screenshots at 1230×760, 1536×864 (the owner's 1920×1080 at 125%), 1920×1080 and 2560×1440 of: the rack level, a 3-row and a 12-row HDF, a panel, a switch, each with and without a jack.
 - Docs: `status.md` (what runs), `ui-spec.md` (the equipment page, the rack level, the path card), `acceptance-tests.md` (D50-01…), `testing.md` if the spec list changes, `CLAUDE.md` (the `features/physical/` and `features/paths/` lines: `faceFit`, `useFaceFit`, `EquipmentWork`, the path card, no Port tab).
+
+
+## Design (from the roadmap): Physical uses the screen (done; approved 2026-11-25 from [the demo](../demos/physical-space-demo.html), D50)
+
+**Why.** The owner's photos of the test server (2026-11-25): on every Physical screen the rack, the face and Connects to sit top-left at fixed sizes and most of the page is empty; at their Mac's width a 3-row HDF's D column spilled over the next card. Their priorities: (1) the device, (2) its path ("the graph"), (3) it grows with the screen. Answers while trying the demo: the rack stays but is much smaller; no positions list ("I can see it on the picture"); the path bigger and across the page, under the rack and the cards; tall HDFs in bands (chosen over one tall column). Plan: [plans/2026-11-25-physical-space.md](2026-11-25-physical-space.md).
+
+- **The face** (equipment page and rack level; patching keeps its own sizes): the jack size is measured from the card's width and the height left above the path, at most 60px (HDF) or 56px (switch, panel). The plate wraps its jacks, so no jack leaves the black plate and no plate leaves its card; a switch's group captions shorten with "…" instead of widening it. Arrow keys keep the face's logical order.
+- **Tall HDFs:** rows in 1, 2, 3, 4, 6 or 8 side-by-side bands, highest row top-left, the head saying "rows N–1, left to right"; the band count with the biggest jacks wins; when even that is under 18px, 18px and the page scrolls.
+- **Beside the face** (a 340px column, 400px on very wide screens; under the face on narrow ones): **Connects to**, then **the selected jack** (what the dock's Port tab showed: network, far end, cable, reaches, Find AGG / BB, Connect… / Disconnect… in a plan, port details). The dock no longer opens for a jack.
+- **The path** of the selected jack: a card under the face and the column, the page's full width. Plates and jacks scale with the card's width (24–52px jacks); each cable a line in its network's colour with a connector at each end and its ID above; place above each plate, front/rear under its jacks; the end ringed teal with "↑ reaches the AGG / BB"; the header with the network, "N cables · M places", start → end, Open the Trace page (Full page ⤢) and ×. Without a cabled jack: one line, "Select a cabled jack on the face to draw its path to the AGG or BB."
+- **The rack level:** a slim rack (190–250px) that fits the height above the path, where in Installed each run of 3 or more free units is one row ("25–1 · 25U free"; in a plan every free unit stays a drop target); a click on a unit shows it beside the rack (its face, Connects to, the selected jack), **Open page** or a double-click opens its page; the path card runs under the rack and the device. The chosen unit is kept per rack for the session. The hint box goes.
+- **Gone:** the positions list was never built; the fixed path strip along the bottom (D45) and its `--pathbar-h`.
+- **Tests:** unit tests for the fit (bands, the jack size, collapsed runs); Playwright at several window sizes asserting no jack outside its plate and no plate outside its card, the path card's place, the rack level's click / Open page / double-click; existing Port tab specs move to the page's card.

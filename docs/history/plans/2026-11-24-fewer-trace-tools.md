@@ -1,8 +1,8 @@
 # Fewer trace tools — Implementation Plan
 
-> **For agentic workers:** this project's process is [way-of-work.md](../way-of-work.md): a Sonnet subagent started by Opus implements one task at a time, test first, and never commits; Opus reviews each task before the next.
+> **For agentic workers:** this project's process is [way-of-work.md](../../way-of-work.md): a Sonnet subagent started by Opus implements one task at a time, test first, and never commits; Opus reviews each task before the next.
 
-**Goal:** the design in [roadmap.md, "Fewer trace tools"](../roadmap.md#fewer-trace-tools-current-approved-2026-11-24-d47) and D47 in [decisions.md](../decisions.md): no rail Trace icon, no Trace form (and so no exact port → port in the app), no node/site highlight; site and node names open Physical. The teal route on the tree and in Physical stays.
+**Goal:** the design in [roadmap.md, "Fewer trace tools"](../../roadmap.md#fewer-trace-tools-current-approved-2026-11-24-d47) and D47 in [decisions.md](../../decisions.md): no rail Trace icon, no Trace form (and so no exact port → port in the app), no node/site highlight; site and node names open Physical. The teal route on the tree and in Physical stays.
 
 **Architecture:** frontend only. The API, `api/openapi.yaml` and the `TraceRequest` type in `shared/types.ts` keep `point_to_point` (the server still runs it); the screen stops offering it.
 
@@ -36,3 +36,17 @@
 ### Task 4 (Opus): the docs
 
 `docs/status.md`, `docs/ui-spec.md`, `docs/testing.md`, `docs/acceptance-tests.md`, `CLAUDE.md` Architecture (`highlight` module, `mapSession`'s highlight, the Trace tab form); nothing in `api/`.
+
+
+## Design (from the roadmap): Fewer trace tools (done; approved 2026-11-24, D47)
+
+From the owner after part 3 of the workbench: the jack's path and Find AGG / BB from a switch cover what the trace form was for. Owner's answers (2026-11-24): remove the rail's Trace icon; remove the form ("Remove the form"), and so exact port → port; Explore's amber highlight "go"; keep the teal route on the tree and in Physical; a site or node name opens Physical. Frontend only; the API is unchanged.
+
+- **Rail:** Add, Explore, Inspector. No Trace icon.
+- **The dock's Trace tab:** only while there is a trace (Find AGG / BB from the inspector's switch, a port or position row, a jack, a passive chip in Way up, or Full page ⤢ on a jack's path). It shows the results (AGG first, mismatches, truncation), the selected route's walk, **Clear trace** (which also removes the tab) and **Open full page ⤢**; a failed trace shows its error there. No mode, Start, Destination or Find AGG / BB button; no Start/Destination search lists.
+- **The Trace page:** unchanged; its bar names the trace as text ("Find AGG / BB", the start).
+- **Place names:** a site or node name in Explore (on every view) and in the inspector's place line opens that site or node in Physical, as the rack link already does. The amber highlight, its Clear highlight button, its Esc and its one-time fit are removed.
+- **Route trail in Physical:** the one-line strip of the route's steps under the breadcrumbs (‹ Prev / Next ›) goes; the teal marks stay.
+- **Uplinks summary:** "Uplinks · N of M ports reach an AGG or BB" goes from a switch's equipment page and the inspector; Find AGG / BB from the switch gives the routes.
+- **Kept:** the teal route on the tree and in Physical; the rerun of a trace across Installed ↔ Plan.
+- **Tests:** specs that used the form start from a switch or a port instead; the exact port → port and highlight specs are deleted; a spec checks that a site and a node name open Physical.

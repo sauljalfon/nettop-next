@@ -1,8 +1,8 @@
 # A trace is the Trace page; the Inspector is a short card — Implementation Plan
 
-> **For agentic workers:** process in [way-of-work.md](../way-of-work.md): a Sonnet subagent implements one task at a time, test first, never commits; Opus reviews each task.
+> **For agentic workers:** process in [way-of-work.md](../../way-of-work.md): a Sonnet subagent implements one task at a time, test first, never commits; Opus reviews each task.
 
-**Goal:** D49 and [roadmap.md, "The inspector as a short card"](../roadmap.md). Frontend only; the API is unchanged.
+**Goal:** D49 and [roadmap.md, "The inspector as a short card"](../../roadmap.md). Frontend only; the API is unchanged.
 
 ## Global constraints
 
@@ -25,3 +25,13 @@
 - [ ] **Steps 2–4:** run (FAIL), implement, all checks and the whole e2e suite.
 
 ### Task 3 (Opus): the docs
+
+
+## Design (from the roadmap): The inspector as a short card (done; approved 2026-11-24 from [the demo](../demos/inspector-card-demo.html), D49)
+
+Owner, 2026-11-24, from the demo: the card "I like"; Find AGG / BB should "open the tracing thing with all the traces" (the real Trace page, "what we had", not a new drawing) and the dock's Trace tab goes; answers: the page opens on All routes; after Back a route chip reopens it or clears it; History a dock tab; Move… in the ⋯ menu; the card keeps Way up and Model; the Inspector stays on Physical ("we shouldn't remove every useful feature"). [Plan](2026-11-24-inspector-card.md).
+
+- **Trace:** Find AGG / BB opens the Trace page on All routes; no Trace tab. ← Back / Show on map: the route stays lit, a route chip at the top of the tree and of Physical ("Route: … → …"; click reopens the page, × clears). A failed trace shows on the Trace page with Refresh topology.
+- **The card** (dock Inspector, every view): name, role, network, where (site, node and rack open Physical), "N of M cabled", way up, model; Find AGG / BB (switches), Open in Physical, Show on map, Open in inventory. Inventory's Delete… / Disconnect… confirm in it as today.
+- **Equipment page ⋯ menu:** History (a dock tab: direct fixes and recorded plans), Move to another rack… (a plan only; Site › Node › Rack and the lowest unit, under the bar), Print sheet, Duplicate…, Show on map, Delete….
+- **Explore:** a port or cable hit opens that jack on its equipment page.

@@ -195,7 +195,7 @@ Every spec reaches equipment through Explore (`selectEquipment`, which selects i
 
 ## Physical uses the screen (2026-11-25)
 
-D50; [plan](plans/2026-11-25-physical-space.md).
+D50; [plan](history/plans/2026-11-25-physical-space.md).
 
 | ID | Scenario | Where it runs |
 | --- | --- | --- |
