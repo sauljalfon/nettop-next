@@ -1,6 +1,6 @@
 import { expect, type Page, test } from './fixtures'
 import { fitted, openRackInPhysical } from './helpers'
-import { newPlan } from './plan-api'
+import { command, getPlan, newPlan } from './plan-api'
 
 const level = (page: Page) => page.locator('.physical-explorer')
 const slot = (page: Page, rack: string, unit: number) =>
@@ -122,4 +122,96 @@ test('D50-09 in a plan the free units are separate drop targets', async ({
       'true',
     )
   await expect(page.locator('[data-testid^="rack-run-"]')).toHaveCount(0)
+})
+
+test('D50-10 a tall rack never pushes the path card out of the window: the cabinet scrolls inside itself', async ({
+  page,
+  request,
+}) => {
+  const id = await newPlan(request, 'Tall rack')
+  const rack = (
+    await command(request, id, {
+      type: 'add_rack',
+      rack: { nodeId: 'node-main-distribution', name: 'Tall R44', units: 44 },
+    })
+  ).racks.at(-1)
+  // Eleven 4U HDFs of 12 rows fill the 44U rack: HDF-T01 at U1 ... HDF-T11 at U41 (the top one).
+  await command(request, id, {
+    type: 'batch',
+    batch: {
+      commands: Array.from({ length: 11 }, (_, i) => ({
+        type: 'add_hdf',
+        hdf: {
+          name: `HDF-T${String(i + 1).padStart(2, '0')}`,
+          rackId: rack.id,
+          unit: 1 + i * 4,
+          height: 4,
+          rows: 12,
+        },
+      })),
+    },
+  })
+  const plan = await getPlan(request, id)
+  const idOf = (name: string) =>
+    plan.equipment.find((e: { name: string }) => e.name === name).id as string
+  const jackOf = (name: string, side: 'front' | 'rear') =>
+    plan.endpoints.find(
+      (e: { equipmentId: string; side: string; position: number }) =>
+        e.equipmentId === idOf(name) && e.side === side && e.position === 1,
+    ).id as string
+  // Cable the top HDF's first jack both ways, so the path card is the tall one (plates, not one line).
+  await command(request, id, {
+    type: 'add_cable',
+    cable: { a: 'edge-17:p5', b: jackOf('HDF-T11', 'front') },
+  })
+  await command(request, id, {
+    type: 'add_cable',
+    cable: { a: jackOf('HDF-T11', 'rear'), b: 'agg-03:p2' },
+  })
+  const top = idOf('HDF-T11')
+  const bottom = idOf('HDF-T01')
+
+  await page.setViewportSize({ width: 1536, height: 864 })
+  await page.goto(`/?plan=${id}`)
+  await fitted(page)
+  await openRackInPhysical(page, 'Main Campus', 'Main Distribution', 'Tall R44')
+  await expect(level(page)).toHaveAttribute('data-physical-level', 'rack')
+  const chosen = page.getByTestId('rack-chosen')
+  await block(page, top).click()
+  await expect(chosen).toHaveAttribute('data-equipment-id', top)
+  await chosen
+    .locator(`[data-endpoint-id="${jackOf('HDF-T11', 'front')}"]`)
+    .click()
+  const pathCard = page.getByTestId('path-bar')
+  await expect(pathCard.getByTestId('path-plate').first()).toBeVisible()
+
+  const inside = async (id: string) => {
+    const c = (await cabinet(page).boundingBox())!
+    const b = (await block(page, id).boundingBox())!
+    expect(b.y).toBeGreaterThanOrEqual(c.y - 1)
+    expect(b.y + b.height).toBeLessThanOrEqual(c.y + c.height + 1)
+  }
+  const check = async () => {
+    expect(
+      await page.locator('.rack-screen').evaluate((el) => el.scrollTop),
+    ).toBe(0)
+    const card = (await pathCard.boundingBox())!
+    expect(card.y + card.height).toBeLessThanOrEqual(864)
+    const face = (await chosen.locator('.face-card').boundingBox())!
+    expect(face.y).toBeGreaterThanOrEqual(0)
+    expect(face.y).toBeLessThan(864)
+    const cab = (await cabinet(page).boundingBox())!
+    expect(cab.y + cab.height).toBeLessThanOrEqual(card.y)
+    expect(
+      await cabinet(page).evaluate((el) => el.scrollHeight > el.clientHeight),
+    ).toBe(true)
+  }
+  await check()
+  await inside(top)
+  // The bottom unit: scroll the cabinet to it, click it, and it stays in view.
+  await block(page, bottom).scrollIntoViewIfNeeded()
+  await block(page, bottom).click()
+  await expect(chosen).toHaveAttribute('data-equipment-id', bottom)
+  await expect(async () => inside(bottom)).toPass()
+  await check()
 })

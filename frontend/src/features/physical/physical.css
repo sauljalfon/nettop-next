@@ -1774,10 +1774,14 @@
   grid-template-columns: var(--rack-unit-label) 1fr;
   width: var(--rack-w);
   padding: 6px 14px 6px 8px;
+  /* Never taller than the room above the path card: past it the cabinet scrolls inside itself. */
+  max-height: var(--rack-max);
+  overflow-y: auto;
 }
 .rack-cabinet.compact .rail {
   top: 6px;
-  bottom: 6px;
+  bottom: auto;
+  height: var(--rail-h);
 }
 .rack-cabinet.compact .rail.right {
   right: 2px;

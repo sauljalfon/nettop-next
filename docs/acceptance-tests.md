@@ -209,6 +209,7 @@ D50; [plan](plans/2026-11-25-physical-space.md).
 | D50-07 | Browser: at 1920×1080 Rack Core 01 is at most 250px wide with every unit in view, a free run is one row; a click on AGG-03 shows its face beside the rack and the level stays the rack; Open page and a double-click open its page; the chosen unit is kept per rack | `rack-level`, `physicalSession.test.ts`, `cabinet.test.ts` |
 | D50-08 | Browser: a jack chosen beside the rack draws the path card under the rack and the device | `rack-level` |
 | D50-09 | Browser: in a plan every free unit is its own drop target; the drop specs still pass | `rack-level`, `placement`, `rack` |
+| D50-10 | Browser: at 1536×864 a 44U rack of eleven 12-row HDFs with a cabled jack chosen: the page does not scroll, the path card is in the window under the rack, the rack scrolls inside itself and keeps the chosen unit (top, then bottom) in view | `rack-level`, `faceplates` (RK-01) |
 
 ## One conceptual view (2026-10-30)
 

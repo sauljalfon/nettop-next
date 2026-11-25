@@ -389,6 +389,10 @@ for (const size of [
       await page
         .locator('.rack-screen')
         .evaluate((el) => (el.scrollTop = el.scrollHeight))
+      // A cabinet taller than its room scrolls inside itself (D50): U1 is at its end.
+      await page
+        .locator('.rack-cabinet')
+        .evaluate((el) => (el.scrollTop = el.scrollHeight))
       const level = (await page.locator('.rack-screen').boundingBox())!
       const dockLeft = (await dock.boundingBox())!.x
       const slot = (await page
@@ -398,7 +402,9 @@ for (const size of [
       const pageScrolls = await page.evaluate(
         () => document.documentElement.scrollHeight > window.innerHeight + 1,
       )
+      const cab = (await page.locator('.rack-cabinet').boundingBox())!
       return (
+        slot.y + slot.height <= cab.y + cab.height + 1 &&
         slot.y + slot.height <= level.y + level.height + 1 &&
         slot.y + slot.height <= page.viewportSize()!.height + 1 &&
         slot.x + slot.width <= dockLeft + 1 &&

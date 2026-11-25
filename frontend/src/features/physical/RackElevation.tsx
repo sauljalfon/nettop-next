@@ -21,6 +21,8 @@ import Chip from '../../shared/ui/Chip'
 const NO_NETWORK_EDGE = 'var(--steel-hover)'
 /** The compact cabinet's padding above and below its units (`.rack-cabinet.compact`). */
 const COMPACT_FRAME_PX = 12
+/** The shortest the compact cabinet is ever drawn, whatever the window leaves. */
+const COMPACT_MIN_BOX_PX = 160
 /** The gap under the cabinet before the hint line. */
 const HINT_GAP_PX = 6
 
@@ -123,6 +125,28 @@ export default function RackElevation({
       window.removeEventListener('resize', measure)
     }
   }, [compact, keepBelow, total])
+  // The chosen unit stays in view inside a cabinet that scrolls (never the page).
+  const selected = rows.find((r) => r.kind === 'equipment' && r.selected)
+  const selectedId =
+    selected?.kind === 'equipment' ? selected.equipmentId : undefined
+  const boxMax = Math.max(COMPACT_MIN_BOX_PX, room + COMPACT_FRAME_PX)
+  useLayoutEffect(() => {
+    const cab = cabinetBox.current
+    if (!compact || !cab || !selectedId) return
+    if (cab.scrollHeight <= cab.clientHeight) {
+      cab.scrollTop = 0
+      return
+    }
+    const el = cab.querySelector<HTMLElement>(
+      `.rack-block[data-equipment-id="${CSS.escape(selectedId)}"]`,
+    )
+    if (!el) return
+    const c = cab.getBoundingClientRect()
+    const b = el.getBoundingClientRect()
+    if (b.top < c.top) cab.scrollTop += b.top - c.top - COMPACT_FRAME_PX
+    else if (b.bottom > c.bottom)
+      cab.scrollTop += b.bottom - c.bottom + COMPACT_FRAME_PX
+  }, [compact, selectedId, boxMax, total])
   // Per-equipment facts for the faceplates, one pass over the snapshot.
   const facts = useMemo(() => {
     const endpoints = new Map<string, number>()
@@ -193,6 +217,12 @@ export default function RackElevation({
           gridTemplateRows: `repeat(${gridRows}, ${unitPx}px)`,
           ['--unit' as string]: `${unitPx}px`,
           ['--gap' as string]: `${gap}px`,
+          ...(compact
+            ? {
+                ['--rack-max' as string]: `${boxMax}px`,
+                ['--rail-h' as string]: `${total * unitPx + (total - 1) * gap}px`,
+              }
+            : {}),
         }}
       >
         <i className="rail left" aria-hidden />
