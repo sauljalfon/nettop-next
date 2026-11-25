@@ -6,6 +6,9 @@ import {
   settledViewport,
   viewport,
   findAggBb,
+  leaveTrace,
+  traceRoutes,
+  openInspector,
 } from './helpers'
 
 // VP-02 (D34): on pages an open right drawer keeps the content clear; on the
@@ -143,14 +146,16 @@ test('VP-03 Rack T42 keeps 26px rows, scrolls, and labels every unit', async ({
   )
 })
 
-test('VP-03 scrolled to the bottom, U1 is fully visible beside the Trace tab', async ({
+test('VP-03 scrolled to the bottom, U1 is fully visible beside the dock', async ({
   page,
 }) => {
   await findAggBb(page)
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
   await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
+  await openInspector(page)
   const dock = page.locator('.dock:not([hidden])')
-  await expect(page.getByLabel('Trace results')).toBeVisible()
+  await expect(dock).toBeVisible()
   const level = page.locator('.rack-level')
   await level.evaluate((el) => (el.scrollTop = el.scrollHeight))
   await expect

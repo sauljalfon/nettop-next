@@ -47,7 +47,7 @@ test('SR-01 "a03" lists cable-a03 under Cables and opens HDF-01 3C/5 front in Ph
   await expect(page.getByLabel('Equipment inspector')).toHaveCount(0)
 })
 
-test('SR-02 "hdf-01 3c/5" lists both sides under Ports; a port opens in Physical, and in Conceptual selects it on the tree and filters the inspector', async ({
+test('SR-02 "hdf-01 3c/5" lists both sides under Ports; a port opens in Physical, and from Conceptual it opens that jack on its page', async ({
   page,
 }) => {
   await physical(page).click()
@@ -66,23 +66,16 @@ test('SR-02 "hdf-01 3c/5" lists both sides under Ports; a port opens in Physical
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:r')
   await expectMark(page, 'data-side', 'rear')
 
-  // In Conceptual: the equipment is selected on the tree (D40), and the inspector's Positions tab is filtered.
+  // In Conceptual a port hit opens that jack on its equipment page, in Physical (D49).
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await expect(search(page)).toHaveValue('hdf-01 3c/5') // the drawer keeps its text
   await explore(page)
     .getByTestId('search-port')
     .filter({ hasText: '3C/5 front' })
     .click()
-  await expect(page.locator('.inspector-header h2')).toHaveText('HDF-01')
-  await expect(page.getByRole('tab', { name: 'Positions' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
-  await expect(page.getByLabel('Search endpoints')).toHaveValue('3C / 5')
-  await expect(page.getByTestId('inspector-unit')).toHaveCount(1)
-  await expect(page.getByTestId('hierarchy-drawer').locator('h2')).toHaveText(
-    'HDF-01',
-  )
+  await expectMark(page, 'data-physical-level', 'equipment')
+  await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:f')
+  await expectMark(page, 'data-side', 'front')
 })
 
 test('Explore search shows at most 50 of each, with a "refine the search" note', async ({

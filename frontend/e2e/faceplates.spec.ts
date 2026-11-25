@@ -1,5 +1,12 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, openRackInPhysical, findAggBb } from './helpers'
+import {
+  fitted,
+  findAggBb,
+  leaveTrace,
+  openRackInPhysical,
+  traceRoutes,
+  openInspector,
+} from './helpers'
 
 const root = (page: Page) => page.locator('.physical-explorer')
 const mark = (page: Page, name: string) =>
@@ -30,7 +37,8 @@ async function openEquipment(
 }
 async function traceAgg03(page: Page) {
   await findAggBb(page)
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
 }
 
 test.beforeEach(async ({ page }) => {
@@ -331,15 +339,16 @@ test('PB-03 on an HDF the arrows cross blocks, and the whole grid is one tab sto
   expect(await stops.getAttribute('data-endpoint-id')).toBe('hdf-01:sp-3C:5:r')
 })
 
-test('RK-01 a 42U cabinet scrolls clear of the results panel at the bottom of the page', async ({
+test('RK-01 a 42U cabinet scrolls clear of the dock at the bottom of the page', async ({
   page,
 }) => {
   await traceAgg03(page)
   await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
   await expectMark(page, 'data-physical-level', 'rack')
   const dock = page.locator('.dock:not([hidden])')
-  await expect(page.getByLabel('Trace results')).toBeVisible()
-  // With the Trace tab open beside the page, scrolled to the bottom every unit, the lowest
+  await openInspector(page)
+  await expect(dock).toBeVisible()
+  // With the dock open beside the page, scrolled to the bottom every unit, the lowest
   // included, is inside the rack panel and the window, and none is under the dock.
   const bottomClear = async () => {
     await page
@@ -369,17 +378,18 @@ for (const size of [
   { width: 1440, height: 900 },
   { width: 1280, height: 720 },
 ]) {
-  test(`RK-01 at ${size.width}×${size.height} U1 of the 42U rack is fully visible beside the Trace tab once scrolled to the bottom`, async ({
+  test(`RK-01 at ${size.width}×${size.height} U1 of the 42U rack is fully visible beside the dock once scrolled to the bottom`, async ({
     page,
   }) => {
     await page.setViewportSize(size)
     await page.goto('/')
     await fitted(page)
-    await traceAgg03(page) // the Trace tab stays open beside the page
+    await traceAgg03(page) // the route chip stays on the page
     await openRackInPhysical(page, 'Annex', 'Annex Hall', 'Rack T42')
     await expectMark(page, 'data-physical-level', 'rack')
     const dock = page.locator('.dock:not([hidden])')
-    await expect(page.getByLabel('Trace results')).toBeVisible()
+    await openInspector(page)
+    await expect(dock).toBeVisible()
     const check = async () => {
       await page
         .locator('.rack-level')

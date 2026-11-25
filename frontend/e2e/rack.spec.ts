@@ -1,5 +1,11 @@
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
-import { fitted, openRackInPhysical, findAggBb } from './helpers'
+import {
+  fitted,
+  findAggBb,
+  leaveTrace,
+  openRackInPhysical,
+  traceRoutes,
+} from './helpers'
 
 // The explorer writes its state on its root; these specs assert that model.
 const root = (page: Page) => page.locator('.physical-explorer')
@@ -41,8 +47,8 @@ async function openMainDistribution(page: Page) {
 
 async function traceAgg03(page: Page) {
   await findAggBb(page)
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
 }
 
 test('F04 a 3U HDF is one object over U4–U6, with real unit numbers and free units marked', async ({

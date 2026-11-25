@@ -5,6 +5,9 @@ export interface MenuItem {
   label: string
   onSelect: () => void
   danger?: boolean
+  /** Shown greyed out with `hint` beside it. */
+  disabled?: boolean
+  hint?: string
 }
 
 /**
@@ -23,7 +26,9 @@ export default function MoreMenu({
   const wrap = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
   const entries = () => [
-    ...(wrap.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
+    ...(wrap.current?.querySelectorAll<HTMLElement>(
+      '[role="menuitem"]:not(:disabled)',
+    ) ?? []),
   ]
 
   useEffect(() => {
@@ -85,12 +90,17 @@ export default function MoreMenu({
               role="menuitem"
               tabIndex={-1}
               className={item.danger ? 'danger' : undefined}
+              disabled={item.disabled}
+              title={item.disabled ? item.hint : undefined}
               onClick={() => {
                 close()
                 item.onSelect()
               }}
             >
               {item.label}
+              {item.disabled && item.hint && (
+                <small className="more-hint">{item.hint}</small>
+              )}
             </button>
           ))}
         </div>

@@ -1,5 +1,10 @@
 import { expect, test, type Locator, type Page } from './fixtures'
-import { fitted, openRackInPhysical, selectEquipment } from './helpers'
+import {
+  chooseMore,
+  fitted,
+  openEquipmentPage,
+  openRackInPhysical,
+} from './helpers'
 import { chooseRack } from './patching-helpers'
 import {
   addRoom,
@@ -78,15 +83,15 @@ test('BK-03 "3 more like EDGE-18" fills the next free units with EDGE-19…EDGE-
   await shot(page, 'changes-drawer')
 })
 
-test('BK-03 a duplicate that runs out of free units is blocked, from the inspector, and the count or rack changes it', async ({
+test('BK-03 a duplicate that runs out of free units is blocked, from the equipment page, and the count or rack changes it', async ({
   page,
   request,
 }) => {
   const id = await newPlan(request, unique('Dup'))
   await page.goto(`/?plan=${id}`)
   await fitted(page)
-  await selectEquipment(page, 'EDGE-17')
-  await page.getByRole('button', { name: 'Duplicate EDGE-17…' }).click()
+  await openEquipmentPage(page, 'EDGE-17')
+  await chooseMore(page, 'Duplicate…')
   const dup = box(page, 'Duplicate')
   await dup.getByLabel('Count').fill('5')
   // Rack A03 has 12 units: EDGE-17 at U8, PANEL-A at U11, CM-A03 at U12 and UPS-A03
@@ -115,9 +120,7 @@ test('BK-03 a duplicate that runs out of free units is blocked, from the inspect
   await expect(dup.getByRole('button', { name: 'Duplicate 3' })).toBeEnabled()
   await page.keyboard.press('Escape')
   await expect(dup).toHaveCount(0)
-  await expect(
-    page.getByRole('button', { name: 'Duplicate EDGE-17…' }),
-  ).toBeFocused()
+  await expect(page.getByRole('button', { name: 'More actions' })).toBeFocused()
 })
 
 test('BK-04 copying Rack A03 into a new empty rack places the same kinds at the same units, with new names and no cables', async ({

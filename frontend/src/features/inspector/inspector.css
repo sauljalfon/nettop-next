@@ -4,18 +4,21 @@
   color: var(--ink);
 }
 
-/* The drawer content is the scroller: the header sticks to its top edge. */
+/* The card: identity, a few facts, four actions. */
 .inspector-header {
-  position: sticky;
-  top: -16px; /* sticks at the scroller's edge, over its 16px padding */
-  z-index: 3;
-  margin: -16px -18px 12px;
-  padding: 16px 18px 0;
-  background: var(--paper);
-  border-bottom: 1px solid var(--rule-soft);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.inspector-facts {
+  padding: 12px 0;
+}
+
+.inspector-actions {
+  padding-bottom: 12px;
 }
 
 .inspector-title {
@@ -71,7 +74,7 @@
   background: var(--ink);
 }
 
-.inspector-header .location-breadcrumb {
+.inspector .location-breadcrumb {
   margin: 0;
   font-size: var(--t-sm);
   color: var(--ink-soft);
@@ -105,39 +108,6 @@
   flex: 0 0 auto;
 }
 
-.inspector-tabs {
-  display: flex;
-  gap: 2px;
-  margin-top: 4px;
-}
-
-.inspector-tabs button {
-  border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px; /* the underline sits on the header's rule */
-  background: none;
-  padding: 8px 10px;
-  font-size: var(--t-sm);
-  color: var(--ink-soft);
-  cursor: pointer;
-}
-
-.inspector-tabs button[aria-selected='true'] {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-  font-weight: 500;
-}
-
-/* Headings are .section-title; this only spaces them. */
-.inspector-section {
-  margin: 16px 0 8px;
-}
-
-.inspector .details-head .btn {
-  height: 26px;
-  font-weight: 400;
-}
-
 /* Key / value lists: a 120px label column. */
 .detail-list {
   margin: 0;
@@ -167,216 +137,6 @@
   color: var(--ink-soft);
 }
 
-.network-counts {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.network-counts li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.port-controls {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.port-controls .segmented {
-  display: flex;
-  border: 1px solid var(--rule);
-  border-radius: var(--r-control);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.port-controls .segmented button {
-  border: 0;
-  background: var(--paper);
-  padding: 6px 9px;
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-}
-
-.port-controls .segmented .active {
-  background: var(--paper-sunk);
-  color: var(--ink);
-}
-
-.port-controls input {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--t-xs);
-  padding: 6px 8px;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-}
-
-.port-count {
-  font-size: var(--t-xs);
-  color: var(--ink-soft);
-  margin: 8px 0 4px;
-}
-
-.port-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--t-xs);
-}
-
-.port-table thead th {
-  text-align: left;
-  font-size: var(--t-xs);
-  font-weight: 500;
-  color: var(--ink-soft);
-  background: var(--paper-sunk);
-  padding: 6px;
-  border-bottom: 1px solid var(--rule);
-}
-
-.port-table td,
-.port-table tbody th {
-  padding: 4px;
-  font-size: var(--t-xs);
-  vertical-align: top;
-  text-align: left;
-  font-weight: normal;
-  border-bottom: 1px solid var(--rule-soft);
-}
-
-.port-table .col-label {
-  font-family: var(--mono);
-  font-size: var(--t-xs);
-  font-weight: 600;
+.inspector .nowrap {
   white-space: nowrap;
-}
-
-.port-table .col-far {
-  max-width: 0; /* lets the far end take the spare width and truncate, so front and rear lines stay aligned */
-  width: 100%;
-}
-
-.port-table .col-far div {
-  font-size: var(--t-xs);
-  line-height: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.port-table .col-cable div,
-.port-table .col-network div {
-  line-height: 16px;
-}
-
-.port-table .col-cable {
-  font-family: var(--mono);
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-
-.port-table .col-network .chip {
-  height: 18px;
-  padding: 0 6px;
-}
-
-.port-table .side-name {
-  display: inline-block;
-  min-width: 12px;
-  margin-right: 3px;
-  font-size: var(--t-xs);
-  text-decoration: none;
-  color: var(--ink-soft);
-}
-
-.port-table .free-side {
-  color: var(--ink-soft);
-}
-
-.port-table .port-row.free .col-label {
-  font-weight: 400;
-}
-
-.port-row {
-  cursor: default;
-}
-
-.port-row.free {
-  color: var(--ink-soft);
-}
-
-.port-row:hover,
-.port-row.selected {
-  background: var(--paper-sunk);
-}
-
-.port-row:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: -2px;
-}
-
-.port-group td {
-  padding: 0;
-  background: var(--paper-sunk);
-}
-
-.port-group button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border: 0;
-  background: none;
-  padding: 5px 6px;
-  font-size: var(--t-xs);
-  font-weight: 600;
-  color: var(--ink);
-  text-align: left;
-}
-
-.port-group small {
-  color: var(--ink-soft);
-  font-weight: normal;
-}
-
-.port-table .col-actions {
-  white-space: nowrap;
-  text-align: right;
-}
-
-.row-action {
-  display: inline-grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--r-control);
-  background: transparent;
-  color: var(--ink-soft);
-  cursor: pointer;
-}
-
-.row-action:hover,
-.row-action:focus-visible {
-  background: var(--paper-sunk);
-  color: var(--ink);
-}
-
-.row-action.active {
-  color: var(--ink);
-}
-
-@media (max-width: 640px) {
-  .inspector-header {
-    top: -15px;
-    margin: -15px -15px 12px;
-    padding: 12px 15px 0;
-  }
 }

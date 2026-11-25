@@ -1,6 +1,11 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from './fixtures'
-import { selectEquipment, settledViewport } from './helpers'
+import {
+  leaveTrace,
+  selectEquipment,
+  settledViewport,
+  traceRoutes,
+} from './helpers'
 
 // SC-02 / HI-12, opt-in: `SCALE=1 npx playwright test -c playwright.scale.config.ts`.
 // Runs against the generated campus (backend/internal/scalefixture) and records
@@ -382,14 +387,14 @@ test('SC-02 / HI-12 the campus at realistic size', async ({ page }) => {
   await find.click()
   await response
   timings.push(['trace response (server + network)', Date.now() - clicked])
-  await expect(page.getByTestId('route-row').first()).toBeVisible({
+  await expect(traceRoutes(page).first()).toBeVisible({
     timeout: 30_000,
   })
+  await leaveTrace(page)
   await expect(
     page.locator('[data-view="hierarchy"] [data-on-route="true"]').first(),
   ).toBeVisible({ timeout: 30_000 })
   timings.push(['Find AGG / BB, click to route drawn', Date.now() - clicked])
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await page.waitForTimeout(1000)
   await shot(page, '6-trace-on-campus-hierarchy')
 

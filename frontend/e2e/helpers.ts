@@ -66,12 +66,62 @@ export async function selectEquipment(page: Page, name: string) {
   await expect(page.locator('.inspector-header h2')).toHaveText(name)
 }
 
-/** Find AGG / BB from a switch: selects it through Explore, then uses the inspector's button. The Trace tab opens. */
+/**
+ * The equipment's page in Physical: the Physical view, Explore's search, Enter (in Physical it
+ * opens the page, with its ports and ⋯ menu; the inspector card does not hold them any more).
+ */
+export async function openEquipmentPage(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Physical', exact: true }).click()
+  await openExplore(page)
+  const search = page.getByLabel('Find equipment')
+  await search.fill(name)
+  await search.press('Enter')
+  await expect(page.getByTestId('equipment-bar')).toContainText(name)
+}
+
+/** Chooses an item of the equipment page's ⋯ menu. */
+export async function chooseMore(page: Page, item: string) {
+  await page.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: item }).click()
+}
+
+/** Find AGG / BB from a switch: selects it through Explore, then uses the inspector's button. The Trace page opens, on All routes. */
 export async function findAggBb(page: Page, name = 'EDGE-17') {
   await selectEquipment(page, name)
   await page
     .getByRole('button', { name: `Find AGG / BB from ${name}`, exact: true })
     .click()
+  await expect(page.getByTestId('trace-page')).toBeVisible()
+}
+
+/** The Trace page's route results (not the mismatches). */
+export const traceRoutes = (page: Page) =>
+  page
+    .getByTestId('trace-list')
+    .locator('[data-testid="trace-item"][data-kind="route"]')
+
+/** Opens the dock on the Inspector, unless it is already open (← Back brings the dock back as it was). */
+export async function openInspector(page: Page) {
+  if (!(await page.locator('.dock:not([hidden])').count()))
+    await page.getByRole('button', { name: 'Open inspector' }).click()
+  await expect(page.locator('.dock:not([hidden])')).toBeVisible()
+}
+
+/** The Trace page's One route view (the walk is shown there; All routes stacks the drawings). */
+export async function oneRoute(page: Page) {
+  await page
+    .getByTestId('trace-page')
+    .getByRole('button', { name: 'One route', exact: true })
+    .click()
+}
+
+/** ← Back on the Trace page: the view it came from, with the route chip. */
+export async function leaveTrace(page: Page) {
+  await page
+    .getByTestId('trace-page')
+    .getByRole('button', { name: '← Back', exact: true })
+    .click()
+  await expect(page.getByTestId('trace-page')).toHaveCount(0)
 }
 
 /**
@@ -180,17 +230,12 @@ export async function openRackInPhysical(
     .click({ position: { x: 2, y: 2 } })
 }
 
-/** Shows the trace results: opens the dock (on the Inspector) when it is closed, then its Trace tab when it is not the open one. */
+/** Shows the Trace page: opens it from the route chip when it is closed. */
 export async function expandResults(page: Page) {
-  const dock = page.locator('.dock:not([hidden])')
-  if (!(await dock.count()))
-    await page
-      .getByRole('button', { name: 'Open inspector', exact: true })
-      .click()
-  const tab = dock.getByRole('tab', { name: 'Trace', selected: true })
-  if (!(await tab.count()))
-    await dock.getByRole('tab', { name: 'Trace' }).click()
-  await expect(page.getByLabel('Trace results')).toBeVisible()
+  const tp = page.getByTestId('trace-page')
+  if (!(await tp.count()))
+    await page.getByTestId('route-chip').getByRole('button').first().click()
+  await expect(tp).toBeVisible()
 }
 
 /**

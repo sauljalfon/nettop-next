@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from './fixtures'
 import {
   fitted,
   hierarchyState,
+  leaveTrace,
+  traceRoutes,
   settledViewport,
   showNodeDetails,
   viewport,
@@ -225,9 +227,8 @@ test('HI-09 from the drawer: Inspector, Find AGG / BB, and Show in Physical', as
   await showNodeDetails(page) // the Node tab is beside the Inspector now
 
   await detail.getByRole('button', { name: 'Find AGG / BB' }).click()
-  await expect(
-    page.getByLabel('Trace results').getByTestId('route-row'),
-  ).toHaveCount(3)
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
   // The route lights the cards it touches, in place.
   await expect(card(page, BUILDING_A)).toHaveAttribute('data-on-route', 'true')
 

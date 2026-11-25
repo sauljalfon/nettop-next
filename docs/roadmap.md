@@ -57,9 +57,14 @@ From the owner after part 3 of the workbench: the jack's path and Find AGG / BB 
 
 Owner, 2026-11-24: "add it also to normal panels"; answers: the same one choice as the HDFs, on every panel. A panel's page gets the Pairs | Pigtails switch beside Front | Rear; Pigtails shows position *n* as 2*n*−1 over 2*n* in the same jack, counted across the panel; the patching screen and the printed sheet follow the choice. Frontend only.
 
-## The inspector as a short card (next; a demo first)
+## The inspector as a short card (current; approved 2026-11-24 from [the demo](history/demos/inspector-card-demo.html), D49)
 
-Owner, 2026-11-24: yes to making the Inspector simpler. The idea: a short card (name, place, network, cabled count, Find AGG / BB, Open in Physical, Show on map, Open in inventory) and the equipment page as the one full view. What only the Inspector has today must move first: **History**, **Placement** to another node (in a plan) and the port table's per-port actions (the equipment page has them jack by jack; Inventory as a list). A clickable demo of the card and of the equipment page with History and Move… comes before any design is approved.
+Owner, 2026-11-24, from the demo: the card "I like"; Find AGG / BB should "open the tracing thing with all the traces" (the real Trace page, "what we had", not a new drawing) and the dock's Trace tab goes; answers: the page opens on All routes; after Back a route chip reopens it or clears it; History a dock tab; Move… in the ⋯ menu; the card keeps Way up and Model; the Inspector stays on Physical ("we shouldn't remove every useful feature"). [Plan](plans/2026-11-24-inspector-card.md).
+
+- **Trace:** Find AGG / BB opens the Trace page on All routes; no Trace tab. ← Back / Show on map: the route stays lit, a route chip at the top of the tree and of Physical ("Route: … → …"; click reopens the page, × clears). A failed trace shows on the Trace page with Refresh topology.
+- **The card** (dock Inspector, every view): name, role, network, where (site, node and rack open Physical), "N of M cabled", way up, model; Find AGG / BB (switches), Open in Physical, Show on map, Open in inventory. Inventory's Delete… / Disconnect… confirm in it as today.
+- **Equipment page ⋯ menu:** History (a dock tab: direct fixes and recorded plans), Move to another rack… (a plan only; Site › Node › Rack and the lowest unit, under the bar), Print sheet, Duplicate…, Show on map, Delete….
+- **Explore:** a port or cable hit opens that jack on its equipment page.
 
 ## Switch models (after the workbench; not designed yet)
 

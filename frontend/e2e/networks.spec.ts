@@ -166,7 +166,7 @@ test('NET-05 renaming Network A updates the selector, badges and inspector; its 
   // Inspector.
   await page.getByRole('button', { name: 'Close Manage networks' }).click()
   await selectEquipment(page, 'EDGE-17')
-  await expect(page.getByRole('tabpanel')).toContainText(renamed)
+  await expect(page.getByTestId('inspector-card')).toContainText(renamed)
 })
 
 test('NET-06 renaming and adding work with the mouse alone (✓ and ✕)', async ({

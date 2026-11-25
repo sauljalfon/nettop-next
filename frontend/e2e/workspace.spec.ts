@@ -1,13 +1,15 @@
 import { expect, test } from './fixtures'
 import {
-  selectEquipment,
+  openEquipmentPage,
   fitted,
   openRackInPhysical,
   viewport,
   settledViewport,
   hierarchyState,
-  expandResults,
   findAggBb,
+  leaveTrace,
+  oneRoute,
+  traceRoutes,
 } from './helpers'
 
 test('trace physical continuity on the map and in rack elevations', async ({
@@ -19,18 +21,20 @@ test('trace physical continuity on the map and in rack elevations', async ({
   await fitted(page)
   await expect(page.locator('.dock:not([hidden])')).toHaveCount(0)
   await findAggBb(page)
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
-  // The selected route lights its cards and lines, and its walk sheet names the exact positions.
+  await expect(traceRoutes(page)).toHaveCount(3)
+  // The walk of the selected route names the exact positions.
+  await oneRoute(page)
+  const walk = page.getByTestId('trace-walk')
+  await expect(walk).toContainText('3C/5')
+  await expect(walk).toContainText('2B/3')
+  await leaveTrace(page)
+  // The selected route lights its cards and lines.
   await expect
     .poll(async () => (await hierarchyState(page)).cards)
     .toEqual(['agg-03', 'agg-03+agg-08|node-building-a'])
   expect((await hierarchyState(page)).lines).toEqual([
     'group:agg-03+agg-08|node-building-a',
   ])
-  const sheet = page.getByTestId('walk-sheet')
-  await expect(sheet).toContainText('3C/5')
-  await expect(sheet).toContainText('2B/3')
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
   await page.screenshot({
     path: testInfo.outputPath('map.png'),
     fullPage: true,
@@ -51,31 +55,22 @@ test('trace physical continuity on the map and in rack elevations', async ({
     path: testInfo.outputPath('racks.png'),
     fullPage: true,
   })
-  // Start from EDGE-17 Port 2 only (selected from the map: Explore opens the equipment page in Physical): the port row's Find AGG / BB from here.
-  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-  await selectEquipment(page, 'EDGE-17')
-  await page.getByRole('tab', { name: 'Ports' }).click()
-  await page
-    .getByRole('button', {
-      name: 'Find AGG / BB from here: EDGE-17 Port 2',
-      exact: true,
-    })
-    .click()
-  await expandResults(page)
-  await expect(
-    page.getByText(/4 cables · 3 internal bridges/).first(),
-  ).toBeVisible()
-  await expect(page.getByTestId('route-row')).toContainText(
-    'AGG-08 · Port 1 · AGG · Network A',
-  )
+  // Start from EDGE-17 Port 2 only (its jack on its page): Find AGG / BB from here.
+  await openEquipmentPage(page, 'EDGE-17')
+  await page.locator('[data-endpoint-id="edge-17:p2"]').click()
+  await page.getByRole('button', { name: 'Find AGG / BB from here' }).click()
+  await expect(traceRoutes(page)).toHaveCount(1)
+  await expect(traceRoutes(page).first()).toContainText('4 cables')
+  await expect(traceRoutes(page).first()).toContainText('AGG-08 · Port 1')
+  await expect(traceRoutes(page).first()).toContainText('AGG')
+  await leaveTrace(page)
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await expect(page.locator('.results-drawer')).toHaveCount(0)
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
+  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await findAggBb(page, 'EDGE-18')
-  await expandResults(page)
-  await expect(
-    page.getByText(/1 cables · 0 internal bridges/).first(),
-  ).toBeVisible()
+  await expect(traceRoutes(page).first()).toContainText('1 cable')
+  await leaveTrace(page)
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
   await expect(page.locator('.results-drawer')).toHaveCount(0)
   expect(errors).toEqual([])
@@ -94,7 +89,7 @@ test('the dock sits beside the map (the map’s right edge is the dock’s left 
   // Choosing equipment in Explore opens the inspector on it (and selects it on the tree).
   await expect(page.locator('.inspector-header h2')).toHaveText('AGG-12')
   await expect(page.locator('.location-breadcrumb')).toContainText(
-    'DR Site › DR Distribution › Rack DR02 › AGG-12',
+    'DR Site › DR Distribution › Rack DR02 · U8',
   )
   const surface = (await page.locator('.flow-surface').boundingBox())!
   const dock = (await page.locator('.dock:not([hidden])').boundingBox())!

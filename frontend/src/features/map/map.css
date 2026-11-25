@@ -223,9 +223,6 @@
 .hframe-agg.on-route {
   color: var(--route);
 }
-.hframe-agg.hot {
-  box-shadow: inset 0 0 0 2px var(--amber-halo);
-}
 .hframe-name {
   min-width: 0;
   overflow: hidden;
@@ -274,15 +271,6 @@
 }
 .hcard.on-route {
   border: 2px solid var(--route);
-}
-.hcard.hot {
-  border-color: var(--amber);
-  box-shadow:
-    0 0 0 2px var(--amber-halo),
-    0 0 0 6px var(--amber-soft);
-}
-.hcard.on-route.hot {
-  border-color: var(--route);
 }
 .hcard-name {
   min-width: 0;

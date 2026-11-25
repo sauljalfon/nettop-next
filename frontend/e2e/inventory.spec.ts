@@ -469,7 +469,7 @@ async function inExpansionPlan(page: Page) {
 
 const bar = (page: Page) => page.getByRole('toolbar', { name: 'Commands' })
 
-test('INV-03 Open details on a port row opens the inspector with that port found', async ({
+test('INV-03 Open details on a port row opens the inspector card of its equipment', async ({
   page,
 }) => {
   const { endpoint } = await cabledPort(page, 'agg-03')
@@ -486,13 +486,7 @@ test('INV-03 Open details on a port row opens the inspector with that port found
   await expect(open).toBeEnabled()
   await open.click()
   await expect(inspectorHeading(page)).toHaveText('AGG-03')
-  await expect(page.getByRole('tab', { name: 'Ports' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
-  await expect(page.getByLabel('Search endpoints')).toHaveValue(endpoint.label)
-  // The search is the label (as Explore's port hits make it): its row is listed.
-  await expect(page.getByTestId('inspector-unit').first()).toBeVisible()
+  await expect(page.getByTestId('inspector-card')).toBeVisible()
   await expect(root(page)).toBeVisible()
 })
 
@@ -602,7 +596,6 @@ test('INV-03 in a plan, Disconnect… shows the confirm on that port and Cancel 
   const confirm = page.getByRole('group', { name: 'Confirm disconnect' })
   await expect(confirm).toBeVisible()
   await expect(confirm).toContainText(cable.id)
-  await expect(page.getByLabel('Search endpoints')).toHaveValue(endpoint.label)
   await expect(root(page)).toBeVisible()
   await confirm.getByRole('button', { name: 'Cancel' }).click()
   await expect(confirm).toHaveCount(0)
@@ -800,7 +793,7 @@ test('INV-04 Open in inventory from the equipment page shows only that equipment
   await page.goto('/')
   await fitted(page)
   await selectEquipment(page, 'EDGE-17')
-  await page.getByRole('button', { name: 'Show in Physical: EDGE-17' }).click()
+  await page.getByRole('button', { name: 'Open in Physical: EDGE-17' }).click()
   await expect(physicalRoot(page)).toHaveAttribute(
     'data-physical-level',
     'equipment',
@@ -820,7 +813,7 @@ test('INV-04 Open in inventory from the equipment page shows only that equipment
   await expect(headerNetwork(page)).toHaveValue('')
 })
 
-test('Explore while the Inventory is shown: equipment and port hits open the inspector and the page stays', async ({
+test('Explore while the Inventory is shown: equipment and port hits open the inspector card and the page stays', async ({
   page,
 }) => {
   const { endpoint } = await cabledPort(page, 'agg-03')
@@ -836,10 +829,6 @@ test('Explore while the Inventory is shown: equipment and port hits open the ins
   await search.fill(`agg-03 ${endpoint.label}`)
   await page.getByTestId('search-port').first().click()
   await expect(inspectorHeading(page)).toHaveText('AGG-03')
-  await expect(page.getByRole('tab', { name: 'Ports' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
   await expect(root(page)).toBeVisible()
 })
 

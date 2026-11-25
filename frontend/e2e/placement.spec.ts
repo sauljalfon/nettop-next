@@ -1,5 +1,10 @@
 import { expect, test, type APIRequestContext } from './fixtures'
-import { openRackInPhysical, expandResults, findAggBb } from './helpers'
+import {
+  chooseMore,
+  findAggBb,
+  openRackInPhysical,
+  traceRoutes,
+} from './helpers'
 import { chooseRack } from './patching-helpers'
 import { getPlan } from './plan-api'
 
@@ -38,27 +43,23 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   await expect(page.getByTestId('rack-slot-rack-a03-4')).toContainText(
     'DRAG-EDGE',
   )
-  // A rack shows one rack at a time, so moves to other nodes use the placement
-  // form in the inspector (the same command a drag sends).
+  // A rack shows one rack at a time, so moves to other nodes use the equipment page's
+  // ⋯ Move to another rack… (the same command a drag sends).
   const moveWithForm = async (
     from: string,
     where: { site: string; node: string; rack: string },
     unit: string,
+    back = true,
   ) => {
-    await page.getByTestId(from).locator('.rack-block').click() // opens its page
-    if (
-      (await page
-        .getByRole('complementary', { name: 'Equipment inspector' })
-        .count()) === 0
-    )
-      await page.getByRole('button', { name: 'Open inspector' }).click()
-    await chooseRack(page, 'Placement', where)
-    await page.getByLabel('Placement unit', { exact: true }).fill(unit)
-    await page
-      .getByRole('button', { name: 'Save planned placement', exact: true })
-      .click()
+    if (back) await page.getByTestId(from).locator('.rack-block').click() // opens its page
+    await chooseMore(page, 'Move to another rack…')
+    const box = page.getByTestId('move-equipment')
+    await chooseRack(box, 'Move to', where)
+    await box.getByLabel('Unit', { exact: true }).fill(unit)
+    await box.getByRole('button', { name: 'Move', exact: true }).click()
     // Selecting opened the equipment page; Back returns to the rack.
-    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    if (back)
+      await page.getByRole('button', { name: 'Back', exact: true }).click()
   }
   await moveWithForm(
     'rack-slot-rack-a03-4',
@@ -76,14 +77,26 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   await expect(page.getByTestId('rack-slot-rack-a03-8')).not.toContainText(
     'EDGE-17',
   )
-  await page.getByLabel('Placement unit', { exact: true }).fill('8')
+  // EDGE-17 is now in Rack Core 02 at U4: U8 there is AGG-08's.
+  await openRackInPhysical(
+    page,
+    'Main Campus',
+    'Main Distribution',
+    'Rack Core 02',
+  )
   await page
-    .getByRole('button', { name: 'Save planned placement', exact: true })
+    .getByTestId('rack-slot-rack-core-02-4')
+    .locator('.rack-block')
     .click()
+  await moveWithForm(
+    '',
+    { site: 'Main Campus', node: 'Main Distribution', rack: 'Rack Core 02' },
+    '8',
+    false,
+  )
   await expect(page.getByRole('alert')).toContainText(
     'U8 in Rack Core 02 is taken by AGG-08',
   )
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   const draft = await (await request.get(`/api/plans/${id}`)).json()
   expect(draft.revision).toBe('4')
   expect(draft.equipment[0]).toMatchObject({ rackId: 'rack-dr02', unit: 3 })
@@ -92,10 +105,7 @@ test('rack drops, persisted moves, collisions, and tracing through the rack view
   // Selecting a switch is done from the map: the rack view has no inspector to pick from.
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await findAggBb(page)
-  await expandResults(page)
-  await expect(
-    page.getByText(/4 cables · 3 internal bridges/).first(),
-  ).toBeVisible()
+  await expect(traceRoutes(page).first()).toContainText('4 cables')
   await page.reload()
   await openRackInPhysical(
     page,

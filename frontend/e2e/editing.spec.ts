@@ -1,5 +1,10 @@
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
-import { fitted, openRackInPhysical, selectEquipment } from './helpers'
+import {
+  chooseMore,
+  fitted,
+  openEquipmentPage,
+  openRackInPhysical,
+} from './helpers'
 import {
   chooseFar,
   chooseRack,
@@ -41,9 +46,9 @@ async function openPlan(page: Page, id: string) {
   await page.goto(`/?plan=${id}`)
   await fitted(page)
 }
-/** Select equipment through Explore, which opens the inspector on it. */
+/** Open the equipment's page in Physical through Explore. */
 async function inspect(page: Page, card: string) {
-  await selectEquipment(page, card.toUpperCase())
+  await openEquipmentPage(page, card.toUpperCase())
 }
 async function toSites(page: Page) {
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
@@ -61,7 +66,7 @@ test('ED-08 deleting PANEL-A: the confirm lists what goes and the three circuits
   const id = await newPlan(request, 'ED-08 delete')
   await openPlan(page, id)
   await inspect(page, 'panel-a')
-  await page.getByRole('button', { name: 'Delete PANEL-A…' }).click()
+  await chooseMore(page, 'Delete…')
   const dialog = confirm(page, 'Confirm delete')
   await expect(dialog).toBeFocused()
   await expect(dialog).toContainText(
@@ -94,7 +99,7 @@ test('ED-08 deleting proposed equipment says its addition is dropped; the equipm
   await page.goto('/?plan=expansion')
   await fitted(page)
   await inspect(page, 'edge-18')
-  await page.getByRole('button', { name: 'Delete EDGE-18…' }).click()
+  await chooseMore(page, 'Delete…')
   const dialog = confirm(page, 'Confirm delete')
   await expect(dialog).toContainText(
     'EDGE-18 is only in this plan, so its addition is dropped, with its 1 port and 1 cable (planned-cable-18).',
@@ -103,7 +108,6 @@ test('ED-08 deleting proposed equipment says its addition is dropped; the equipm
   await expect(dialog).toHaveCount(0)
 
   // The equipment page of EDGE-17 offers it too, with that switch's three circuits.
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await block(page, 'edge-17').click()
   await expectMark(page, 'data-physical-level', 'equipment')
@@ -117,16 +121,16 @@ test('ED-08 deleting proposed equipment says its addition is dropped; the equipm
   ).toHaveCount(3)
 })
 
-test('ED-09 disconnect from the inspector, connect and disconnect from the endpoint detail', async ({
+test('ED-09 disconnect, connect and disconnect again from the endpoint detail on the equipment page', async ({
   page,
   request,
 }) => {
   const id = await newPlan(request, 'ED-09 cables')
   await openPlan(page, id)
-  // Inspector, Ports tab of AGG-03: Disconnect cable-a04 names the circuit it cuts.
+  // AGG-03's page, port 1: Disconnect… names the cable and the circuit it cuts.
   await inspect(page, 'agg-03')
-  await page.getByRole('tab', { name: 'Ports' }).click()
-  await page.getByRole('button', { name: /^Disconnect cable-a04/ }).click()
+  await page.locator('[data-endpoint-id="agg-03:p1"]').click()
+  await page.getByRole('button', { name: 'Disconnect…' }).click()
   const dialog = confirm(page, 'Confirm disconnect')
   await expect(dialog).toContainText('Disconnect cable-a04?')
   await expect(dialog).toContainText('Cuts EDGE-17 port 1 → AGG-03 port 1.')
@@ -135,7 +139,6 @@ test('ED-09 disconnect from the inspector, connect and disconnect from the endpo
   expect((await getPlan(request, id)).removals.links).toEqual(['cable-a04'])
 
   // Endpoint detail of the now free AGG-03 port 1: Connect… opens the patching screen.
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await openRackInPhysical(
     page,
     'Main Campus',
@@ -420,17 +423,17 @@ test('ED-14 Escape closes each inline confirm and form, and focus returns to the
   await page.goto('/?plan=expansion')
   await fitted(page)
 
-  // Inspector: Delete… confirm and a port's Disconnect confirm.
+  // The equipment page: the ⋯ menu's Delete… confirm and a port's Disconnect confirm.
   await inspect(page, 'agg-03')
-  const delete_ = page.getByRole('button', { name: 'Delete AGG-03…' })
-  await delete_.click()
+  const more = page.getByRole('button', { name: 'More actions' })
+  await chooseMore(page, 'Delete…')
   await expect(confirm(page, 'Confirm delete')).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(confirm(page, 'Confirm delete')).toHaveCount(0)
-  await expect(delete_).toBeFocused()
+  await expect(more).toBeFocused()
 
-  await page.getByRole('tab', { name: 'Ports' }).click()
-  const disconnect = page.getByRole('button', { name: /^Disconnect cable-a04/ })
+  await page.locator('[data-endpoint-id="agg-03:p1"]').click()
+  const disconnect = page.getByRole('button', { name: 'Disconnect…' })
   await disconnect.click()
   await expect(confirm(page, 'Confirm disconnect')).toBeFocused()
   await page.keyboard.press('Escape')
@@ -438,7 +441,6 @@ test('ED-14 Escape closes each inline confirm and form, and focus returns to the
   await expect(disconnect).toBeFocused()
 
   // Physical: the sites form, a container's delete confirm, the endpoint's Connect….
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await toSites(page)
   const add = page.getByTestId('add-site')
   await add.click()

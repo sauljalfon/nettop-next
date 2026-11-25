@@ -2,20 +2,12 @@ import { expect, test, type Page } from './fixtures'
 import {
   BUILDING_A,
   expandResults,
-  expectInsideVisibleArea,
+  openEquipmentPage,
   fitted,
+  leaveTrace,
   selectEquipment,
+  traceRoutes,
 } from './helpers'
-
-const units = (page: Page) => page.getByTestId('inspector-unit')
-const filter = (page: Page, name: 'Cabled' | 'Free' | 'All') =>
-  page
-    .getByRole('group', { name: 'Show endpoints' })
-    .getByRole('button', { name, exact: true })
-const unit = (page: Page, key: string) =>
-  page.locator(`[data-testid="inspector-unit"][data-unit="${key}"]`)
-const portsTab = (page: Page) =>
-  page.getByRole('tab', { name: /^(Ports|Positions)$/ })
 
 /** Choose equipment through Explore, which selects it on the tree and opens the inspector. */
 async function inspect(page: Page, card: string) {
@@ -31,123 +23,49 @@ async function inspectOnHierarchy(page: Page, switchId: string, name: string) {
   await expect(page.locator('.inspector-header h2')).toHaveText(name)
 }
 
-test('POL-09 HDF-01 lists its 4 cabled positions by default, grouped by subpanel, with far ends, cable IDs and networks', async ({
+test('POL-09 the card of HDF-01: Installed, 4 of 96 cabled, where it sits, and what runs through it', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await inspect(page, 'hdf-01')
 
-  // Header.
-  await expect(page.locator('.inspector-header')).toContainText('Installed')
-  await expect(
-    page.locator('.inspector-header').getByText('4 of 96 cabled'),
-  ).toBeVisible()
+  const card = page.getByTestId('inspector-card')
+  await expect(card).toContainText('Installed')
+  await expect(card.getByText('4 of 96 cabled')).toBeVisible()
   await expect(page.locator('.location-breadcrumb')).toContainText(
-    'Main Campus › North Sub-main › Rack SM01 › HDF-01',
+    'Main Campus › North Sub-main › Rack SM01 · U4',
+  )
+  // A passive has no Find AGG / BB of its own, and says how many circuits run through it.
+  await expect(
+    card.getByRole('button', { name: 'Find AGG / BB from HDF-01' }),
+  ).toHaveCount(0)
+  await expect(card.getByTestId('inspector-way-up')).toContainText(
+    /circuits? of Network [AB].* through it/,
   )
 
-  // More than 48 positions: Cabled is the default, and only the 4 cabled ones show.
-  await portsTab(page).click()
-  await expect(filter(page, 'Cabled')).toHaveAttribute('aria-pressed', 'true')
-  await expect(units(page)).toHaveCount(4)
-  const keys = await units(page).evaluateAll((els) =>
-    els.map((e) => e.getAttribute('data-unit')),
-  )
-  expect(keys).toEqual(['1A/2', '2D/4', '3C/2', '3C/5'])
-  // Grouped by subpanel, in row-then-column order.
-  await expect(page.locator('.port-group')).toHaveText([
-    'Subpanel 1A 1',
-    'Subpanel 2D 1',
-    'Subpanel 3C 2',
-  ])
-
-  // Each cabled side: far end, cable ID and circuit network.
-  const p35 = unit(page, '3C/5')
-  const side = (u: ReturnType<typeof unit>, col: string, s: string) =>
-    u.locator(`.${col} [data-side="${s}"]`)
-  await expect(side(p35, 'col-far', 'front')).toContainText('→ HDF-02 · 2B/3')
-  await expect(side(p35, 'col-cable', 'front')).toHaveText('cable-a03')
-  await expect(side(p35, 'col-network', 'front')).toHaveText('Network A')
-  await expect(side(p35, 'col-far', 'rear')).toContainText('→ PANEL-A · 1')
-  await expect(side(p35, 'col-cable', 'rear')).toHaveText('cable-a02')
-  // Network B's circuit on the same subpanel is told apart.
-  const b = unit(page, '3C/2')
-  await expect(side(b, 'col-network', 'front')).toHaveText('Network B')
-  await expect(side(b, 'col-cable', 'front')).toHaveText('cable-b03')
-  await expect(side(b, 'col-cable', 'rear')).toHaveText('cable-b02')
-  await expect(side(b, 'col-far', 'rear')).toContainText('→ PANEL-DR · 1')
-
-  // Subpanel group rows collapse and expand.
-  const group = page.locator('.port-group').filter({ hasText: 'Subpanel 1A' })
-  await group.getByRole('button').click()
-  await expect(group.getByRole('button')).toHaveAttribute(
-    'aria-expanded',
-    'false',
-  )
-  await expect(unit(page, '1A/2')).toHaveCount(0)
-  await group.getByRole('button').click()
-  await expect(unit(page, '1A/2')).toBeVisible()
-
-  // All shows the rest (96 positions in 16 subpanels).
-  await filter(page, 'All').click()
-  await expect(units(page)).toHaveCount(96)
-  await expect(page.locator('.port-group')).toHaveCount(16)
-  await filter(page, 'Free').click()
-  await expect(units(page)).toHaveCount(92)
-  await expect(unit(page, '4A/1')).toContainText('free')
-  await filter(page, 'All').click()
-
-  // Search: "3C/5" and "3C / 5" match the same single position.
-  const search = page.getByLabel('Search endpoints')
-  await search.fill('3C/5')
-  await expect(units(page)).toHaveCount(1)
-  await expect(unit(page, '3C/5')).toBeVisible()
-  await search.fill('3C / 5')
-  await expect(units(page)).toHaveCount(1)
-  await expect(unit(page, '3C/5')).toBeVisible()
-  await search.fill('3c')
-  await expect(units(page)).toHaveCount(6) // 3C has six positions
-  await filter(page, 'Cabled').click()
-  await expect(units(page)).toHaveCount(2)
-  await search.fill('zzz')
-  await expect(page.getByText('Nothing matches.')).toBeVisible()
-
-  // A switch with 24 ports defaults to All.
+  // A switch with 24 ports.
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await inspect(page, 'edge-17')
-  await expect(
-    page.locator('.inspector-header').getByText('3 of 24 cabled'),
-  ).toBeVisible()
-  await portsTab(page).click()
-  await expect(filter(page, 'All')).toHaveAttribute('aria-pressed', 'true')
-  await expect(units(page)).toHaveCount(24)
-  await filter(page, 'Cabled').click()
-  await expect(units(page)).toHaveCount(3)
-  await expect(unit(page, 'edge-17:p1')).toContainText('→ PANEL-A · 1')
-  await expect(unit(page, 'edge-17:p1').locator('.col-cable')).toHaveText(
-    'cable-a01',
-  )
+  await expect(card.getByText('3 of 24 cabled')).toBeVisible()
 })
 
-test('POL-10 Find AGG / BB from an inspector entry, and Show on map selects it on the tree', async ({
+test('POL-10 Find AGG / BB from a jack on the equipment page, and Show on map from the card selects it on the tree', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
-  await inspect(page, 'hdf-01')
-  await portsTab(page).click()
+  await openEquipmentPage(page, 'HDF-01')
+  await page.locator('[data-endpoint-id="hdf-01:sp-3C:5:f"]').click()
 
   // Find AGG / BB from here starts at the front side of the position.
-  await page
-    .getByRole('button', { name: 'Find AGG / BB from here: HDF-01 3C / 5' })
-    .click()
-  const results = page.getByLabel('Trace results')
-  await expect(results.getByTestId('route-row')).toHaveCount(1)
-  await expect(results.getByTestId('route-row')).toContainText('3C/5 front')
-  await expect(results.getByTestId('route-row')).toContainText('AGG-03')
+  await page.getByRole('button', { name: 'Find AGG / BB from here' }).click()
+  await expect(traceRoutes(page)).toHaveCount(1)
+  await expect(traceRoutes(page)).toContainText('AGG-03')
+  await expect(page.getByTestId('trace-title')).toContainText('HDF-01')
+  await leaveTrace(page)
 
-  // Show on map (header): selected on the tree, the route kept.
+  // Show on map (the card): selected on the tree, the route kept.
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await page.getByRole('button', { name: 'Show on map: HDF-01' }).click()
   await expect(page.locator(`[data-card-key="${BUILDING_A}"]`)).toHaveAttribute(
@@ -158,7 +76,7 @@ test('POL-10 Find AGG / BB from an inspector entry, and Show on map selects it o
     'HDF-01',
   )
   await expandResults(page)
-  await expect(results.getByTestId('route-row')).toHaveCount(1)
+  await expect(traceRoutes(page)).toHaveCount(1)
 })
 
 test('POL-11 the location links open the site or node in Physical, and the rack opens in Physical', async ({
@@ -211,112 +129,13 @@ test('whole-device Find AGG / BB is offered for switches only', async ({
   for (const card of ['panel-a', 'hdf-01']) {
     await inspect(page, card)
     await expect(device(card.toUpperCase())).toHaveCount(0)
-    // Positions can still start a search from one exact endpoint.
-    await portsTab(page).click()
-    await expect(
-      page.getByRole('button', { name: /^Find AGG \/ BB from here:/ }).first(),
-    ).toBeVisible()
     await page
       .getByRole('button', { name: 'Close Equipment inspector' })
       .click()
   }
 })
 
-test('POL-20 the inspector has Overview and Ports tabs, a compact port table, always-visible row actions and a sticky header', async ({
-  page,
-}) => {
-  await page.goto('/')
-  await fitted(page)
-  await inspect(page, 'panel-a')
-
-  // Tabs: Overview first, then Positions for a passive panel (Ports for a switch).
-  const tabs = page
-    .getByRole('tablist')
-    .filter({ hasText: 'Overview' })
-    .getByRole('tab')
-  await expect(tabs).toHaveText(['Overview', 'Positions', 'History'])
-  await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
-  const overview = page.getByRole('tabpanel')
-  const overviewBadge = overview
-    .getByTestId('network-count')
-    .locator('.network-badge', { hasText: 'Network A' })
-  const overviewColor = await overviewBadge.evaluate(
-    (e) => (e.querySelector('.dot') as HTMLElement).style.backgroundColor,
-  )
-  await expect(overview).toContainText('Rack A03')
-  await expect(overview).toContainText('U11')
-  await expect(overview.getByTestId('network-count')).toHaveText([
-    /Network A.*3 cabled/,
-  ])
-
-  // Positions: one compact row per position, front and rear as two lines in it.
-  await portsTab(page).click()
-  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByRole('columnheader')).toHaveText([
-    'Position',
-    'Far end',
-    'Cable',
-    'Network',
-    '',
-  ])
-  await expect(units(page)).toHaveCount(24)
-  const p1 = unit(page, '1')
-  await expect(p1.locator('.col-far [data-side]')).toHaveCount(2)
-  await expect(p1.locator('.col-cable [data-side]')).toHaveCount(2)
-
-  // The table's network badge is colored like the same network's badge on the Overview tab.
-  const tableBadge = p1.locator('.col-network .network-badge').first()
-  await expect(tableBadge).toHaveText('Network A')
-  expect(
-    await tableBadge.evaluate(
-      (e) => (e.querySelector('.dot') as HTMLElement).style.backgroundColor,
-    ),
-  ).toBe(overviewColor)
-
-  // Row actions are always visible (no hover), small, with tooltips and names.
-  const trace = p1.getByRole('button', {
-    name: 'Find AGG / BB from here: PANEL-A 1',
-  })
-  await expect(trace).toBeVisible()
-  await expect(trace).toHaveAttribute('title', 'Find AGG / BB from here')
-  expect((await trace.boundingBox())!.width).toBeLessThanOrEqual(28)
-  // There is no Pin on map (D35): a row has Find, Show in Physical and, in a plan, Connect.
-  await expect(
-    p1.getByRole('button', { name: /^(Un)?[Pp]in on map/ }),
-  ).toHaveCount(0)
-
-  // Clicking a row selects it.
-  await p1.click({ position: { x: 4, y: 4 } })
-  await expect(p1).toHaveAttribute('data-selected', 'true')
-  await unit(page, '2').click({ position: { x: 4, y: 4 } })
-  await expect(p1).not.toHaveAttribute('data-selected', 'true')
-
-  // A switch port is a single compact line.
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  await inspect(page, 'edge-17')
-  await portsTab(page).click()
-  expect((await unit(page, 'edge-17:p1').boundingBox())!.height).toBeLessThan(
-    40,
-  )
-
-  // The header stays visible while a long table scrolls under it.
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
-  await inspect(page, 'hdf-01')
-  await portsTab(page).click()
-  await filter(page, 'All').click()
-  const content = page.locator('.dock:not([hidden]) .dock-body:not([hidden])')
-  await content.evaluate((el) => (el.scrollTop = el.scrollHeight))
-  const header = page.locator('.inspector-header')
-  await expect(header).toBeInViewport()
-  const top = (await content.boundingBox())!.y
-  expect(Math.abs((await header.boundingBox())!.y - top)).toBeLessThanOrEqual(2)
-  await expect(units(page).last()).toBeInViewport()
-  await expect(
-    header.getByRole('button', { name: 'Show on map: HDF-01' }),
-  ).toBeVisible()
-})
-
-test('POL-21 the inspector has no trace form: one Find AGG / BB button, and its result shows in a tab with no form', async ({
+test('POL-21 the inspector has no trace form: one Find AGG / BB button, and its result opens the Trace page, with no form', async ({
   page,
 }) => {
   await page.goto('/')
@@ -331,44 +150,11 @@ test('POL-21 the inspector has no trace form: one Find AGG / BB button, and its 
     .getByRole('button', { name: /Find AGG \/ BB/ })
   await expect(find).toHaveCount(1)
   await find.click()
-  await expect(
-    page.getByLabel('Trace results').getByTestId('route-row'),
-  ).toHaveCount(3)
-  // The Trace tab, which the trace opened, has no form.
+  await expect(traceRoutes(page)).toHaveCount(3)
+  // The Trace page, which the trace opened, has no form.
   await expect(page.getByRole('combobox', { name: 'Trace mode' })).toHaveCount(
     0,
   )
-})
-
-test('POL-20 the tabs follow the WAI-ARIA pattern: roving tabindex and arrow keys', async ({
-  page,
-}) => {
-  await page.goto('/')
-  await fitted(page)
-  await inspect(page, 'edge-17')
-  const overview = page.getByRole('tab', { name: 'Overview' })
-  const ports = page.getByRole('tab', { name: 'Ports' })
-  await expect(overview).toHaveAttribute('tabindex', '0')
-  await expect(ports).toHaveAttribute('tabindex', '-1')
-  await overview.focus()
-  await page.keyboard.press('ArrowRight')
-  await expect(ports).toBeFocused()
-  await expect(ports).toHaveAttribute('aria-selected', 'true')
-  await expect(ports).toHaveAttribute('tabindex', '0')
-  await expect(overview).toHaveAttribute('tabindex', '-1')
-  await expect(page.getByRole('tabpanel')).toContainText('24 of 24 ports')
-  const history = page.getByRole('tab', { name: 'History' })
-  await page.keyboard.press('ArrowRight') // History is the third tab
-  await expect(history).toBeFocused()
-  await expect(history).toHaveAttribute('aria-selected', 'true')
-  await page.keyboard.press('ArrowRight') // wraps around
-  await expect(overview).toBeFocused()
-  await expect(overview).toHaveAttribute('aria-selected', 'true')
-  await page.keyboard.press('ArrowLeft') // and back
-  await expect(history).toBeFocused()
-  await page.keyboard.press('ArrowLeft')
-  await expect(ports).toBeFocused()
-  await expect(ports).toHaveAttribute('aria-selected', 'true')
 })
 
 test('POL-35 Enter or Space on a focused card opens its drawer, Enter on a switch and on Inspector works like a click, and Escape closes the drawer and returns focus', async ({

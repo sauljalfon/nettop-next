@@ -472,3 +472,48 @@
     border-bottom: 1px solid var(--rule);
   }
 }
+
+/* The route chip (D49): the trace while its page is closed, at the top of the tree and of Physical. */
+.route-chip {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  max-width: min(640px, calc(100% - 160px));
+  background: var(--route-soft);
+  border: 1px solid var(--route);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pop);
+  font-size: var(--t-sm);
+  color: var(--ink);
+}
+.route-chip.below-bar {
+  top: 56px;
+  left: auto;
+  right: 25px;
+  transform: none;
+}
+.route-chip button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.route-chip-open {
+  min-width: 0;
+  padding: 5px 6px 5px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.route-chip-clear {
+  display: grid;
+  place-items: center;
+  padding: 5px 8px 5px 4px;
+  border-radius: 999px;
+}

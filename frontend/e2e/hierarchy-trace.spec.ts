@@ -3,7 +3,9 @@ import {
   expandResults,
   fitted,
   hierarchyState,
+  leaveTrace,
   settledViewport,
+  traceRoutes,
   viewport,
 } from './helpers'
 
@@ -16,8 +18,14 @@ const card = (page: Page, key: string) =>
 const line = (page: Page, key: string) => page.locator(`[data-line="${key}"]`)
 const equipmentCard = (page: Page, id: string) =>
   page.locator(`[data-equipment-id="${id}"]`)
-const rows = (page: Page) =>
-  page.getByLabel('Trace results').getByTestId('route-row')
+const rows = traceRoutes
+/** Chooses a route on the Trace page and goes back to the tree, which lights it in place. */
+async function chooseRoute(page: Page, index: number) {
+  await expandResults(page)
+  await rows(page).nth(index).click()
+  await expect(rows(page).nth(index)).toHaveAttribute('aria-pressed', 'true')
+  await leaveTrace(page)
+}
 const BUILDING_A = 'agg-03+agg-08|node-building-a'
 const drawer = (page: Page) => page.getByTestId('hierarchy-drawer')
 
@@ -32,8 +40,10 @@ async function findFromEdge17(page: Page) {
   await card(page, BUILDING_A).click()
   await drawer(page).locator('[data-switch-id="edge-17"]').click()
   await drawer(page).getByRole('button', { name: 'Find AGG / BB' }).click()
+  await expect(page.getByTestId('trace-page')).toBeVisible()
   await expect(rows(page)).toHaveCount(3)
-  // The results are in the Trace tab, which stays open beside the tree.
+  // ← Back: the tree stays, the route lit, with the route chip.
+  await leaveTrace(page)
 }
 
 test('HI-10 the route lights its cards and lines in place; choosing another route moves nothing', async ({
@@ -56,8 +66,7 @@ test('HI-10 the route lights its cards and lines in place; choosing another rout
   )
 
   // The BB-01 route: the lit cards change, nothing moves.
-  await rows(page).nth(2).click()
-  await expect(rows(page).nth(2)).toContainText('BB-01')
+  await chooseRoute(page, 2)
   await expect(card(page, 'bb-01')).toHaveAttribute('data-on-route', 'true')
   await expect(card(page, 'agg-03')).toHaveAttribute('data-on-route', 'false')
   await expect(card(page, BUILDING_A)).toHaveAttribute('data-on-route', 'true')
@@ -77,16 +86,16 @@ test('HI-10 nothing is dimmed: with Network B shown the A route is not drawn, an
 }) => {
   await toHierarchy(page)
   await findFromEdge17(page)
-  // Clear the selection (the Node tab's ×); the dock goes back to the Trace tab.
+  // Clear the selection (the Node tab's ×).
   await page.getByRole('tab', { name: 'Node' }).click()
   await page.getByRole('button', { name: 'Close Node details' }).click()
-  await expect(rows(page)).toHaveCount(3)
+  await expect(page.getByTestId('route-chip')).toBeVisible()
   await page
     .getByRole('combobox', { name: 'Show network' })
     .selectOption({ label: 'Network B' })
   await expect(root(page)).toHaveAttribute('data-network', 'net-b')
   await expect(root(page)).toHaveAttribute('data-fitted', 'true')
-  await expect(rows(page)).toHaveCount(3)
+  await expect(page.getByTestId('route-chip')).toBeVisible()
   await expect(card(page, 'agg-12')).toHaveAttribute('data-on-route', 'false')
   await expect(page.locator('.dimmed')).toHaveCount(0)
   await page
@@ -102,12 +111,11 @@ test('HI-10 the route of EDGE-17 lights the AGG-03 card, and choosing another ro
   await toHierarchy(page)
   await findFromEdge17(page)
   await card(page, BUILDING_A).click()
-  await expandResults(page) // the click opened the Node tab; back to Trace
   await expect(card(page, 'agg-03')).toHaveAttribute('data-on-route', 'true')
   await expect(card(page, 'agg-08')).toHaveAttribute('data-on-route', 'false')
   await settledViewport(page)
   const view = await viewport(page)
-  await rows(page).nth(2).click()
+  await chooseRoute(page, 2)
   await expect(card(page, 'bb-01')).toHaveAttribute('data-on-route', 'true')
   await expect(card(page, 'agg-03')).toHaveAttribute('data-on-route', 'false')
   expect(await viewport(page)).toBe(view)

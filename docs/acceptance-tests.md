@@ -186,7 +186,9 @@ Every spec reaches equipment through Explore (`selectEquipment`, which selects i
 | D47-01 | Browser: a site or node name in Explore (on Conceptual) and in the inspector's place line opens it in Physical | `views` |
 | D47-02, D47-03 | Browser: with a route selected, EDGE-17's page has no trail and no Uplinks block (the ↑ marks stay); its inspector has no Uplinks block | `walk-sheet` |
 | D48-01, D48-02 | Browser: PANEL-A's page has Pairs \| Pigtails, its jacks read 1/2 … 47/48 by pigtails, the choice is shared with HDF-01; patching names a panel jack by its fibers | `hdfplate`, `patching` |
-| TT-05 | Browser: the Trace tab has no form; Find AGG / BB from a switch shows the routes; Clear trace removes the tab | `trace-tab` |
+| TT-05 | Retired with the Trace tab (D49, 2026-11-24); successor D49-01 | — |
+| D49-01–D49-04 | Browser: Find AGG / BB opens the Trace page on All routes; ← Back keeps the route lit with the route chip, which reopens the page, × clears it; a failed trace shows on the page; from a jack in Physical too | `trace-chip` |
+| D49-05–D49-10 | Browser: the inspector is a short card (Conceptual and Physical); ⋯ History opens the History tab; ⋯ Move to another rack… in a plan (disabled in Installed); Inventory's Delete…/Disconnect… still confirm; an Explore port hit opens its jack; Edit details opens under the bar | `inspector-card` |
 | HI-11 | `/api/map-layout` answers 404 like an unknown path; the client has no map-layout calls | `httpapi/server_test.go`, `src/shared/api.test.ts` |
 | HI-12 | Retired as written; successor OV-12: the first tree draw (fitted), a selection to lit, opening the busiest node, the drawer of an AGG; the Problems list with its uplink rows; timings in [status.md](status.md) (measurements, not budgets) | `scale` (`SCALE=1`; with SC-02) |
 | HI-13 | A direct fix renames Building A to a long Hebrew name while its drawer is open: card, frame and drawer show it isolated and cut, the drawer stays on the same card, nothing moves; the name is restored after | `hierarchy.recording` |

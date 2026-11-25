@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from './fixtures'
 import { exportHeader, pdfText } from '../src/features/map/exportRoute'
-import { fitted, selectEquipment } from './helpers'
+import { fitted, oneRoute, selectEquipment } from './helpers'
 import { newPlan } from './plan-api'
 
 // The export lives on the Trace page (D46); its files, sizes and the Picture-only and
@@ -18,11 +18,8 @@ async function openPageFromEdge17(page: Page, url = '/') {
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
-  await expect(
-    page.getByLabel('Trace results').getByTestId('route-row'),
-  ).toHaveCount(3)
-  await page.getByRole('button', { name: 'Open full page ⤢' }).click()
   await expect(page.getByTestId('trace-drawing')).toBeVisible()
+  await oneRoute(page)
 }
 
 async function pdfBytes(page: Page) {

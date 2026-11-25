@@ -37,15 +37,21 @@ test('HI-13 a long Hebrew name from a direct fix, while the drawer is open: isol
   try {
     await renameNode(page, HEBREW)
     // A direct fix made in the app refetches the topology: edit a detail of the
-    // switch in the inspector, which the drawer opens.
+    // switch on its page (the card opens it), then come back to the tree.
     await drawer(page).locator('[data-switch-id="edge-17"]').click()
     await drawer(page).getByRole('button', { name: 'Inspector' }).click()
-    const details = page.getByTestId('equipment-details')
-    await details.getByRole('button', { name: 'Edit details' }).click()
+    await page
+      .getByRole('button', { name: 'Open in Physical: EDGE-17' })
+      .click()
+    await page
+      .getByTestId('equipment-details')
+      .getByRole('button', { name: 'Edit details' })
+      .click()
     const form = page.getByTestId('details-form')
     await form.getByLabel('Model').fill('HI-13')
     await form.getByRole('button', { name: 'Save fix' }).click()
     await expect(form).toHaveCount(0)
+    await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
 
     // The card, the drawer and the key are the same; the name is new.
     await showNodeDetails(page) // the Inspector has the dock; the Node tab is beside it

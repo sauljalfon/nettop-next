@@ -7,12 +7,11 @@ import {
   dockSession,
   forContext,
   initialDock,
+  openHistory,
   openTab,
   railClick,
+  tabLabel,
   tabsFor,
-  traceAvailable,
-  traceGone,
-  traceShown,
   type DockState,
 } from './dock'
 
@@ -93,46 +92,35 @@ describe('dock transitions', () => {
   })
 })
 
-describe('the Trace tab', () => {
-  it('is listed only while there is a trace', () => {
-    expect(tabsFor(initialDock, false)).not.toContain('trace')
-    const s = traceShown(initialDock)
-    expect(s).toMatchObject({ open: true, tab: 'trace' })
-    expect(tabsFor(s, false)).toEqual([
-      'inspector',
-      'trace',
-      'explore',
-      'changes',
-    ])
-    expect(tabsFor(traceAvailable(initialDock), false)).toContain('trace')
-    expect(traceAvailable(initialDock).open).toBe(false)
+describe('no Trace tab (D49)', () => {
+  it('tabs never include trace', () => {
+    for (const planned of [false, true])
+      for (const state of [
+        initialDock,
+        open('explore'),
+        detailsShown(initialDock, 'Node'),
+        open('networks'),
+      ])
+        expect(tabsFor(state, planned)).not.toContain('trace')
   })
-  it('cannot be opened without a trace', () => {
-    expect(openTab(initialDock, 'trace')).toBe(initialDock)
-    expect(railClick(initialDock, 'trace')).toBe(initialDock)
+})
+
+describe('the History tab (D49)', () => {
+  it('opens for one equipment and is a tab only while it is the open one', () => {
+    const s = openHistory(open('inspector'), 'edge-17')
+    expect(s).toMatchObject({
+      open: true,
+      tab: 'history',
+      historyFor: 'edge-17',
+    })
+    expect(tabsFor(s, false).at(-1)).toBe('history')
+    expect(tabLabel(s, 'history')).toBe('History')
+    expect(tabsFor(openTab(s, 'inspector'), false)).not.toContain('history')
+    expect(tabsFor(initialDock, true)).not.toContain('history')
   })
-  it('clearing it on the tab goes to the last other tab', () => {
-    const s = traceShown(openTab(initialDock, 'explore'))
-    expect(s.tab).toBe('trace')
-    const gone = traceGone(s)
-    expect(gone).toMatchObject({ open: true, tab: 'explore' })
-    expect(gone.trace).toBeUndefined()
-    expect(tabsFor(gone, false)).not.toContain('trace')
-  })
-  it('clearing it with no other tab closes the dock', () => {
-    const gone = traceGone(traceShown(initialDock))
-    expect(gone.open).toBe(false)
-    expect(gone.trace).toBeUndefined()
-  })
-  it('details gone returns to the trace tab, and a cleared trace is never returned to', () => {
-    const s = detailsShown(traceShown(openTab(initialDock, 'explore')), 'Node')
-    expect(detailsGone(s)).toMatchObject({ open: true, tab: 'trace' })
-    const cleared = traceGone(openTab(s, 'trace'))
-    expect(cleared.last).toBe('explore')
-  })
-  it('clearing it while on another tab only removes the tab', () => {
-    const s = openTab(traceShown(initialDock), 'changes')
-    expect(traceGone(s)).toMatchObject({ open: true, tab: 'changes' })
+  it('is never the tab that closing the details returns to', () => {
+    const s = detailsShown(openHistory(initialDock, 'edge-17'), 'Port')
+    expect(detailsGone(s).open).toBe(false)
   })
 })
 

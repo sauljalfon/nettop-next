@@ -66,11 +66,11 @@ test('VP-01 Hebrew names sit in their own bdi, and a location reads site › nod
     HEBREW.equipment.now,
   )
   const crumb = page.locator('.location-breadcrumb')
+  // The card's place line ends at the rack and its unit; the name is its heading.
   expect(await texts(crumb.locator('bdi'))).toEqual([
     'Main Campus',
     'Building A',
     HEBREW.racks.now,
-    HEBREW.equipment.now,
   ])
 
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()

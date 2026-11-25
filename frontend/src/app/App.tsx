@@ -41,7 +41,6 @@ import Dock, { DockBody, DockProvider } from '../features/frame/DockView'
 import { dockSession, useDock, type DockState } from '../features/frame/dock'
 import {
   buildSearchItems,
-  inspectorQuery,
   searchExplore,
   type SearchItems,
 } from '../features/explore/portSearch'
@@ -63,18 +62,17 @@ import {
   ViewSwitch,
   type MapView,
 } from '../features/map/MapControls'
-import TraceTab from '../features/frame/TraceTab'
+import RouteChip from '../features/trace/RouteChip'
 import TracePage from '../features/trace/TracePage'
-import { walkOfRoute } from '../features/paths/follow'
-import { buildSheet } from '../features/paths/sheet'
 import LibraryItems, {
   type PendingEquipment,
 } from '../features/planning/LibraryItems'
 import { locationTree } from '../features/patching/patching'
-import PlacementEditor from '../features/planning/PlacementEditor'
+import { lowestFreeUnit } from '../features/planning/placement'
 import { filterTree } from '../features/explore/tree'
 import { canFindFromDevice } from '../features/inspector/model'
 import { endpointLabel } from '../features/pathfinding/projection'
+import HistoryTab from '../features/details/HistoryTab'
 import Inspector, { type OpenRequest } from '../features/inspector/Inspector'
 import {
   indexSnapshot,
@@ -578,8 +576,6 @@ function Workspace({
   // On the Trace page the view underneath is the one it came from.
   const onTracePage = viewState === 'trace'
   const view = onTracePage ? pageBack : viewState
-  const onTracePageRef = useRef(onTracePage)
-  onTracePageRef.current = onTracePage
   const closeDrawer = dockSession.close
   const [selected, setSelected] = useState(snapshot.equipment[0]?.id ?? '')
   const [physicalError, setPhysicalError] = useState('')
@@ -597,28 +593,24 @@ function Workspace({
       traceSession.selectRoute(route && { start: route.start, end: route.end })
     },
   })
-  // A failed trace shows its error in the Trace tab, so the dock opens there.
-  useEffect(() => {
-    // On the Trace page the error shows there (the effect must not run again on ← Back).
-    if (traceMutation.isError && !onTracePageRef.current)
-      dockSession.showTrace()
-  }, [traceMutation.isError])
   // A trace the user starts is remembered outside this Workspace, so an
   // Installed/Plan switch (which remounts it) can run it again; clearing forgets it.
   const startTrace = useCallback(
     (request: TraceRequest) => {
+      // ← Back returns to the dock as it is now (the page has no dock).
+      const before = dockSession.get()
       traceSession.start(request)
+      traceSession.setPageView('all')
       setRouteFellBack(false)
-      dockSession.showTrace()
       traceMutation.mutate({ request })
+      onOpenPage(before)
     },
-    [traceMutation.mutate],
+    [traceMutation.mutate, onOpenPage],
   )
   const clearTrace = useCallback(() => {
     traceSession.clear()
     setRouteFellBack(false)
     traceMutation.reset()
-    dockSession.hideTrace()
   }, [traceMutation.reset])
   const placement = useMutation({
     mutationFn: (input: {
@@ -668,24 +660,12 @@ function Workspace({
     traceMutation.data?.revision === snapshot.revision
       ? traceMutation.data.routes[routeIndex]
       : undefined
-  // One walk sheet for the selected route, read by the results panel.
-  const routeSheet = useMemo(
-    () =>
-      route
-        ? buildSheet(index, snapshot.networks, walkOfRoute(index, route))
-        : undefined,
-    [index, snapshot.networks, route],
-  )
   // On mount (a context switch) and whenever the topology revision changes, the
   // remembered trace is run again against this snapshot.
   useEffect(() => {
     placement.reset()
     const stored = traceSession.get()
-    if (!stored) {
-      dockSession.hideTrace()
-      return traceMutation.reset()
-    }
-    dockSession.traceAvailable()
+    if (!stored) return traceMutation.reset()
     setRouteFellBack(false)
     traceMutation.mutate({ request: stored.request, wanted: stored.route })
   }, [snapshot.revision])
@@ -750,14 +730,6 @@ function Workspace({
       onViewChange('physical')
     },
     [index, onViewChange],
-  )
-  // A row's Server button: that endpoint, in Physical.
-  const showStepInPhysical = useCallback(
-    (endpointId: string) => {
-      const owner = index.owner.get(endpointId)
-      if (owner) showInPhysical(owner, endpointId)
-    },
-    [index, showInPhysical],
   )
   const openEndpointPhysical = useCallback(
     (endpointId: string) => {
@@ -849,24 +821,10 @@ function Workspace({
       const item = snapshot.equipment.find((e) => e.id === id),
         rack = snapshot.racks.find((r) => r.id === rackID)
       if (!item || !rack) return
-      const occupied = new Set(
-        snapshot.equipment
-          .filter((e) => e.rackId === rackID && e.id !== id)
-          .flatMap((e) =>
-            Array.from({ length: e.height }, (_, i) => e.unit + i),
-          ),
-      )
-      const first = Array.from({ length: rack.units }, (_, i) => i + 1).find(
-        (u) =>
-          u + item.height - 1 <= rack.units &&
-          Array.from({ length: item.height }, (_, i) => u + i).every(
-            (slot) => !occupied.has(slot),
-          ),
-      )
       placement.mutate({
         equipmentId: id,
         rackId: rackID,
-        unit: unit ?? first ?? rack.units + 1,
+        unit: unit ?? lowestFreeUnit(snapshot, rackID, id),
       })
     },
     [plan, snapshot],
@@ -895,30 +853,15 @@ function Workspace({
     [onViewChange],
   )
   // A passive chip in the drawer, or Full page on a jack's path: Find AGG / BB from that
-  // jack, and the Trace page opens (it says "Tracing…" until the server answers).
-  const showJackRoute = useCallback(
-    (endpointId: string) => {
-      // ← Back returns to the dock as it is now, not to the Trace tab the new trace opens.
-      const before = dockSession.get()
-      traceFromPort(endpointId)
-      onOpenPage(before)
-    },
-    [traceFromPort, onOpenPage],
-  )
-  // A row of the Inventory: select its equipment and open the inspector, on the
-  // port when the row has one (the same request Explore's port hits make).
+  // jack (the Trace page opens and says "Tracing…" until the server answers).
+  const showJackRoute = traceFromPort
+  // A row of the Inventory: select its equipment and open the inspector card.
   const openFromInventory = useCallback(
-    (equipmentId: string, endpointId?: string) => {
+    (equipmentId: string) => {
       setSelected(equipmentId)
-      if (endpointId)
-        setPortSearch((previous) => ({
-          equipmentId,
-          query: inspectorQuery(index, endpointId),
-          serial: (previous?.serial ?? 0) + 1,
-        }))
       onSelectEquipment()
     },
-    [index, onSelectEquipment],
+    [onSelectEquipment],
   )
   // The Inventory's Delete… and Disconnect…: the inspector on that equipment with
   // the confirm already open (the Inspector takes the request once).
@@ -935,8 +878,8 @@ function Workspace({
     [openFromInventory],
   )
   const askDisconnect = useCallback(
-    (equipmentId: string, endpointId: string | undefined, linkId: string) => {
-      openFromInventory(equipmentId, endpointId)
+    (equipmentId: string, _endpointId: string | undefined, linkId: string) => {
+      openFromInventory(equipmentId)
       setOpenRequest((previous) => ({
         kind: 'disconnect',
         equipmentId,
@@ -956,36 +899,17 @@ function Workspace({
     },
     [onNetworkChange, onViewChange],
   )
-  // A port or cable chosen in Explore's search. In Physical it opens that endpoint
-  // on its equipment page; in Conceptual it selects the equipment on the tree
-  // and opens the inspector's Ports/Positions tab filtered to that label.
-  const [portSearch, setPortSearch] = useState<{
-    equipmentId: string
-    query: string
-    serial: number
-  }>()
+  // A port or cable chosen in Explore's search opens that jack on its equipment
+  // page in Physical, from either view; in the Inventory it opens the card.
   const chooseSearchHit = useCallback(
     (endpointId: string) => {
       const owner = index.owner.get(endpointId)
       if (!owner) return
       if (view === 'physical') return openEndpointPhysical(endpointId)
-      if (view === 'inventory') return openFromInventory(owner, endpointId)
-      setPortSearch((previous) => ({
-        equipmentId: owner,
-        query: inspectorQuery(index, endpointId),
-        serial: (previous?.serial ?? 0) + 1,
-      }))
-      showOnMap(owner)
-      onSelectEquipment()
+      if (view === 'inventory') return openFromInventory(owner)
+      showInPhysical(owner, endpointId)
     },
-    [
-      index,
-      view,
-      openEndpointPhysical,
-      openFromInventory,
-      showOnMap,
-      onSelectEquipment,
-    ],
+    [index, view, openEndpointPhysical, openFromInventory, showInPhysical],
   )
   // Equipment chosen in Explore (a click, or Enter in its search) also opens the inspector.
   const chooseEquipment = useCallback(
@@ -1005,13 +929,11 @@ function Workspace({
   )
   const drawerEquipment = equipment && (
     <Inspector
-      onFixed={onFixed}
       snapshot={snapshot}
       index={index}
       equipment={equipment}
       installedIDs={installedIDs}
       onFindFromDevice={traceSelectedDevice}
-      onFindFromHere={traceFromPort}
       // Leaving the inspector for the map: its drawer closes, so the tree has the room.
       onShowOnMap={(id) => {
         showOnMap(id)
@@ -1023,21 +945,9 @@ function Workspace({
       onOpenRequestHandled={() => setOpenRequest(undefined)}
       onOpenPlace={openPlace}
       onOpenRack={openRack}
-      searchRequest={portSearch}
       edit={edit}
       installedLinkIDs={installedLinkIDs}
-    >
-      {plan && (
-        <PlacementEditor
-          key={`${equipment.id}:${equipment.rackId}:${equipment.unit}`}
-          equipment={equipment}
-          tree={tree}
-          racks={snapshot.racks}
-          pending={!canEdit}
-          onMove={(input) => placement.mutate(input)}
-        />
-      )}
-    </Inspector>
+    />
   )
   const dockErrors = (
     <>
@@ -1119,6 +1029,7 @@ function Workspace({
           onFindFromEndpoint={traceFromPort}
           onFullPage={showJackRoute}
           onShowOnMap={showOnMap}
+          onOpenHistory={(id) => dockSession.openHistory(id)}
           onOpenInInventory={openInInventory}
           onError={setPhysicalError}
         />
@@ -1157,32 +1068,38 @@ function Workspace({
           canEdit={canEdit}
         />
       </DockBody>
+      <DockBody tab="history">
+        {dock.historyFor && (
+          <>
+            <p className="muted">
+              History of{' '}
+              <Name
+                text={
+                  index.equipment.get(dock.historyFor)?.name ?? dock.historyFor
+                }
+              />
+            </p>
+            <HistoryTab key={dock.historyFor} equipmentId={dock.historyFor} />
+          </>
+        )}
+      </DockBody>
       <DockBody tab="inspector">
         {drawerEquipment}
         {dockErrors}
       </DockBody>
-      <DockBody tab="trace">
-        <TraceTab
-          snapshot={snapshot}
-          pending={traceMutation.isPending}
-          error={traceMutation.error?.message}
-          onRefresh={() => void onRefresh()}
-          result={traceResult}
-          routeIndex={routeIndex}
-          onRoute={chooseRouteIndex}
-          sheet={routeSheet}
-          note={routeFellBack ? ROUTE_NOT_HERE : undefined}
-          onHop={(endpointId) => {
-            const port = snapshot.endpoints.find((p) => p.id === endpointId)
-            if (!port) return
-            if (view === 'physical') return openEndpointPhysical(endpointId)
-            select(port.equipmentId)
-          }}
-          onShowInPhysical={showStepInPhysical}
-          onClear={() => clearTrace()}
-          onOpenPage={() => onOpenPage()}
-        />
-      </DockBody>
+      {!onTracePage &&
+        (view === 'conceptual' || view === 'physical') &&
+        traceSession.get() && (
+          <RouteChip
+            snapshot={snapshot}
+            request={traceSession.get()!.request}
+            result={traceResult}
+            routeIndex={routeIndex}
+            belowBar={view === 'physical'}
+            onOpen={() => onOpenPage()}
+            onClear={clearTrace}
+          />
+        )}
       {onTracePage && (
         <TracePage
           snapshot={snapshot}
@@ -1198,6 +1115,7 @@ function Workspace({
           onOpen={showInPhysical}
           onShowOnMap={() => onViewChange('conceptual')}
           planName={plan?.name}
+          note={routeFellBack ? ROUTE_NOT_HERE : undefined}
         />
       )}
       {placement.error && !(dock.open && dock.tab === 'inspector') && (

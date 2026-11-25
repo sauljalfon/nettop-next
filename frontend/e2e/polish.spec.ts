@@ -1,14 +1,17 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, selectEquipment, findAggBb } from './helpers'
+import {
+  fitted,
+  selectEquipment,
+  findAggBb,
+  leaveTrace,
+  traceRoutes,
+} from './helpers'
 
-const rows = (page: Page) =>
-  page.getByLabel('Trace results').getByTestId('route-row')
-
-// The trace from the Trace tools, so the hierarchy stays the view and its own buttons are on screen.
+// The trace from a switch's inspector, then ← Back, so the hierarchy stays the view and its own buttons are on screen.
 async function traceFromTools(page: Page) {
   await findAggBb(page, 'EDGE-17')
-  await expect(rows(page)).toHaveCount(3)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
 }
 
 test('POL-02 every overlay button stays clickable with each tool open in the dock (Add is disabled in Installed)', async ({

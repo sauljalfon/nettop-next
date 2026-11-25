@@ -1,5 +1,13 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, expandResults, findAggBb } from './helpers'
+import {
+  fitted,
+  expandResults,
+  findAggBb,
+  leaveTrace,
+  oneRoute,
+  traceRoutes,
+  openInspector,
+} from './helpers'
 
 // The explorer writes its state on its root, so these specs assert the model
 // (level, location, route marks, positions) rather than counting drawn elements.
@@ -24,7 +32,8 @@ async function toPhysical(page: Page) {
 /** Find AGG / BB from EDGE-17; the first route (AGG-03) is selected. */
 async function traceAgg03(page: Page) {
   await findAggBb(page)
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
 }
 
 const nodeCard = (page: Page, id: string) => page.getByTestId(`rf__node-${id}`)
@@ -472,23 +481,18 @@ test('PHY-19 the cables to other sites open as a list too', async ({
   ])
 })
 
-test('results in Physical are the same Trace tab, with no Route view button or export, and a hop opens its rack', async ({
+test('in Physical the route chip reopens the Trace page, and a walk row opens its rack', async ({
   page,
 }) => {
   await toPhysical(page)
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   await traceAgg03(page)
   await physical(page).click()
-  const results = page.getByLabel('Trace results')
   await expandResults(page)
-  await expect(results).toBeVisible()
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
-  await expect(results.getByRole('button', { name: 'Route view' })).toHaveCount(
-    0,
-  )
-  await expect(results.getByRole('button', { name: /^Export/ })).toHaveCount(0)
+  await expect(traceRoutes(page)).toHaveCount(3)
   // Selecting another route changes the marks and never navigates.
-  await page.getByTestId('route-row').nth(1).click()
+  await traceRoutes(page).nth(1).click()
+  await leaveTrace(page)
   await expectMark(
     page,
     'data-route-equipment',
@@ -496,9 +500,12 @@ test('results in Physical are the same Trace tab, with no Route view button or e
   )
   await expectMark(page, 'data-location', 'sites')
   // A walk row opens the endpoint's equipment in Physical.
-  await results
+  await expandResults(page)
+  await oneRoute(page)
+  await page
     .getByTestId('walk-row')
-    .filter({ hasText: 'in front 1D/2' })
+    .filter({ hasText: '1D/2' })
+    .getByRole('button', { name: 'Open' })
     .click()
   await expect(root(page)).toHaveAttribute('data-location', /rack:rack-core-01/)
   // Clear trace removes the marks only.
@@ -548,10 +555,10 @@ test('PHY-20 the site screen fits into the visible area, on entering and after R
 }) => {
   await toPhysical(page)
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-  await traceAgg03(page) // results overlay expanded
+  await traceAgg03(page) // the route chip stays on the page
   await physical(page).click()
-  await expect(page.getByLabel('Trace results')).toBeVisible()
-  await page.getByRole('button', { name: 'Open inspector' }).click()
+  await expect(page.getByTestId('route-chip')).toBeVisible()
+  await openInspector(page)
   await expect(page.locator('.dock:not([hidden])')).toBeVisible()
 
   await openMainCampus(page)

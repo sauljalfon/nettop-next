@@ -58,6 +58,8 @@ interface Props {
   /** The tree, with the chosen route lit in place. */
   onShowOnMap: () => void
   planName?: string
+  /** A muted line, for example that the selected route is not in this context. */
+  note?: string
 }
 
 const typing = (el: Element | null) =>
@@ -207,8 +209,7 @@ export default function TracePage(props: Props) {
           <>
             <h2>No trace</h2>
             <p className="sub">
-              Run Find AGG / BB from the dock’s Trace tab or from a jack, then
-              open it here.
+              Run Find AGG / BB from a switch or from a jack, then open it here.
             </p>
           </>
         )}
@@ -250,6 +251,11 @@ export default function TracePage(props: Props) {
           </span>
         )}
       </div>
+      {props.note && (
+        <p className="sub" data-testid="route-note">
+          {props.note}
+        </p>
+      )}
       {notice && (
         <p className="callout" data-testid="truncation">
           {notice}

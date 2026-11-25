@@ -1,5 +1,10 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, openRackInPhysical, selectEquipment } from './helpers'
+import {
+  chooseMore,
+  fitted,
+  openEquipmentPage,
+  openRackInPhysical,
+} from './helpers'
 import {
   addSwitch,
   getPlan,
@@ -11,12 +16,16 @@ import {
 
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: `test-results/fd-${name}.png` })
-const details = (page: Page) => page.getByTestId('equipment-details')
+/** The equipment page's Edit details link, at the end of its details line. */
+const editLink = (page: Page) =>
+  page.getByTestId('equipment-details').getByRole('button', {
+    name: 'Edit details',
+  })
 const form = (page: Page) => page.getByTestId('details-form')
 
-/** Select equipment by its name through Explore; the inspector opens with it. */
+/** The equipment's page in Physical, through Explore (the page has Edit details and the ⋯ menu). */
 async function inspect(page: Page, id: string, name = id.toUpperCase()) {
-  await selectEquipment(page, name)
+  await openEquipmentPage(page, name)
 }
 test('FD-04 a direct fix on Installed: Edit details saves, the inspector shows it at once, and History lists it with its note', async ({
   page,
@@ -26,8 +35,8 @@ test('FD-04 a direct fix on Installed: Edit details saves, the inspector shows i
   await page.goto('/')
   await fitted(page)
   await inspect(page, 'agg-12')
-  await expect(details(page)).toContainText('Manufacturer')
-  await details(page).getByRole('button', { name: 'Edit details' }).click()
+  await editLink(page).click()
+  await expect(form(page).getByLabel('Manufacturer')).toBeVisible()
   await expect(form(page).getByLabel('Name')).toBeFocused()
   await form(page).getByLabel('Manufacturer').fill('Cisco')
   await form(page).getByLabel('Serial number').fill('FD-SN-15')
@@ -38,13 +47,20 @@ test('FD-04 a direct fix on Installed: Edit details saves, the inspector shows i
   await shot(page, 'edit-form')
   await form(page).getByRole('button', { name: 'Save fix' }).click()
   await expect(form(page)).toHaveCount(0)
-  // Shown at once, without a reload (the revision did not change).
-  await expect(details(page)).toContainText('Cisco')
-  await expect(details(page)).toContainText('FD-SN-15')
-  await expect(details(page)).toContainText('maintenance')
+  // Shown at once, without a reload (the revision did not change): the form opens with the fix.
+  await editLink(page).click()
+  await expect(form(page).getByLabel('Manufacturer')).toHaveValue('Cisco')
+  await expect(form(page).getByLabel('Serial number')).toHaveValue('FD-SN-15')
+  await expect(form(page).getByLabel('Status')).toHaveValue('maintenance')
+  await page.keyboard.press('Escape')
+  await expect(form(page)).toHaveCount(0)
   expect(await installedRevision(request)).toBe(revision)
 
-  await page.getByRole('tab', { name: 'History' }).click()
+  await chooseMore(page, 'History')
+  await expect(page.getByRole('tab', { name: 'History' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
   const fixes = page.getByTestId('history-fixes').locator('li')
   await expect(fixes).toHaveCount(3)
   await expect(page.getByTestId('history-fixes')).toContainText('Manufacturer')
@@ -58,7 +74,7 @@ test('FD-04 a refused fix keeps the form open with the reason; Escape closes it 
   await page.goto('/')
   await fitted(page)
   await inspect(page, 'agg-12')
-  const button = details(page).getByRole('button', { name: 'Edit details' })
+  const button = editLink(page)
   await button.click()
   await form(page).getByLabel('Name').fill('AGG-08')
   await form(page).getByRole('button', { name: 'Save fix' }).click()
@@ -80,21 +96,21 @@ test('FD-04 in a plan: a proposed switch is edited with update_details (and its 
   await page.goto(`/?plan=${id}`)
   await fitted(page)
   await inspect(page, sw, 'EDGE-40')
-  await details(page).getByRole('button', { name: 'Edit details' }).click()
+  await editLink(page).click()
   await expect(form(page).getByLabel('Name')).toHaveValue('EDGE-40')
   await form(page).getByLabel('Model').fill('C9300-48P')
   await form(page).getByRole('button', { name: 'Save in plan' }).click()
   await expect(form(page)).toHaveCount(0)
-  await expect(details(page)).toContainText('C9300-48P')
+  await editLink(page).click()
+  await expect(form(page).getByLabel('Model')).toHaveValue('C9300-48P')
+  await page.keyboard.press('Escape')
   const plan = await getPlan(request, id)
   expect(JSON.stringify(plan.details)).toContain('C9300-48P')
 
-  await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await inspect(page, 'agg-03')
-  await expect(
-    details(page).getByRole('button', { name: 'Edit details' }),
-  ).toHaveCount(0)
-  await expect(details(page)).toContainText(
+  await editLink(page).click()
+  await expect(form(page)).toHaveCount(0)
+  await expect(page.getByTestId('equipment-details-box')).toContainText(
     'Details of installed equipment are fixed on Installed',
   )
 })
@@ -111,17 +127,8 @@ test('P2-3 rename equipment the plan adds: the name saves in the plan, shows on 
     page.locator('[data-testid="equipment-bar"] [aria-current="page"]')
   const changes = page.getByRole('complementary', { name: 'Changes & plans' })
   const edit = async () => {
-    await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-    await selectEquipment(page, 'REN-1')
-    await details(page).getByRole('button', { name: 'Edit details' }).click()
-  }
-  const showPage = async () => {
-    const close = page.getByRole('button', {
-      name: 'Close Equipment inspector',
-    })
-    if (await close.count()) await close.click()
-    await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-    await page.locator(`.rack-block[data-equipment-id="${sw}"]`).click()
+    await openEquipmentPage(page, 'REN-1')
+    await editLink(page).click()
   }
 
   // Only the name: rename_equipment, no details.
@@ -132,7 +139,6 @@ test('P2-3 rename equipment the plan adds: the name saves in the plan, shows on 
   let plan = await getPlan(request, id)
   expect(plan.renames).toEqual([{ id: sw, name: 'Lab switch' }])
   expect(plan.details ?? []).toHaveLength(0)
-  await showPage()
   await expect(title()).toContainText('Lab switch')
 
   // The Changes drawer has the line, and Undo brings the name back.
@@ -159,7 +165,7 @@ test('P2-3 rename equipment the plan adds: the name saves in the plan, shows on 
   const revision = plan.revision
 
   // A taken name is refused in the server's words and changes nothing.
-  await details(page).getByRole('button', { name: 'Edit details' }).click()
+  await editLink(page).click()
   await form(page).getByLabel('Name').fill('EDGE-17')
   await form(page).getByRole('button', { name: 'Save in plan' }).click()
   await expect(form(page).getByTestId('edit-error')).toContainText(

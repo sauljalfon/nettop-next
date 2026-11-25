@@ -31,6 +31,8 @@ import EquipmentBar from './EquipmentBar'
 import type { MenuItem } from './MoreMenu'
 import DeleteEquipment from '../planning/DeleteEquipment'
 import DuplicateEquipment from '../planning/DuplicateEquipment'
+import PlacementEditor from '../planning/PlacementEditor'
+import { locationTree } from '../patching/patching'
 import { hasPorts } from '../../shared/equipment'
 import { faceMarks, pageFace } from './equipmentModel'
 import PrintSheet from './PrintSheet'
@@ -83,6 +85,8 @@ interface Props {
   onFullPage: (endpointId: string) => void
   /** Show an equipment on the conceptual map. */
   onShowOnMap: (equipmentId: string) => void
+  /** The equipment page's ⋯ History: opens the dock's History tab for it. */
+  onOpenHistory: (equipmentId: string) => void
   /** The equipment page's Open in inventory. */
   onOpenInInventory: (equipmentName: string) => void
   onError: (message: string) => void
@@ -115,6 +119,7 @@ export default function PhysicalExplorer({
   onFindFromEndpoint,
   onFullPage,
   onShowOnMap,
+  onOpenHistory,
   onOpenInInventory,
   onError,
   session = physicalSession,
@@ -137,6 +142,7 @@ export default function PhysicalExplorer({
     [snapshot, installedContainerIds],
   )
   const childCounts = useMemo(() => countChildren(snapshot), [snapshot])
+  const tree = useMemo(() => locationTree(snapshot), [snapshot])
   const colors = useMemo(
     () => networkColors(snapshot.networks),
     [snapshot.networks],
@@ -227,12 +233,22 @@ export default function PhysicalExplorer({
       ? { id, name: index.equipment.get(id)!.name }
       : undefined
   // The ⋯ menu's Duplicate… and Delete… open their box under the bar.
-  const [ask, setAsk] = useState<{ kind: 'duplicate' | 'delete'; n: number }>()
+  const [ask, setAsk] = useState<{
+    kind: 'duplicate' | 'delete' | 'move'
+    n: number
+  }>()
   useEffect(() => setAsk(undefined), [location.equipmentId])
   const menuKey = `more:${location.equipmentId ?? ''}`
   const menuItems: MenuItem[] = !equipment
     ? []
     : [
+        { label: 'History', onSelect: () => onOpenHistory(equipment.id) },
+        {
+          label: 'Move to another rack…',
+          disabled: !edit,
+          hint: 'Open a plan first',
+          onSelect: () => setAsk((a) => ({ kind: 'move', n: (a?.n ?? 0) + 1 })),
+        },
         ...(face
           ? [{ label: 'Print sheet', onSelect: () => setSheet('equipment') }]
           : []),
@@ -382,6 +398,20 @@ export default function PhysicalExplorer({
                   startOpen={ask.n}
                   opener={menuKey}
                   onClosed={() => setAsk(undefined)}
+                />
+              )}
+              {edit && ask?.kind === 'move' && (
+                <PlacementEditor
+                  key={ask.n}
+                  snapshot={snapshot}
+                  equipment={equipment}
+                  tree={tree}
+                  racks={snapshot.racks}
+                  pending={!canEdit}
+                  onMove={(rackId, unit) =>
+                    onMoveEquipment(equipment.id, rackId, unit)
+                  }
+                  onClose={() => setAsk(undefined)}
                 />
               )}
               {edit && ask?.kind === 'delete' && (

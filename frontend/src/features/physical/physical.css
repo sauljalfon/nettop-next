@@ -147,6 +147,16 @@
 .more-list button.danger {
   color: var(--danger);
 }
+.more-list button:disabled {
+  color: var(--ink-soft);
+  background: none;
+  cursor: default;
+}
+.more-list .more-hint {
+  display: block;
+  font-size: var(--t-xs, var(--t-sm));
+  color: var(--ink-soft);
+}
 .bar-boxes:empty {
   display: none;
 }
@@ -1576,4 +1586,15 @@
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
+}
+
+/* A text link in the details line (Edit details). */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  cursor: pointer;
 }

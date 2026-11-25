@@ -4,8 +4,12 @@ import type { TraceResult } from '../src/shared/types'
 import { captureLayout, stackSize } from '../src/features/map/exportRoute'
 import {
   BUILDING_A,
+  expandResults,
   fitted,
   hierarchyState,
+  leaveTrace,
+  oneRoute,
+  traceRoutes,
   openRackInPhysical,
   selectEquipment,
   settledViewport,
@@ -39,16 +43,14 @@ async function findFrom(page: Page, name: string, routes: number) {
   await page
     .getByRole('button', { name: `Find AGG / BB from ${name}`, exact: true })
     .click()
-  await expect(
-    page.getByLabel('Trace results').getByTestId('route-row'),
-  ).toHaveCount(routes)
+  await expect(tp(page)).toBeVisible()
+  await expect(traceRoutes(page)).toHaveCount(routes)
 }
 
-/** Find AGG / BB from a switch, then Open full page ⤢ in the dock's Trace tab. */
+/** Find AGG / BB from a switch: the page opens on All routes; these specs mostly read One route. */
 async function openPage(page: Page, name = 'EDGE-17', routes = 3) {
   await findFrom(page, name, routes)
-  await page.getByRole('button', { name: 'Open full page ⤢' }).click()
-  await expect(tp(page)).toBeVisible()
+  await oneRoute(page)
   await expect(plates(page).first()).toBeVisible()
 }
 
@@ -76,7 +78,7 @@ test.beforeEach(async ({ page }) => {
   await fitted(page)
 })
 
-test('TP-01 Open full page shows the trace on its own page', async ({
+test('TP-01 Find AGG / BB shows the trace on its own page', async ({
   page,
 }) => {
   await openPage(page)
@@ -238,7 +240,7 @@ test('TP-04 a mismatch is explained', async ({ page, request }) => {
   await page.goto(`/?plan=${await crossNetworkPlan(request)}`)
   await fitted(page)
   await findFrom(page, 'EDGE-17', 3)
-  await page.getByRole('button', { name: 'Open full page ⤢' }).click()
+  await oneRoute(page)
   await expect(list(page)).toContainText('3 routes · 1 mismatch')
   const mm = list(page).locator('[data-kind="mismatch"]')
   await expect(mm).toHaveCount(1)
@@ -292,7 +294,7 @@ test('TP-04 a trace with only mismatches opens, says so, and draws the first one
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Open full page ⤢' }).click()
+  await oneRoute(page)
   await expect(list(page)).toContainText('0 routes · 1 mismatch')
   await expect(items(page)).toHaveCount(1)
   await expect(items(page).first()).toHaveAttribute('data-kind', 'mismatch')
@@ -455,12 +457,11 @@ test('TP-08 Esc on the Trace page (Picture only or not) leaves the tree’s sele
   page,
 }) => {
   await findFrom(page, 'EDGE-17', 3)
+  await leaveTrace(page)
   const card = page.locator(`[data-card-key="${BUILDING_A}"]`)
   await card.click()
   await expect(card).toHaveAttribute('data-selected', 'true')
-  await page.getByRole('tab', { name: 'Trace' }).click()
-  await page.getByRole('button', { name: 'Open full page ⤢' }).click()
-  await expect(tp(page)).toBeVisible()
+  await expandResults(page)
   // Esc with nothing to close on the page, then Esc to leave Picture only.
   await page.keyboard.press('Escape')
   await tp(page)
@@ -482,23 +483,21 @@ test('TP-08 ← Back returns to the tree with its viewport and selection, and to
   page,
 }) => {
   await findFrom(page, 'EDGE-17', 3)
+  await leaveTrace(page)
   const card = page.locator(`[data-card-key="${BUILDING_A}"]`)
   await card.click()
   await expect(card).toHaveAttribute('data-selected', 'true')
-  await page.getByRole('tab', { name: 'Trace' }).click()
-  await expect(page.getByLabel('Trace results')).toBeVisible()
   const before = await hierarchyState(page)
   const port = await settledViewport(page)
-  await page.getByRole('button', { name: 'Open full page ⤢' }).click()
-  await expect(tp(page)).toBeVisible()
+  await expandResults(page)
   // The tree is under the page, untouched, and not drawn.
   await expect(page.locator('[data-view="hierarchy"]')).toBeHidden()
   await backButton(page).click()
   await expect(tp(page)).toHaveCount(0)
   await fitted(page)
-  // The dock is as it was before the page: the Trace tab.
+  // The dock is as it was before the page: the Node tab the card opened.
   await expect(
-    dockOpen(page).getByRole('tab', { name: 'Trace', selected: true }),
+    dockOpen(page).getByRole('tab', { name: 'Node', selected: true }),
   ).toBeVisible()
   await expect(card).toHaveAttribute('data-selected', 'true')
   expect(await hierarchyState(page)).toEqual(before)
@@ -526,7 +525,7 @@ test('TP-08 ← Back returns to the tree with its viewport and selection, and to
   await expect(tp(page)).toBeVisible()
   await backButton(page).click()
   await expect(tp(page)).toHaveCount(0)
-  // Not the Trace tab the new trace opened: the Port tab it came from.
+  // The dock is as it was: the Port tab it came from.
   await expect(
     dockOpen(page).getByRole('tab', { name: 'Port', selected: true }),
   ).toBeVisible()
@@ -738,7 +737,7 @@ test('TP-14 screenshots', async ({ page, request }) => {
   await page.goto(`/?plan=${await crossNetworkPlan(request)}`)
   await fitted(page)
   await findFrom(page, 'EDGE-17', 3)
-  await page.getByRole('button', { name: 'Open full page ⤢' }).click()
+  await oneRoute(page)
   await page.screenshot({ path: `${shots}/plan.png` })
   await list(page).locator('[data-kind="mismatch"]').click()
   await expect(tp(page).getByTestId('trace-note')).toBeVisible()

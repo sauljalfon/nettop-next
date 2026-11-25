@@ -468,6 +468,11 @@ describe('OV-02 the hierarchy projection', () => {
     ).toEqual(['line:uplink:BB1|AGG1+AGG2'])
   })
 
+  it('draws no line amber: a hot line keeps its usual colour (owner, 2026-11-24)', () => {
+    const { edges } = project(twoTops(), { hot: new Set(['AGG1']) })
+    for (const e of edges) expect(e.style?.stroke).not.toBe('var(--amber)')
+  })
+
   it('with Only problems keeps only the frames with a marked card or an AGG with no BB', () => {
     const s = acceptanceSnapshot()
     const { nodes } = project(s, { onlyProblems: true })

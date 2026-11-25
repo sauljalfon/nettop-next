@@ -2,7 +2,13 @@ import { useSyncExternalStore } from 'react'
 
 /** The dock's tabs, in the order they are drawn (see `tabsFor`). */
 export type DockTab =
-  'details' | 'inspector' | 'trace' | 'explore' | 'add' | 'changes' | 'networks'
+  | 'details'
+  | 'inspector'
+  | 'explore'
+  | 'add'
+  | 'changes'
+  | 'networks'
+  | 'history'
 
 export interface DockState {
   open: boolean
@@ -11,24 +17,24 @@ export interface DockState {
   details?: 'Node' | 'Port'
   /** The last tab other than details and networks that was open, for `detailsGone`. */
   last?: DockTab
-  /** The last tab other than details, networks and the trace, for `traceGone`. */
-  other?: DockTab
-  /** Set while there is a trace: the Trace tab is listed only then. */
-  trace?: true
+  /** The equipment whose History tab is open (set while `tab` is `history`). */
+  historyFor?: string
 }
 
 export const initialDock: DockState = { open: false, tab: 'inspector' }
 
 const remember = (s: DockState, tab: DockTab): DockTab | undefined =>
-  tab === 'details' || tab === 'networks' ? s.last : tab
+  tab === 'details' || tab === 'networks' || tab === 'history' ? s.last : tab
 
 /** Opens on that tab. */
 export function openTab(s: DockState, tab: DockTab): DockState {
   if (tab === 'details' && !s.details) return s
-  if (tab === 'trace' && !s.trace) return s
-  const other =
-    tab === 'details' || tab === 'networks' || tab === 'trace' ? s.other : tab
-  return { ...s, open: true, tab, last: remember(s, tab), other }
+  return { ...s, open: true, tab, last: remember(s, tab) }
+}
+
+/** The History tab of one equipment (the equipment page's ⋯ menu): it exists only while it is open. */
+export function openHistory(s: DockState, equipmentId: string): DockState {
+  return { ...openTab(s, 'history'), historyFor: equipmentId }
 }
 
 /** The same icon again closes; another icon switches the tab. */
@@ -73,27 +79,6 @@ export function detailsGone(s: DockState): DockState {
   return { ...rest, open: false, tab: initialDock.tab }
 }
 
-/** A trace was started: the Trace tab exists and the dock opens on it. */
-export function traceShown(s: DockState): DockState {
-  return openTab({ ...s, trace: true }, 'trace')
-}
-
-/** A trace exists (for example rerun after a context switch): the tab is there, the dock stays as it is. */
-export function traceAvailable(s: DockState): DockState {
-  return s.trace ? s : { ...s, trace: true }
-}
-
-/** The trace is cleared: the tab leaves; on it, the dock goes to the last other tab, else closes. */
-export function traceGone(s: DockState): DockState {
-  const { trace: _gone, ...rest } = s
-  void _gone
-  // A details tab that would return to the trace must not.
-  const last = s.last === 'trace' ? s.other : s.last
-  if (s.tab !== 'trace') return { ...rest, last }
-  if (s.other) return { ...rest, tab: s.other, last }
-  return { ...rest, open: false, tab: initialDock.tab, last }
-}
-
 /** Add exists only in a plan: in Installed it becomes Changes. */
 export function forContext(s: DockState, planned: boolean): DockState {
   if (planned) return s
@@ -108,11 +93,11 @@ export function tabsFor(s: DockState, planned: boolean): DockTab[] {
   return [
     ...(s.details ? (['details'] as const) : []),
     'inspector',
-    ...(s.trace ? (['trace'] as const) : []),
     'explore',
     ...(planned ? (['add'] as const) : []),
     'changes',
     ...(s.tab === 'networks' ? (['networks'] as const) : []),
+    ...(s.tab === 'history' && s.historyFor ? (['history'] as const) : []),
   ]
 }
 
@@ -121,11 +106,11 @@ export function tabLabel(s: DockState, tab: DockTab): string {
   const labels: Record<DockTab, string> = {
     details: s.details ?? 'Node',
     inspector: 'Inspector',
-    trace: 'Trace',
     explore: 'Explore',
     add: 'Add',
     changes: 'Changes',
     networks: 'Networks',
+    history: 'History',
   }
   return labels[tab]
 }
@@ -135,11 +120,11 @@ export function tabTitle(s: DockState, tab: DockTab): string {
   const titles: Record<DockTab, string> = {
     details: s.details === 'Port' ? 'Port details' : 'Node details',
     inspector: 'Equipment inspector',
-    trace: 'Trace tools',
     explore: 'Explore infrastructure',
     add: 'Equipment library',
     changes: 'Changes & plans',
     networks: 'Manage networks',
+    history: 'Equipment history',
   }
   return titles[tab]
 }
@@ -147,8 +132,6 @@ export function tabTitle(s: DockState, tab: DockTab): string {
 /** The line under the title; none for the details tab, whose body has its own head. */
 export const TAB_SUBTITLES: Partial<Record<DockTab, string>> = {
   inspector: 'Select equipment on the map to inspect it',
-  trace:
-    'Cables and panel bridges only. No inferred transit through switch ports.',
   explore: 'Site → node → rack → equipment',
   add: 'Drag onto a rack, or add an HDF with its form',
   changes: 'Proposals stay separate from installed infrastructure',
@@ -181,18 +164,14 @@ function createDockSession() {
     get: () => state,
     rail: (tab: DockTab) => set(railClick(state, guard(tab))),
     open: (tab: DockTab) => set(openTab(state, guard(tab))),
+    /** The equipment page's ⋯ History: the tab opens on that equipment. */
+    openHistory: (equipmentId: string) => set(openHistory(state, equipmentId)),
     close: () => set(close(state)),
     showDetails: (label: 'Node' | 'Port') => set(detailsShown(state, label)),
     /** Selected from elsewhere: the tab exists, the dock keeps its tab (opens on it when closed). */
     availableDetails: (label: 'Node' | 'Port') =>
       set(detailsAvailable(state, label)),
     hideDetails: () => set(detailsGone(state)),
-    /** A trace started: its tab appears and opens. */
-    showTrace: () => set(traceShown(state)),
-    /** A trace exists (rerun on mount): its tab is listed, the dock is left alone. */
-    traceAvailable: () => set(traceAvailable(state)),
-    /** The trace was cleared: its tab goes. */
-    hideTrace: () => set(traceGone(state)),
     /** The feature that shows the details registers its close (the tree's clear, the page's close port); pass undefined to drop it. */
     setDetailsCloser(fn: (() => void) | undefined) {
       detailsCloser = fn

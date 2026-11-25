@@ -5,6 +5,8 @@ import {
   fitted,
   openRackInPhysical,
   findAggBb,
+  leaveTrace,
+  traceRoutes,
 } from './helpers'
 import { planWith32RowHdf } from './plan-api'
 
@@ -42,8 +44,8 @@ async function openEquipment(
 }
 async function traceAgg03(page: Page) {
   await findAggBb(page)
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
 }
 test.beforeEach(async ({ page }) => {
   await page.goto('/')

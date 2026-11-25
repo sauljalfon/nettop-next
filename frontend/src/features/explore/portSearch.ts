@@ -1,4 +1,3 @@
-import { facetLabel } from '../map/facets'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import type { TextPiece } from '../../shared/textPieces'
 import { readableEndpoint, readableEndpointPieces } from '../pathfinding/hops'
@@ -97,10 +96,4 @@ export function searchExplore(
       more: cables.more,
     },
   }
-}
-
-/** The label the inspector's search is filled with for an endpoint: "3C / 5", "Port 3". */
-export const inspectorQuery = (index: SnapshotIndex, endpointId: string) => {
-  const p = index.lookup.endpoints.get(endpointId)
-  return p ? facetLabel(index.lookup, p) : ''
 }

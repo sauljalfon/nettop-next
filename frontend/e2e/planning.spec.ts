@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
-import { findAggBb } from './helpers'
+import { findAggBb, leaveTrace, traceRoutes } from './helpers'
 import { chooseRack } from './patching-helpers'
 
 const getPlan = async (request: APIRequestContext, id: string) =>
@@ -62,9 +62,7 @@ test('save a plan, add equipment through the library form, reload, and reject st
   expect(cabled.status()).toBe(200)
   await page.reload()
   await findAggBb(page, 'EDGE-BROWSER')
-  await expect(
-    page.getByText('Physical path found', { exact: true }),
-  ).toBeVisible()
+  await expect(traceRoutes(page)).toHaveCount(1)
   const response = await request.post(`/api/plans/${planID}/commands`, {
     data: {
       type: 'add_equipment',
@@ -82,7 +80,7 @@ test('save a plan, add equipment through the library form, reload, and reject st
     },
   })
   expect(response.status()).toBe(200)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await leaveTrace(page)
   const stale = await openSwitchForm(page)
   await stale.getByLabel('Name').fill('STALE-EDIT')
   await stale.getByLabel('Network').selectOption('net-a')

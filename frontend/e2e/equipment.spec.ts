@@ -4,8 +4,11 @@ import {
   expectNear,
   expectNearPlace,
   fitted,
-  openRackInPhysical,
   findAggBb,
+  leaveTrace,
+  oneRoute,
+  openRackInPhysical,
+  traceRoutes,
 } from './helpers'
 
 // The explorer writes its state on its root; these specs assert that model.
@@ -27,7 +30,8 @@ const HDF02_2B3_FRONT = 'hdf-02:sp-2B:3:f'
 
 async function traceAgg03(page: Page) {
   await findAggBb(page)
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
 }
 
 /** Opens an equipment's page by clicking it in its rack. */
@@ -247,17 +251,16 @@ test('PHY-08 / F09 the HDF-01 face has 16 blocks and 96 positions per side; 3C/2
   )
 })
 
-test('PHY-09 Find AGG / BB from an HDF position shows the routes in the overlay and keeps the page', async ({
+test('PHY-09 Find AGG / BB from an HDF position shows the routes on the Trace page and ← Back keeps the page', async ({
   page,
 }) => {
   await openHdf01(page)
   await sideControl(page).getByRole('button', { name: 'Rear' }).click()
   await endpoint(page, HDF01_3C5_REAR).click()
   await page.getByRole('button', { name: 'Find AGG / BB from here' }).click()
-  const results = page.getByLabel('Trace results')
-  await expandResults(page)
-  await expect(results).toBeVisible()
-  await expect(page.getByTestId('route-row').first()).toContainText('AGG-03')
+  await expect(page.getByTestId('trace-page')).toBeVisible()
+  await expect(traceRoutes(page).first()).toContainText('AGG-03')
+  await leaveTrace(page)
   await expectMark(page, 'data-physical-level', 'equipment')
   await expectMark(page, 'data-selected-endpoint', HDF01_3C5_REAR)
   await expect(root(page)).toHaveAttribute('data-route-equipment', /agg-03/)
@@ -340,9 +343,11 @@ test('a walk row opens the exact endpoint', async ({ page }) => {
   await traceAgg03(page)
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
   await expandResults(page)
+  await oneRoute(page)
   await page
     .getByTestId('walk-row')
-    .filter({ hasText: 'in front 2B/3' })
+    .filter({ hasText: 'HDF-02' })
+    .getByRole('button', { name: 'Open' })
     .click()
   await expectMark(page, 'data-physical-level', 'equipment')
   await expectMark(page, 'data-selected-endpoint', HDF02_2B3_FRONT)

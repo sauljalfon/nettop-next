@@ -1,13 +1,18 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, viewport, findAggBb, settledViewport } from './helpers'
-
-const rows = (page: Page) =>
-  page.getByLabel('Trace results').getByTestId('route-row')
+import {
+  fitted,
+  viewport,
+  findAggBb,
+  leaveTrace,
+  settledViewport,
+  traceRoutes,
+} from './helpers'
 
 // The trace from a switch's inspector, so the hierarchy stays the view.
 async function traceFromTools(page: Page) {
   await findAggBb(page, 'EDGE-17')
-  await expect(rows(page)).toHaveCount(3)
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
 }
 const hierarchy = (page: Page) => page.locator('[data-view="hierarchy"]')
 const positions = (page: Page) =>
@@ -32,7 +37,7 @@ test('P18 a route found while the map shows another network is still complete, a
 
   // The backend result is complete (three routes) though the map draws Network B:
   // none of its cards is on the route, and nothing is dimmed or moved.
-  await expect(rows(page)).toHaveCount(3)
+  await expect(page.getByTestId('route-chip')).toBeVisible()
   await expect(hierarchy(page).locator('[data-on-route="true"]')).toHaveCount(0)
   await expect(page.locator('.dimmed')).toHaveCount(0)
   expect(await positions(page)).toBe(all)
@@ -66,7 +71,7 @@ test('Clear trace removes the route marks only', async ({ page }) => {
   const port = await settledViewport(page)
   const all = await positions(page)
   await page.getByRole('button', { name: 'Clear trace' }).click()
-  await expect(page.getByLabel('Trace results')).toHaveCount(0)
+  await expect(page.getByTestId('route-chip')).toHaveCount(0)
   await expect(hierarchy(page).locator('[data-on-route="true"]')).toHaveCount(0)
   expect(await positions(page)).toBe(all)
   expect(await settledViewport(page)).toBe(port)

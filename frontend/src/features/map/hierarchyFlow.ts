@@ -140,7 +140,6 @@ export interface HierarchyLineData extends Record<string, unknown> {
 }
 
 const ROUTE = 'var(--route)'
-const HOT = 'var(--amber)'
 const PROPOSED = 'var(--proposed)'
 
 /** The selected card, and for a node card the AGGs of its switches. */
@@ -368,13 +367,8 @@ export function projectHierarchy(args: {
       interactionWidth: 20,
       data,
       style: {
-        stroke: data.onRoute
-          ? ROUTE
-          : data.hot
-            ? HOT
-            : data.proposed
-              ? PROPOSED
-              : color,
+        // A hot line keeps its colour: the selection's teal way up shows it (owner, 2026-11-24).
+        stroke: data.onRoute ? ROUTE : data.proposed ? PROPOSED : color,
         strokeWidth: 2 + (data.onRoute ? 2 : 0),
         strokeLinecap: 'round' as const,
       },

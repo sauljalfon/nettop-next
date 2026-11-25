@@ -4,7 +4,13 @@
 // own drafts on the revision it finds, and only adds or removes what it made
 // itself, so none depends on another's order.
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
-import { expandResults, fitted, openRackInPhysical, findAggBb } from './helpers'
+import {
+  fitted,
+  findAggBb,
+  leaveTrace,
+  openRackInPhysical,
+  traceRoutes,
+} from './helpers'
 import {
   addRoom,
   addSwitch,
@@ -62,10 +68,10 @@ async function physicalWithTrace(page: Page, planId: string) {
   await page.goto(`/?plan=${planId}`)
   await fitted(page)
   await findAggBb(page)
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await leaveTrace(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
-  await expandResults(page)
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
+  await expect(page.getByTestId('route-chip')).toBeVisible()
 }
 
 test('RC-05 the review step checks first, needs a note and Recorded by, records, and Installed then shows it with the location and trace kept', async ({

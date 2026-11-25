@@ -16,18 +16,26 @@ export default function EquipmentDetails({
   mode,
   edit,
   onFixed,
+  editorOnly,
+  onClosed,
 }: {
   equipment: Equipment
   mode: EditMode
   edit?: PlanEdit
   onFixed: (message: string) => Promise<void>
+  /** The page's Edit details link opens this box: the editor alone, closed by `onClosed`. */
+  editorOnly?: boolean
+  onClosed?: () => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(!!editorOnly)
   const opener = `details:${equipment.id}`
   const before = equipmentValues(equipment)
   return (
-    <section className="details-section" data-testid="equipment-details">
-      <div className="details-head">
+    <section
+      className="details-section"
+      data-testid={editorOnly ? 'equipment-details-box' : 'equipment-details'}
+    >
+      <div className="details-head" hidden={editorOnly}>
         <h3 className="inspector-section section-title">Details</h3>
         {mode !== 'none' && !open && (
           <button
@@ -39,7 +47,7 @@ export default function EquipmentDetails({
           </button>
         )}
       </div>
-      {open ? (
+      {open && mode !== 'none' ? (
         <DetailsEditor
           title={
             mode === 'fix'
@@ -56,7 +64,10 @@ export default function EquipmentDetails({
           }
           saveLabel={mode === 'fix' ? 'Save fix' : 'Save in plan'}
           openerKey={opener}
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            setOpen(false)
+            onClosed?.()
+          }}
           onSave={async (fix) => {
             if (mode === 'fix') {
               const answer = await fixInstalled('equipment', equipment.id, fix)
@@ -69,7 +80,7 @@ export default function EquipmentDetails({
             }
           }}
         />
-      ) : (
+      ) : editorOnly ? null : (
         <DetailList
           fields={equipmentFields('none', equipment)}
           values={before}
@@ -78,6 +89,14 @@ export default function EquipmentDetails({
       {mode === 'none' && (
         <p className="details-hint">
           Details of installed equipment are fixed on Installed, without a plan.
+          {editorOnly && (
+            <>
+              {' '}
+              <button className="btn quiet" onClick={() => onClosed?.()}>
+                Close
+              </button>
+            </>
+          )}
         </p>
       )}
     </section>

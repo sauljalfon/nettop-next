@@ -118,6 +118,8 @@ export default function EquipmentPage({
   // Connects to: the far equipment whose jacks are lit; a view state of this
   // equipment only, so a choice made on another one is ignored.
   const [pick, setPick] = useState<{ from: string; far: string }>()
+  const [editing, setEditing] = useState(false)
+  useEffect(() => setEditing(false), [equipment?.id])
   if (pick && pick.from !== equipment?.id) setPick(undefined)
   const far = useMemo(
     () => (equipment ? connectsTo(index, equipment.id) : []),
@@ -266,7 +268,32 @@ export default function EquipmentPage({
                   <PlacePath parts={index.locationParts.get(equipment.id)!} />
                 </>
               )}
+              {' · '}
+              <button
+                type="button"
+                className="link-button"
+                data-opener={`details:${equipment.id}`}
+                onClick={() => setEditing(true)}
+              >
+                Edit details
+              </button>
             </p>
+            {editing && (
+              <EquipmentDetails
+                key={equipment.id}
+                equipment={equipment}
+                mode={editMode(
+                  snapshot.context === 'installed' ? 'installed' : 'planned',
+                  snapshot.context === 'planned' &&
+                    !installedIds.has(equipment.id),
+                  !!edit,
+                )}
+                edit={edit}
+                onFixed={onFixed}
+                editorOnly
+                onClosed={() => setEditing(false)}
+              />
+            )}
             <FaceView
               uplinkIds={uplinkIds}
               lit={lit}

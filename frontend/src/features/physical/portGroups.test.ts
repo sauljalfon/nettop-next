@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { facetKey, facetLabel } from '../map/facets'
 import { cabledSummaries } from '../map/location'
 import { indexSnapshot } from '../map/snapshotIndex'
-import { inspectorGroups } from '../inspector/model'
 import { pickerItems } from '../pathfinding/picker'
 import { moveFocus, navCells } from './faceNav'
 import { faceFor } from './equipmentModel'
@@ -26,24 +25,6 @@ describe('PG-04 a positioned switch port is still a device port', () => {
 
   it('counts each port as one unit in the cabled summary', () => {
     expect(cabledSummaries(s).get('SW-G')).toEqual({ cabled: 0, total: 5 })
-  })
-
-  it('lists the inspector Ports by position, even where the label order differs', () => {
-    const [group] = inspectorGroups(s, index, 'SW-G')
-    expect(group.id).toBe('ports')
-    expect(group.units.map((u) => u.label)).toEqual([
-      'Te1/1/1',
-      'Te1/1/2',
-      'Gi1/0/1',
-      'Gi1/0/2',
-      'Gi1/0/3',
-    ])
-  })
-
-  it('lists a switch saved before groups in numeric label order, as before', () => {
-    const [group] = inspectorGroups(s, index, 'EDGE-17')
-    expect(group.units.slice(0, 3).map((u) => u.label)).toEqual(['1', '2', '3'])
-    expect(group.units[9].label).toBe('10')
   })
 
   it("offers a switch's ports in the trace picker by position", () => {

@@ -6,17 +6,17 @@ import {
   hierarchyState,
   viewport,
   findAggBb,
+  leaveTrace,
+  traceRoutes,
 } from './helpers'
 
-const rows = (page: Page) => page.getByTestId('route-row')
+const rows = traceRoutes
 const root = (page: Page) => page.locator('.physical-explorer')
 const note = (page: Page) => page.getByTestId('route-note')
 const NOTE = 'The selected route is not in this context; showing the first.'
 
 async function toPlan(page: Page) {
   await page.getByRole('button', { name: /^Plan: / }).click()
-  // The plan opens the Changes tab; the trace's results are in the Trace tab beside it.
-  await page.getByRole('tab', { name: 'Trace' }).click()
 }
 async function toInstalled(page: Page) {
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
@@ -49,6 +49,7 @@ test('TR-05 the same Find AGG / BB is rerun in the plan with AGG-08 still select
   await fitted(page)
   await findFromEdge17(page)
   await rows(page).nth(1).click() // AGG-08
+  await leaveTrace(page)
   // What the route lights; the plan adds a card of its own, so positions are not compared.
   const lit = async () => {
     const { cards, lines } = await hierarchyState(page)
@@ -60,18 +61,22 @@ test('TR-05 the same Find AGG / BB is rerun in the plan with AGG-08 still select
   const before = { viewport: await viewport(page), state }
 
   await toPlan(page)
+  await expect.poll(lit).toEqual(before.state)
+  expect(await viewport(page)).toBe(before.viewport)
+  await expandResults(page)
   await expect(rows(page)).toHaveCount(3)
   await expect(rows(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
-  await expect.poll(lit).toEqual(before.state)
   await expect(note(page)).toHaveCount(0)
-  expect(await viewport(page)).toBe(before.viewport)
+  await leaveTrace(page)
 
   // And back: the trace follows the switch both ways.
   await toInstalled(page)
+  await expect.poll(lit).toEqual(before.state)
+  expect(await viewport(page)).toBe(before.viewport)
+  await expandResults(page)
   await expect(rows(page)).toHaveCount(3)
   await expect(rows(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
-  expect(await lit()).toEqual(before.state)
-  expect(await viewport(page)).toBe(before.viewport)
+  await leaveTrace(page)
 })
 
 test('TR-05 the physical location is kept, and the route marks follow the rerun route', async ({
@@ -80,6 +85,7 @@ test('TR-05 the physical location is kept, and the route marks follow the rerun 
   await page.goto('/')
   await fitted(page)
   await findFromEdge17(page) // AGG-03
+  await leaveTrace(page)
   await openRackInPhysical(page, 'Main Campus', 'North Sub-main', 'Rack SM01')
   await page.locator('.rack-block[data-equipment-id="hdf-01"]').click()
   await page
@@ -118,8 +124,10 @@ test('TR-06 a route that is not in the other context falls back to the first, sa
   await rows(page).nth(2).click() // AGG-15, only in this plan
   await expect(rows(page).nth(2)).toContainText('AGG-15')
   await expect(note(page)).toHaveCount(0)
+  await leaveTrace(page)
 
   await toInstalled(page)
+  await expandResults(page)
   await expect(rows(page)).toHaveCount(3)
   await expect(rows(page).nth(0)).toHaveAttribute('aria-pressed', 'true')
   await expect(note(page)).toHaveText(NOTE)
@@ -143,25 +151,30 @@ test('TR-06 an error shows as usual and the trace comes back with its context; C
   await findAggBb(page, 'EDGE-18')
   await expect(rows(page)).toHaveCount(1)
   await expect(rows(page).first()).toContainText('AGG-15')
+  await leaveTrace(page)
 
   await toInstalled(page)
+  await expandResults(page)
   await expect(page.getByRole('alert')).toContainText(
     /unknown starting device/i,
   )
   await expect(rows(page)).toHaveCount(0)
+  await leaveTrace(page)
   // Back in the plan the same trace is there again.
   await toPlan(page)
+  await expandResults(page)
   await expect(rows(page)).toHaveCount(1)
   await expect(rows(page).first()).toContainText('AGG-15')
+  await leaveTrace(page)
 
   // Clear trace forgets the request: switching sends nothing and shows nothing.
   await page.getByRole('button', { name: 'Clear trace' }).click()
-  await expect(page.getByRole('tab', { name: 'Trace' })).toHaveCount(0)
+  await expect(page.getByTestId('route-chip')).toHaveCount(0)
   const sent = traces.length
   await toInstalled(page)
   await page.getByRole('button', { name: /^Plan: / }).click()
   await page.waitForTimeout(500)
   expect(traces.length).toBe(sent)
-  await expect(page.getByLabel('Trace results')).toHaveCount(0)
+  await expect(page.getByTestId('trace-page')).toHaveCount(0)
   await expect(page.getByRole('alert')).toHaveCount(0)
 })

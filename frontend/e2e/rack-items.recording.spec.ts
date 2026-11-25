@@ -1,5 +1,10 @@
 import { expect, test, type Page } from './fixtures'
-import { fitted, openRackInPhysical, selectEquipment } from './helpers'
+import {
+  chooseMore,
+  fitted,
+  openEquipmentPage,
+  openRackInPhysical,
+} from './helpers'
 import { getPlan, installedRevision, newPlan, record, unique } from './plan-api'
 
 // Rack A03 (12U) in the fixture: UPS-A03 U1–U2, EDGE-17 U8, PANEL-A U11,
@@ -104,8 +109,8 @@ test('RI-14 the cable manager’s type is fixed to Other "Fan tray" on Installed
   const revision = await installedRevision(request)
   await page.goto('/')
   await fitted(page)
-  await selectEquipment(page, 'CM-A03')
-  const details = page.getByTestId('equipment-details')
+  await openEquipmentPage(page, 'CM-A03')
+  const details = page.locator('section[data-testid="equipment-details"]')
   await expect(details).toContainText('Cable manager')
   await details.getByRole('button', { name: 'Edit details' }).click()
   const form = page.getByTestId('details-form')
@@ -120,7 +125,7 @@ test('RI-14 the cable manager’s type is fixed to Other "Fan tray" on Installed
   await expect(details).toContainText('Fan tray')
   expect(await installedRevision(request)).toBe(revision)
 
-  await page.getByRole('tab', { name: 'History' }).click()
+  await chooseMore(page, 'History')
   const fixes = page.getByTestId('history-fixes')
   await expect(fixes).toContainText('Type: Cable manager → Other')
   await expect(fixes).toContainText('What it is: (empty) → Fan tray')

@@ -3,42 +3,30 @@ import {
   Crosshair,
   GitFork,
   Network,
-  Table2,
   PanelTop,
   Server,
+  Table2,
 } from 'lucide-react'
-import {
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-  useEffect,
-} from 'react'
-import EquipmentDetails from '../details/EquipmentDetails'
-import HistoryTab from '../details/HistoryTab'
-import { editMode } from '../details/model'
+import { useEffect, useMemo, useState } from 'react'
 import { hasPorts, isPassiveEquipment } from '../../shared/equipment'
 import { rackItemPieces } from '../../shared/rackItems'
 import Pieces from '../../shared/ui/Pieces'
 import type { Equipment, Snapshot } from '../../shared/types'
 import DeleteEquipment from '../planning/DeleteEquipment'
-import DuplicateEquipment from '../planning/DuplicateEquipment'
-import { patchingSession } from '../patching/patchingSession'
 import { DisconnectConfirm } from '../planning/EditConfirms'
 import type { PlanEdit } from '../planning/editing'
 import NetworkBadge from '../map/NetworkBadge'
 import { cardRoleLabel } from '../map/cardRole'
+import { buildHierarchies } from '../map/hierarchy'
 import { colorOf, networkColors } from '../map/networkColors'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import {
   canFindFromDevice,
-  inspectorGroups,
   inspectorHeader,
   inspectorLocation,
+  modelLine,
+  wayUpLine,
 } from './model'
-import Overview from './Overview'
-import PortTable from './PortTable'
 import './inspector.css'
 import Name from '../../shared/ui/Name'
 import { PlaceSep } from '../../shared/ui/PlacePath'
@@ -51,43 +39,32 @@ interface Props {
   installedIDs: ReadonlySet<string>
   /** Find AGG / BB from every port of this device. */
   onFindFromDevice: () => void
-  /** Find AGG / BB from one exact endpoint. */
-  onFindFromHere: (endpointId: string) => void
   /** Select the card and center on it. */
   onShowOnMap: (equipmentId: string) => void
-  /** Open the equipment page in Physical, with an endpoint selected when given. */
-  onShowInPhysical: (equipmentId: string, endpointId?: string) => void
+  /** Open the equipment page in Physical. */
+  onShowInPhysical: (equipmentId: string) => void
   /** Open the Inventory's Ports list with only this equipment. */
   onOpenInInventory: (equipmentName: string) => void
   /** Open a site or node in Physical. */
   onOpenPlace: (target: { siteId?: string; nodeId?: string }) => void
   onOpenRack: (rackId: string) => void
-  /** A port chosen in Explore: opens the Ports/Positions tab with its search filled. */
-  searchRequest?: { equipmentId: string; query: string; serial: number }
   /** The Inventory's Delete… or Disconnect…: opens that confirm at once, then `onOpenRequestHandled`. */
   openRequest?: OpenRequest
   onOpenRequestHandled?: () => void
-  /** Set in a current plan: Delete… in the header and Disconnect on cabled rows. */
+  /** Set in a current plan: the confirms of a request can save. */
   edit?: PlanEdit
-  /** After a direct fix: refetch and toast. */
-  onFixed: (message: string) => Promise<void>
   installedLinkIDs?: ReadonlySet<string>
-  /** The plan placement form, shown on the Overview tab when a plan is open. */
-  children?: ReactNode
 }
 
 export type OpenRequest = { equipmentId: string; serial: number } & (
   { kind: 'delete' } | { kind: 'disconnect'; linkId: string }
 )
 
-type Tab = 'overview' | 'ports' | 'history'
-const TABS: readonly Tab[] = ['overview', 'ports', 'history']
-/** A rack item has no ports, so no Ports tab. */
-const RACK_ITEM_TABS: readonly Tab[] = ['overview', 'history']
-
 /**
- * The equipment inspector: a sticky header (identity, cabling meter, location,
- * actions and tabs) over an Overview tab and a compact Ports / Positions table.
+ * The equipment inspector, a short card (D49): identity, where, how much is
+ * cabled, its way up and model, and four actions. Ports, details, history and
+ * moves are on the equipment page; the Inventory's Delete… and Disconnect…
+ * open their confirm here.
  */
 export default function Inspector({
   snapshot,
@@ -95,28 +72,16 @@ export default function Inspector({
   equipment,
   installedIDs,
   onFindFromDevice,
-  onFindFromHere,
   onShowOnMap,
   onShowInPhysical,
   onOpenInInventory,
   onOpenPlace,
   onOpenRack,
-  searchRequest,
   openRequest,
   onOpenRequestHandled,
   edit,
-  onFixed,
   installedLinkIDs,
-  children,
 }: Props) {
-  const forMe =
-    searchRequest?.equipmentId === equipment.id ? searchRequest : undefined
-  const [tab, setTab] = useState<Tab>(forMe ? 'ports' : 'overview')
-  useEffect(() => {
-    if (forMe) setTab('ports')
-    // Only a new request switches the tab.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forMe?.serial])
   // A request is taken once: held here for the confirms, and the owner forgets it.
   const [asked, setAsked] = useState<OpenRequest>()
   useEffect(() => {
@@ -126,39 +91,23 @@ export default function Inspector({
     // Only a new request is taken.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequest?.serial])
+  // A confirm asked on one equipment is not kept for another.
   useEffect(() => {
-    if (asked) setAsked(undefined)
-  }, [asked])
+    setAsked((a) => (a && a.equipmentId === equipment.id ? a : undefined))
+  }, [equipment.id])
   const askedHere = asked?.equipmentId === equipment.id ? asked : undefined
-  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({})
-  // WAI-ARIA tabs: only the selected tab is in the tab order; arrows move and select.
-  const onTabKey = (event: KeyboardEvent) => {
-    const step =
-      event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
-    if (!step) return
-    event.preventDefault()
-    const next = tabs[(tabs.indexOf(tab) + step + tabs.length) % tabs.length]
-    setTab(next)
-    tabRefs.current[next]?.focus()
-  }
   const header = inspectorHeader(snapshot, index, equipment, installedIDs)
   const location = inspectorLocation(index, equipment.id)
-  const groups = useMemo(
-    () => inspectorGroups(snapshot, index, equipment.id),
-    [snapshot, index, equipment.id],
-  )
-  const networkName = (id: string) =>
-    snapshot.networks.find((n) => n.id === id)?.name ?? id
   const colors = useMemo(() => networkColors(snapshot.networks), [snapshot])
-  const networkColor = (id: string) => colorOf(colors, id)
   const summary = index.summaries.get(equipment.id) ?? { cabled: 0, total: 0 }
   const passive = isPassiveEquipment(equipment)
   const ported = hasPorts(equipment)
   const Icon = !ported ? Box : passive ? PanelTop : Network
-  const portsLabel = passive ? 'Positions' : 'Ports'
-  const tabs = ported ? TABS : RACK_ITEM_TABS
+  const hierarchies = useMemo(() => buildHierarchies(index), [index])
+  const wayUp = ported ? wayUpLine(hierarchies, index, equipment.id) : undefined
+  const model = modelLine(equipment)
   return (
-    <div className="inspector">
+    <div className="inspector" data-testid="inspector-card">
       <header className="inspector-header">
         <div className="inspector-title">
           <span className="equipment-icon">
@@ -173,230 +122,167 @@ export default function Inspector({
           {header.network && equipment.networkId && (
             <NetworkBadge
               name={header.network}
-              color={networkColor(equipment.networkId)}
+              color={colorOf(colors, equipment.networkId)}
             />
           )}
           <Chip kind={header.proposed ? 'proposed' : 'state'}>
             {header.proposed ? 'Proposed' : 'Installed'}
           </Chip>
         </div>
-        {ported && (
-          <div className="cabling-meter">
-            <div className="meter-bar" aria-hidden>
-              <span
-                style={{
-                  width: `${summary.total ? (100 * summary.cabled) / summary.total : 0}%`,
-                }}
-              />
-            </div>
-            <span>{header.summary}</span>
+      </header>
+      <dl className="detail-list inspector-facts">
+        <div>
+          <dt>Where</dt>
+          <dd>
+            <p className="location-breadcrumb">
+              {location.site && (
+                <>
+                  <button
+                    className="location-link"
+                    aria-label={`Open site ${location.site.name} in Physical`}
+                    onClick={() => onOpenPlace({ siteId: location.site!.id })}
+                  >
+                    <Name text={location.site.name} />
+                  </button>
+                  <PlaceSep />
+                </>
+              )}
+              {location.node && (
+                <>
+                  <button
+                    className="location-link"
+                    aria-label={`Open node ${location.node.name} in Physical`}
+                    onClick={() => onOpenPlace({ nodeId: location.node!.id })}
+                  >
+                    <Name text={location.node.name} />
+                  </button>
+                  <PlaceSep />
+                </>
+              )}
+              {location.rack && (
+                <span className="nowrap">
+                  <button
+                    className="location-link"
+                    aria-label={`Open ${location.rack.name} in Physical`}
+                    onClick={() => onOpenRack(location.rack!.id)}
+                  >
+                    <Name text={location.rack.name} />
+                  </button>
+                  <span aria-hidden> · </span>U{equipment.unit}
+                </span>
+              )}
+            </p>
+          </dd>
+        </div>
+        {!ported && (
+          <div>
+            <dt>Type</dt>
+            <dd>
+              <Pieces pieces={rackItemPieces(equipment)} />
+            </dd>
           </div>
         )}
-        <p className="location-breadcrumb">
-          {location.site && (
-            <>
-              <button
-                className="location-link"
-                aria-label={`Open site ${location.site.name} in Physical`}
-                onClick={() => onOpenPlace({ siteId: location.site!.id })}
-              >
-                <Name text={location.site.name} />
-              </button>
-              <PlaceSep />
-            </>
-          )}
-          {location.node && (
-            <>
-              <button
-                className="location-link"
-                aria-label={`Open node ${location.node.name} in Physical`}
-                onClick={() => onOpenPlace({ nodeId: location.node!.id })}
-              >
-                <Name text={location.node.name} />
-              </button>
-              <PlaceSep />
-            </>
-          )}
-          {location.rack && (
-            <>
-              <button
-                className="location-link"
-                aria-label={`Open ${location.rack.name} in Physical`}
-                onClick={() => onOpenRack(location.rack!.id)}
-              >
-                <Name text={location.rack.name} />
-              </button>
-              <PlaceSep />
-            </>
-          )}
-          <Name text={header.name} />
-        </p>
-        <div className="inspector-actions">
-          {ported && (
-            <button
-              className="btn"
-              aria-label={`Show on map: ${equipment.name}`}
-              onClick={() => onShowOnMap(equipment.id)}
-            >
-              <Crosshair size={14} />
-              Show on map
-            </button>
-          )}
-          <button
-            className="btn"
-            aria-label={`Show in Physical: ${equipment.name}`}
-            onClick={() => onShowInPhysical(equipment.id)}
-          >
-            <Server size={14} />
-            Show in Physical
-          </button>
-          <button
-            className="btn"
-            aria-label={`Open in inventory: ${equipment.name}`}
-            onClick={() => onOpenInInventory(equipment.name)}
-          >
-            <Table2 size={14} />
-            Open in inventory
-          </button>
-          {canFindFromDevice(equipment) && (
-            <button
-              className="btn primary"
-              aria-label={`Find AGG / BB from ${equipment.name}`}
-              onClick={onFindFromDevice}
-            >
-              <GitFork size={14} />
-              Find AGG / BB
-            </button>
-          )}
-        </div>
-        {edit && (
-          <DuplicateEquipment
-            snapshot={snapshot}
-            index={index}
-            equipmentId={equipment.id}
-            edit={edit}
-            where="inspector"
-          />
-        )}
-        {edit && (
-          <DeleteEquipment
-            snapshot={snapshot}
-            index={index}
-            equipmentId={equipment.id}
-            proposed={header.proposed}
-            edit={edit}
-            where="inspector"
-            startOpen={
-              askedHere?.kind === 'delete' ? askedHere.serial : undefined
-            }
-          />
-        )}
-        <div className="inspector-tabs" role="tablist" onKeyDown={onTabKey}>
-          {tabs.map((id) => (
-            <button
-              key={id}
-              ref={(el) => void (tabRefs.current[id] = el)}
-              role="tab"
-              id={`inspector-tab-${id}`}
-              aria-selected={tab === id}
-              aria-controls="inspector-panel"
-              tabIndex={tab === id ? 0 : -1}
-              onClick={() => setTab(id)}
-            >
-              {id === 'overview'
-                ? 'Overview'
-                : id === 'ports'
-                  ? portsLabel
-                  : 'History'}
-            </button>
-          ))}
-        </div>
-      </header>
-      <div
-        id="inspector-panel"
-        role="tabpanel"
-        aria-labelledby={`inspector-tab-${tab}`}
-        className="inspector-panel"
-      >
-        {tab === 'overview' ? (
-          <Overview
-            role={cardRoleLabel(equipment)}
-            type={
-              ported ? undefined : <Pieces pieces={rackItemPieces(equipment)} />
-            }
-            hasPorts={ported}
-            placement={
-              location.rack ? (
-                <>
-                  <Name text={location.rack.name} /> · U{equipment.unit}
-                </>
-              ) : undefined
-            }
-            groups={groups}
-            networkName={networkName}
-            networkColor={networkColor}
-            details={
-              <EquipmentDetails
-                key={equipment.id}
-                equipment={equipment}
-                mode={editMode(
-                  snapshot.context === 'installed' ? 'installed' : 'planned',
-                  header.proposed,
-                  !!edit,
-                )}
-                edit={edit}
-                onFixed={onFixed}
-              />
-            }
-          >
-            {children}
-          </Overview>
-        ) : tab === 'history' ? (
-          <HistoryTab key={equipment.id} equipmentId={equipment.id} />
+        {ported ? (
+          <div>
+            <dt>Ports</dt>
+            <dd>
+              <div className="cabling-meter">
+                <span>{header.summary}</span>
+                <div className="meter-bar" aria-hidden>
+                  <span
+                    style={{
+                      width: `${summary.total ? (100 * summary.cabled) / summary.total : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </dd>
+          </div>
         ) : (
-          <PortTable
-            key={equipment.id}
-            equipmentName={equipment.name}
-            groups={groups}
-            networkName={networkName}
-            networkColor={networkColor}
-            onFindFromHere={onFindFromHere}
-            onShowInPhysical={(endpointId) =>
-              onShowInPhysical(equipment.id, endpointId)
-            }
-            renderDisconnect={
-              edit &&
-              ((linkId, onClose, openerKey) => (
-                <DisconnectConfirm
-                  snapshot={snapshot}
-                  index={index}
-                  linkId={linkId}
-                  proposed={!installedLinkIDs?.has(linkId)}
-                  edit={edit}
-                  openerKey={openerKey}
-                  onClose={onClose}
-                />
-              ))
-            }
-            onConnect={
-              edit &&
-              ((endpointId, openerKey) =>
-                patchingSession.open({
-                  nearEndpointId: endpointId,
-                  mode: 'one',
-                  count: 6,
-                  returnTo: `[data-opener="${CSS.escape(openerKey)}"]`,
-                }))
-            }
-            request={forMe}
-            disconnectRequest={
-              askedHere?.kind === 'disconnect'
-                ? { linkId: askedHere.linkId, serial: askedHere.serial }
-                : undefined
-            }
-          />
+          <div>
+            <dt>Ports</dt>
+            <dd data-testid="no-ports">No ports</dd>
+          </div>
         )}
+        {wayUp && (
+          <div>
+            <dt>Way up</dt>
+            <dd data-testid="inspector-way-up">
+              <Pieces pieces={wayUp} />
+            </dd>
+          </div>
+        )}
+        {model && (
+          <div>
+            <dt>Model</dt>
+            <dd data-testid="inspector-model">
+              <Pieces pieces={model} />
+            </dd>
+          </div>
+        )}
+      </dl>
+      <div className="inspector-actions">
+        {canFindFromDevice(equipment) && (
+          <button
+            className="btn primary"
+            aria-label={`Find AGG / BB from ${equipment.name}`}
+            onClick={onFindFromDevice}
+          >
+            <GitFork size={14} />
+            Find AGG / BB
+          </button>
+        )}
+        <button
+          className="btn"
+          aria-label={`Open in Physical: ${equipment.name}`}
+          onClick={() => onShowInPhysical(equipment.id)}
+        >
+          <Server size={14} />
+          Open in Physical
+        </button>
+        {ported && (
+          <button
+            className="btn"
+            aria-label={`Show on map: ${equipment.name}`}
+            onClick={() => onShowOnMap(equipment.id)}
+          >
+            <Crosshair size={14} />
+            Show on map
+          </button>
+        )}
+        <button
+          className="btn"
+          aria-label={`Open in inventory: ${equipment.name}`}
+          onClick={() => onOpenInInventory(equipment.name)}
+        >
+          <Table2 size={14} />
+          Open in inventory
+        </button>
       </div>
+      {edit && askedHere?.kind === 'delete' && (
+        <DeleteEquipment
+          snapshot={snapshot}
+          index={index}
+          equipmentId={equipment.id}
+          proposed={header.proposed}
+          edit={edit}
+          where="inspector"
+          opener={`inspector:${equipment.id}`}
+          startOpen={askedHere.serial}
+          onClosed={() => setAsked(undefined)}
+        />
+      )}
+      {edit && askedHere?.kind === 'disconnect' && (
+        <DisconnectConfirm
+          snapshot={snapshot}
+          index={index}
+          linkId={askedHere.linkId}
+          proposed={!installedLinkIDs?.has(askedHere.linkId)}
+          edit={edit}
+          openerKey={`inspector:${equipment.id}`}
+          onClose={() => setAsked(undefined)}
+        />
+      )}
     </div>
   )
 }

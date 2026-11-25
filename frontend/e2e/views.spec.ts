@@ -10,6 +10,10 @@ import {
   expandResults,
   openExplore,
   findAggBb,
+  leaveTrace,
+  openInspector,
+  oneRoute,
+  traceRoutes,
 } from './helpers'
 
 // The explorer and the map write their state as data marks; these specs assert them.
@@ -27,9 +31,9 @@ const select = (page: Page) =>
 
 async function findFromEdge17(page: Page, route: number) {
   await findAggBb(page)
-  await expect(page.getByTestId('route-row')).toHaveCount(3)
-  await page.getByTestId('route-row').nth(route).click()
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await traceRoutes(page).nth(route).click()
+  await leaveTrace(page)
 }
 
 /** Pan the hierarchy by dragging empty canvas, so the viewport is not just the first fit. */
@@ -159,12 +163,14 @@ for (const w of WALKS)
     // d. Back on the map: the same route, positions and viewport; no centering.
     await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
     await expectMapUnchanged(page, before)
-    await expect(page.getByTestId('route-row').nth(w.route)).toHaveAttribute(
+    await expandResults(page)
+    await expect(traceRoutes(page).nth(w.route)).toHaveAttribute(
       'aria-pressed',
       'true',
     )
+    await leaveTrace(page)
     // Selected equipment is shared: the inspector shows the last physical one.
-    await page.getByRole('button', { name: 'Open inspector' }).click()
+    await openInspector(page)
     await expect(page.locator('.inspector-header h2')).toHaveText('HDF-01')
   })
 
@@ -175,8 +181,8 @@ test('PHY-11 the same walkthrough with Network B and AGG-12: 3C/2 is selected, a
   await fitted(page)
   await select(page).selectOption({ label: 'Network B' })
   await findAggBb(page, 'EDGE-22')
-  await expect(page.getByTestId('route-row')).toHaveCount(1)
-  await page.getByRole('button', { name: 'Close Trace tools' }).click()
+  await expect(traceRoutes(page)).toHaveCount(1)
+  await leaveTrace(page)
   await pan(page)
   const before = {
     viewport: await settledViewport(page),
@@ -227,47 +233,38 @@ test('PHY-11 the same walkthrough with Network B and AGG-12: 3C/2 is selected, a
   await expect(select(page)).toHaveValue('net-b') // the filter is the one chosen
 })
 
-test('F05 a conceptual endpoint opens the exact place in Physical: from the inspector header, a Positions row, and a hop', async ({
+test('F05 a conceptual endpoint opens the exact place in Physical: from the inspector card and a hop', async ({
   page,
 }) => {
   await page.goto('/')
   await fitted(page)
   await selectEquipment(page, 'HDF-01')
 
-  // The header button opens the equipment page.
-  await page.getByRole('button', { name: 'Show in Physical: HDF-01' }).click()
+  // The card's button opens the equipment page.
+  await page.getByRole('button', { name: 'Open in Physical: HDF-01' }).click()
   await expect(root(page)).toHaveAttribute(
     'data-location',
     'site:site-main-campus/node:node-north-sub-main/rack:rack-sm01/equipment:hdf-01',
   )
   await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
 
-  // A Positions row opens its endpoint, on the first cabled side (front sorts first).
-  await page.getByRole('tab', { name: 'Positions' }).click()
-  await page
-    .getByRole('button', { name: 'Show in Physical: HDF-01 3C / 5' })
-    .click()
-  await expect(root(page)).toHaveAttribute(
-    'data-location',
-    'site:site-main-campus/node:node-north-sub-main/rack:rack-sm01/equipment:hdf-01/endpoint:hdf-01:sp-3C:5:f/front',
-  )
-  await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:f')
-  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
-
   // A hop: in Conceptual it switches to Physical and opens that endpoint.
   await page.getByRole('button', { name: 'Close Equipment inspector' }).click()
   await findAggBb(page)
+  await oneRoute(page)
   await page
-    .getByRole('button', { name: 'Show in Physical: HDF-02', exact: true })
-    .first()
+    .getByTestId('walk-row')
+    .filter({ hasText: 'HDF-02' })
+    .getByRole('button', { name: 'Open', exact: true })
     .click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-02:sp-2B:3:f')
   await expectMark(page, 'data-side', 'front')
   // In Physical the icon is there too, and does the same as clicking the row.
   await expandResults(page)
   await page
-    .getByRole('button', { name: 'Show in Physical: HDF-01', exact: true })
-    .first()
+    .getByTestId('walk-row')
+    .filter({ hasText: 'HDF-01' })
+    .getByRole('button', { name: 'Open', exact: true })
     .click()
   await expectMark(page, 'data-selected-endpoint', 'hdf-01:sp-3C:5:r')
   await expectMark(page, 'data-side', 'rear')

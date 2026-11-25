@@ -1,6 +1,13 @@
 import { expect, test } from './fixtures'
 import type { Plan } from '../src/shared/types'
-import { expandResults, fitted, selectEquipment } from './helpers'
+import {
+  expandResults,
+  fitted,
+  leaveTrace,
+  oneRoute,
+  selectEquipment,
+  traceRoutes,
+} from './helpers'
 
 // A cable from EDGE-17 (Network A) to AGG-12 (Network B) is physically valid. Find
 // AGG / BB reports the Network B destination apart from the routes.
@@ -29,32 +36,33 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
 
-  // The map overlay: the same three routes, and the mismatch listed apart.
-  const overlay = page.getByLabel('Trace results')
-  await expect(overlay.getByTestId('route-row')).toHaveCount(3)
-  await expect(overlay.getByTestId('route-row')).toContainText([
-    'AGG-03',
-    'AGG-08',
-    'BB-01',
-  ])
-  const mismatches = overlay.getByTestId('mismatches')
-  await expect(mismatches).toContainText('On another network (not routes)')
+  // The Trace page: the three routes, and the mismatch listed apart.
+  const items = page.getByTestId('trace-list').getByTestId('trace-item')
+  const mismatches = page
+    .getByTestId('trace-list')
+    .locator('[data-testid="trace-item"][data-kind="mismatch"]')
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await expect(traceRoutes(page)).toContainText(['AGG-03', 'AGG-08', 'BB-01'])
+  await expect(page.getByTestId('trace-list')).toContainText(
+    '3 routes · 1 mismatch',
+  )
+  await expect(mismatches).toHaveCount(1)
   await expect(mismatches).toContainText('AGG-12')
   await expect(mismatches).toContainText('Network B')
-  await expect(mismatches.locator('li')).toHaveCount(1)
-  await expect(
-    overlay.getByTestId('route-row').filter({ hasText: 'AGG-12' }),
-  ).toHaveCount(0)
+  await expect(items).toHaveCount(4)
+  await expect(traceRoutes(page).filter({ hasText: 'AGG-12' })).toHaveCount(0)
 
-  // The Physical view uses the same results overlay and says the same.
+  // The same trace, reopened from the chip in Physical, says the same.
+  await leaveTrace(page)
   await page.getByRole('button', { name: 'Physical', exact: true }).click()
-  const panel = page.getByLabel('Trace results')
   await expandResults(page)
-  await expect(panel.getByTestId('route-row')).toHaveCount(3)
-  const apart = panel.getByTestId('mismatches')
-  await expect(apart).toContainText('On another network (not routes)')
-  await expect(apart).toContainText('AGG-12')
-  await expect(apart).toContainText('EDGE-17 · Port 4')
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await expect(mismatches).toHaveCount(1)
+  await expect(mismatches).toContainText('AGG-12')
+  await oneRoute(page)
+  await mismatches.click()
+  await expect(page.getByTestId('trace-note')).toContainText('Network B')
+  await leaveTrace(page)
 
   // The installed topology has no such cable: no mismatch there.
   await page.getByRole('button', { name: 'Installed', exact: true }).click()
@@ -63,10 +71,6 @@ test('POL-13 a cross-network cable gives three routes plus AGG-12 as a mismatch,
   await page
     .getByRole('button', { name: 'Find AGG / BB from EDGE-17', exact: true })
     .click()
-  await expect(
-    page.getByLabel('Trace results').getByTestId('route-row'),
-  ).toHaveCount(3)
-  await expect(
-    page.getByLabel('Trace results').getByTestId('mismatches'),
-  ).toHaveCount(0)
+  await expect(traceRoutes(page)).toHaveCount(3)
+  await expect(mismatches).toHaveCount(0)
 })

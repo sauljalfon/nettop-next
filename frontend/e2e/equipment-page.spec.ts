@@ -98,7 +98,7 @@ test('EP-02 ‹ › step through the rack', async ({ page }) => {
   await expect(next).toHaveText(/PANEL-A/)
 })
 
-test('EP-03 the ⋯ menu: Installed has Print sheet and Show on map; a plan adds Duplicate… and Delete…', async ({
+test('EP-03 the ⋯ menu: Installed has History, a disabled Move, Print sheet and Show on map; a plan enables Move and adds Duplicate… and Delete…', async ({
   page,
   request,
 }) => {
@@ -108,9 +108,14 @@ test('EP-03 the ⋯ menu: Installed has Print sheet and Show on map; a plan adds
   await more(page).click()
   await expect(more(page)).toHaveAttribute('aria-expanded', 'true')
   await expect(menu(page).getByRole('menuitem')).toHaveText([
+    'History',
+    /^Move to another rack…\s*Open a plan first$/,
     'Print sheet',
     'Show on map',
   ])
+  await expect(
+    menu(page).getByRole('menuitem', { name: /Move to another rack/ }),
+  ).toBeDisabled()
   // Escape closes it with focus back on the button.
   await page.keyboard.press('Escape')
   await expect(menu(page)).toHaveCount(0)
@@ -131,6 +136,8 @@ test('EP-03 the ⋯ menu: Installed has Print sheet and Show on map; a plan adds
   await openEdge17(page)
   await more(page).click()
   await expect(menu(page).getByRole('menuitem')).toHaveText([
+    'History',
+    'Move to another rack…',
     'Print sheet',
     'Duplicate…',
     'Show on map',
@@ -312,8 +319,13 @@ test('EP-09 a rack item’s page has the same bar and details line', async ({
   await expect(page.locator('.equipment-page')).toContainText('Type')
   await expect(page.getByTestId('rack-strip')).toHaveCount(0)
   await expect(page.locator('.face-head')).toHaveCount(0)
-  // Installed: nothing to put in the menu.
-  await expect(more(page)).toHaveCount(0)
+  // Installed: History, and a Move that says a plan is needed (no sheet, no map).
+  await more(page).click()
+  await expect(menu(page).getByRole('menuitem')).toHaveText([
+    'History',
+    /^Move to another rack…\s*Open a plan first$/,
+  ])
+  await page.keyboard.press('Escape')
   await expect(
     page.locator('.equipment-page').getByRole('button', { name: /^Delete/ }),
   ).toHaveCount(0)
@@ -329,7 +341,11 @@ test('EP-09 a rack item’s page has the same bar and details line', async ({
     page.locator('.equipment-page').getByRole('button', { name: /^Delete/ }),
   ).toHaveCount(0)
   await more(page).click()
-  await expect(menu(page).getByRole('menuitem')).toHaveText(['Delete…'])
+  await expect(menu(page).getByRole('menuitem')).toHaveText([
+    'History',
+    'Move to another rack…',
+    'Delete…',
+  ])
   await page.screenshot({
     path: 'test-results/workbench-2/rack-item-plan-menu.png',
   })

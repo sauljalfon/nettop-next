@@ -79,12 +79,10 @@ function HierarchyLine(props: EdgeProps) {
   const stroke =
     data.onRoute || data.emphasis === 'lit'
       ? 'var(--route)'
-      : data.hot
-        ? 'var(--amber)'
-        : data.proposed
-          ? 'var(--proposed)'
-          : 'var(--rule-strong)'
-  const lit = data.onRoute || data.hot
+      : data.proposed
+        ? 'var(--proposed)'
+        : 'var(--rule-strong)'
+  const lit = data.onRoute
   const chosen = data.emphasis === 'lit'
   return (
     <g
