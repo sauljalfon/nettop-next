@@ -61,6 +61,24 @@ Finished milestones (M1–M5c, M5b steps 11–13, P1, P2) and their designs, rec
 
 **Builder's calls (confirmed by the owner 2026-11-25):** the suggested name takes the highest trailing number among the node's switches of that role and adds one, keeping the prefix and the padding (none: empty, the field focused); the switch's **Model** detail holds the model's name (no link to the model is stored); a model's height is 1–10U.
 
+## Queue after switch models (owner's requests 2026-11-26; not designed yet)
+
+The owner's answers from questions on 2026-11-26. Each item is designed with a demo and approved before it is built (D30), in this order. The design review and the UI research of 2026-11-25 ([history/design-review-2026-11-25.md](history/design-review-2026-11-25.md), [history/ui-research-2026-11-25.md](history/ui-research-2026-11-25.md), [its demo](history/demos/ui-refresh-demo.html)) are reference for all three.
+
+**A. The frame on the left and small fixes** (a short demo of the left side first).
+- **The rail, the dock and Changes on the left:** rail | dock | page; the dock opens beside the rail and narrows the page, never covering it (amends D43). **Changes** leaves the header for the rail, with its count, hidden in Installed; the header keeps the views, the network and Installed | Plan.
+- **The path card without cable names:** a click on a cable line opens a small card (its name, status, notes, a link to the cable).
+- **The node level:** a click on a mini rack opens that rack; a click on a device in it opens the rack with that device chosen (not its page).
+- **The site screen:** a click on a node card opens its racks, a drag still moves it (a short move counts as a click); the "Open racks →" button goes.
+
+**B. Trace by uplink and by rack** (a demo first).
+- **Trace uplinks** from any switch (the tree, a rack, Inventory) and from Find AGG / BB: one drawing per uplink, stacked, each headed ("Uplink 1 of 2 · Gi1/0/49 → AGG-01"); plates both pass are marked "on both". The drawing stays our own (not React Flow).
+- **Trace rack**, a button on the rack level: every switch's routes, all open. Stacked drawings or one combined React Flow graph (each shared panel and AGG drawn once) is chosen from the demo, both shown on a rack of real size.
+
+**C. Networks and racks** (a demo first, building on the UI research).
+- **Manage networks:** a cleaner add; a new network starts with the next colour; **any colour** from a picker, with a warning (never a refusal) when it is very close to another network's or to a state colour; **removal** only when nothing uses it, counting switches added in any open draft, the refusal naming them ("Used by 12 switches and by 2 switches in the draft Expansion"). Amends D27.
+- **Better rack drawings,** starting from the UI research (quieter faceplates, mini racks with names and a network stripe).
+
 ## 1. The network hierarchy (the conceptual view's new purpose)
 
 The conceptual map's overview was "only a worse version than Physical"; the owner gave the view a purpose instead: **the network hierarchy**, from the cables. Phase 1 (top to bottom, with Focus beside it) was approved on 2026-10-25 (D39) and is merged. On the realistic campus the owner then chose **one conceptual view**: a left-to-right tree where Show on map lands, with no separate Focus view. Approved 2026-10-28 from [the demo](history/demos/conceptual-demo.html); the lasting rules are D39 and D40 in [decisions.md](decisions.md).
