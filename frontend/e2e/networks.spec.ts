@@ -1,4 +1,7 @@
 import { expect, test, type Page } from './fixtures'
+import { addBox, BUILDING_A_RACK, pickAndOpenBox } from './add-box'
+import { createModel, modelInput } from './models-api'
+import { unique } from './plan-api'
 import { fitted, selectEquipment, settledViewport, viewport } from './helpers'
 
 // The test database is shared by every spec in a run and networks cannot be
@@ -26,7 +29,7 @@ test.afterEach(async ({ request }) => {
   await request.patch('/api/networks/net-a', { data: { name: 'Network A' } })
 })
 
-test('NET-04 adding a network shows it in the selector, the drawer and the plan form, in the third palette color', async ({
+test('NET-04 adding a network shows it in the selector, the drawer and the add box, in the third palette color', async ({
   page,
   request,
 }) => {
@@ -98,15 +101,15 @@ test('NET-04 adding a network shows it in the selector, the drawer and the plan 
   await expect(select(page)).toHaveValue('net-a')
   expect(await viewport(page)).toBe(before)
 
-  // The plan form's Network select offers it.
+  // The add box's Network select offers it.
+  const model = await createModel(request, modelInput(unique('NET04')))
   await page.getByRole('button', { name: 'Close Manage networks' }).click()
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page.getByRole('button', { name: 'Add Access switch…' }).click()
+  await pickAndOpenBox(page, model.name, BUILDING_A_RACK, 10)
   await expect(
-    page.getByTestId('equipment-form').getByLabel('Network').locator('option'),
-  ).toContainText(["Choose the device's network", ...names, name])
+    addBox(page).getByLabel('Network').locator('option'),
+  ).toContainText(['Choose…', ...names, name])
 })
 
 test('NET-05 renaming Network A updates the selector, badges and inspector; its color and the filter stay', async ({

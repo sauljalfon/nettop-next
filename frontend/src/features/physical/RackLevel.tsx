@@ -11,6 +11,8 @@ import Name from '../../shared/ui/Name'
 import type { SnapshotIndex } from '../map/snapshotIndex'
 import PathBar from '../paths/PathBar'
 import { useUplinks } from '../paths/useUplinks'
+import AddBox from '../planning/AddBox'
+import { addSession, useAddSession } from '../planning/addSession'
 import type { PlanEdit } from '../planning/editing'
 import type { DropHandlers } from './drops'
 import type { ElevationRow } from './elevation'
@@ -59,6 +61,9 @@ export default function RackLevel({
   onPrint,
   onMoveEquipment,
   onCreateEquipment,
+  networkId,
+  onManageNetworks,
+  onEquipmentAdded,
 }: DropHandlers & {
   snapshot: Snapshot
   index: SnapshotIndex
@@ -81,6 +86,11 @@ export default function RackLevel({
   onShowOnMap: (equipmentId: string) => void
   onFixed: (message: string) => Promise<void>
   onPrint: () => void
+  /** The header's network: the add box starts on it when the rack's switches do not agree. */
+  networkId?: string
+  onManageNetworks: () => void
+  /** Equipment was added through the box. */
+  onEquipmentAdded: () => void
 }) {
   const view = useSyncExternalStore(session.subscribe, () =>
     session.rackView(rackId),
@@ -169,6 +179,9 @@ export default function RackLevel({
     return () => observer.disconnect()
   }, [chosenId, !!face])
 
+  // The library's pick (free units are its targets) and the open box with the units it will take.
+  const { picked, box } = useAddSession()
+  const [preview, setPreview] = useState<ReadonlySet<number>>()
   const pick = (id: string) => session.chooseUnit(rackId, id)
   const selectJack = (id: string) => {
     if (!chosenId) return
@@ -215,6 +228,8 @@ export default function RackLevel({
           onPrint={onPrint}
           onMoveEquipment={onMoveEquipment}
           onCreateEquipment={onCreateEquipment}
+          picked={canEdit ? picked : undefined}
+          preview={box?.rackId === rackId ? preview : undefined}
         />
         <div
           className="rack-pick"
@@ -291,6 +306,25 @@ export default function RackLevel({
           </div>
         )}
       </div>
+      {/* The box outlives a draft that reloads for a moment (after a refusal): it keeps its last edit and its error. */}
+      {box && box.rackId === rackId && (
+        <AddBox
+          key={box.token}
+          request={box}
+          snapshot={snapshot}
+          edit={edit}
+          headerNetworkId={networkId}
+          onClose={() => addSession.closeBox()}
+          onManageNetworks={onManageNetworks}
+          onPreview={setPreview}
+          onAdded={(plan, names) => {
+            addSession.closeBox()
+            const first = plan.equipment.find((e) => e.name === names[0])
+            if (first) session.chooseUnit(rackId, first.id)
+            onEquipmentAdded()
+          }}
+        />
+      )}
     </div>
   )
 }

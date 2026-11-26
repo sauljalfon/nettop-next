@@ -45,6 +45,7 @@ import SiteCanvas from './SiteCanvas'
 import SitesGrid from './SitesGrid'
 import './physical.css'
 import Name from '../../shared/ui/Name'
+import type { NewItem } from '../planning/boxModel'
 import { PlaceSep } from '../../shared/ui/PlacePath'
 import { setModelSession } from '../models/setModelSession'
 
@@ -72,12 +73,11 @@ interface Props {
   /** Installed sites, nodes and racks; any other container is proposed (marked in a plan). */
   installedContainerIds: ReadonlySet<string>
   onMoveEquipment: (equipmentId: string, rackId: string, unit?: number) => void
-  onCreateEquipment: (
-    kind: 'switch' | 'panel' | 'rack_item',
-    rackId: string,
-    unit?: number,
-    role?: 'aggregation',
-  ) => void
+  onCreateEquipment: (item: NewItem, rackId: string, unit?: number) => void
+  /** The add box at a unit: its Manage networks… hint. */
+  onManageNetworks: () => void
+  /** Equipment was added through the box: the Add drawer is done. */
+  onEquipmentAdded: () => void
   /** Selects equipment (a click on a rack block, or an endpoint opened), without the inspector. */
   onSelectEquipment: (equipmentId: string) => void
   /** Find AGG / BB from one endpoint; the results show in the overlay. */
@@ -116,6 +116,8 @@ export default function PhysicalExplorer({
   installedContainerIds,
   onMoveEquipment,
   onCreateEquipment,
+  onManageNetworks,
+  onEquipmentAdded,
   onSelectEquipment,
   onFindFromEndpoint,
   onFullPage,
@@ -571,6 +573,9 @@ export default function PhysicalExplorer({
             onPrint={() => setSheet('rack')}
             onMoveEquipment={onMoveEquipment}
             onCreateEquipment={onCreateEquipment}
+            networkId={networkId}
+            onManageNetworks={onManageNetworks}
+            onEquipmentAdded={onEquipmentAdded}
           />
         )}
         {onPage && equipment && (face || !hasPorts(equipment)) && (

@@ -1,4 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
+import { addBox } from './add-box'
+import { createModel, modelInput } from './models-api'
+import { unique } from './plan-api'
 import {
   fitted,
   findAggBb,
@@ -161,17 +164,25 @@ test('PHY-06 a library drop and a move between two racks of Main Distribution pr
     expect.objectContaining({ equipmentId: 'agg-15', rackId: 'rack-core-03' }),
   ])
 
-  // A library item dropped on a preview starts a new item in that rack.
+  // A library item dropped on a rack of the node opens that rack with the box at its first unit that fits.
+  const model = await createModel(request, modelInput(unique('PHY06')))
   await page.getByRole('button', { name: 'Add equipment library' }).click()
   await page
-    .locator('.library-item')
-    .filter({ hasText: 'Access switch' })
+    .getByTestId('library-item')
+    .filter({ hasText: model.name })
     .dragTo(preview('rack-core-01'))
-  const form = page.getByTestId('equipment-form')
-  await expect(form.getByLabel('Rack', { exact: true })).toHaveValue(
-    'rack-core-01',
-  )
-  await form.getByRole('button', { name: 'Cancel', exact: true }).click()
+  const box = addBox(page)
+  await expect(box).toBeVisible()
+  await expect(box).toContainText('at U1')
+  await expect(
+    page.getByRole('navigation', { name: 'Breadcrumbs' }),
+  ).toContainText('Rack Core 01')
+  await page.keyboard.press('Escape')
+  await expect(box).toHaveCount(0)
+  await page
+    .getByRole('navigation', { name: 'Breadcrumbs' })
+    .getByRole('button', { name: 'Main Distribution' })
+    .click()
 
   // Installed is unchanged: by the API, and in the explorer after switching.
   const installed = await (

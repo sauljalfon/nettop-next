@@ -1,0 +1,147 @@
+/* The small box at the unit (D51) and the library's pick note. Tokens only (D33). */
+.add-box {
+  position: fixed;
+  z-index: 30;
+  width: 330px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  gap: 10px;
+  box-shadow: var(--shadow-pop);
+}
+.add-box .form-head .muted {
+  margin-inline-start: auto;
+  color: var(--ink-soft);
+  font-size: var(--t-xs);
+}
+.add-box .form-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.add-box-stepper,
+.add-box-positions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.add-box-stepper .btn {
+  width: var(--h-control);
+  padding: 0;
+}
+.add-box-names {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.add-box .form-actions {
+  align-items: center;
+}
+.add-box .form-actions .hint {
+  margin-inline-start: auto;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+
+/* The library (Add tab). */
+.lib-group {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.lib-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.lib-group-head h3 {
+  margin: 0;
+  font-size: var(--t-md);
+}
+.lib-group-head .faint {
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+.lib-group-head .link-button {
+  margin-inline-start: auto;
+  font-size: var(--t-xs);
+}
+.lib-empty {
+  padding: 12px;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
+}
+.pick-note {
+  display: grid;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule-soft);
+  border-radius: 8px;
+}
+.pick-note strong {
+  color: var(--ink);
+}
+.library-item.picked {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--rule);
+}
+.library-item .face-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 40px;
+  height: 18px;
+  padding: 0 3px;
+  background: var(--steel);
+  border-radius: 3px;
+}
+.library-item .face-icon i {
+  flex: 1;
+  height: 8px;
+  background: var(--tape);
+  border-radius: 1px;
+}
+.library-item .face-icon.panel i {
+  background: var(--steel-ink-strong);
+}
+.library-item .face-icon.item {
+  background: var(--steel-3);
+}
+.library-item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.library-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.library-item > div {
+  min-width: 0;
+}
+/* A free unit while something is picked, and the units the box will take (on steel). */
+.rack-slot.free[data-pick-target='true'] {
+  cursor: copy;
+  border-color: var(--steel-hover);
+}
+.rack-slot.free[data-pick-target='true']:hover {
+  background: var(--steel-2);
+  border-color: var(--route);
+}
+.rack-slot.free[data-preview='true'] {
+  background: var(--proposed-steel-bg);
+  border: 1px dashed var(--proposed-on-steel);
+}
+.rack-slot.free:focus-visible {
+  outline: 2px solid var(--paper);
+  outline-offset: -2px;
+}

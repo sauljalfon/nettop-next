@@ -1,4 +1,5 @@
 import { expect, test, type Page } from './fixtures'
+import { addBox, boxAdd, dragAndOpenBox } from './add-box'
 import {
   chooseMore,
   fitted,
@@ -23,20 +24,14 @@ test('RI-13 a rack item is dragged in from the library, moved, recorded, and del
   await page.goto(`/?plan=${id}`)
   await fitted(page)
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page
-    .locator('.library-item')
-    .filter({ hasText: 'Rack item' })
-    .dragTo(page.getByTestId('rack-slot-rack-a03-4'))
-  const form = page.getByTestId('equipment-form')
-  await expect(form.getByLabel('Unit', { exact: true })).toHaveValue('4')
-  await form.getByLabel('Type').selectOption('ups')
-  await expect(form.getByLabel('Height')).toHaveValue('2')
-  await expect(form.getByLabel('Name')).toHaveValue(
-    'UPS Building A Rack A03 U4',
-  )
-  await form.getByLabel('Name').fill('UPS-RI13')
-  await form.getByRole('button', { name: 'Add to plan' }).click()
+  // A UPS is 2U: dropped on U5 it takes U5 down to U4.
+  await dragAndOpenBox(page, 'UPS', 'rack-a03', 5)
+  const box = addBox(page)
+  await expect(box).toContainText('at U5 down to U4')
+  await expect(box.getByLabel('Height (U)')).toHaveValue('2')
+  await expect(box.getByLabel('Name')).toHaveValue('UPS Building A Rack A03 U4')
+  await box.getByLabel('Name').fill('UPS-RI13')
+  await boxAdd(page).click()
   await expect(page.getByTestId('rack-slot-rack-a03-4')).toContainText(
     'UPS-RI13',
   )

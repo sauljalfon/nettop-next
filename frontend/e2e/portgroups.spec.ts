@@ -1,13 +1,7 @@
 import { expect, test, type Page } from './fixtures'
 import { fitted, openRackInPhysical } from './helpers'
 import { command, getPlan, newPlan, unique } from './plan-api'
-import {
-  chooseFar,
-  chooseRack,
-  farJack,
-  patching,
-  useRange,
-} from './patching-helpers'
+import { chooseFar, farJack, patching, useRange } from './patching-helpers'
 
 // Step 11b: real interface names (Gi1/0/1, Te1/1/1) and mixed port types.
 const shot = (page: Page, name: string) =>
@@ -59,84 +53,6 @@ async function openSwitch(page: Page, planId: string, switchId: string) {
   await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
   await page.locator(`.rack-block[data-equipment-id="${switchId}"]`).dblclick()
 }
-
-test('PG-06 the Add form: port group rows, a one-line summary, and the ports it makes', async ({
-  page,
-  request,
-}) => {
-  const id = await newPlan(request, unique('Form'))
-  await page.goto(`/?plan=${id}`)
-  await openRackInPhysical(page, 'Main Campus', 'Building A', 'Rack A03')
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page.getByRole('button', { name: 'Add Access switch…' }).click()
-  const form = page.getByTestId('equipment-form')
-  await form.getByLabel('Name', { exact: true }).fill('SW-FORM')
-  await form.getByLabel('Network').selectOption('net-a')
-  await chooseRack(form, 'Place', {
-    site: 'Main Campus',
-    node: 'Building A',
-    rack: 'Rack A03',
-  })
-  await form.getByLabel('Unit', { exact: true }).fill('3')
-
-  // The plain Ports count turns into groups: the same ports as "Port {n}", plus an empty row.
-  await form.getByLabel('Ports', { exact: true }).fill('24')
-  await form.getByRole('button', { name: '+ Add port group' }).click()
-  await expect(form.getByLabel('Ports', { exact: true })).toHaveCount(0)
-  const rows = form.getByTestId('port-group-row')
-  await expect(rows).toHaveCount(2)
-  await expect(form.getByTestId('port-summary')).toHaveText(
-    '24 ports: Port 1 … Port 24',
-  )
-
-  const first = box(page, 'Port group 1')
-  await first.getByLabel('Names', { exact: true }).fill('Gi1/0/{n}')
-  await first.getByLabel('Type').selectOption('copper')
-  await first.getByLabel('Connector').fill('RJ45')
-  await first.getByLabel('Speed').fill('1G')
-  const second = box(page, 'Port group 2')
-  await second.getByLabel('Count').fill('4')
-  await second.getByLabel('Names', { exact: true }).fill('Te1/1/{n}')
-  await second.getByLabel('Type').selectOption('fiber')
-  await second.getByLabel('Connector').fill('SFP+')
-  await second.getByLabel('Speed').fill('10G')
-  await expect(form.getByTestId('port-summary')).toHaveText(
-    '28 ports: Gi1/0/1 … Gi1/0/24, Te1/1/1 … Te1/1/4',
-  )
-  await shot(page, 'form')
-
-  // A mistake is said in words, before anything is sent.
-  await second.getByLabel('Names', { exact: true }).fill('Te1/1/')
-  await form.getByRole('button', { name: 'Add to plan' }).click()
-  await expect(form.getByTestId('edit-error')).toHaveText(
-    'Port group 2: Names must contain {n} once.',
-  )
-  await second.getByLabel('Names', { exact: true }).fill('Te1/1/{n}')
-  await form.getByRole('button', { name: 'Add to plan' }).click()
-  await expect(form).toHaveCount(0)
-
-  const plan = await getPlan(request, id)
-  const ports = plan.endpoints.filter(
-    (p: { equipmentId: string }) => p.equipmentId === plan.equipment[0].id,
-  )
-  expect(ports).toHaveLength(28)
-  expect(ports[0]).toMatchObject({
-    label: 'Gi1/0/1',
-    position: 1,
-    portGroup: 1,
-    portType: 'copper',
-    connector: 'RJ45',
-    speed: '1G',
-  })
-  expect(ports[27]).toMatchObject({
-    label: 'Te1/1/4',
-    position: 28,
-    portGroup: 2,
-    portType: 'fiber',
-    connector: 'SFP+',
-    speed: '10G',
-  })
-})
 
 test('PG-04 the faceplate draws one bank per group with its caption; a switch without groups is one bank', async ({
   page,

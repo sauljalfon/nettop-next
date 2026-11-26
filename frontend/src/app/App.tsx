@@ -68,9 +68,9 @@ import RouteChip from '../features/trace/RouteChip'
 import TracePage from '../features/trace/TracePage'
 import ModelsPage from '../features/models/ModelsPage'
 import SetModelHost from '../features/models/SetModelHost'
-import LibraryItems, {
-  type PendingEquipment,
-} from '../features/planning/LibraryItems'
+import LibraryItems from '../features/planning/LibraryItems'
+import { addSession } from '../features/planning/addSession'
+import type { NewItem } from '../features/planning/boxModel'
 import { locationTree } from '../features/patching/patching'
 import { lowestFreeUnit } from '../features/planning/placement'
 import { filterTree } from '../features/explore/tree'
@@ -97,7 +97,6 @@ import type { GoTarget } from '../features/planning/summary'
 import EnvironmentBadge from '../features/environment/EnvironmentBadge'
 import type { PlanEdit } from '../features/planning/editing'
 import PatchingHost from '../features/patching/PatchingHost'
-import HdfForm from '../features/planning/HdfForm'
 import { resolveLocation } from '../features/physical/location'
 import { searchEquipment } from '../features/map/search'
 import './styles.css'
@@ -116,7 +115,6 @@ export default function App() {
     () => new URLSearchParams(location.search).get('plan') ?? '',
   )
   const dock = useDock()
-  const [pending, setPending] = useState<PendingEquipment>()
   const [status, setStatus] = useState('')
   const statusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
@@ -242,42 +240,9 @@ export default function App() {
     },
     [client, notify],
   )
-  const requestEquipment = useCallback(
-    (
-      kind: 'switch' | 'panel' | 'rack_item',
-      rackID?: string,
-      unit?: number,
-      role?: 'aggregation',
-    ) => {
-      const current = topology.data
-      if (context !== 'planned' || !selectedPlan || !current) return
-      const rack = current.racks.find((r) => r.id === rackID),
-        occupied = new Set(
-          current.equipment
-            .filter((e) => e.rackId === rackID)
-            .flatMap((e) =>
-              Array.from({ length: e.height }, (_, i) => e.unit + i),
-            ),
-        )
-      const first = rack
-        ? Array.from({ length: rack.units }, (_, i) => i + 1).find(
-            (u) => !occupied.has(u),
-          )
-        : undefined
-      setPending({
-        token: Date.now(),
-        kind,
-        role,
-        rackId: rackID ?? '',
-        unit: unit ?? first ?? 1,
-      })
-      dockSession.open('add')
-    },
-    [topology.data, context, selectedPlan],
-  )
   const openInspector = useCallback(() => dockSession.open('inspector'), [])
   const setMode = (next: Context) => {
-    setPending(undefined)
+    addSession.clear()
     setContext(next)
     dockSession.setPlanned(next === 'planned')
     if (next === 'planned') dockSession.open('changes')
@@ -297,7 +262,7 @@ export default function App() {
   // Installed, with the same physical location and trace (the Workspace reruns
   // the remembered trace when its topology revision changes).
   const recorded = async ({ plan, changes, already }: RecordedInfo) => {
-    setPending(undefined)
+    addSession.clear()
     setPlanID('')
     setContext('installed')
     await refresh()
@@ -467,13 +432,7 @@ export default function App() {
               snapshot={topology.data}
               installed={installed.data}
               plan={context === 'planned' ? selectedPlan : undefined}
-              pending={pending}
-              onCreateEquipment={requestEquipment}
-              onCancelPending={() => setPending(undefined)}
-              onEquipmentAdded={() => {
-                setPending(undefined)
-                dockSession.close()
-              }}
+              onEquipmentAdded={() => dockSession.close()}
               onSelectEquipment={openInspector}
               onManageNetworks={() => dockSession.open('networks')}
               onPlanSaved={saved}
@@ -499,7 +458,7 @@ export default function App() {
               installed={installed.data}
               selected={selectedPlan}
               onSelectPlan={(id) => {
-                setPending(undefined)
+                addSession.clear()
                 setPlanID(id)
               }}
               onOpenPlan={openPlan}
@@ -537,15 +496,7 @@ interface WorkspaceProps {
   snapshot: Snapshot
   installed: Snapshot
   plan?: Plan
-  pending?: PendingEquipment
-  onCreateEquipment: (
-    kind: 'switch' | 'panel' | 'rack_item',
-    rackID?: string,
-    unit?: number,
-    role?: 'aggregation',
-  ) => void
-  onCancelPending: () => void
-  /** Equipment was added through the library form: the drawer is done. */
+  /** Equipment was added through the box at a unit: the drawer is done. */
   onEquipmentAdded: () => void
   onSelectEquipment: () => void
   /** Opens the Manage networks drawer. */
@@ -577,9 +528,6 @@ function Workspace({
   snapshot,
   installed,
   plan,
-  pending,
-  onCreateEquipment,
-  onCancelPending,
   onEquipmentAdded,
   onSelectEquipment,
   onManageNetworks,
@@ -833,15 +781,23 @@ function Workspace({
     () => containerIds(installed),
     [installed],
   )
-  // A new HDF is opened in Physical once the refreshed topology has it.
-  const [openAfterCreate, setOpenAfterCreate] = useState<string>()
-  useEffect(() => {
-    if (openAfterCreate && index.equipment.has(openAfterCreate)) {
-      showInPhysical(openAfterCreate)
-      setOpenAfterCreate(undefined)
-    }
-  }, [openAfterCreate, index, showInPhysical])
-  const current = resolveLocation(index, physicalSession.history().current)
+  const physicalHistory = useSyncExternalStore(
+    physicalSession.subscribe,
+    physicalSession.history,
+  )
+  const current = resolveLocation(index, physicalHistory.current)
+  // A click or a drop of a library entry on a free unit opens the small box there (D51), in a
+  // plan only; a drop on a rack without a unit opens the rack with the box at the first unit
+  // that fits.
+  const requestEquipment = useCallback(
+    (item: NewItem, rackId: string, unit?: number) => {
+      if (!canEdit) return
+      addSession.openBox({ item, rackId, unit })
+      showPlace({ rackId })
+      dockSession.open('add')
+    },
+    [canEdit, showPlace],
+  )
   const move = useCallback(
     (id: string, rackID: string, unit?: number) => {
       if (!plan) return
@@ -1056,7 +1012,9 @@ function Workspace({
           edit={edit}
           installedContainerIds={installedContainerIds}
           onMoveEquipment={move}
-          onCreateEquipment={onCreateEquipment}
+          onCreateEquipment={requestEquipment}
+          onManageNetworks={onManageNetworks}
+          onEquipmentAdded={onEquipmentAdded}
           onSelectEquipment={setSelected}
           onFindFromEndpoint={traceFromPort}
           onFullPage={showJackRoute}
@@ -1069,23 +1027,15 @@ function Workspace({
       <DockBody tab="add">
         <LibraryItems
           canEdit={canEdit}
-          edit={edit}
           tree={tree}
-          networks={snapshot.networks}
-          defaultRackId={current.rackId}
           near={{ siteId: current.siteId, nodeId: current.nodeId }}
-          pending={pending}
-          onCancelPending={onCancelPending}
-          onAdded={onEquipmentAdded}
-          onManageNetworks={onManageNetworks}
-          onManageModels={() => onOpenModels()}
-          onHdfCreated={(saved, name) => {
-            const created = saved.equipment.find(
-              (e) => e.kind === 'hdf' && e.name === name,
-            )
-            if (created) setOpenAfterCreate(created.id)
-            closeDrawer()
-          }}
+          rackShown={
+            view === 'physical' && current.level === 'rack'
+              ? current.rackId
+              : undefined
+          }
+          onOpenRack={openRack}
+          onOpenModels={onOpenModels}
         />
       </DockBody>
       <DockBody tab="explore">

@@ -1,18 +1,13 @@
 import { expect, test, type APIRequestContext, type Page } from './fixtures'
 import { findAggBb, leaveTrace, traceRoutes } from './helpers'
-import { chooseRack } from './patching-helpers'
+import { addBox, boxAdd, BUILDING_A_RACK, pickAndOpenBox } from './add-box'
+import { createModel, modelInput } from './models-api'
+import { unique } from './plan-api'
 
 const getPlan = async (request: APIRequestContext, id: string) =>
   (await request.get(`/api/plans/${id}`)).json()
 
-/** Opens the library's Access switch form. */
-async function openSwitchForm(page: Page) {
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page.getByRole('button', { name: 'Add Access switch…' }).click()
-  return page.getByTestId('equipment-form')
-}
-
-test('save a plan, add equipment through the library form, reload, and reject stale edits', async ({
+test('save a plan, add equipment through the box at a unit, reload, and reject stale edits', async ({
   page,
   request,
 }) => {
@@ -27,21 +22,13 @@ test('save a plan, add equipment through the library form, reload, and reject st
   const planID = await page.getByLabel('Draft', { exact: true }).inputValue()
   await page.getByRole('button', { name: 'Close Changes & plans' }).click()
 
-  const form = await openSwitchForm(page)
-  await form.getByLabel('Name').fill('EDGE-BROWSER')
-  // A switch needs its network: the form says so and sends nothing.
-  await form.getByRole('button', { name: 'Add to plan' }).click()
-  await expect(form.getByTestId('edit-error')).toContainText('network')
-  expect((await getPlan(request, planID)).revision).toBe('1')
-  await form.getByLabel('Network').selectOption('net-a')
-  await chooseRack(form, 'Place', {
-    site: 'Main Campus',
-    node: 'Building A',
-    rack: 'Rack A03',
-  })
-  await form.getByLabel('Unit', { exact: true }).fill('4')
-  await form.getByLabel('Ports').fill('2')
-  await form.getByRole('button', { name: 'Add to plan' }).click()
+  const model = await createModel(request, modelInput(unique('PLAN')))
+  await pickAndOpenBox(page, model.name, BUILDING_A_RACK, 4)
+  const box = addBox(page)
+  await box.getByLabel('Name').fill('EDGE-BROWSER')
+  // The rack's other switch is on Network A: the box starts there.
+  await expect(box.getByLabel('Network')).toHaveValue('net-a')
+  await boxAdd(page).click()
   await expect(page.getByRole('status')).toContainText('revision 2')
   const saved = await getPlan(request, planID)
   expect(saved.equipment[0]).toMatchObject({
@@ -81,22 +68,18 @@ test('save a plan, add equipment through the library form, reload, and reject st
   })
   expect(response.status()).toBe(200)
   await leaveTrace(page)
-  const stale = await openSwitchForm(page)
+  await pickAndOpenBox(page, model.name, BUILDING_A_RACK, 5)
+  const stale = addBox(page)
   await stale.getByLabel('Name').fill('STALE-EDIT')
-  await stale.getByLabel('Network').selectOption('net-a')
-  await chooseRack(stale, 'Place', {
-    site: 'Main Campus',
-    node: 'Building A',
-    rack: 'Rack A03',
-  })
-  await stale.getByLabel('Unit', { exact: true }).fill('5')
-  await stale.getByRole('button', { name: 'Add to plan' }).click()
+  await boxAdd(page).click()
   // The server says the draft changed (in its own words); the edit is not retried.
   await expect(stale.getByTestId('edit-error')).toContainText('draft changed')
   const current = await (await request.get(`/api/plans/${planID}`)).json()
   expect(
     current.equipment.some((e: { name: string }) => e.name === 'STALE-EDIT'),
   ).toBe(false)
+  // Back on the map: the box was a Physical thing.
+  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
   // The plan's switch is cabled to AGG-15, so Building A has a card under AGG-15; Installed does not have it.
   const building = page.locator('[data-card-key="agg-15|node-building-a"]')
   await expect(building).toContainText('Building A')

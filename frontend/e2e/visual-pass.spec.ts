@@ -1,5 +1,12 @@
 import { expect, test, type Page } from './fixtures'
 import {
+  addBox,
+  boxAdd,
+  libraryEntry,
+  openLibrary,
+  pickAndOpenBox,
+} from './add-box'
+import {
   fitted,
   openRackInPhysical,
   selectEquipment,
@@ -337,13 +344,20 @@ const ringReach = (locator: ReturnType<Page['locator']>) =>
     return Math.max(outline, shadow)
   })
 
-test('VP-04 the Add HDF form: label above, focus rings inside, place stacked in the narrow drawer, ink and paper buttons, dashed', async ({
+const CORE_03 = {
+  site: 'Main Campus',
+  node: 'Main Distribution',
+  rack: 'Rack Core 03',
+  rackId: 'rack-core-03',
+}
+
+test('VP-04 the small box: label above, focus rings inside, ink and paper buttons, dashed', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page.getByRole('button', { name: 'Add HDF…' }).click()
-  const form = page.getByTestId('hdf-form')
+  await page.getByRole('button', { name: 'Close Changes & plans' }).click()
+  await pickAndOpenBox(page, 'HDF', CORE_03, 12)
+  const form = addBox(page)
   await expect(form).toBeVisible()
 
   // The form's own ring is inside its box.
@@ -363,7 +377,7 @@ test('VP-04 the Add HDF form: label above, focus rings inside, place stacked in 
   expect(own.color).toBe('rgb(28, 43, 58)')
   expect(await ringReach(form)).toBe(0)
 
-  // The Name input's ring stays inside the form.
+  // The Name input's ring stays inside the form, its label above it.
   const name = form.getByLabel('Name')
   await name.focus()
   const formBox = (await form.boundingBox())!
@@ -377,33 +391,13 @@ test('VP-04 the Add HDF form: label above, focus rings inside, place stacked in 
   expect(nameBox.y + nameBox.height + reach).toBeLessThanOrEqual(
     formBox.y + formBox.height,
   )
+  const label = (await form
+    .locator('label', { hasText: /^Name$/ })
+    .boundingBox())!
+  expect(label.y + label.height).toBeLessThanOrEqual(nameBox.y + 0.5)
 
-  // Site, Node, Rack: one row, left to right, each label above its select.
-  const place = form.getByRole('group', { name: 'Place' })
-  const parts = []
-  for (const part of ['Site', 'Node', 'Rack']) {
-    const select = place.getByLabel(part, { exact: true })
-    const label = place.locator('label', { hasText: new RegExp(`^${part}$`) })
-    const s = (await select.boundingBox())!
-    const l = (await label.boundingBox())!
-    expect(
-      l.y + l.height,
-      `${part} label above its select`,
-    ).toBeLessThanOrEqual(s.y + 0.5)
-    parts.push(s)
-  }
-  // The library drawer is narrow, so the three stack one per line (owner, 2026-10-15)
-  // and no chosen name is clipped; the patching screen keeps them on one row (below).
-  expect(parts[1].y).toBeGreaterThan(parts[0].y + parts[0].height)
-  expect(parts[2].y).toBeGreaterThan(parts[1].y + parts[1].height)
-  expect(Math.abs(parts[0].x - parts[1].x)).toBeLessThanOrEqual(1)
-  expect(Math.abs(parts[1].x - parts[2].x)).toBeLessThanOrEqual(1)
-  expect(parts[0].width).toBeGreaterThanOrEqual(200)
-
-  // Ink submit, paper Cancel with a rule border; a proposed form is dashed.
-  const submit = await rgbOf(
-    form.getByRole('button', { name: 'Add HDF to plan' }),
-  )
+  // Ink Add, paper Cancel with a rule border; a proposed box is dashed.
+  const submit = await rgbOf(boxAdd(page))
   expect(submit.background).toBe('rgb(28, 43, 58)')
   const cancel = await rgbOf(form.getByRole('button', { name: 'Cancel' }))
   expect(cancel.background).toBe('rgb(255, 255, 255)')
@@ -411,27 +405,19 @@ test('VP-04 the Add HDF form: label above, focus rings inside, place stacked in 
   expect((await rgbOf(form)).borderStyle).toBe('dashed')
 })
 
-test('VP-04 a library item is one card: icon, then name over its description, then Add…', async ({
+test('VP-04 a library entry is one card: icon, then name over its description', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  const item = page
-    .locator('.library-item')
-    .filter({ hasText: 'Access switch' })
-  const icon = (await item.locator('.equipment-icon').boundingBox())!
+  await openLibrary(page)
+  const item = libraryEntry(page, 'Patch panel')
+  const icon = (await item.locator('.face-icon').boundingBox())!
   const name = (await item.locator('strong').boundingBox())!
   const description = (await item.locator('small').boundingBox())!
-  const add = (await item
-    .getByRole('button', { name: 'Add Access switch…' })
-    .boundingBox())!
   expect(icon.x + icon.width).toBeLessThanOrEqual(name.x)
   expect(description.y).toBeGreaterThanOrEqual(name.y + name.height - 0.5)
-  expect(add.x).toBeGreaterThanOrEqual(
-    Math.max(name.x + name.width, description.x + description.width),
-  )
   expect(
-    Math.abs(add.y + add.height / 2 - (icon.y + icon.height / 2)),
+    Math.abs(name.y + name.height / 2 - (icon.y + icon.height / 2)),
   ).toBeLessThan(20)
   expect((await rgbOf(item)).border).toBe('rgb(211, 218, 225)')
 })
@@ -539,14 +525,17 @@ test('VP-05 Physical: the site canvas, Rack A03 and HDF-01 have no text under 11
   expect(await smallText(page), 'HDF-01').toEqual([])
 })
 
-test('VP-05 the HDF form in the library and the Changes drawer have no text under 11px', async ({
+test('VP-05 the small box and the Changes drawer have no text under 11px', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Plan: Expansion' }).click()
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page.getByRole('button', { name: 'Add HDF…' }).click()
-  await expect(page.getByTestId('hdf-form')).toBeVisible()
-  expect(await smallText(page), 'HDF form').toEqual([])
+  await page.getByRole('button', { name: 'Close Changes & plans' }).click()
+  await pickAndOpenBox(page, 'HDF', CORE_03, 12)
+  await expect(addBox(page)).toBeVisible()
+  expect(await smallText(page), 'add box').toEqual([])
+  await page.keyboard.press('Escape')
+  await openLibrary(page)
+  expect(await smallText(page), 'library').toEqual([])
   await page.getByRole('button', { name: 'Close Equipment library' }).click()
   await page.getByRole('button', { name: /^Changes/ }).click()
   await expect(

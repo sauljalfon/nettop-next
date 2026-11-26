@@ -41,5 +41,8 @@ export function useSwitchModels() {
     update: (id: string, input: SwitchModelInput) =>
       update.mutateAsync({ id, input }),
     remove: remove.mutateAsync,
+    /** Asks the server again; the list as it is now. */
+    refetch: async () =>
+      (await query.refetch()).data as SwitchModel[] | undefined,
   }
 }

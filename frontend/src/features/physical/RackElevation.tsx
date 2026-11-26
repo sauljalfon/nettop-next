@@ -10,8 +10,11 @@ import type { Snapshot } from '../../shared/types'
 import { colorOf } from '../map/networkColors'
 import { blockDetail, compactUnitPx, labelEvery, unitLabel } from './cabinet'
 import { DRAG_TYPE, dropInto, type DropHandlers } from './drops'
+import { unitOpener } from '../planning/AddBox'
+import type { NewItem } from '../planning/boxModel'
 import { compactRack, type ElevationRow, type RackRow } from './elevation'
 import { scrollerOf } from './useFaceFit'
+import { OPENER } from '../planning/useInlineDialog'
 import { elevationSubtitlePieces } from './explorerModel'
 import { piecesText } from '../../shared/textPieces'
 import Pieces from '../../shared/ui/Pieces'
@@ -37,6 +40,10 @@ interface Props extends DropHandlers {
   compact?: boolean
   /** Compact: pixels kept free under the rack (the path card's height and gap). */
   keepBelow?: number
+  /** A library entry picked by a click: the free units are its targets. */
+  picked?: NewItem
+  /** The units the open add box will take. */
+  preview?: ReadonlySet<number>
   /** A click on a unit: shows it beside the rack. */
   onPick?: (equipmentId: string) => void
   /** A double-click on a unit: opens its page. */
@@ -76,6 +83,8 @@ export default function RackElevation({
   onPrint,
   onMoveEquipment,
   onCreateEquipment,
+  picked,
+  preview,
 }: Props) {
   const cabinetBox = useRef<HTMLDivElement>(null)
   const hintBox = useRef<HTMLParagraphElement>(null)
@@ -270,7 +279,21 @@ export default function RackElevation({
                   className="rack-slot free"
                   data-testid={`rack-slot-${rackId}-${row.unit}`}
                   data-drop-target={canEdit}
+                  data-pick-target={canEdit && !!picked}
+                  data-preview={preview?.has(row.unit) ? 'true' : undefined}
+                  tabIndex={canEdit ? 0 : undefined}
+                  {...(canEdit && { [OPENER]: unitOpener(rackId, row.unit) })}
                   style={{ gridColumn: 2, gridRow: start }}
+                  onClick={() => {
+                    if (canEdit && picked)
+                      onCreateEquipment?.(picked, rackId, row.unit)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && canEdit && picked) {
+                      event.preventDefault()
+                      onCreateEquipment?.(picked, rackId, row.unit)
+                    }
+                  }}
                   {...slotDrop(row.unit)}
                 >
                   {!compact && unitPx >= 18 && 'Available'}

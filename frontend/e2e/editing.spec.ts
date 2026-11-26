@@ -6,6 +6,13 @@ import {
   openRackInPhysical,
 } from './helpers'
 import {
+  addBox,
+  boxAdd,
+  libraryEntry,
+  openLibrary,
+  pickAndOpenBox,
+} from './add-box'
+import {
   chooseFar,
   chooseRack,
   farJack,
@@ -338,33 +345,41 @@ test('ED-10 an installed empty rack can be deleted in a plan; a rack with equipm
   )
 })
 
-test('ED-11 the HDF form adds a 4-row HDF in a rack, shows the server refusing a clash, and opens the new HDF in Physical', async ({
+test('ED-11 the HDF box adds a 4-row HDF in a rack, refuses a clash in words, and the rack shows it', async ({
   page,
   request,
 }) => {
   const id = await newPlan(request, 'ED-11 hdf')
   await openPlan(page, id)
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page.getByRole('button', { name: 'Add HDF…' }).click()
-  const form = page.getByTestId('hdf-form')
-  await form.getByLabel('Name').fill('HDF-NEW')
-  await form.getByLabel(/^Rows/).fill('4')
-  await form.getByLabel('Height (U)').fill('3')
-  await chooseRack(form, 'Place', {
+  const where = {
     site: 'Main Campus',
     node: 'North Sub-main',
     rack: 'Rack SM01',
-  })
-  await expect(form).toContainText('96 positions per side')
-  // U4–U6 are HDF-01's: the server says so and nothing is saved.
-  await form.getByLabel('Lowest unit').fill('4')
-  await form.getByRole('button', { name: 'Add HDF to plan' }).click()
-  await expect(form.getByTestId('edit-error')).toHaveText(
-    'U4–6 in Rack SM01 is taken by HDF-01',
+    rackId: 'rack-sm01',
+  }
+  await pickAndOpenBox(page, 'HDF', where, 7)
+  let box = addBox(page)
+  await box.getByLabel('Name').fill('HDF-NEW')
+  await box.getByLabel('Rows').fill('4')
+  await box.getByLabel('Height (U)').fill('3')
+  await expect(box).toContainText('96 positions per side')
+  // U7 down to U5: U4–U6 are HDF-01's, so the box says so and Add is off.
+  await expect(box).toContainText(
+    'Not enough free units below U7 for 1 × 3U. Choose fewer or a higher unit.',
   )
+  await expect(boxAdd(page)).toBeDisabled()
   expect((await getPlan(request, id)).revision).toBe('1')
-  await form.getByLabel('Lowest unit').fill('8')
-  await form.getByRole('button', { name: 'Add HDF to plan' }).click()
+  // Escape cancels and focus returns to the unit it was opened at.
+  await page.keyboard.press('Escape')
+  await expect(addBox(page)).toHaveCount(0)
+  await expect(page.getByTestId('rack-slot-rack-sm01-7')).toBeFocused()
+  await pickAndOpenBox(page, 'HDF', where, 10)
+  box = addBox(page)
+  await box.getByLabel('Name').fill('HDF-NEW')
+  await box.getByLabel('Rows').fill('4')
+  await box.getByLabel('Height (U)').fill('3')
+  await expect(box).toContainText('at U10 down to U8')
+  await boxAdd(page).click()
   await expectRevision(request, id, '2')
 
   const plan = await getPlan(request, id)
@@ -379,29 +394,17 @@ test('ED-11 the HDF form adds a 4-row HDF in a rack, shows the server refusing a
   expect(plan.subpanels).toHaveLength(16)
   expect(plan.endpoints).toHaveLength(192)
 
-  // Opened in Physical, on its own page; the rack shows it in U8–U10.
+  // The rack shows it in U8–U10, proposed.
   const newId = plan.equipment[0].id
-  await expectMark(page, 'data-physical-level', 'equipment')
-  await expectMark(page, 'data-location', await mark(page, 'data-location'))
-  await expect(root(page)).toHaveAttribute('data-face-kind', 'hdf')
-  await expect(root(page)).toHaveAttribute(
-    'data-face-blocks',
-    ['1', '2', '3', '4']
-      .flatMap((r) => ['A', 'B', 'C', 'D'].map((c) => `${r}${c}`))
-      .join(' '),
+  await expect(page.getByTestId('rack-slot-rack-sm01-8')).toContainText(
+    'HDF-NEW',
   )
-  await expect(root(page)).toHaveAttribute('data-selected-equipment', newId)
-  // The library closes before the HDF opens, and the page marks it PROPOSED.
-  await expect(page.getByRole('button', { name: 'Add HDF…' })).toHaveCount(0)
-  await expect(page.getByTestId('proposed-tag')).toHaveText('Proposed')
-  await page
-    .getByRole('navigation', { name: 'Breadcrumbs' })
-    .getByRole('button', { name: 'Rack SM01' })
-    .click()
-  await expectMark(page, 'data-physical-level', 'rack')
-  await expect.poll(() => mark(page, 'data-rack-equipment')).toContain(newId)
   await expect(block(page, newId)).toHaveAttribute('data-unit', '8')
+  await expect(block(page, newId)).toHaveAttribute('data-height', '3')
   await expect(block(page, newId)).toHaveAttribute('data-proposed', 'true')
+  await expect(block(page, newId).locator('[data-plate="hdf"]')).toHaveText(
+    '4 rows',
+  )
 })
 
 test('ED-11 without a plan the rail’s Add is disabled with a reason and no library opens', async ({
@@ -477,14 +480,27 @@ test('ED-14 Escape closes each inline confirm and form, and focus returns to the
   await expect(patching(page)).toHaveCount(0)
   await expect(connect).toBeFocused()
 
-  // The library's HDF form.
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  const hdf = page.getByRole('button', { name: 'Add HDF…' })
-  await hdf.click()
-  await expect(page.getByTestId('hdf-form').getByLabel('Name')).toBeFocused()
+  // The library: a pick goes with Escape, the box returns focus to its unit.
+  await openLibrary(page)
+  await libraryEntry(page, 'HDF').click()
+  await expect(page.getByTestId('pick-note')).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(page.getByTestId('hdf-form')).toHaveCount(0)
-  await expect(hdf).toBeFocused()
+  await expect(page.getByTestId('pick-note')).toHaveCount(0)
+  await pickAndOpenBox(
+    page,
+    'HDF',
+    {
+      site: 'Main Campus',
+      node: 'Main Distribution',
+      rack: 'Rack Core 03',
+      rackId: 'rack-core-03',
+    },
+    12,
+  )
+  await expect(addBox(page).getByLabel('Name')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(addBox(page)).toHaveCount(0)
+  await expect(page.getByTestId('rack-slot-rack-core-03-12')).toBeFocused()
 })
 
 test('a wide HDF face (D50) is fitted to a narrow page: readable jacks, every block inside its plate, the card scrolls only if it must', async ({
@@ -524,32 +540,40 @@ test('a wide HDF face (D50) is fitted to a narrow page: readable jacks, every bl
   expect(m.fitsOrScrolls).toBe(true)
 })
 
-test('ED-16 the library Add… form adds a patch panel, and answers a clash in names', async ({
+test('ED-16 the library adds a patch panel through the box, and refuses a clash in words', async ({
   page,
   request,
 }) => {
   const id = await newPlan(request, 'ED-16 library')
   await openPlan(page, id)
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page.getByRole('button', { name: 'Add Patch panel…' }).click()
-  const form = page.getByTestId('equipment-form')
-  await expect(form.getByLabel('Network')).toHaveCount(0) // a panel has no network
-  await form.getByLabel('Name').fill('PANEL-LIB')
-  await chooseRack(form, 'Place', {
+  const where = {
     site: 'Main Campus',
     node: 'North Sub-main',
     rack: 'Rack SM01',
-  })
-  // U4–U6 are HDF-01's: the server says so, in names, and nothing is saved.
-  await form.getByLabel('Unit', { exact: true }).fill('5')
-  await form.getByRole('button', { name: 'Add to plan' }).click()
-  await expect(form.getByTestId('edit-error')).toHaveText(
-    'U5 in Rack SM01 is taken by HDF-01',
+    rackId: 'rack-sm01',
+  }
+  // Rack SM01: HDF-01 takes U4–U6, so a stack of 4 panels from U7 does not fit.
+  await pickAndOpenBox(page, 'Patch panel', where, 7)
+  const box = addBox(page)
+  await expect(box.getByLabel('Network')).toHaveCount(0) // a panel has no network
+  await box.getByLabel('Name').fill('PANEL-LIB')
+  await box.getByLabel('How many').fill('4')
+  await expect(box).toContainText(
+    'Not enough free units below U7 for 4 × 1U. Choose fewer or a higher unit.',
+  )
+  await expect(boxAdd(page)).toBeDisabled()
+  expect((await getPlan(request, id)).revision).toBe('1')
+  await box.getByLabel('How many').fill('1')
+  // A name another equipment has, in any case, is refused in words.
+  await box.getByLabel('Name').fill('hdf-01')
+  await boxAdd(page).click()
+  await expect(box.getByTestId('edit-error')).toHaveText(
+    'hdf-01 is already taken.',
   )
   expect((await getPlan(request, id)).revision).toBe('1')
-  await form.getByLabel('Unit', { exact: true }).fill('8')
-  await form.getByLabel('Positions').fill('12')
-  await form.getByRole('button', { name: 'Add to plan' }).click()
+  await box.getByLabel('Name').fill('PANEL-LIB')
+  await box.getByRole('button', { name: '12', exact: true }).click()
+  await boxAdd(page).click()
   await expectRevision(request, id, '2')
   const plan = await getPlan(request, id)
   expect(plan.equipment[0]).toMatchObject({
@@ -557,15 +581,11 @@ test('ED-16 the library Add… form adds a patch panel, and answers a clash in n
     kind: 'panel',
     role: 'passive',
     rackId: 'rack-sm01',
-    unit: 8,
+    unit: 7,
   })
   expect(plan.endpoints).toHaveLength(24)
-  // Escape closes the form and returns focus to its Add… button.
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page.getByRole('button', { name: 'Add Aggregation…' }).click()
-  await page.keyboard.press('Escape')
-  await expect(page.getByTestId('equipment-form')).toHaveCount(0)
-  await expect(
-    page.getByRole('button', { name: 'Add Aggregation…' }),
-  ).toBeFocused()
+  // The panel is in the rack, proposed.
+  await expect(page.getByTestId('rack-slot-rack-sm01-7')).toContainText(
+    'PANEL-LIB',
+  )
 })

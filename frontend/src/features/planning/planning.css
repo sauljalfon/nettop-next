@@ -11,10 +11,12 @@
 }
 .library-item {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   width: 100%;
+  font: inherit;
+  color: inherit;
   padding: 10px 12px;
   margin: 0;
   background: var(--paper);
@@ -53,12 +55,6 @@
   margin: 0;
   font-size: var(--t-xs);
   line-height: 1.4;
-  color: var(--ink-soft);
-}
-.library-hdf small[data-testid='hdf-disabled-hint'] {
-  display: block;
-  margin-top: 4px;
-  font-size: var(--t-xs);
   color: var(--ink-soft);
 }
 

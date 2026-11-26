@@ -204,9 +204,6 @@
 .port-confirm-row td {
   padding: 4px 6px 8px;
 }
-.library-form {
-  margin-top: 4px;
-}
 .site-edit .add-card {
   width: 260px;
 }
@@ -338,11 +335,4 @@
 .group-caption {
   font-size: var(--t-xs);
   color: var(--ink-soft);
-}
-.span-hint {
-  padding-top: 8px;
-}
-.library-hdf {
-  display: grid;
-  gap: 8px;
 }

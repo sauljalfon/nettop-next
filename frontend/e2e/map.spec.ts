@@ -1,6 +1,8 @@
 import { expect, test, type Page } from './fixtures'
 import { cardPositions, fitted, viewport } from './helpers'
-import { chooseRack } from './patching-helpers'
+import { BUILDING_A_RACK, pickAndOpenBox, boxAdd, addBox } from './add-box'
+import { createModel, modelInput } from './models-api'
+import { unique } from './plan-api'
 
 /** Opens each tool in turn; the dock sits beside the canvas and the map is neither refit nor panned. */
 async function expectToolsBesideTheMap(page: Page, openers: string[]) {
@@ -57,41 +59,30 @@ test('C10b Add, in a plan, opens the dock beside the canvas and the map is neith
   await expectToolsBesideTheMap(page, ['Add equipment library'])
 })
 
-test('C12 saving and refetching reconcile by ID without remounting or resetting', async ({
+test('C12 saving and refetching reconcile by ID without refitting or resetting the tree', async ({
   page,
+  request,
 }) => {
+  const model = await createModel(request, modelInput(unique('C12')))
   await page.goto('/?plan=expansion')
   await fitted(page) // read the viewport only after the one-time fit has settled
   // A switch with no cable goes under No AGG: that card is not there yet.
   const added = page.locator('[data-card-key="none|node-building-a"]')
   await expect(added).toHaveCount(0)
-  await page.evaluate(() => {
-    document.querySelector('.flow-surface')!.setAttribute('data-mounted', 'yes')
-  })
   const port = await viewport(page)
   const before = await cardPositions(page)
 
-  await page.getByRole('button', { name: 'Add equipment library' }).click()
-  await page.getByRole('button', { name: 'Add Access switch…' }).click()
-  const form = page.getByTestId('equipment-form')
-  await form.getByLabel('Name').fill('EDGE-SAVED')
-  await form.getByLabel('Network').selectOption('net-a')
-  await chooseRack(form, 'Place', {
-    site: 'Main Campus',
-    node: 'Building A',
-    rack: 'Rack A03',
-  })
-  await form.getByLabel('Unit', { exact: true }).fill('4')
-  await form.getByRole('button', { name: 'Add to plan' }).click()
+  // The switch is added in Physical, through the box at a free unit of Rack A03.
+  await pickAndOpenBox(page, model.name, BUILDING_A_RACK, 4)
+  await addBox(page).getByLabel('Name').fill('EDGE-SAVED')
+  await boxAdd(page).click()
   await expect(page.getByRole('status')).toContainText('revision 2')
+  await page.getByRole('button', { name: 'Conceptual', exact: true }).click()
+  await fitted(page)
 
-  // The refetched plan shows the new switch under No AGG, in the same mounted canvas.
+  // The refetched plan shows the new switch under No AGG, in the same viewport.
   await expect(added).toContainText('1')
   await expect(added).toContainText('Building A')
-  await expect(page.locator('.flow-surface')).toHaveAttribute(
-    'data-mounted',
-    'yes',
-  )
   expect(await viewport(page)).toBe(port)
   // Cards that were there stay where they were; only the top row recentres over the new group.
   const after = await cardPositions(page)
