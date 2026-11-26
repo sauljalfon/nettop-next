@@ -82,6 +82,7 @@ export default function LibraryItems({
   onAdded,
   onHdfCreated,
   onManageNetworks,
+  onManageModels,
 }: {
   canEdit: boolean
   edit?: PlanEdit
@@ -97,6 +98,8 @@ export default function LibraryItems({
   onHdfCreated: (plan: Plan, name: string) => void
   /** Opens the Manage networks drawer (from a switch form with no networks yet). */
   onManageNetworks: () => void
+  /** Opens the Switch models page (D51). */
+  onManageModels: () => void
 }) {
   const [open, setOpen] = useState<string>()
   const formEdit = useLastEdit(edit)
@@ -122,6 +125,11 @@ export default function LibraryItems({
             : 'Switch to a plan in the top bar to add or move equipment.'}
         </p>
       </div>
+      <p className="library-models">
+        <button type="button" className="btn quiet" onClick={onManageModels}>
+          Manage models…
+        </button>
+      </p>
       <div className="lib-list">
         {ITEMS.map((item) => (
           <div key={item.id} className="library-entry">

@@ -2,10 +2,16 @@ import { useState } from 'react'
 import type { Network } from '../../shared/types'
 import { MANAGE_NETWORKS } from '../networks/model'
 
-/** The header's views, and the Trace page (D46) while it replaces them: none of the three is pressed then. */
-export type MapView = 'conceptual' | 'physical' | 'inventory' | 'trace'
+/** The header's views, and the full pages while they replace them. */
+export type MapView =
+  'conceptual' | 'physical' | 'inventory' | 'trace' | 'models'
 
-const VIEW_LABEL: Record<Exclude<MapView, 'trace'>, string> = {
+/** The full pages that replace the views while open (D46 Trace, D51 Switch models): none of the three views is pressed. */
+export type PageView = 'trace' | 'models'
+export const isPage = (view: MapView): view is PageView =>
+  view === 'trace' || view === 'models'
+
+const VIEW_LABEL: Record<Exclude<MapView, PageView>, string> = {
   conceptual: 'Conceptual',
   physical: 'Physical',
   inventory: 'Inventory',

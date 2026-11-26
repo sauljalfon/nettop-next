@@ -109,6 +109,7 @@ test('EP-03 the ⋯ menu: Installed has History, a disabled Move, Print sheet an
   await expect(more(page)).toHaveAttribute('aria-expanded', 'true')
   await expect(menu(page).getByRole('menuitem')).toHaveText([
     'History',
+    'Set model…',
     /^Move to another rack…\s*Open a plan first$/,
     'Print sheet',
     'Show on map',
@@ -137,6 +138,7 @@ test('EP-03 the ⋯ menu: Installed has History, a disabled Move, Print sheet an
   await more(page).click()
   await expect(menu(page).getByRole('menuitem')).toHaveText([
     'History',
+    /^Set model…\s*Set model in Installed$/,
     'Move to another rack…',
     'Print sheet',
     'Duplicate…',

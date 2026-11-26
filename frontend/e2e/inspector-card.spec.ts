@@ -103,6 +103,7 @@ test('D49-06 ⋯ History opens the History tab with the direct fixes and recorde
   const items = page.getByRole('menu').getByRole('menuitem')
   await expect(items).toHaveText([
     'History',
+    'Set model…',
     // Installed: no plan open, so moving is off and says why.
     /^Move to another rack…\s*Open a plan first$/,
     'Print sheet',
@@ -150,6 +151,7 @@ test('D49-07 in a plan ⋯ Move to another rack… moves EDGE-17 to another node
   await page.screenshot({ path: 'test-results/d49/more-menu-plan.png' })
   await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText([
     'History',
+    /^Set model…\s*Set model in Installed$/,
     'Move to another rack…',
     'Print sheet',
     'Duplicate…',

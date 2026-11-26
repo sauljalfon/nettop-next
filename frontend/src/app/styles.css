@@ -198,8 +198,9 @@ button:hover:not(:disabled) {
   min-height: 0;
   overflow: hidden;
 }
-/* The Trace page replaces the view while it is open; the view stays mounted under it, untouched. */
-.workspace-canvas.trace-open > :not(.trace-page):not(.error-toast) {
+/* A full page (Trace, Switch models) replaces the view while it is open; the view stays mounted under it, untouched. */
+.workspace-canvas.page-open
+  > :not(.trace-page):not(.models-page):not(.error-toast) {
   visibility: hidden;
 }
 .eyebrow {

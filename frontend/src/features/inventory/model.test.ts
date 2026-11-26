@@ -444,6 +444,31 @@ describe('INV-12 INV-13 INV-15 the many-row commands', () => {
       ).toBeUndefined()
   })
 
+  it('Set model… (D51) is for Equipment on Installed and says where it works in a plan', () => {
+    expect(
+      find(
+        manyCommands({ list: 'equipment', ...installed }, [installedRow]),
+        'setModel',
+      ),
+    ).toEqual({ id: 'setModel', label: 'Set model…' })
+    expect(
+      find(manyCommands({ list: 'equipment', ...installed }, []), 'setModel')
+        ?.disabled,
+    ).toBe('Select switches')
+    expect(
+      find(
+        manyCommands({ list: 'equipment', ...plan }, [installedRow]),
+        'setModel',
+      )?.disabled,
+    ).toBe('Set model in Installed')
+    expect(
+      find(
+        manyCommands({ list: 'ports', ...installed }, [installedRow]),
+        'setModel',
+      ),
+    ).toBeUndefined()
+  })
+
   it('Edit details… says why it is off', () => {
     const edit = (ctx: object, rows: InventoryRow[]) =>
       find(

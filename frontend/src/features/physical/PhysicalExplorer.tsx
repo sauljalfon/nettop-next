@@ -46,6 +46,7 @@ import SitesGrid from './SitesGrid'
 import './physical.css'
 import Name from '../../shared/ui/Name'
 import { PlaceSep } from '../../shared/ui/PlacePath'
+import { setModelSession } from '../models/setModelSession'
 
 interface Props {
   snapshot: Snapshot
@@ -243,6 +244,16 @@ export default function PhysicalExplorer({
     ? []
     : [
         { label: 'History', onSelect: () => onOpenHistory(equipment.id) },
+        ...(equipment.kind === 'switch'
+          ? [
+              {
+                label: 'Set model…',
+                disabled: snapshot.context !== 'installed',
+                hint: 'Set model in Installed',
+                onSelect: () => setModelSession.open([equipment.id], menuKey),
+              },
+            ]
+          : []),
         {
           label: 'Move to another rack…',
           disabled: !edit,

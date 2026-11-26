@@ -337,6 +337,9 @@ describe('RI-10 a rack item’s type is a detail', () => {
       oldValue: 'shelf',
       newValue: 'other',
     }
+    expect(
+      fixLine({ ...entry, field: 'portGroup', oldValue: '1', newValue: '2' }),
+    ).toMatchObject({ field: 'Port group', from: '1', to: '2' })
     expect(fixLine(entry)).toMatchObject({
       field: 'Type',
       from: 'Shelf',

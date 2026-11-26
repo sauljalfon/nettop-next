@@ -1,0 +1,300 @@
+/* The Switch models page and the Set model dialog (D51). Tokens only (D33). */
+.models-page {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--floor);
+}
+.mp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-height: 44px;
+  padding: 6px 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-soft);
+}
+.mp-back {
+  border: 0;
+  background: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--ink-soft);
+}
+.mp-back:hover {
+  background: var(--paper-sunk);
+  color: var(--ink);
+}
+.mp-title {
+  font-size: var(--t-lg);
+  color: var(--ink);
+}
+.mp-note {
+  margin-inline-start: auto;
+  padding: 2px 10px;
+  font-size: var(--t-xs);
+  color: var(--proposed);
+  background: var(--proposed-soft);
+  border: 1px dashed var(--proposed);
+  border-radius: 9px;
+}
+.mp-body {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  padding: 18px;
+  overflow: auto;
+  min-height: 0;
+}
+.mp-side {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.mp-side .model-list,
+.mp-side .btn + .btn {
+  width: 100%;
+}
+.mp-hint {
+  font-size: var(--t-xs);
+}
+.mp-main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.card {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-drawer);
+}
+.model-list {
+  display: grid;
+  overflow: hidden;
+}
+.mp-empty {
+  padding: 12px;
+}
+.model-item {
+  display: grid;
+  gap: 1px;
+  text-align: start;
+  border: 0;
+  border-bottom: 1px solid var(--rule-soft);
+  background: none;
+  padding: 9px 12px;
+  min-width: 0;
+}
+.model-item:last-child {
+  border-bottom: 0;
+}
+.model-item[aria-current='true'] {
+  background: var(--paper-sunk);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+.model-item b,
+.model-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model-item span {
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+
+.model-editor {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+.model-basic {
+  display: grid;
+  grid-template-columns: 2fr 1.4fr 90px;
+  gap: 10px;
+}
+.model-h {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: var(--t-md);
+}
+.model-h .muted {
+  font-weight: 400;
+  font-size: var(--t-xs);
+}
+.model-groups {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: auto;
+}
+.model-groups table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.model-groups th {
+  text-align: start;
+  font-weight: 500;
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  padding: 6px 8px;
+  background: var(--paper-sunk);
+  border-bottom: 1px solid var(--rule);
+}
+.model-groups td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.model-groups tr:last-child td {
+  border-bottom: 0;
+}
+.model-groups td.narrow {
+  width: 76px;
+}
+.model-groups input,
+.model-groups select {
+  height: var(--h-control);
+  min-width: 70px;
+  padding-inline: 6px;
+}
+.model-x {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-soft);
+}
+.model-x:hover:not(:disabled) {
+  background: var(--paper-sunk);
+  color: var(--danger);
+}
+.model-x:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.model-add {
+  justify-self: start;
+}
+.model-total {
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+}
+.model-look {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule-soft);
+  border-radius: 8px;
+  min-width: 0;
+}
+.model-preview {
+  overflow: auto;
+}
+.model-error {
+  color: var(--danger);
+  font-size: var(--t-sm);
+}
+.model-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.rename-offer {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--amber-soft);
+  border: 1px solid var(--amber);
+  border-radius: var(--r-drawer);
+  font-size: var(--t-sm);
+}
+
+/* Set model… */
+.set-model-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 90px;
+  background: var(--scrim);
+}
+.set-model {
+  display: grid;
+  gap: 10px;
+  width: 620px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+  padding: 18px;
+  outline: none;
+}
+.set-model-pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+.set-model .changes {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  max-height: 300px;
+  overflow: auto;
+}
+.set-model .changes .sec {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.set-model .changes .sec:last-child {
+  border-bottom: 0;
+}
+.set-model h4 {
+  margin: 0 0 4px;
+  font-size: var(--t-xs);
+}
+.set-model .ln {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  font-size: var(--t-xs);
+  padding: 1px 0;
+}
+.set-model .faint {
+  color: var(--ink-soft);
+}
+.set-model .changes .sec.kept {
+  background: var(--amber-soft);
+}
+.set-model-skipped {
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.set-model .tag {
+  font-size: var(--t-min);
+  padding: 0 6px;
+  border-radius: 8px;
+  font-weight: 400;
+}
+.set-model .tag.ok {
+  background: var(--route-soft);
+  color: var(--route);
+}
+.set-model .tag.warn {
+  background: var(--paper);
+  color: var(--warn-ink);
+  border: 1px solid var(--env-border);
+}

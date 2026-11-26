@@ -58,12 +58,16 @@ import {
 } from '../features/pathfinding/traceSession'
 import { mapSession, shownNetworks } from '../features/map/mapSession'
 import {
+  isPage,
   NetworkSelect,
   ViewSwitch,
   type MapView,
+  type PageView,
 } from '../features/map/MapControls'
 import RouteChip from '../features/trace/RouteChip'
 import TracePage from '../features/trace/TracePage'
+import ModelsPage from '../features/models/ModelsPage'
+import SetModelHost from '../features/models/SetModelHost'
 import LibraryItems, {
   type PendingEquipment,
 } from '../features/planning/LibraryItems'
@@ -118,20 +122,35 @@ export default function App() {
     undefined,
   )
   const [view, setView] = useState<MapView>('conceptual')
-  // The view the Trace page was opened from: ← Back returns to it, still mounted.
+  // The view a full page (Trace, Switch models) was opened from: ← Back returns to it, still mounted.
   const [pageBack, setPageBack] =
-    useState<Exclude<MapView, 'trace'>>('conceptual')
+    useState<Exclude<MapView, PageView>>('conceptual')
+  // The Switch models page starts on a new model (the library's + New model…).
+  const [modelsNew, setModelsNew] = useState(false)
   // The dock as it was when the page opened: ← Back puts it back (the page itself has no dock).
   const dockBefore = useRef<DockState | null>(null)
   const openTracePage = useCallback(
     (before?: DockState) => {
-      if (view !== 'trace') {
+      if (!isPage(view)) {
         setPageBack(view)
         dockBefore.current = before ?? dockSession.get()
       }
       traceSession.setPicture(false)
       dockSession.close()
       setView('trace')
+    },
+    [view],
+  )
+  // The Switch models page (D51): a full page like the Trace page, from the Add tab or Set model….
+  const openModelsPage = useCallback(
+    (startNew = false) => {
+      if (!isPage(view)) {
+        setPageBack(view)
+        dockBefore.current = dockSession.get()
+      }
+      setModelsNew(startNew)
+      dockSession.close()
+      setView('models')
     },
     [view],
   )
@@ -373,12 +392,10 @@ export default function App() {
           <button
             className="header-action"
             onClick={() => {
-              if (view === 'trace') closeTracePage(false)
+              if (isPage(view)) closeTracePage(false)
               dockSession.rail('changes')
             }}
-            aria-expanded={
-              view !== 'trace' && dock.open && dock.tab === 'changes'
-            }
+            aria-expanded={!isPage(view) && dock.open && dock.tab === 'changes'}
           >
             <Layers size={16} />
             Changes
@@ -397,7 +414,7 @@ export default function App() {
             ] as const
           ).map(([tab, label, Icon]) => {
             const off = tab === 'add' && context !== 'planned'
-            const on = view !== 'trace' && dock.open && dock.tab === tab
+            const on = !isPage(view) && dock.open && dock.tab === tab
             return (
               <button
                 key={tab}
@@ -408,7 +425,7 @@ export default function App() {
                 className={on ? 'active' : ''}
                 onClick={() => {
                   // On the Trace page an icon leaves the page for that tab.
-                  if (view === 'trace') closeTracePage(false)
+                  if (isPage(view)) closeTracePage(false)
                   dockSession.rail(tab)
                 }}
               >
@@ -467,6 +484,8 @@ export default function App() {
               pageBack={pageBack}
               onViewChange={setView}
               onOpenPage={openTracePage}
+              onOpenModels={openModelsPage}
+              modelsNew={modelsNew}
               onBack={() => closeTracePage()}
               networkId={networkId}
             />
@@ -503,7 +522,7 @@ export default function App() {
             />
           </DockBody>
         )}
-        <Dock planned={context === 'planned'} suppressed={view === 'trace'} />
+        <Dock planned={context === 'planned'} suppressed={isPage(view)} />
         {status && (
           <div className="save-toast" role="status">
             ✓ {status}
@@ -541,12 +560,16 @@ interface WorkspaceProps {
   onFixed: (message: string) => Promise<void>
   view: MapView
   /** The view the Trace page returns to: it stays mounted under the page. */
-  pageBack: Exclude<MapView, 'trace'>
+  pageBack: Exclude<MapView, PageView>
   onViewChange: (view: MapView) => void
   /** Opens the Trace page (the dock's Open full page, a jack's path, a Way up chip); `dockBefore` is the dock ← Back returns to. */
   onOpenPage: (dockBefore?: DockState) => void
-  /** ← Back on the Trace page. */
+  /** ← Back on the Trace page or the Switch models page. */
   onBack: () => void
+  /** Opens the Switch models page (D51); true starts on a new model. */
+  onOpenModels: (startNew?: boolean) => void
+  /** The Switch models page starts on a new model. */
+  modelsNew: boolean
   networkId?: string
 }
 
@@ -570,12 +593,16 @@ function Workspace({
   onViewChange,
   onOpenPage,
   onBack,
+  onOpenModels,
+  modelsNew,
   networkId,
 }: WorkspaceProps) {
   const dock = useDock()
-  // On the Trace page the view underneath is the one it came from.
+  // On a full page (Trace, Switch models) the view underneath is the one it came from.
   const onTracePage = viewState === 'trace'
-  const view = onTracePage ? pageBack : viewState
+  const onModelsPage = viewState === 'models'
+  const onPage = onTracePage || onModelsPage
+  const view = onPage ? pageBack : viewState
   const closeDrawer = dockSession.close
   const [selected, setSelected] = useState(snapshot.equipment[0]?.id ?? '')
   const [physicalError, setPhysicalError] = useState('')
@@ -962,12 +989,17 @@ function Workspace({
     </>
   )
   return (
-    <main className={`workspace-canvas${onTracePage ? ' trace-open' : ''}`}>
+    <main className={`workspace-canvas${onPage ? ' page-open' : ''}`}>
       <PatchingHost
         snapshot={snapshot}
         index={index}
         edit={edit}
         planName={plan?.name}
+      />
+      <SetModelHost
+        snapshot={snapshot}
+        onFixed={onFixed}
+        onManageModels={() => onOpenModels()}
       />
       {view === 'conceptual' ? (
         <ConceptualMap
@@ -1046,6 +1078,7 @@ function Workspace({
           onCancelPending={onCancelPending}
           onAdded={onEquipmentAdded}
           onManageNetworks={onManageNetworks}
+          onManageModels={() => onOpenModels()}
           onHdfCreated={(saved, name) => {
             const created = saved.equipment.find(
               (e) => e.kind === 'hdf' && e.name === name,
@@ -1087,7 +1120,7 @@ function Workspace({
         {drawerEquipment}
         {dockErrors}
       </DockBody>
-      {!onTracePage &&
+      {!onPage &&
         (view === 'conceptual' || view === 'physical') &&
         traceSession.get() && (
           <RouteChip
@@ -1116,6 +1149,15 @@ function Workspace({
           onShowOnMap={() => onViewChange('conceptual')}
           planName={plan?.name}
           note={routeFellBack ? ROUTE_NOT_HERE : undefined}
+        />
+      )}
+      {onModelsPage && (
+        <ModelsPage
+          installed={installed}
+          inPlan={!!plan}
+          startNew={modelsNew}
+          onBack={onBack}
+          onFixed={onFixed}
         />
       )}
       {placement.error && !(dock.open && dock.tab === 'inspector') && (

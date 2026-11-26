@@ -283,7 +283,8 @@ export function menuCommands(
   return items
 }
 
-export type ManyCommandId = 'edit' | 'deleteMany' | 'disconnectMany' | 'labels'
+export type ManyCommandId =
+  'edit' | 'setModel' | 'deleteMany' | 'disconnectMany' | 'labels'
 
 export interface ManyCommand {
   id: ManyCommandId
@@ -318,6 +319,21 @@ export function manyCommands(
     out.push({
       id: 'edit',
       label: 'Edit details…',
+      ...(disabled ? { disabled } : {}),
+    })
+  }
+  if (ctx.list === 'equipment') {
+    // Set model… (D51) is a direct fix of installed switches; the dialog lists what it skips.
+    const disabled = !ctx.installed
+      ? 'Set model in Installed'
+      : n === 0
+        ? 'Select switches'
+        : n > BULK_MAX
+          ? TOO_MANY
+          : undefined
+    out.push({
+      id: 'setModel',
+      label: 'Set model…',
       ...(disabled ? { disabled } : {}),
     })
   }

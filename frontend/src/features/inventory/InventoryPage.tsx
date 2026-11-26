@@ -6,6 +6,7 @@ import {
   RefreshCw,
   Pencil,
   Search,
+  Server,
   Star,
   Tag,
   Trash2,
@@ -25,6 +26,7 @@ import Chip from '../../shared/ui/Chip'
 import Name from '../../shared/ui/Name'
 import { networkColors } from '../map/networkColors'
 import { indexSnapshot, type SnapshotIndex } from '../map/snapshotIndex'
+import { setModelSession } from '../models/setModelSession'
 import { patchingSession } from '../patching/patchingSession'
 import type { PlanEdit } from '../planning/editing'
 import { OPENER, useInlineDialog } from '../planning/useInlineDialog'
@@ -126,6 +128,7 @@ interface Props {
 
 const MANY_ICON: Record<ManyCommandId, LucideIcon> = {
   edit: Pencil,
+  setModel: Server,
   deleteMany: Trash2,
   disconnectMany: Unlink,
   labels: Tag,
@@ -517,7 +520,14 @@ export default function InventoryPage({
                   disabled={c.disabled !== undefined}
                   title={c.disabled}
                   {...{ [OPENER]: `many:${c.id}` }}
-                  onClick={() => setPane(c.id)}
+                  onClick={() =>
+                    c.id === 'setModel'
+                      ? setModelSession.open(
+                          chosen.map((r) => r.equipmentId),
+                          `many:${c.id}`,
+                        )
+                      : setPane(c.id)
+                  }
                 >
                   <Icon size={16} aria-hidden="true" />
                   {c.label}

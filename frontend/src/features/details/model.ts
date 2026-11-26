@@ -135,6 +135,7 @@ export const FIELD_LABELS: Record<string, string> = {
   speed: 'Speed',
   state: 'State',
   label: 'Label',
+  portGroup: 'Port group',
   notes: 'Notes',
   location: 'Location',
   rackType: 'Rack type',
