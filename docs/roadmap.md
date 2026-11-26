@@ -70,8 +70,10 @@ The owner's answers from questions on 2026-11-26. Each item is designed with a d
 - **The path card without cable names:** a click on a cable line opens a small card (its name, status, notes, a link to the cable).
 - **The node level:** a click on a mini rack opens that rack; a click on a device in it opens the rack with that device chosen (not its page).
 - **The site screen:** a click on a node card opens its racks, a drag still moves it (a short move counts as a click); the "Open racks →" button goes.
+- **A dark theme** beside the light one (owner, 2026-11-26: "I like the dark theme"; the detail research had advised against it for now).
+- **One look on every page** (owner, 2026-11-26): one type scale (a few fixed sizes and weights), one page heading on every page (the breadcrumb above in the small size, the title, a quiet meta line, the actions on the right) and one heading for dock panels, one spacing scale and one corner-radius scale, all as `theme.css` tokens and enforced by `theme.test.ts` (no raw font sizes or spacing in feature CSS). The font and colour choices come from the detail research the owner asked for (2026-11-26).
 
-**B. Trace by uplink and by rack** (a demo first).
+**B. Trace by uplink and by rack** (owner, 2026-11-26: moved out of this queue; the trace gets its own deep dive later, "something more deep and important"; what is below is only a starting point).
 - **Trace uplinks** from any switch (the tree, a rack, Inventory) and from Find AGG / BB: one drawing per uplink, stacked, each headed ("Uplink 1 of 2 · Gi1/0/49 → AGG-01"); plates both pass are marked "on both". The drawing stays our own (not React Flow).
 - **Trace rack**, a button on the rack level: every switch's routes, all open. Stacked drawings or one combined React Flow graph (each shared panel and AGG drawn once) is chosen from the demo, both shown on a rack of real size.
 
@@ -145,4 +147,12 @@ The three-server cluster (k3s, CloudNativePG, Garage) is designed in [infrastruc
 - Bulk port rename; renaming a port in a plan.
 - **Other-network dots on closed node cards** in the tree: a node that also holds switches of another network shows it without being opened (today only an open card's "+ N on Network B" line does).
 - A **stack** mark on a cable between two AGGs, set by the user, so the hierarchy can draw stacks (D39: the data alone cannot tell a stack from a peer link).
+- From the [design review of 2026-11-25](history/design-review-2026-11-25.md) (each item's evidence and sources are there):
+  - **Find anything** (Ctrl+K or `/`) from any screen: names, IP addresses, serial numbers, cable labels and ports.
+  - **The address bar keeps where you are** (view, site, node, rack, equipment, side, jack), so refresh, the browser's Back and a pasted link land in the same place; the tree's viewport stays out of it.
+  - **Inventory at campus size:** Select all N matching (not only the page), a first column that stays put, and why a command is disabled in words.
+  - **Cable labels while patching:** an optional label that counts up after each cable.
+  - **Never lose typing:** Edit details asks before discarding changes, and server errors show next to their field.
+  - **Keyboard:** the node level's mini racks reachable by keyboard, arrow keys on the dock's tabs, a non-drag way to arrange the site screen, an always-present status region for saved messages, a `?` sheet of shortcuts.
+  - **Small fixes:** the Trace page's leftover "Port to port" (D47), Copy as text on the Trace page.
 - A spreadsheet import, through the same draft and record path, only if the real network turns out much larger than a few thousand cables (decided 2026-10-10: entry by hand with the bulk tools).
