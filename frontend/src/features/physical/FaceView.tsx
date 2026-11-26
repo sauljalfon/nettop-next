@@ -22,6 +22,7 @@ import { bandRows, hdfHead } from './faceFit'
 import { useFaceFit, type FaceFit } from './useFaceFit'
 import type { FaceEndpoint } from './faces'
 import Name from '../../shared/ui/Name'
+import { nameDir } from '../../shared/ui/nameDir'
 import PlacePath from '../../shared/ui/PlacePath'
 import Chip from '../../shared/ui/Chip'
 
@@ -571,7 +572,7 @@ export default function FaceView({
 function PlateHead({ name, meta }: { name: string; meta: string }) {
   return (
     <div className="plate-head" aria-hidden="true">
-      <span className="tape plate-name" data-name={name} />
+      <span className="tape plate-name" data-name={name} dir={nameDir(name)} />
       <span className="plate-meta" data-meta={meta} />
     </div>
   )

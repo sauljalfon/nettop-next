@@ -120,16 +120,12 @@ export default function LibraryItems({
 
   return (
     <>
-      <div className="notice">
-        <strong>
-          {canEdit ? 'Build your planned network' : 'Installed view'}
-        </strong>
-        <p>
-          {canEdit
-            ? 'Drag onto a free unit, or click one here and then a unit.'
-            : 'Switch to a plan in the top bar to add or move equipment.'}
-        </p>
-      </div>
+      {!canEdit && (
+        <div className="notice">
+          <strong>Installed view</strong>
+          <p>Switch to a plan in the top bar to add or move equipment.</p>
+        </div>
+      )}
       {canEdit && picked && (
         <div className="pick-note" data-testid="pick-note">
           <span>
@@ -184,7 +180,7 @@ export default function LibraryItems({
           {models?.map((m) =>
             entry(
               { type: 'model', modelId: m.id },
-              <Name text={m.name} />,
+              <Name text={m.name} className="name-cut" />,
               modelLine(m),
               <Icon kind="switch" />,
             ),

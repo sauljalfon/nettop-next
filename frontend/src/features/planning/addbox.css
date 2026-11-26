@@ -1,23 +1,79 @@
-/* The small box at the unit (D51) and the library's pick note. Tokens only (D33). */
 .add-box {
   position: fixed;
   z-index: 30;
+  box-sizing: border-box;
   width: 330px;
+  max-width: calc(100vw - 16px);
   max-height: calc(100vh - 16px);
+  overflow-x: hidden;
   overflow-y: auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
+  /* A popover: its own opaque surface above the page, with a caret to the unit. */
+  background: var(--paper);
   box-shadow: var(--shadow-pop);
 }
-.add-box .form-head .muted {
+.add-box::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: -7px;
+  top: clamp(12px, var(--caret, 14px), calc(100% - 28px));
+  width: 11px;
+  height: 11px;
+  background: var(--paper);
+  border-inline-start: 1.5px dashed var(--proposed);
+  border-bottom: 1.5px dashed var(--proposed);
+  transform: rotate(45deg);
+}
+.add-box .form-head {
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
+}
+.add-box .form-head .where {
+  flex: none;
   margin-inline-start: auto;
   color: var(--ink-soft);
   font-size: var(--t-xs);
+  line-height: 1;
+  white-space: nowrap;
+}
+.add-box .form-head .proposed-tag {
+  flex: none;
 }
 .add-box .form-title {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 4em;
+  line-height: 1.2;
+}
+.add-box .form-title-add {
+  flex: none;
+}
+.add-box .add-box-model {
+  display: flex;
+  gap: 0.35em;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+.add-box .add-box-model > span {
+  flex: none;
   white-space: nowrap;
+}
+.add-box .field-grid {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.add-box .seg button {
+  padding: 0 9px;
+  white-space: nowrap;
+}
+.add-box .field select,
+.add-box .field input:not(.count-input) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.add-box .add-box-why {
+  margin-top: -4px;
 }
 .add-box-stepper,
 .add-box-positions {
@@ -137,7 +193,11 @@
   background: var(--steel-2);
   border-color: var(--route);
 }
-.rack-slot.free[data-preview='true'] {
+.rack-slot.free[data-preview='true'],
+.rack-slot.free[data-preview='true']:is(
+    [data-pick-target='true']:hover,
+    [data-drop-target='true']:hover
+  ) {
   background: var(--proposed-steel-bg);
   border: 1px dashed var(--proposed-on-steel);
 }

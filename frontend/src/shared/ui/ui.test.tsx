@@ -12,12 +12,12 @@ const bdis = (html: string) =>
 describe('Name', () => {
   it('renders a bdi with the text and the title', () => {
     expect(renderToStaticMarkup(<Name text="פאנל ראשי 1" />)).toBe(
-      '<bdi title="פאנל ראשי 1">פאנל ראשי 1</bdi>',
+      '<bdi dir="auto" title="פאנל ראשי 1">פאנל ראשי 1</bdi>',
     )
   })
   it('passes the class name on', () => {
     expect(renderToStaticMarkup(<Name text="A" className="x" />)).toBe(
-      '<bdi title="A" class="x">A</bdi>',
+      '<bdi dir="auto" title="A" class="x">A</bdi>',
     )
   })
 })

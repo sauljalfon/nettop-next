@@ -211,6 +211,21 @@ D50; [plan](history/plans/2026-11-25-physical-space.md).
 | D50-09 | Browser: in a plan every free unit is its own drop target; the drop specs still pass | `rack-level`, `placement`, `rack` |
 | D50-10 | Browser: at 1536×864 a 44U rack of eleven 12-row HDFs with a cabled jack chosen: the page does not scroll, the path card is in the window under the rack, the rack scrolls inside itself and keeps the chosen unit (top, then bottom) in view | `rack-level`, `faceplates` (RK-01) |
 
+## Switch models and adding devices (2026-11-26)
+
+D51; [plan](plans/2026-11-25-switch-models.md).
+
+| ID | Scenario | Where it runs |
+| --- | --- | --- |
+| D51-00 | Models as data and pure functions: a model's limits and port-group messages (add_equipment's), CRUD never changes a revision or a draft; a port's group and a port's name as direct fixes in one batch (swap accepted, duplicate refused naming the fix); model rows and labels, stacking down from a unit, the next name, the default network, Set model's plan (Manufacturer and Model always, empty port fields and "Port n" names only, groups only from one group, refused when counts or groups differ, ports without positions keep one group), rename targets | Go `planning`, `persistence`, `httpapi`, `fixes`; Vitest `model`, `previewFace`, `setModelMany`, `boxModel`, `drops` |
+| D51-01 | Browser: make a model with two groups, the preview shows 52 jacks and two captions; a name differing only in case is refused in words; delete it; renaming a model two switches carry offers to update them, and in a plan the offer has no button | `switch-models`, `switch-models.recording` |
+| D51-02 | Browser: Set model on a positioned 52-port switch shows What changes and Left as typed, Apply splits the face into two groups, History lists the changes, a hand-typed speed is kept; disabled in a plan | `switch-models.recording` |
+| D51-03 | Browser: Inventory, two switches selected, one with another port count: one is set, the other is listed as skipped | `switch-models.recording` |
+| D51-04 | Browser: drag a model onto a free unit in a plan: the box suggests the next name and the rack's network, How many 2 adds two switches with the model's 52 ports and Model detail, Changes lists both | `add-box` |
+| D51-05 | Browser: pick a 12-position panel and an HDF of 12 rows and 4U by clicking, then a unit | `add-box` |
+| D51-06 | Browser: How many beyond the free units is refused in words with Add disabled; a model deleted while the box is open says "This model is gone." | `add-box` |
+| D51-07 | Browser: a long Hebrew model name in the library card is isolated and cut at the end | `add-box` |
+
 ## One conceptual view (2026-10-30)
 
 Frontend only; the specs use the acceptance fixture unless said.

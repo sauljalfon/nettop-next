@@ -4,6 +4,7 @@ import {
   boxFit,
   buildBox,
   firstFit,
+  startHeight,
   occupiedUnits,
   startName,
   whereText,
@@ -74,6 +75,23 @@ describe('where the box puts things', () => {
         'Not enough free units below U10 for 4 × 1U. Choose fewer or a higher unit.',
     })
     expect(boxFit(new Set([8]), rack, 10, 1, 2)).toEqual({ lowest: [10, 9] })
+  })
+
+  it('an HDF or a rack item has no How many: the refusal talks of its height only', () => {
+    expect(boxFit(new Set([3]), rack, 5, 4, 1, false)).toEqual({
+      error:
+        'Not enough free units below U5 for 4U. Choose a lower height or a higher unit.',
+    })
+    expect(boxFit(new Set([9]), rack, 10, 2, 1)).toEqual({
+      error: 'Not enough free units below U10 for 2U. Choose a higher unit.',
+    })
+  })
+
+  it('startHeight keeps the wanted height when it fits, else the largest that does, 1 at least', () => {
+    expect(startHeight(new Set([3]), rack, 5, 4)).toBe(2)
+    expect(startHeight(new Set(), rack, 5, 4)).toBe(4)
+    expect(startHeight(new Set([4]), rack, 5, 4)).toBe(1)
+    expect(startHeight(new Set([5]), rack, 5, 4)).toBe(1)
   })
 
   it('whereText names the units', () => {

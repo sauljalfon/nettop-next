@@ -202,6 +202,21 @@
 .model-preview {
   overflow: auto;
 }
+.model-preview .face-card {
+  max-width: none;
+}
+/* Each caption sits above its own bank: the narrow last bank (the uplinks) is wide enough for its caption in two lines, and jack numbers are centred in their squares like the fitted face of the equipment page. */
+.model-preview .plate-bank:last-child:not(:first-child) {
+  min-width: 9.5em;
+}
+.model-preview .plate-bank:last-child:not(:first-child) .bank-caption {
+  display: block;
+  white-space: normal;
+}
+.model-preview .face-cell.jack {
+  place-items: center;
+  padding: 0;
+}
 .model-error {
   color: var(--danger);
   font-size: var(--t-sm);
@@ -229,18 +244,22 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 90px;
+  padding-top: 56px;
   background: var(--scrim);
 }
 .set-model {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   width: 620px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 140px);
-  overflow: auto;
+  max-height: calc(100vh - 72px);
+  overflow: hidden;
   padding: 18px;
   outline: none;
+}
+.set-model > * {
+  flex: none;
 }
 .set-model-pick {
   display: grid;
@@ -251,7 +270,9 @@
 .set-model .changes {
   border: 1px solid var(--rule);
   border-radius: 8px;
-  max-height: 300px;
+  /* Whatever height the dialog has: the footer and Apply stay reachable below it. */
+  flex: 0 1 auto;
+  min-height: 140px;
   overflow: auto;
 }
 .set-model .changes .sec {
@@ -266,9 +287,6 @@
   font-size: var(--t-xs);
 }
 .set-model .ln {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
   font-size: var(--t-xs);
   padding: 1px 0;
 }

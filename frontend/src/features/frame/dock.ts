@@ -130,7 +130,7 @@ export function tabTitle(s: DockState, tab: DockTab): string {
 export const TAB_SUBTITLES: Partial<Record<DockTab, string>> = {
   inspector: 'Select equipment on the map to inspect it',
   explore: 'Site → node → rack → equipment',
-  add: 'Drag onto a rack, or add an HDF with its form',
+  add: 'Drag onto a free unit, or click an item and then a unit.',
   changes: 'Proposals stay separate from installed infrastructure',
   networks: 'Networks are shared by every view.',
 }

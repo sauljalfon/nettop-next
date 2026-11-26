@@ -238,6 +238,9 @@ export default function SetModelDialog({
                       </span>
                     </h4>
                     <Lines lines={result.kept} limit={KEPT_SHOWN} />
+                    <div className="ln faint">
+                      Fix it by hand if the model is right.
+                    </div>
                   </div>
                 )}
               </div>
@@ -245,8 +248,9 @@ export default function SetModelDialog({
             {result.applicable.length > 0 && (
               <p className="hint muted">
                 {result.noPositions && `${NO_POSITIONS_NOTE}. `}
-                Ports, cables, network, role, height and place are not touched.
-                Each change is written to the History of the switch it changes.
+                Ports, their positions and cables, the network, role, height and
+                place never change. Each change is written to the History of the
+                switch it changes.
               </p>
             )}
           </>

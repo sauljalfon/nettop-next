@@ -79,21 +79,45 @@ export const takenUnits = (lowest: readonly number[], height: number) =>
 
 export type Fit = { lowest: number[] } | { error: string }
 
-/** Where `count` devices of `height` units go, stacked down from `top`; the refusal in words otherwise. */
+/**
+ * Where `count` devices of `height` units go, stacked down from `top`; the
+ * refusal in words otherwise. `many` is false for an HDF or a rack item, which
+ * have no How many: the refusal then says nothing about a count.
+ */
 export function boxFit(
   occupied: ReadonlySet<number>,
   rack: Pick<Rack, 'units'>,
   top: number,
   height: number,
   count: number,
+  many = true,
 ): Fit {
   if (!Number.isInteger(count) || count < 1)
     return { error: 'How many: 1 or more.' }
   const lowest = stackUnits(occupied, rack.units, top, height, count)
   if (lowest) return { lowest }
+  const room = `Not enough free units below U${top}`
+  if (!many)
+    return {
+      error: `${room} for ${height}U. Choose a lower height or a higher unit.`,
+    }
+  if (count === 1)
+    return { error: `${room} for ${height}U. Choose a higher unit.` }
   return {
-    error: `Not enough free units below U${top} for ${count} × ${height}U. Choose fewer or a higher unit.`,
+    error: `${room} for ${count} × ${height}U. Choose fewer or a higher unit.`,
   }
+}
+
+/** The height an HDF box opens with at `top`: the wanted one, or the largest below it that fits (1 at least). */
+export function startHeight(
+  occupied: ReadonlySet<number>,
+  rack: Pick<Rack, 'units'>,
+  top: number,
+  wanted: number,
+): number {
+  for (let h = wanted; h > 1; h--)
+    if (stackUnits(occupied, rack.units, top, h, 1)) return h
+  return 1
 }
 
 /** The names of the node's equipment of one kind (and role), for the next suggested name. */
@@ -224,7 +248,14 @@ export function buildBox(input: {
   if (item.type === 'hdf' || item.type === 'rack_item')
     if (!(whole(v.height) >= 1 && whole(v.height) <= 100))
       return { error: 'Height must be a whole number of units, 1 to 100.' }
-  const fit = boxFit(occupied, rack, top, height, count)
+  const fit = boxFit(
+    occupied,
+    rack,
+    top,
+    height,
+    count,
+    item.type === 'model' || item.type === 'panel',
+  )
   if ('error' in fit) return fit
   const names = seriesNames(name, count)
   const clash = names.find((n) => input.taken.has(n.toLowerCase()))

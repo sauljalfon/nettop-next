@@ -22,6 +22,7 @@ interface State {
 }
 
 let state: State = {}
+let nextToken = 1
 let lastPanel: number | undefined
 let lastHdf: { rows: number; height: number } | undefined
 const listeners = new Set<() => void>()
@@ -36,12 +37,12 @@ export const addSession = {
     return () => void listeners.delete(listener)
   },
   get: () => state,
-  /** A click on a library entry; the same entry again lets it go. */
+  /** A click on a library entry, or undefined to let the pick go (the caller compares with `sameItem`). */
   pick(item: NewItem | undefined) {
     set({ picked: item })
   },
   openBox(request: Omit<BoxRequest, 'token'>) {
-    set({ box: { ...request, token: Date.now() + Math.random() } })
+    set({ box: { ...request, token: nextToken++ } })
   },
   closeBox() {
     if (state.box) set({ ...state, box: undefined })

@@ -93,7 +93,7 @@ export default function ModelsPage({
                   onClick={() => choose(m.id)}
                 >
                   <b>
-                    <Name text={m.name} />
+                    <Name text={m.name} className="name-cut" />
                   </b>
                   <span>
                     {m.manufacturer ? <Name text={m.manufacturer} /> : '—'} ·{' '}

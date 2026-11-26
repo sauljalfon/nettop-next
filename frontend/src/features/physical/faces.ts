@@ -98,15 +98,20 @@ export function switchBank(
   for (let i = 0; i < cells.length; i += PORTS_PER_ROW)
     rows.push(cells.slice(i, i + PORTS_PER_ROW))
   const banks: SwitchBankGroup[] = []
+  const bankPorts: Endpoint[][] = []
   ports.forEach((p, i) => {
     const group = p.portGroup ?? 0
     let bank = banks.at(-1)
     if (!bank || bank.group !== group) {
       bank = { group, caption: '', cells: [] }
       banks.push(bank)
+      bankPorts.push([])
     }
     bank.cells.push(cells[i])
-    bank.caption = group > 0 ? caption(ports, bank, i, p) : ''
+    bankPorts[bankPorts.length - 1].push(p)
+  })
+  banks.forEach((bank, b) => {
+    bank.caption = bank.group > 0 ? caption(bankPorts[b]) : ''
   })
   return { rows, banks }
 }
@@ -192,17 +197,26 @@ export function unitOffsets(row: readonly PlateUnit[]): number[] {
   })
 }
 
-/** The caption of a grouped bank as it stands once port `i` is its last one. */
-function caption(
-  ports: readonly Endpoint[],
-  bank: SwitchBankGroup,
-  i: number,
-  last: Endpoint,
-) {
-  const first = ports[i - bank.cells.length + 1]
+/** The value every port of the bank shares, or undefined when they differ (or none has it). */
+function shared<T>(ports: readonly Endpoint[], pick: (p: Endpoint) => T) {
+  const first = pick(ports[0])
+  return ports.every((p) => pick(p) === first) ? first : undefined
+}
+
+/** The caption of a grouped bank: the first and last name, then the type and speed only when every port has the same. */
+function caption(ports: readonly Endpoint[]) {
+  const first = ports[0]
   const range =
-    bank.cells.length === 1 ? first.label : `${first.label}–${last.label}`
-  return [range, first.portType, first.speed].filter(Boolean).join(' · ')
+    ports.length === 1
+      ? first.label
+      : `${first.label}–${ports[ports.length - 1].label}`
+  return [
+    range,
+    shared(ports, (p) => p.portType),
+    shared(ports, (p) => p.speed),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export interface PanelFace {

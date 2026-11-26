@@ -1,5 +1,5 @@
 import { Trash2, X } from 'lucide-react'
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { APIError } from '../../shared/api'
 import type { TextPiece } from '../../shared/textPieces'
 import type { SwitchModel, SwitchModelInput } from '../../shared/types'
@@ -66,7 +66,9 @@ export default function ModelEditor({
   )
   const [error, setError] = useState<TextPiece[]>([])
   const [asking, setAsking] = useState(false)
-  const save = useAsyncAction()
+  // One save at a time: a second Save model while the first is in flight is ignored.
+  const [saving, setSaving] = useState(false)
+  const inFlight = useRef(false)
   const del = useAsyncAction()
   const listId = useId()
 
@@ -74,9 +76,12 @@ export default function ModelEditor({
     setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...patch } : r)))
 
   const submit = async () => {
+    if (inFlight.current) return
     const made = modelFromRows(name, maker, height, rows)
     if ('error' in made) return setError([{ text: made.error }])
     setError([])
+    inFlight.current = true
+    setSaving(true)
     try {
       const saved = model
         ? await onUpdate(model.id, made.input)
@@ -94,6 +99,9 @@ export default function ModelEditor({
             text: e instanceof Error ? e.message : 'Could not save the model.',
           },
         ])
+    } finally {
+      inFlight.current = false
+      setSaving(false)
     }
   }
 
@@ -113,6 +121,7 @@ export default function ModelEditor({
               id={id}
               type="text"
               value={name}
+              dir="auto"
               placeholder="e.g. C9300-48P"
               autoFocus={!model}
               onChange={(e) => setName(e.target.value)}
@@ -278,7 +287,7 @@ export default function ModelEditor({
         </p>
       )}
       <div className="model-actions">
-        <button type="submit" className="btn primary" disabled={save.pending}>
+        <button type="submit" className="btn primary" disabled={saving}>
           Save model
         </button>
         {model && !asking && (

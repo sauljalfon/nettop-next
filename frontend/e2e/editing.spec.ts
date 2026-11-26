@@ -365,7 +365,7 @@ test('ED-11 the HDF box adds a 4-row HDF in a rack, refuses a clash in words, an
   await expect(box).toContainText('96 positions per side')
   // U7 down to U5: U4–U6 are HDF-01's, so the box says so and Add is off.
   await expect(box).toContainText(
-    'Not enough free units below U7 for 1 × 3U. Choose fewer or a higher unit.',
+    'Not enough free units below U7 for 3U. Choose a lower height or a higher unit.',
   )
   await expect(boxAdd(page)).toBeDisabled()
   expect((await getPlan(request, id)).revision).toBe('1')

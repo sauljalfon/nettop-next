@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { rackItemTypeLabel } from '../../shared/rackItems'
+import {
+  defaultRackItemHeight,
+  rackItemTypeLabel,
+} from '../../shared/rackItems'
 import type { Plan, Snapshot } from '../../shared/types'
 import Chip from '../../shared/ui/Chip'
 import Field from '../../shared/ui/Field'
@@ -18,6 +21,7 @@ import {
   occupiedUnits,
   PANEL_MAX_POSITIONS,
   PANEL_POSITIONS,
+  startHeight,
   startName,
   takenUnits,
   whereText,
@@ -140,9 +144,13 @@ export default function AddBox({
     rows: String(start.hdf.rows),
     height:
       item.type === 'hdf'
-        ? String(start.hdf.height)
+        ? String(
+            rack && request.unit !== undefined
+              ? startHeight(occupied, rack, request.unit, start.hdf.height)
+              : start.hdf.height,
+          )
         : item.type === 'rack_item'
-          ? String(item.itemType === 'ups' ? 2 : 1)
+          ? String(defaultRackItemHeight(item.itemType))
           : '1',
     itemText: '',
   }))
@@ -155,6 +163,7 @@ export default function AddBox({
     start.lastPanel !== undefined &&
       !(PANEL_POSITIONS as readonly number[]).includes(start.lastPanel),
   )
+  const many = item.type === 'model' || item.type === 'panel'
   const height = boxHeight(item, model, values)
   const count = howMany(item, values.count)
   // Where the first device's top is: the unit it was opened at, else the first run that fits.
@@ -165,7 +174,7 @@ export default function AddBox({
   )
   const fit =
     rack && top !== undefined
-      ? boxFit(occupied, rack, top, height, count)
+      ? boxFit(occupied, rack, top, height, count, many)
       : { error: 'There is no free run of units in this rack.' }
   const lowest = 'lowest' in fit ? fit.lowest : []
   const lowestUnit = lowest.length ? lowest[0] : (top ?? 1)
@@ -190,7 +199,9 @@ export default function AddBox({
     if ('networkId' in patch) setEdited((e) => ({ ...e, network: true }))
     action.clear()
   }
-  const placed = whereText(lowest, height)
+  // While it does not fit, the header still says where it was opened.
+  const placed =
+    whereText(lowest, height) ?? (top !== undefined ? `U${top}` : undefined)
   useEffect(() => {
     onPreview(lowest.length ? new Set(takenUnits(lowest, height)) : undefined)
     return () => onPreview(undefined)
@@ -253,7 +264,7 @@ export default function AddBox({
 
   const title =
     item.type === 'model' ? (
-      <Name text={model?.name ?? 'switch'} />
+      <Name text={model?.name ?? 'switch'} className="name-cut" />
     ) : item.type === 'panel' ? (
       'Patch panel'
     ) : item.type === 'hdf' ? (
@@ -261,12 +272,17 @@ export default function AddBox({
     ) : (
       rackItemTypeLabel(item.itemType)
     )
-  const many = item.type === 'model' || item.type === 'panel'
   const names =
     many && count > 1 && count <= MAX_HOW_MANY && lowest.length
       ? seriesNames(name || '…', count)
       : []
   const noNetworks = snapshot.networks.length === 0
+  const networkWhy =
+    !edited.network && start.net.why === 'rack'
+      ? 'like the other switches in this rack'
+      : !edited.network && start.net.why === 'header'
+        ? 'the network shown in the header'
+        : undefined
   const pending = action.pending
   const refusal = gone ? 'This model is gone.' : 'error' in fit ? fit.error : ''
   const canAdd =
@@ -284,15 +300,24 @@ export default function AddBox({
       data-testid="add-box"
       data-item={item.type}
       noValidate
-      style={{
-        left: rect ? Math.min(rect.right + 14, window.innerWidth - 350) : 24,
-        top: rect ? shiftTop : 80,
-      }}
+      style={
+        {
+          left: rect ? Math.min(rect.right + 14, window.innerWidth - 350) : 24,
+          top: rect ? shiftTop : 80,
+          // Where the caret points: the middle of the unit, along the box's start edge.
+          '--caret': rect
+            ? `${rect.top + rect.height / 2 - shiftTop - 6}px`
+            : '14px',
+        } as React.CSSProperties
+      }
       onSubmit={submit}
     >
       <div className="form-head">
-        <strong className="form-title">Add {title}</strong>
-        <span className="muted">{placed ? `at ${placed}` : ''}</span>
+        <strong className="form-title">
+          <span className="form-title-add">Add&nbsp;</span>
+          {title}
+        </strong>
+        <span className="muted where">{placed ? `at ${placed}` : ''}</span>
         <Chip kind="proposed" className="proposed-tag">
           Proposed
         </Chip>
@@ -303,6 +328,7 @@ export default function AddBox({
             id={id}
             type="text"
             value={name}
+            dir="auto"
             autoComplete="off"
             placeholder={
               item.type === 'model'
@@ -336,16 +362,7 @@ export default function AddBox({
               ))}
             </div>
           </div>
-          <Field
-            label="Network"
-            hint={
-              !edited.network && start.net.why === 'rack'
-                ? 'like the other switches in this rack'
-                : !edited.network && start.net.why === 'header'
-                  ? 'the network shown in the header'
-                  : undefined
-            }
-          >
+          <Field label="Network">
             {(id) => (
               <select
                 id={id}
@@ -373,6 +390,11 @@ export default function AddBox({
           </Field>
         </div>
       )}
+      {item.type === 'model' && networkWhy && (
+        <p className="hint add-box-why" data-testid="add-box-network-why">
+          Network: {networkWhy}
+        </p>
+      )}
       {item.type === 'model' && noNetworks && (
         <p className="hint" data-testid="no-networks-hint">
           A switch belongs to a network.{' '}
@@ -386,9 +408,11 @@ export default function AddBox({
         </p>
       )}
       {item.type === 'model' && model && (
-        <p className="hint">
-          {modelPortCount(model)} ports · {model.height}U ·{' '}
-          <Name text={model.name} />
+        <p className="hint add-box-model">
+          <span>
+            {modelPortCount(model)} ports · {model.height}U ·
+          </span>
+          <Name text={model.name} className="name-cut" />
         </p>
       )}
       {item.type === 'panel' && (

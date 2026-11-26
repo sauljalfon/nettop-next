@@ -245,6 +245,26 @@ describe('PG-04 port banks: one per port group', () => {
     expect(banks[0].cells).toHaveLength(24)
   })
 
+  it('names a type and a speed only when every port of the group has it (a port typed by hand differs)', () => {
+    const mixed = withGroupedSwitch(physicalSnapshot(), 'SW-M', 'rack-a03', 3, [
+      { count: 3, prefix: 'Gi0/', portType: 'copper', speed: '1G' },
+      { count: 2, prefix: 'Te0/', portType: 'fiber', speed: '10G' },
+    ])
+    const edited = {
+      ...mixed,
+      endpoints: mixed.endpoints.map((e) =>
+        e.id === 'SW-M:p1'
+          ? { ...e, speed: '100M' }
+          : e.id === 'SW-M:p5'
+            ? { ...e, portType: 'copper' as const }
+            : e,
+      ),
+    }
+    expect(
+      switchBank(indexSnapshot(edited), 'SW-M').banks.map((b) => b.caption),
+    ).toEqual(['Gi0/1–Gi0/3 · copper', 'Te0/1–Te0/2 · 10G'])
+  })
+
   it('a single-port group names just that port', () => {
     const one = withGroupedSwitch(physicalSnapshot(), 'SW-1', 'rack-a03', 3, [
       { count: 1, prefix: 'Mgmt', speed: '100M' },

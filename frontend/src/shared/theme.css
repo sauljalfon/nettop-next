@@ -309,6 +309,16 @@ input:focus-visible {
   text-overflow: ellipsis;
 }
 
+/* A name that is cut with an ellipsis: a <Name className="name-cut"> (a bdi with dir="auto") is the cutting block itself, so Hebrew loses its end. */
+.name-cut {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;

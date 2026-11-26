@@ -186,7 +186,7 @@ export const renameTargets = (
 
 /** What the dialog says when `setModelPlan` is told the ports have no positions. */
 export const NO_POSITIONS_NOTE =
-  "This switch's ports have no positions, so its face stays one group"
+  "This switch's ports have no positions, so its face stays one group and its port names are kept"
 
 /** A fix of POST /installed/fixes (a port's `name` is part of DirectFixItem). */
 export type FixInput = DirectFixItem
@@ -254,7 +254,7 @@ export function setModelPlan(
   if (ports.length !== total)
     return {
       error: 'ports',
-      why: `This switch has ${ports.length} ports; ${m.name} has ${total}.`,
+      why: `this switch has ${ports.length} ports; the model has ${total}`,
     }
   const ordered = [...ports].sort(comparePorts)
   const noPositions = ordered.some((p) => !((p.position ?? 0) > 0))
@@ -321,8 +321,11 @@ export function setModelPlan(
     const fix: FixInput = { kind: 'endpoint', id: p.id }
 
     const want = labels[i]
-    if (p.label !== want) {
-      if (p.label === `Port ${p.position || n}`) {
+    // A port saved before positions cannot be renamed (the server refuses it:
+    // its order comes from its label), so its name is left as it is.
+    const positioned = (p.position ?? 0) > 0
+    if (p.label !== want && positioned) {
+      if (p.label === `Port ${p.position}`) {
         fix.name = want
         filled.push({
           section: 'names',

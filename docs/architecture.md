@@ -122,6 +122,7 @@ Traversal and planning never depend on SQL, HTTP, the canvas or names. Handlers 
 - Installed data is normalized (sites, nodes, racks, equipment, subpanels, endpoints, links, occupancy, networks, change log, recorded plan objects). The database enforces identity, uniqueness and value sets; grid completeness and bridge continuity are enforced by `topology.Validate` on every read and write path.
 - Plans are stored as JSON overlays. A new overlay field must load from older plans (a missing key reads as empty) and must be loaded explicitly by the persistence layer; changing only a Go struct or a table leaves plans and the TypeScript mirror inconsistent.
 - Presentation tables (saved node layout) are never part of a topology, a plan or a revision.
+- Library tables (switch models, D51) are never part of a topology, a plan or a revision either: a switch copies its model's ports and details when it is added, and nothing links the two afterwards.
 
 ## 6. Scale
 

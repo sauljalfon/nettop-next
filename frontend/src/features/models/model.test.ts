@@ -384,7 +384,7 @@ describe('setModelPlan', () => {
     expect('why' in r && r.why).toContain('52')
   })
 
-  it('goes by the face order and sends no group for ports without positions', () => {
+  it('goes by the face order and sends no group or rename for ports without positions', () => {
     // Saved before 2026-10-11: no position, no group; order is the number in the label.
     const list = ports([52], false).reverse()
     const r = setModelPlan(edge, list, c9300)
@@ -392,9 +392,16 @@ describe('setModelPlan', () => {
     expect(r.noPositions).toBe(true)
     expect(r.fixes.some((f) => 'portGroup' in f)).toBe(false)
     expect(r.filled.some((l) => l.section === 'groups')).toBe(false)
-    expect(r.fixes.find((f) => f.id === 'sw-1:p2')?.name).toBe('Gi1/0/2')
-    expect(r.fixes.find((f) => f.id === 'sw-1:p49')?.name).toBe('Te1/1/1')
-    expect(r.fixes.find((f) => f.id === 'sw-1:p10')?.name).toBe('Gi1/0/10')
+    // The server refuses renaming a port without a position, so none is sent.
+    expect(r.fixes.some((f) => 'name' in f)).toBe(false)
+    expect(r.filled.some((l) => l.section === 'names')).toBe(false)
+    // Their fields still fill by the face's order: port 49 is the first uplink.
+    expect(r.fixes.find((f) => f.id === 'sw-1:p49')?.details).toMatchObject({
+      portType: 'fiber',
+    })
+    expect(r.fixes.find((f) => f.id === 'sw-1:p10')?.details).toMatchObject({
+      portType: 'copper',
+    })
   })
 
   it('does not clear a Manufacturer the model leaves empty', () => {
